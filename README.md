@@ -150,7 +150,7 @@ We're actively developing:
 - [Altimate MCP Server Docs](https://docs.myaltimate.com/)
 - [ADE-bench Framework](https://github.com/dbt-labs/ade-bench)
 - [dbt Slack Channel](https://getdbt.slack.com/archives/C05KPDGRMDW)
-
+- [Contact Us](https://app.myaltimate.com/contactus)
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
