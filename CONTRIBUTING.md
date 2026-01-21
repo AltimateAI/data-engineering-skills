@@ -49,6 +49,8 @@ Place new skills in the appropriate directory:
 
 ## Skill Guidelines
 
+Follow the official [Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices).
+
 When creating or modifying skills:
 
 - **Be specific**: Clear trigger conditions prevent false activations
