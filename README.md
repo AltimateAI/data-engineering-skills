@@ -127,6 +127,17 @@ Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework 
 | Refactoring | 30% | 35% | +5 pts |
 | Analysis | 25% | 30% | +5 pts |
 
+### Snowflake Query Optimization (TPC-H SF1000)
+
+Benchmark on TPC-H 1TB dataset (Q1-Q10) testing `optimizing-query-text` skill:
+
+| Configuration | Pass Rate | Avg Time Improvement |
+|---------------|-----------|----------------------|
+| Baseline Claude (no skills) | 80% (8/10) | +25% (on passing queries) |
+| Claude + Skills | **100% (10/10)** | +22% |
+
+Baseline failed 2 queries due to unsafe optimizations (UNION→UNION ALL, column name corruption).
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
