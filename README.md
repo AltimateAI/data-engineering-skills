@@ -16,16 +16,16 @@ Altimate Data Skills is a collection of Claude Code skills that encode the workf
 ## Quick Start
 
 ```bash
-/plugin marketplace add AltimateAI/altimate-skills
+/plugin marketplace add AltimateAI/data-engineering-skills
 ```
 
 Install individual skill packs:
 ```bash
 # Install dbt skills
-/plugin install dbt-skills@altimate-skills
+/plugin install dbt-skills@data-engineering-skills
 
 # Install Snowflake skills
-/plugin install snowflake-skills@altimate-skills
+/plugin install snowflake-skills@data-engineering-skills
 ```
 
 ## Available Skills
@@ -108,14 +108,14 @@ Skills become even more powerful when combined with [Altimate's MCP server](http
 
 ## Benchmark Results
 
-Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework for evaluating AI agents on analytics engineering tasks.
+Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework for evaluating AI agents on analytics engineering tasks. All tests were run using Claude Sonnet 4.5.
 
 ### Overall Results
 
 | Configuration | Accuracy | Tasks Resolved |
 |---------------|----------|----------------|
-| Baseline Claude (no skills, no MCP) | 46.5% | 20/43 |
-| Claude + Skills + MCP | **53.5%** | 23/43 |
+| Baseline Claude (no skills) | 46.5% | 20/43 |
+| Claude + Skills | **53.5%** | 23/43 |
 
 ### Results by Task Category
 
