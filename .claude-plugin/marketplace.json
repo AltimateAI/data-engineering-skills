@@ -1,0 +1,38 @@
+{
+  "name": "altimate-skills",
+  "owner": {
+    "name": "Altimate AI",
+    "email": "support@altimate.ai"
+  },
+  "metadata": {
+    "description": "Skills for data engineering workflows",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "dbt-skills",
+      "description": "Skills for dbt development, testing, debugging, and refactoring",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/dbt/creating-dbt-models",
+        "./skills/dbt/debugging-dbt-errors",
+        "./skills/dbt/testing-dbt-models",
+        "./skills/dbt/documenting-dbt-models",
+        "./skills/dbt/migrating-sql-to-dbt",
+        "./skills/dbt/refactoring-dbt-models"
+      ]
+    },
+    {
+      "name": "snowflake-skills",
+      "description": "Skills for Snowflake query optimization",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/snowflake/optimizing-query-by-id",
+        "./skills/snowflake/optimizing-query-text",
+        "./skills/snowflake/finding-expensive-queries"
+      ]
+    }
+  ]
+}
