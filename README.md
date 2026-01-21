@@ -149,7 +149,7 @@ We're actively developing:
 
 - [Altimate MCP Server Docs](https://docs.myaltimate.com/)
 - [ADE-bench Framework](https://github.com/dbt-labs/ade-bench)
-- [dbt Slack #tools-altimate](https://getdbt.slack.com/)
+- [dbt Slack Channel](https://getdbt.slack.com/archives/C05KPDGRMDW)
 
 ## License
 
