@@ -16,17 +16,16 @@ Altimate Data Skills is a collection of Claude Code skills that encode the workf
 ## Quick Start
 
 ```bash
-# Install from marketplace (coming soon)
 /plugin marketplace add AltimateAI/altimate-skills
-
-# Or clone and install manually
-git clone https://github.com/AltimateAI/altimate-skills.git
-cp -r altimate-skills/skills ~/.claude/skills/
 ```
 
-Verify installation:
+Install individual skill packs:
 ```bash
-/skills list
+# Install dbt skills
+/plugin install dbt-skills@altimate-skills
+
+# Install Snowflake skills
+/plugin install snowflake-skills@altimate-skills
 ```
 
 ## Available Skills
@@ -35,18 +34,20 @@ Verify installation:
 
 | Skill | Purpose | Key Behaviors |
 |-------|---------|---------------|
-| **dbt-dev** | Model creation | Convention discovery → Write → Build → Verify output |
-| **dbt-debug** | Error troubleshooting | Read full error → Check upstream → Apply fix → Rebuild |
-| **dbt-testing** | Schema tests | Study existing test patterns → Match project style |
-| **dbt-document** | Documentation | Analyze model → Generate descriptions |
-| **dbt-sql-to-model** | Legacy SQL conversion | Parse SQL → Create proper dbt model |
-| **dbt-refactor** | Safe restructuring | Track dependencies → Apply changes → Verify downstream |
+| **creating-dbt-models** | Model creation | Convention discovery → Write → Build → Verify output |
+| **debugging-dbt-errors** | Error troubleshooting | Read full error → Check upstream → Apply fix → Rebuild |
+| **testing-dbt-models** | Schema tests | Study existing test patterns → Match project style |
+| **documenting-dbt-models** | Documentation | Analyze model → Generate descriptions |
+| **migrating-sql-to-dbt** | Legacy SQL conversion | Parse SQL → Create proper dbt model |
+| **refactoring-dbt-models** | Safe restructuring | Track dependencies → Apply changes → Verify downstream |
 
 ### Snowflake Skills
 
 | Skill | Purpose | Key Behaviors |
 |-------|---------|---------------|
-| **snowflake-query-optimization** | Performance tuning | Profile query → Identify bottlenecks → Apply patterns |
+| **finding-expensive-queries** | Cost analysis | Find and rank queries by cost/time/data scanned |
+| **optimizing-query-by-id** | Performance tuning | Optimize using query ID from history |
+| **optimizing-query-text** | Performance tuning | Profile query → Identify bottlenecks → Apply patterns |
 
 ## How Skills Work
 
@@ -57,7 +58,7 @@ When should this skill activate?
 
 ```yaml
 ---
-name: dbt-dev
+name: creating-dbt-models
 description: |
   Guide for creating dbt models. ALWAYS use this skill when:
   (1) Creating ANY new model (staging, intermediate, mart)
@@ -87,11 +88,11 @@ Skills activate automatically based on your request:
 
 | Your Request | Skill Activated |
 |--------------|-----------------|
-| "Create a new orders model" | `dbt-dev` |
-| "Fix this compilation error" | `dbt-debug` |
-| "Add tests to the customers model" | `dbt-testing` |
-| "Document the revenue metrics" | `dbt-document` |
-| "This query is slow, optimize it" | `snowflake-query-optimization` |
+| "Create a new orders model" | `creating-dbt-models` |
+| "Fix this compilation error" | `debugging-dbt-errors` |
+| "Add tests to the customers model" | `testing-dbt-models` |
+| "Document the revenue metrics" | `documenting-dbt-models` |
+| "This query is slow, optimize it" | `optimizing-query-text` |
 
 ## Combining with Altimate MCP Tools
 
