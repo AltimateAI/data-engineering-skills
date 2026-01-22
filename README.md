@@ -135,8 +135,8 @@ Benchmark on TPC-H 1TB dataset (62 queries) testing `optimizing-query-text` skil
 
 | Metric | Baseline | With Skills | Improvement |
 |--------|----------|-------------|-------------|
-| **Pass Rate** | 77.4% (48/62) | **83.9% (52/62)** | +6.5 pts |
-| **Avg Performance** | -4.7% | **-16.8%** | 3.6x better |
+| **Pass Rate** | 77.4% (48/62) | **83.9% (52/62)** | +6.5% |
+| **Avg Performance Improvement** | 4.7% | **16.8%** | 3.6x better |
 | **Consistency** | 75.0% improved | **84.6% improved** | +9.6% |
 
 Skills provide structured optimization with query profiling, anti-pattern detection, and semantic preservation validation.
