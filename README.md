@@ -140,6 +140,8 @@ Benchmark on TPC-H 1TB dataset (62 queries) testing `optimizing-query-text` skil
 
 Skills provide structured optimization with query profiling, anti-pattern detection, and semantic preservation validation.
 
+> **Note:** This benchmark uses our internal evaluation framework. We plan to open-source it soon with additional evals.
+
 ## Contributing
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
