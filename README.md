@@ -133,11 +133,10 @@ Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework 
 
 Benchmark on TPC-H 1TB dataset (62 queries) testing `optimizing-query-text` skill. All tests were run using Claude Sonnet 4.5.
 
-| Metric | Baseline | With Skills | Improvement |
-|--------|----------|-------------|-------------|
-| **Pass Rate** | 77.4% (48/62) | **83.9% (52/62)** | +6.5% |
-| **Avg Performance Improvement** | 4.7% | **16.8%** | 3.6x better |
-| **Consistency** | 75.0% improved | **84.6% improved** | +9.6% |
+| Configuration | Pass Rate | Avg Performance Improvement |
+|---------------|-----------|----------------------------|
+| Baseline Claude (no skills) | 77.4% (48/62) | 4.7% |
+| Claude + Skills | **83.9% (52/62)** | **16.8%** (3.6x better) |
 
 Skills provide structured optimization with query profiling, anti-pattern detection, and semantic preservation validation.
 
