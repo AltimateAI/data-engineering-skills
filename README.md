@@ -1,6 +1,6 @@
-# Altimate Data Skills
+# Data Engineering Skills
 
-**Claude Code skills for analytics engineers working with dbt and Snowflake**
+**Claude Code skills for Analytics & Data engineers working with dbt and Snowflake**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skills-blueviolet)](https://claude.ai/claude-code)
