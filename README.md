@@ -11,6 +11,8 @@ Altimate Data Skills is a collection of Claude Code skills that encode the workf
 
 - **53% accuracy** on [ADE-bench](https://github.com/dbt-labs/ade-bench) (43 real-world dbt tasks)
 - **3x improvement** on model creation tasks vs baseline
+- **84% pass rate** on Snowflake query optimization (62 TPC-H queries, 1TB dataset)
+- **3.6x better performance** gains vs baseline (16.8% avg improvement vs 4.7%)
 - Skills that teach Claude *how* to work, not just *what* to write
 
 ## Quick Start
@@ -129,16 +131,15 @@ Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework 
 
 ### Snowflake Query Optimization (TPC-H SF1000)
 
-Benchmark on TPC-H 1TB dataset (Q1-Q10) testing `optimizing-query-text` skill. All tests were run using Claude Sonnet 4.5.
+Benchmark on TPC-H 1TB dataset (62 queries) testing `optimizing-query-text` skill. All tests were run using Claude Sonnet 4.5.
 
-| Configuration | Pass Rate | Avg Time Improvement |
-|---------------|-----------|----------------------|
-| Baseline Claude (no skills) | 80% (8/10) | +25% (on passing queries) |
-| Claude + Skills | **100% (10/10)** | +22% |
+| Metric | Baseline | With Skills | Improvement |
+|--------|----------|-------------|-------------|
+| **Pass Rate** | 77.4% (48/62) | **83.9% (52/62)** | +6.5 pts |
+| **Avg Performance** | -4.7% | **-16.8%** | 3.6x better |
+| **Consistency** | 75.0% improved | **84.6% improved** | +9.6% |
 
-Baseline failed 2 queries due to unsafe optimizations (UNION→UNION ALL, column name corruption).
-
-> **Note:** This benchmark uses our internal evaluation framework. We plan to open-source it soon with additional evals.
+Skills provide structured optimization with query profiling, anti-pattern detection, and semantic preservation validation.
 
 ## Contributing
 
