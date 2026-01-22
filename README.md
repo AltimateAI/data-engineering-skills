@@ -129,7 +129,7 @@ Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework 
 
 ### Snowflake Query Optimization (TPC-H SF1000)
 
-Benchmark on TPC-H 1TB dataset (Q1-Q10) testing `optimizing-query-text` skill:
+Benchmark on TPC-H 1TB dataset (Q1-Q10) testing `optimizing-query-text` skill. All tests were run using Claude Sonnet 4.5.
 
 | Configuration | Pass Rate | Avg Time Improvement |
 |---------------|-----------|----------------------|
@@ -137,6 +137,8 @@ Benchmark on TPC-H 1TB dataset (Q1-Q10) testing `optimizing-query-text` skill:
 | Claude + Skills | **100% (10/10)** | +22% |
 
 Baseline failed 2 queries due to unsafe optimizations (UNION→UNION ALL, column name corruption).
+
+> **Note:** This benchmark uses our internal evaluation framework. We plan to open-source it soon with additional evals.
 
 ## Contributing
 
