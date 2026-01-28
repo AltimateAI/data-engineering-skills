@@ -73,6 +73,8 @@ dbt show --inline "
 
 **Default:** `merge` is safest for most use cases.
 
+**Note:** Strategy availability varies by adapter. Check the [dbt incremental strategy docs](https://docs.getdbt.com/docs/build/incremental-strategy) for your specific warehouse.
+
 ### 4. Design the Unique Key
 
 **CRITICAL: unique_key must be truly unique in your data.**
@@ -161,10 +163,16 @@ Set `on_schema_change` based on your needs:
 
 **Fix:**
 ```sql
--- Add deduplication
-{% if is_incremental() %}
-qualify row_number() over (partition by id order by updated_at desc) = 1
-{% endif %}
+-- Add deduplication using a CTE (cross-database compatible)
+with deduplicated as (
+    select *,
+        row_number() over (partition by id order by updated_at desc) as rn
+    from {{ source('schema', 'table') }}
+    {% if is_incremental() %}
+    where updated_at > (select max(updated_at) from {{ this }})
+    {% endif %}
+)
+select * from deduplicated where rn = 1
 ```
 
 ### Problem: No Partition Pruning (Full Table Scan)
@@ -173,11 +181,11 @@ qualify row_number() over (partition by id order by updated_at desc) = 1
 
 **Cause:** Dynamic date filter prevents partition pruning.
 
-**Fix for BigQuery/Snowflake:**
+**Fix:**
 ```sql
 {% if is_incremental() %}
 -- Use static date instead of subquery for partition pruning
-where updated_at >= dateadd('day', -3, current_date())
+where updated_at >= {{ dbt.dateadd('day', -3, 'current_date') }}
   and updated_at > (select max(updated_at) from {{ this }})
 {% endif %}
 ```
@@ -191,7 +199,7 @@ where updated_at >= dateadd('day', -3, current_date())
 **Fix:** Use a lookback window:
 ```sql
 {% if is_incremental() %}
-where updated_at >= dateadd('day', -3, (select max(updated_at) from {{ this }}))
+where updated_at >= {{ dbt.dateadd('day', -3, '(select max(updated_at) from ' ~ this ~ ')') }}
 {% endif %}
 ```
 
@@ -258,7 +266,7 @@ where updated_at > (select max(updated_at) from {{ this }})
 
 select * from {{ source('orders', 'raw') }}
 {% if is_incremental() %}
-where order_date >= dateadd('day', -7, current_date())
+where order_date >= {{ dbt.dateadd('day', -7, 'current_date') }}
 {% endif %}
 ```
 
@@ -277,7 +285,7 @@ where order_date >= dateadd('day', -7, current_date())
 
 select * from {{ source('events', 'raw') }}
 {% if is_incremental() %}
-where event_date >= dateadd('day', -3, current_date())
+where event_date >= {{ dbt.dateadd('day', -3, 'current_date') }}
 {% endif %}
 ```
 
