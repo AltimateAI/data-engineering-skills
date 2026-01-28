@@ -42,6 +42,7 @@ Install individual skill packs:
 | **documenting-dbt-models** | Documentation | Analyze model → Generate descriptions |
 | **migrating-sql-to-dbt** | Legacy SQL conversion | Parse SQL → Create proper dbt model |
 | **refactoring-dbt-models** | Safe restructuring | Track dependencies → Apply changes → Verify downstream |
+| **developing-incremental-models** | Incremental models | Strategy selection → unique_key design → Handle edge cases |
 
 ### Snowflake Skills
 
@@ -94,6 +95,7 @@ Skills activate automatically based on your request:
 | "Fix this compilation error" | `debugging-dbt-errors` |
 | "Add tests to the customers model" | `testing-dbt-models` |
 | "Document the revenue metrics" | `documenting-dbt-models` |
+| "Create an incremental model for events" | `developing-incremental-models` |
 | "This query is slow, optimize it" | `optimizing-query-text` |
 
 ## Combining with Altimate MCP Tools
