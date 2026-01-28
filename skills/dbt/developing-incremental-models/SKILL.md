@@ -185,7 +185,7 @@ select * from deduplicated where rn = 1
 ```sql
 {% if is_incremental() %}
 -- Use static date instead of subquery for partition pruning
-where updated_at >= {{ dbt.dateadd('day', -3, 'current_date') }}
+where updated_at >= {{ dbt.dateadd('day', -3, dbt.current_timestamp()) }}
   and updated_at > (select max(updated_at) from {{ this }})
 {% endif %}
 ```
@@ -196,10 +196,20 @@ where updated_at >= {{ dbt.dateadd('day', -3, 'current_date') }}
 
 **Cause:** Filtering by max(updated_at) misses late arrivals.
 
-**Fix:** Use a lookback window:
+**Fix:** Use a lookback window with a fixed offset from current date:
 ```sql
 {% if is_incremental() %}
-where updated_at >= {{ dbt.dateadd('day', -3, '(select max(updated_at) from ' ~ this ~ ')') }}
+-- Lookback 3 days to catch late-arriving data
+where updated_at >= {{ dbt.dateadd('day', -3, dbt.current_timestamp()) }}
+{% endif %}
+```
+
+Alternatively, use a variable for the lookback period:
+```sql
+{% set lookback_days = 3 %}
+
+{% if is_incremental() %}
+where updated_at >= {{ dbt.dateadd('day', -lookback_days, dbt.current_timestamp()) }}
 {% endif %}
 ```
 
@@ -266,7 +276,7 @@ where updated_at > (select max(updated_at) from {{ this }})
 
 select * from {{ source('orders', 'raw') }}
 {% if is_incremental() %}
-where order_date >= {{ dbt.dateadd('day', -7, 'current_date') }}
+where order_date >= {{ dbt.dateadd('day', -7, dbt.current_timestamp()) }}
 {% endif %}
 ```
 
@@ -285,7 +295,7 @@ where order_date >= {{ dbt.dateadd('day', -7, 'current_date') }}
 
 select * from {{ source('events', 'raw') }}
 {% if is_incremental() %}
-where event_date >= {{ dbt.dateadd('day', -3, 'current_date') }}
+where event_date >= {{ dbt.dateadd('day', -3, dbt.current_timestamp()) }}
 {% endif %}
 ```
 
