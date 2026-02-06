@@ -20,7 +20,8 @@
         "./skills/dbt/testing-dbt-models",
         "./skills/dbt/documenting-dbt-models",
         "./skills/dbt/migrating-sql-to-dbt",
-        "./skills/dbt/refactoring-dbt-models"
+        "./skills/dbt/refactoring-dbt-models",
+        "./skills/dbt/developing-incremental-models"
       ]
     },
     {
