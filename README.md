@@ -110,6 +110,31 @@ Skills become even more powerful when combined with [Altimate's MCP server](http
 | `snowflake_query_history` | Recent query executions and stats |
 | `snowflake_table_stats` | Row counts, clustering info |
 
+## Kits
+
+Kits bundle skills, MCP servers, and instructions into a single activatable unit. Instead of installing skills one by one, activate a kit to get a complete development setup.
+
+### Available Kits
+
+| Kit | Description | Skills | MCP |
+|-----|-------------|--------|-----|
+| [dbt-snowflake](kits/dbt-snowflake/) | Complete dbt + Snowflake setup | 9 skills | dbt MCP server |
+
+### Quick Start
+
+```bash
+# Install the kit
+altimate-code kit install AltimateAI/data-engineering-skills
+
+# Activate for your project
+altimate-code kit activate dbt-snowflake
+
+# Check what's active
+altimate-code kit status
+```
+
+See [kits/README.md](kits/README.md) for the full kit format reference and how to create your own.
+
 ## Benchmark Results
 
 Evaluated using [ADE-bench](https://github.com/dbt-labs/ade-bench), a framework for evaluating AI agents on analytics engineering tasks. All tests were run using Claude Sonnet 4.5.
