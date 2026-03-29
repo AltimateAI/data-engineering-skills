@@ -59,6 +59,23 @@ When creating or modifying skills:
 - **Match conventions**: Study the project before making changes
 - **Test thoroughly**: Try your skill on real tasks
 
+## Contributing Kits
+
+Kits bundle skills, MCP servers, and instructions into shareable setups. To contribute a kit:
+
+1. Create a directory under `kits/` with your kit name (e.g., `kits/my-kit/`)
+2. Add a `KIT.yaml` file — see [kits/README.md](kits/README.md) for the format
+3. Reference skills that exist in this repo or other public repos
+4. Test with `altimate-code kit validate my-kit`
+5. Submit a pull request following the template below
+
+### Kit Guidelines
+
+- **One kit per tool combination** (e.g., `dbt-snowflake`, not `dbt` and `snowflake` separately)
+- **Include detection rules** so kits can be suggested automatically
+- **Keep instructions concise** — focus on conventions, not tutorials
+- **Set the correct tier** — use `community` for new contributions
+
 ## Questions?
 
 - Open a GitHub issue for bugs or feature requests

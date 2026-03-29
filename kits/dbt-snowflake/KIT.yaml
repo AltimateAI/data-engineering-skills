@@ -1,0 +1,45 @@
+name: dbt-snowflake
+description: Complete dbt + Snowflake development setup — installs skills, configures MCP server, and adds best-practice instructions
+version: 1.0.0
+author: Altimate AI
+tier: built-in
+
+skills:
+  - source: "AltimateAI/data-engineering-skills"
+    select:
+      - creating-dbt-models
+      - debugging-dbt-errors
+      - testing-dbt-models
+      - refactoring-dbt-models
+      - documenting-dbt-models
+      - developing-incremental-models
+      - migrating-sql-to-dbt
+      - optimizing-query-by-id
+      - finding-expensive-queries
+
+mcp:
+  dbt:
+    type: stdio
+    command: ["uvx", "dbt-mcp"]
+    env:
+      DBT_PROJECT_DIR: "./"
+      DBT_PROFILES_DIR: "~/.dbt"
+    env_keys: ["DBT_PROJECT_DIR", "DBT_PROFILES_DIR"]
+    description: "dbt MCP server — SQL execution, semantic layer, discovery API"
+
+instructions: |
+  This project uses dbt with Snowflake as the warehouse.
+
+  Key conventions:
+  - Use `ref()` for all model references, never hardcode table names
+  - Follow the staging → intermediate → marts layering pattern
+  - All models must have at least one test (unique, not_null, or custom)
+  - Use incremental models for large fact tables (>1M rows)
+  - Prefer `dbt build --select +model_name` to run with upstream dependencies
+  - Run `dbt build` (not just `dbt compile`) to verify changes
+
+detect:
+  - files: ["dbt_project.yml", "dbt_project.yaml"]
+    message: "Detected dbt project — activate dbt-snowflake kit for AI-assisted development?"
+  - files: ["profiles.yml"]
+    message: "Detected dbt profiles — activate dbt-snowflake kit?"

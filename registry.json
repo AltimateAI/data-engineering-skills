@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "description": "Altimate Code Kit Registry — curated index of kits for data engineering",
+  "kits": [
+    {
+      "name": "dbt-snowflake",
+      "description": "Complete dbt + Snowflake development setup — skills, MCP server, and best-practice instructions",
+      "version": "1.0.0",
+      "author": "Altimate AI",
+      "tier": "built-in",
+      "repo": "AltimateAI/data-engineering-skills",
+      "path": "kits/dbt-snowflake",
+      "tags": ["dbt", "snowflake", "warehouse", "sql", "analytics"],
+      "detect": ["dbt_project.yml", "dbt_project.yaml"]
+    }
+  ]
+}
