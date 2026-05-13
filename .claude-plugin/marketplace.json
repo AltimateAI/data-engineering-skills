@@ -34,6 +34,15 @@
         "./skills/snowflake/optimizing-query-text",
         "./skills/snowflake/finding-expensive-queries"
       ]
+    },
+    {
+      "name": "altimate-code",
+      "description": "Delegate data engineering tasks to altimate-code — a specialized CLI agent with 100+ data tools (warehouse profiling, column lineage, dbt build/test, FinOps)",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/altimate-code"
+      ]
     }
   ]
 }
