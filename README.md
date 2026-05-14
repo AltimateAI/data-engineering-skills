@@ -28,6 +28,9 @@ Install individual skill packs:
 
 # Install Snowflake skills
 /plugin install snowflake-skills@data-engineering-skills
+
+# Install altimate-code delegation skill
+/plugin install altimate-code@data-engineering-skills
 ```
 
 ## Available Skills
@@ -51,6 +54,16 @@ Install individual skill packs:
 | **finding-expensive-queries** | Cost analysis | Find and rank queries by cost/time/data scanned |
 | **optimizing-query-by-id** | Performance tuning | Optimize using query ID from history |
 | **optimizing-query-text** | Performance tuning | Profile query → Identify bottlenecks → Apply patterns |
+
+### altimate-code Delegation
+
+| Skill | Purpose | Key Behaviors |
+|-------|---------|---------------|
+| **altimate-code** | Hand off data tasks to altimate-code | Verify install → Invoke `altimate-code run --yolo` non-interactively → Read output file → Summarize for user |
+
+Use this skill when a task needs altimate-code's wired-up warehouse tools, column lineage, multi-step data exploration, or its 100+ specialized data tools.
+
+**Requires altimate-code:** `npm install -g altimate-code` (Node 20+). Docs: [docs.altimate.sh](https://docs.altimate.sh) · Source: [AltimateAI/altimate-code](https://github.com/AltimateAI/altimate-code). The skill will detect a missing install and surface the exact command to the user.
 
 ## How Skills Work
 
