@@ -38,8 +38,13 @@ If `command -v` fails but the user says it is installed, suggest checking `npm b
 **Minimal invocation:**
 
 ```bash
-altimate-code run "<task description>" --yolo
+altimate-code run "<task description>" --yolo < /dev/null
 ```
+
+<!-- DEPRECATED: remove `< /dev/null` once minimum supported altimate-code
+     contains AltimateAI/altimate-code#935 (stdin-wedge fix).
+     Tracked: https://github.com/AltimateAI/data-engineering-skills/issues/11
+     Applies to every `altimate-code run` invocation in this file. -->
 
 **Recommended invocation** — captures the final response to a file and runs in the right directory:
 
@@ -47,7 +52,8 @@ altimate-code run "<task description>" --yolo
 altimate-code run "<task description>" \
   --yolo \
   --output /tmp/altimate-result.md \
-  --dir "$(pwd)"
+  --dir "$(pwd)" \
+  < /dev/null
 ```
 
 Then read `/tmp/altimate-result.md` and pass it straight back to the user.
@@ -69,21 +75,21 @@ Then read `/tmp/altimate-result.md` and pass it straight back to the user.
 
 ```bash
 altimate-code run "Find the top 10 most expensive queries from the last 7 days in Snowflake and explain why each is slow." \
-  --yolo --output /tmp/expensive.md
+  --yolo --output /tmp/expensive.md < /dev/null
 ```
 
 **Generate column-level lineage for a dbt model:**
 
 ```bash
 altimate-code run "Show column-level lineage for the dim_customers model, including upstream sources and downstream consumers." \
-  --yolo --dir "$(pwd)" --output /tmp/lineage.md
+  --yolo --dir "$(pwd)" --output /tmp/lineage.md < /dev/null
 ```
 
 **Profile a table:**
 
 ```bash
 altimate-code run "Profile the events table — row count, null distribution per column, cardinality, and top 5 values for low-cardinality columns." \
-  --yolo --output /tmp/profile.md
+  --yolo --output /tmp/profile.md < /dev/null
 ```
 
 ## Presenting the Result
