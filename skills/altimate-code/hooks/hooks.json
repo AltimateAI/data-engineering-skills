@@ -1,0 +1,15 @@
+{
+  "description": "Nudges the agent to consult Skills before reading files on data-engineering tasks, with explicit mention of altimate-code for warehouse/lineage/cross-DB work.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
