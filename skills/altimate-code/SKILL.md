@@ -15,10 +15,26 @@ altimate-code is a CLI AI agent with 100+ purpose-built data engineering tools. 
 
 Do not attempt the work with Edit/Write/Bash yourself, even if it looks simple. The whole point of this skill is to route data-engineering work to the agent that's built for it. If you find yourself reaching for Edit or Write while this skill is active, stop and re-read this paragraph.
 
-## Invocation
+## Invocation — pick the right agent for the task
+
+altimate-code has multiple agent personas. The default (`builder`) does a full project discovery sweep on every call — fine for warehouse-state work but ~10–20× more expensive than necessary on simple file edits. **Pick the agent based on task shape before invoking.**
+
+### Step 1 — classify the task
+
+| Shape | Examples | Use |
+|---|---|---|
+| **Trivial edit** | rename a model, fix a typo, add a column with a literal default, change a config key | `fast-edit` |
+| **Multi-step structural** | create a new dbt project, add staging models from a source spec, restructure model files | `fast-edit` |
+| **Semantic SQL work** | new model with multi-table joins, aggregations that must be exactly right, refactor logic that affects results | `analyst` |
+| **Warehouse-state work** | column-level lineage, downstream-impact, cross-DB migration / parity, query cost attribution against a real warehouse, schema diff between environments, PII detection, FinOps reporting | `builder` (default — has warehouse tools enabled) |
+
+If you're not sure, prefer `analyst` over `builder` (~30% cheaper at similar quality on dbt-shaped work). Only pick `builder` when the task genuinely needs the warehouse-investigation tools.
+
+### Step 2 — invoke with the chosen agent
 
 ```bash
 altimate-code run "<user's task, verbatim>" \
+  --agent <fast-edit|analyst|builder> \
   --yolo \
   --output /tmp/altimate-result.md \
   --dir "$(pwd)"
@@ -30,6 +46,7 @@ Then `Read /tmp/altimate-result.md` and emit its contents to the user without re
 
 | Flag | Why it is required |
 |---|---|
+| `--agent <name>` | Picks the agent persona. Default `builder` is overkill for simple edits — see the classification table above. Wrong agent = either 10× too expensive (using `builder` on a rename) or wrong-answer (using `fast-edit` on a multi-table join). |
 | `--yolo` | Non-interactive mode. Without this the subprocess hangs on the first permission prompt and you will time out. |
 | `--output /tmp/altimate-result.md` | Captures the final response. Without this you lose the answer to stdout-buffering and can't reliably read it back. |
 | `--dir "$(pwd)"` | Runs altimate-code in the current project so it picks up dbt project config, profiles.yml, etc. |

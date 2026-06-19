@@ -14,16 +14,28 @@ Workflow (follow in order, no skipping):
    If it returns nothing, stop and tell the user:
    > altimate-code is not installed. Install with `npm install -g altimate-code` (Node 20+), then run `altimate-code` once to configure your provider/warehouse auth, then re-run `/altimate <task>`.
 
-2. **Run altimate-code with the user's task:**
+2. **Pick the agent persona** based on the user's task shape (this controls altimate-code's token cost by 10–20× — wrong agent = expensive or wrong answer):
+
+   | Task shape | Examples | Use `--agent` |
+   |---|---|---|
+   | Trivial edit | rename, fix typo, add literal column | `fast-edit` |
+   | Multi-step structural | create new dbt project, add staging models | `fast-edit` |
+   | Semantic SQL | multi-table joins, aggregations | `analyst` |
+   | Warehouse-state | lineage, cost, parity, schema diff, PII, FinOps | `builder` (default) |
+
+   When in doubt, prefer `analyst` over `builder`.
+
+3. **Run altimate-code with the chosen agent:**
    ```bash
    altimate-code run "$ARGUMENTS" \
+     --agent <fast-edit|analyst|builder> \
      --yolo \
      --output /tmp/altimate-result.md \
      --dir "$(pwd)"
    ```
 
-3. **Surface the result verbatim:** read `/tmp/altimate-result.md` and present its contents to the user without re-summarising, re-formatting, or commenting. altimate-code has already produced the answer.
+4. **Surface the result verbatim:** read `/tmp/altimate-result.md` and present its contents to the user without re-summarising, re-formatting, or commenting. altimate-code has already produced the answer.
 
-4. **On any altimate-code error** (`Unauthorized`, `Token limit reached`, `No provider configured`, warehouse credentials wrong, process timeout) — surface the error message to the user along with the fix from the skill body's failure-modes table. Do NOT fall back to native tools. The user invoked `/altimate` specifically to use altimate-code; falling back would defeat the purpose.
+5. **On any altimate-code error** (`Unauthorized`, `Token limit reached`, `No provider configured`, warehouse credentials wrong, process timeout) — surface the error message to the user along with the fix from the skill body's failure-modes table. Do NOT fall back to native tools. The user invoked `/altimate` specifically to use altimate-code; falling back would defeat the purpose.
 
 Task to delegate: $ARGUMENTS
