@@ -14,16 +14,16 @@ Workflow (follow in order, no skipping):
    If it returns nothing, stop and tell the user:
    > altimate-code is not installed. Install with `npm install -g altimate-code` (Node 20+), then run `altimate-code` once to configure your provider/warehouse auth, then re-run `/altimate <task>`.
 
-2. **Pick the agent persona** based on the user's task shape (this controls altimate-code's token cost by 10–20× — wrong agent = expensive or wrong answer):
+2. **Pick the agent persona** based on the user's task shape. Start cheap and escalate on failure — fast-edit handles most dbt/SQL work at 10–20× lower cost than builder.
 
-   | Task shape | Examples | Use `--agent` |
-   |---|---|---|
-   | Trivial edit | rename, fix typo, add literal column | `fast-edit` |
-   | Multi-step structural | create new dbt project, add staging models | `fast-edit` |
-   | Semantic SQL | multi-table joins, aggregations | `analyst` |
-   | Warehouse-state | lineage, cost, parity, schema diff, PII, FinOps | `builder` (default) |
+   | Task shape | Use `--agent` |
+   |---|---|
+   | Any dbt / SQL task (rename, refactor, create, debug, structural) | `fast-edit` (default) |
+   | Aggregation correctness on multi-table joins | `analyst` if fast-edit fails the user's verification |
+   | Warehouse-state work (lineage, cost, parity, schema diff, PII, FinOps) | `builder` |
+   | Vague debug ("X is broken") | **Stop — ask the user for the specific error before delegating.** |
 
-   When in doubt, prefer `analyst` over `builder`.
+   Decision rule: start with `fast-edit`. Only use `analyst` / `builder` when the cheap path fails for a documented reason.
 
 3. **Run altimate-code with the chosen agent:**
    ```bash

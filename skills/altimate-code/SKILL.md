@@ -23,12 +23,12 @@ altimate-code has multiple agent personas. The default (`builder`) does a full p
 
 | Shape | Examples | Use |
 |---|---|---|
-| **Trivial edit** | rename a model, fix a typo, add a column with a literal default, change a config key | `fast-edit` |
-| **Multi-step structural** | create a new dbt project, add staging models from a source spec, restructure model files | `fast-edit` |
-| **Semantic SQL work** | new model with multi-table joins, aggregations that must be exactly right, refactor logic that affects results | `analyst` |
+| **Any dbt / SQL task** (rename, refactor, create model, debug, structural reorg, multi-step setup) | the vast majority of customer requests | `fast-edit` — try this first |
+| **Multi-table aggregation correctness** | new model joining 3+ tables with `count(*)` / `sum() over (...)` / "first X, last X" logic that must be exactly right | `analyst` if `fast-edit` fails the user's verification |
 | **Warehouse-state work** | column-level lineage, downstream-impact, cross-DB migration / parity, query cost attribution against a real warehouse, schema diff between environments, PII detection, FinOps reporting | `builder` (default — has warehouse tools enabled) |
+| **Vague debug** ("X is broken", "make it work", "fix this") | unspecified failure mode | **Don't delegate yet.** Ask the user for the specific error message or symptom before invoking any agent — empirically all three agents fail vague debug prompts at ~700K tokens each. |
 
-If you're not sure, prefer `analyst` over `builder` (~30% cheaper at similar quality on dbt-shaped work). Only pick `builder` when the task genuinely needs the warehouse-investigation tools.
+**Decision policy:** start with `fast-edit` for any dbt/SQL task. If the user reports the result is wrong (e.g. aggregation values don't match), retry with `analyst`. Only use `builder` when the task genuinely needs the warehouse-investigation tools (it's 10–20× more expensive than fast-edit and rarely required).
 
 ### Step 2 — invoke with the chosen agent
 
