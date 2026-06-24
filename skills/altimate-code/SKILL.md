@@ -51,6 +51,23 @@ Then `Read /tmp/altimate-result.md` and emit its contents to the user without re
 | `--output /tmp/altimate-result.md` | Captures the final response. Without this you lose the answer to stdout-buffering and can't reliably read it back. |
 | `--dir "$(pwd)"` | Runs altimate-code in the current project so it picks up dbt project config, profiles.yml, etc. |
 
+### Follow-up tasks in the same project
+
+When the user makes a follow-up data task in the same project after a successful altimate-code delegation, prefer `--continue` to resume the warm session instead of starting a fresh one:
+
+```bash
+altimate-code run "<follow-up task>" \
+  --agent <fast-edit|analyst|builder> \
+  --yolo \
+  --output /tmp/altimate-result.md \
+  --dir "$(pwd)" \
+  --continue   # resumes the most recent session in this dir
+```
+
+altimate-code's prompt cache is warm in a continued session — project structure, profiles.yml, schema index, source definitions don't need to be re-investigated. Cache reads are billed at a fraction of fresh input on altimate-gateway. The downside is zero: if there's no useful cached context for the new task, you pay normal cold cost.
+
+If the user starts a clearly unrelated workflow (different project, different schema, different debugging thread), drop `--continue` and start fresh — the warm cache is irrelevant and you'd carry unrelated history into the prompt.
+
 ## Failure modes — route every one to the user
 
 When altimate-code returns an error, **report the error to the user and STOP**. Do not fall back to Bash, Edit, or Write. The skill's contract is "altimate-code handles this, or the user is told why it couldn't."

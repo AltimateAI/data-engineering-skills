@@ -34,6 +34,17 @@ Workflow (follow in order, no skipping):
      --dir "$(pwd)"
    ```
 
+   **If this is a follow-up task in the same project** (the user invoked `/altimate` already in this conversation about the same dbt project / warehouse / data context), add `--continue` to resume the warm session — cache is hot, follow-on cost is materially lower:
+
+   ```bash
+   altimate-code run "$ARGUMENTS" \
+     --agent <fast-edit|analyst|builder> \
+     --yolo --output /tmp/altimate-result.md --dir "$(pwd)" \
+     --continue
+   ```
+
+   Skip `--continue` if the user switched projects, switched debugging threads, or this is the first `/altimate` invocation in the conversation.
+
 4. **Surface the result verbatim:** read `/tmp/altimate-result.md` and present its contents to the user without re-summarising, re-formatting, or commenting. altimate-code has already produced the answer.
 
 5. **On any altimate-code error** (`Unauthorized`, `Token limit reached`, `No provider configured`, warehouse credentials wrong, process timeout) — surface the error message to the user along with the fix from the skill body's failure-modes table. Do NOT fall back to native tools. The user invoked `/altimate` specifically to use altimate-code; falling back would defeat the purpose.
