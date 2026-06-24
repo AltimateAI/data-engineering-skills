@@ -1,0 +1,15 @@
+{
+  "description": "SessionStart nudge directing the agent to delegate data-engineering tasks to altimate-code via the altimate-code skill. The UserPromptSubmit pre-run hook was removed because it double-invoked altimate-code (once at hook time, once when the model fired the skill), doubling token consumption on the altimate-gateway without improving delegation rate — the skill body + SessionStart directive already route the model to altimate-code reliably.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks-handlers/session-start.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}

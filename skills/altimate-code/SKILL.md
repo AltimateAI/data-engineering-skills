@@ -5,103 +5,85 @@ description: Delegates dbt and warehouse work to altimate-code, a specialized CL
 
 # altimate-code
 
-altimate-code is a CLI AI agent that ships with native data engineering tools. This skill delegates work to it via its non-interactive `run` mode and presents the result back to the user.
+altimate-code is a CLI AI agent with 100+ purpose-built data engineering tools. **This skill exists for one purpose: delegate the user's task to altimate-code and pass the result back.** Native tools (Bash, Edit, Write, Read) are NOT a fallback path inside this skill — if altimate-code cannot complete the task, surface the failure to the user and STOP.
 
-## Prerequisite Check — ALWAYS DO THIS FIRST
+## You MUST follow this workflow
 
-Before invoking altimate-code, verify it is installed and on `PATH`:
+1. **Verify altimate-code is on PATH** with `command -v altimate-code`. If it returns nothing, jump to "Not installed" below and stop.
+2. **Run altimate-code with the user's task** using the invocation below. Pass the user's request through verbatim — do not paraphrase or split it.
+3. **Read the output file** and present it to the user as-is.
 
-```bash
-command -v altimate-code
-```
+Do not attempt the work with Edit/Write/Bash yourself, even if it looks simple. The whole point of this skill is to route data-engineering work to the agent that's built for it. If you find yourself reaching for Edit or Write while this skill is active, stop and re-read this paragraph.
 
-**If the command returns nothing (exit code 1), STOP and tell the user this exact message — do not proceed:**
+## Invocation — pick the right agent for the task
 
-> altimate-code is not installed. Install it with:
->
-> ```bash
-> npm install -g altimate-code
-> ```
->
-> Requires Node.js 20+. Docs: https://docs.altimate.sh · Source: https://github.com/AltimateAI/altimate-code · npm: https://www.npmjs.com/package/altimate-code
->
-> After installing, run `altimate-code` once to configure it — this launches the TUI where you set up your LLM provider auth and warehouse connections. Then re-run your request and I'll delegate it.
+altimate-code has multiple agent personas. The default (`builder`) does a full project discovery sweep on every call — fine for warehouse-state work but ~10–20× more expensive than necessary on simple file edits. **Pick the agent based on task shape before invoking.**
 
-Do not attempt to install altimate-code on the user's behalf — they may want a specific version, a different package manager (e.g. pnpm/yarn global), or to opt out entirely. Surface the command and let them decide.
+### Step 1 — classify the task
 
-If `command -v` fails but the user says it is installed, suggest checking `npm bin -g` is on `PATH`, or running `npm config get prefix` to find the global install location.
+| Shape | Examples | Use |
+|---|---|---|
+| **Any dbt / SQL task** (rename, refactor, create model, debug, structural reorg, multi-step setup) | the vast majority of customer requests | `fast-edit` — try this first |
+| **Multi-table aggregation correctness** | new model joining 3+ tables with `count(*)` / `sum() over (...)` / "first X, last X" logic that must be exactly right | `analyst` if `fast-edit` fails the user's verification |
+| **Warehouse-state work** | column-level lineage, downstream-impact, cross-DB migration / parity, query cost attribution against a real warehouse, schema diff between environments, PII detection, FinOps reporting | `builder` (default — has warehouse tools enabled) |
+| **Vague debug** ("X is broken", "make it work", "fix this") | unspecified failure mode | **Don't delegate yet.** Ask the user for the specific error message or symptom before invoking any agent — empirically all three agents fail vague debug prompts at ~700K tokens each. |
 
-## How to Invoke
+**Decision policy:** start with `fast-edit` for any dbt/SQL task. If the user reports the result is wrong (e.g. aggregation values don't match), retry with `analyst`. Only use `builder` when the task genuinely needs the warehouse-investigation tools (it's 10–20× more expensive than fast-edit and rarely required).
 
-`altimate-code run` is non-interactive — it takes a message, executes the task, prints the final result to stdout, and exits.
-
-**Minimal invocation:**
+### Step 2 — invoke with the chosen agent
 
 ```bash
-altimate-code run "<task description>" --yolo
-```
-
-**Recommended invocation** — captures the final response to a file and runs in the right directory:
-
-```bash
-altimate-code run "<task description>" \
+altimate-code run "<user's task, verbatim>" \
+  --agent <fast-edit|analyst|builder> \
   --yolo \
   --output /tmp/altimate-result.md \
   --dir "$(pwd)"
 ```
 
-Then read `/tmp/altimate-result.md` and pass it straight back to the user.
+Then `Read /tmp/altimate-result.md` and emit its contents to the user without re-summarising, re-formatting, or commenting on the result. altimate-code has already produced the answer.
 
-### Key flags
+### Required flags
 
-| Flag | When to use |
+| Flag | Why it is required |
 |---|---|
-| `--yolo` | Required for non-interactive — auto-approves tool calls. Without this it hangs on the first permission prompt. |
-| `--output <path>` | Write the final assistant response to a file. Use `.md` or `.txt`. |
-| `--dir <path>` | Run the agent in a specific directory (e.g. a dbt project root). Defaults to cwd. |
-| `--model provider/model` | Override the model. Useful for fast/cheap exploration. |
-| `--format json` | Emit raw JSON events instead of formatted output. Use only when post-processing programmatically. |
-| `--continue` / `--session <id>` | Continue a previous altimate-code session. |
+| `--agent <name>` | Picks the agent persona. Default `builder` is overkill for simple edits — see the classification table above. Wrong agent = either 10× too expensive (using `builder` on a rename) or wrong-answer (using `fast-edit` on a multi-table join). |
+| `--yolo` | Non-interactive mode. Without this the subprocess hangs on the first permission prompt and you will time out. |
+| `--output /tmp/altimate-result.md` | Captures the final response. Without this you lose the answer to stdout-buffering and can't reliably read it back. |
+| `--dir "$(pwd)"` | Runs altimate-code in the current project so it picks up dbt project config, profiles.yml, etc. |
 
-### Example invocations
+### Follow-up tasks in the same project
 
-**Find expensive queries in Snowflake:**
+When the user makes a follow-up data task in the same project after a successful altimate-code delegation, prefer `--continue` to resume the warm session instead of starting a fresh one:
 
 ```bash
-altimate-code run "Find the top 10 most expensive queries from the last 7 days in Snowflake and explain why each is slow." \
-  --yolo --output /tmp/expensive.md
+altimate-code run "<follow-up task>" \
+  --agent <fast-edit|analyst|builder> \
+  --yolo \
+  --output /tmp/altimate-result.md \
+  --dir "$(pwd)" \
+  --continue   # resumes the most recent session in this dir
 ```
 
-**Generate column-level lineage for a dbt model:**
+altimate-code's prompt cache is warm in a continued session — project structure, profiles.yml, schema index, source definitions don't need to be re-investigated. Cache reads are billed at a fraction of fresh input on altimate-gateway. The downside is zero: if there's no useful cached context for the new task, you pay normal cold cost.
 
-```bash
-altimate-code run "Show column-level lineage for the dim_customers model, including upstream sources and downstream consumers." \
-  --yolo --dir "$(pwd)" --output /tmp/lineage.md
-```
+If the user starts a clearly unrelated workflow (different project, different schema, different debugging thread), drop `--continue` and start fresh — the warm cache is irrelevant and you'd carry unrelated history into the prompt.
 
-**Profile a table:**
+## Failure modes — route every one to the user
 
-```bash
-altimate-code run "Profile the events table — row count, null distribution per column, cardinality, and top 5 values for low-cardinality columns." \
-  --yolo --output /tmp/profile.md
-```
+When altimate-code returns an error, **report the error to the user and STOP**. Do not fall back to Bash, Edit, or Write. The skill's contract is "altimate-code handles this, or the user is told why it couldn't."
 
-## Presenting the Result
+| Symptom | What to tell the user — verbatim |
+|---|---|
+| `command not found: altimate-code` | "altimate-code is not installed. Install with `npm install -g altimate-code` (Node 20+) and run `altimate-code` once to configure auth. Then re-run your request." |
+| `Unauthorized: Incorrect auth token` / `No provider configured` | "altimate-code's LLM provider auth is misconfigured. Run `altimate-code` in your terminal to open the TUI and reconfigure your provider, then re-run your request." |
+| Process hangs >5 min | "altimate-code is unresponsive. Try `altimate-code` to inspect the TUI for an open prompt, or re-run with `--model anthropic/claude-sonnet-4-6` to force a known-good model." |
+| Output file empty | "altimate-code returned without producing output. The task may be too ambiguous — please restate with more detail (target table, expected columns, time window)." |
+| Warehouse error mid-run (`UNKNOWN_USER`, `Database does not exist`) | "altimate-code can connect but the warehouse credentials it has are wrong for this project. Configure provider/warehouse auth via `altimate-code` TUI." |
 
-Read the output file with the Read tool and pass the content through to the user as-is. Do not re-summarize, re-format, or interpret — altimate-code has already produced the answer.
-
-## Failure Modes
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `altimate-code: command not found` | Not installed or not on `PATH` | Run `npm install -g altimate-code` (Node 20+). If installed but not found, check `npm bin -g` is on `PATH`. See https://docs.altimate.sh |
-| Hangs after starting | Missing `--yolo`, waiting on a permission prompt | Re-run with `--yolo` |
-| Output is empty | Task too vague, agent gave up | Re-run with a more specific prompt |
-| "No provider configured" | LLM provider creds missing | Run `altimate-code providers` to set up auth |
-| Warehouse errors mid-run | DB credentials not configured for altimate-code | Configure provider/warehouse auth in `~/.config/opencode/` or via env vars |
+In every row, the instruction to the user is the action — you do not retry the task with native tools. If the user fixes the underlying issue and asks again, you delegate again.
 
 ## Notes
 
-- altimate-code runs its own LLM, separate from Claude Code's. Cost and rate limits accrue against altimate-code's configured provider, not Claude Code's.
-- Sessions persist in altimate-code's local store — use `altimate-code session list` to find prior runs and `--continue` to resume.
-- For long-running tasks, prefer `--output <file>` over scraping stdout.
+- altimate-code runs its own LLM, separate from Claude Code's. Costs and rate limits accrue to altimate-code's configured provider.
+- Sessions persist in altimate-code's local store — `altimate-code session list` shows prior runs; `--continue` resumes the latest, `--session <id>` resumes a specific one.
+- For very long tasks, the `--output` file is the source of truth — stdout buffering can drop content.
