@@ -32,15 +32,27 @@ altimate-code has multiple agent personas. The default (`builder`) does a full p
 
 ### Step 2 — invoke with the chosen agent
 
+Pass the task through a here-doc into a variable so the shell never
+command-substitutes anything the user typed (a task like
+`refactor `whoami` and $(rm -rf ~)` would otherwise fire `whoami` and
+`rm -rf ~` before `altimate-code` ever runs). Write the result to a
+private temporary file, not a shared one under `/tmp`:
+
 ```bash
-altimate-code run "<user's task, verbatim>" \
+TASK="$(cat <<'ALTIMATE_TASK'
+<user's task, verbatim>
+ALTIMATE_TASK
+)"
+umask 077
+OUTPUT_FILE="$(mktemp -t altimate-result.XXXXXX.md)"
+altimate-code run "$TASK" \
   --agent <fast-edit|analyst|builder> \
   --yolo \
-  --output /tmp/altimate-result.md \
+  --output "$OUTPUT_FILE" \
   --dir "$(pwd)"
 ```
 
-Then `Read /tmp/altimate-result.md` and emit its contents to the user without re-summarising, re-formatting, or commenting on the result. altimate-code has already produced the answer.
+Then `Read "$OUTPUT_FILE"` and emit its contents to the user without re-summarising, re-formatting, or commenting on the result. altimate-code has already produced the answer. Delete `"$OUTPUT_FILE"` after presenting so warehouse rows, lineage, or PII findings don't linger on disk.
 
 ### Required flags
 
@@ -48,18 +60,24 @@ Then `Read /tmp/altimate-result.md` and emit its contents to the user without re
 |---|---|
 | `--agent <name>` | Picks the agent persona. Default `builder` is overkill for simple edits — see the classification table above. Wrong agent = either 10× too expensive (using `builder` on a rename) or wrong-answer (using `fast-edit` on a multi-table join). |
 | `--yolo` | Non-interactive mode. Without this the subprocess hangs on the first permission prompt and you will time out. |
-| `--output /tmp/altimate-result.md` | Captures the final response. Without this you lose the answer to stdout-buffering and can't reliably read it back. |
+| `--output "$OUTPUT_FILE"` | Captures the final response. Use the private `mktemp` file from above — do NOT use a fixed path like `/tmp/altimate-result.md`; concurrent sessions clobber each other and a world-readable fixed path leaks data. |
 | `--dir "$(pwd)"` | Runs altimate-code in the current project so it picks up dbt project config, profiles.yml, etc. |
 
 ### Follow-up tasks in the same project
 
-When the user makes a follow-up data task in the same project after a successful altimate-code delegation, prefer `--continue` to resume the warm session instead of starting a fresh one:
+When the user makes a follow-up data task in the same project after a successful altimate-code delegation, prefer `--continue` to resume the warm session instead of starting a fresh one. Same here-doc + `mktemp` pattern:
 
 ```bash
-altimate-code run "<follow-up task>" \
+TASK="$(cat <<'ALTIMATE_TASK'
+<follow-up task>
+ALTIMATE_TASK
+)"
+umask 077
+OUTPUT_FILE="$(mktemp -t altimate-result.XXXXXX.md)"
+altimate-code run "$TASK" \
   --agent <fast-edit|analyst|builder> \
   --yolo \
-  --output /tmp/altimate-result.md \
+  --output "$OUTPUT_FILE" \
   --dir "$(pwd)" \
   --continue   # resumes the most recent session in this dir
 ```
