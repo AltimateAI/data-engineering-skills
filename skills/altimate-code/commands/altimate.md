@@ -25,27 +25,43 @@ Workflow (follow in order, no skipping):
 
    Decision rule: start with `fast-edit`. Only use `analyst` / `builder` when the cheap path fails for a documented reason.
 
-3. **Run altimate-code with the chosen agent:**
+3. **Run altimate-code with the chosen agent.** Pass `$ARGUMENTS` through a
+   here-doc into a variable so the shell never command-substitutes anything the
+   user typed, and write the result to a private `mktemp` file (not a shared
+   `/tmp/altimate-result.md` — concurrent invocations clobber each other and a
+   world-readable fixed path leaks warehouse rows or PII):
    ```bash
-   altimate-code run "$ARGUMENTS" \
+   TASK="$(cat <<'ALTIMATE_TASK'
+   $ARGUMENTS
+   ALTIMATE_TASK
+   )"
+   umask 077
+   OUTPUT_FILE="$(mktemp -t altimate-result.XXXXXX.md)"
+   altimate-code run "$TASK" \
      --agent <fast-edit|analyst|builder> \
      --yolo \
-     --output /tmp/altimate-result.md \
+     --output "$OUTPUT_FILE" \
      --dir "$(pwd)"
    ```
 
    **If this is a follow-up task in the same project** (the user invoked `/altimate` already in this conversation about the same dbt project / warehouse / data context), add `--continue` to resume the warm session — cache is hot, follow-on cost is materially lower:
 
    ```bash
-   altimate-code run "$ARGUMENTS" \
+   TASK="$(cat <<'ALTIMATE_TASK'
+   $ARGUMENTS
+   ALTIMATE_TASK
+   )"
+   umask 077
+   OUTPUT_FILE="$(mktemp -t altimate-result.XXXXXX.md)"
+   altimate-code run "$TASK" \
      --agent <fast-edit|analyst|builder> \
-     --yolo --output /tmp/altimate-result.md --dir "$(pwd)" \
+     --yolo --output "$OUTPUT_FILE" --dir "$(pwd)" \
      --continue
    ```
 
    Skip `--continue` if the user switched projects, switched debugging threads, or this is the first `/altimate` invocation in the conversation.
 
-4. **Surface the result verbatim:** read `/tmp/altimate-result.md` and present its contents to the user without re-summarising, re-formatting, or commenting. altimate-code has already produced the answer.
+4. **Surface the result verbatim:** read `"$OUTPUT_FILE"` and present its contents to the user without re-summarising, re-formatting, or commenting. altimate-code has already produced the answer. Delete `"$OUTPUT_FILE"` after presenting so warehouse rows, lineage, or PII findings don't linger on disk.
 
 5. **On any altimate-code error** (`Unauthorized`, `Token limit reached`, `No provider configured`, warehouse credentials wrong, process timeout) — surface the error message to the user along with the fix from the skill body's failure-modes table. Do NOT fall back to native tools. The user invoked `/altimate` specifically to use altimate-code; falling back would defeat the purpose.
 
