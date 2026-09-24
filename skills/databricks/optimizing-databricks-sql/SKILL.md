@@ -1,6 +1,6 @@
 ---
 name: optimizing-databricks-sql
-description: Analyze DBSQL queries — including SQL embedded in notebooks (`spark.sql(...)`, `%sql` cells) — for anti-patterns, lint issues, and performance problems, using Databricks-specific dialect and platform knowledge (Delta, Photon, Unity Catalog) layered on top of altimate-code's generic SQL engine. Use when a user asks to optimize, review, or lint DBSQL queries on Databricks, whether standalone or embedded in a notebook. PySpark DataFrame-level analysis and cluster sizing are deferred to a later phase.
+description: Analyze DBSQL queries, including SQL embedded in notebooks (`spark.sql(...)`, `%sql` cells), for anti-patterns, lint issues, and performance problems, using Databricks-specific dialect and platform knowledge (Delta, Photon, Unity Catalog) layered on top of altimate-code's generic SQL engine. Use when a user asks to optimize, review, or lint DBSQL queries on Databricks, whether standalone or embedded in a notebook.
 ---
 
 # Databricks Optimize (DBSQL)
