@@ -36,6 +36,15 @@
       ]
     },
     {
+      "name": "databricks-skills",
+      "description": "Skills for Databricks SQL query optimization",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/databricks/optimizing-databricks-sql"
+      ]
+    },
+    {
       "name": "altimate-code",
       "description": "Delegate data engineering tasks to altimate-code — a specialized CLI agent with 100+ data tools (warehouse profiling, column lineage, dbt build/test, FinOps)",
       "source": "./",
