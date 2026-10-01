@@ -1,0 +1,38 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: the 03:00 run on day D reports calendar day D-1 (and only that day), rerun of a scheduled run reproduces the same file",
+  "primary_pass": false,
+  "primary_score": 0.6666666666666666,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 118.6,
+  "cost_usd": 1.116698,
+  "cost_reported_usd": 4.175702,
+  "tokens": {
+    "input": 1019683,
+    "output": 4884,
+    "reasoning": 0,
+    "cache_read": 805902,
+    "cache_write": 213766,
+    "total": 2044235
+  },
+  "steps": 14,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "dbt-develop",
+      "origin": "builtin",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 6,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dac6b9bffex6LTTutrtExlrr.json"
+}

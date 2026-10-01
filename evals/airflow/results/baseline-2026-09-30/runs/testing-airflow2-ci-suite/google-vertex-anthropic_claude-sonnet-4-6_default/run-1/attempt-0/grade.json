@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_integrity.py, tests/test_late_shipment_logic.py, tests/test_shipments_daily_e2e.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 44 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 44 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: af3_import",
+      "kind": "primary",
+      "passed": true,
+      "detail": "carrier_rates_weekly imports PythonOperator from the Airflow-3 standard provider (absent in 2.11) -> failed: 41 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_no_import_errors [AssertionError], tests.test_dag_integrity::test_dag_file_produces_at_least_one_dag[dag_file0] [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: weekend_schedule",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily cron changed to 30 7 * * 0-4 (Sunday-Thursday) -> failed: 42 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_shipments_daily_fires_on_weekday_at_0730[Friday] [AssertionError], tests.test_dag_integrity::test_shipments_daily_does_not_fire_outside_schedule[Sunday] [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: undelivered_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "find_late_shipments skips undelivered shipments -> failed: 33 passed, 11 failed, 0 errors, 0 skipped; behavioral failures: tests.test_late_shipment_logic.TestOpenLate::test_open_shipment_with_past_promise_is_late [AssertionError], tests.test_late_shipment_logic.TestOpenLate::test_days_late_for_open_counts_to_as_of [AssertionError], tests.test_late_shipment_logic.TestShipDateExclusion::test_shipped_on_as_of_included_if_otherwise_late [AssertionError], tests.test_late_shipment_logic.TestShipDateExclusion::test_shipped_before_as_of_eligible [AssertionError], tests.test_late_shipment_logic.TestSorting::test_sorted_by_days_late_descending [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily default_args lose retries (tasks fall back to 0) -> failed: 40 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_task_has_minimum_retries[shipments_daily/start] [AssertionError], tests.test_dag_integrity::test_task_has_minimum_retries[shipments_daily/extract_shipments] [AssertionError], tests.test_dag_integrity::test_task_has_minimum_retries[shipments_daily/build_report] [AssertionError], tests.test_dag_integrity::test_task_has_minimum_retries[shipments_daily/done] [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "build_report no longer runs after extract_shipments -> failed: 43 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_build_report_depends_on_extract_shipments [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

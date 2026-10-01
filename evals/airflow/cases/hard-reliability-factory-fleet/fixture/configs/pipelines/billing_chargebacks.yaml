@@ -1,0 +1,26 @@
+name: billing_chargebacks
+team: billing
+tier: critical
+description: Chargebacks pipeline for billing
+schedule:
+  hour: 3
+  days: '*'
+steps:
+- name: extract
+  table: billing.raw_chargebacks_00
+- name: stage
+  table: billing.stg_chargebacks_00
+  depends_on:
+  - extract
+- name: validate
+  table: billing.int_chargebacks_00
+  depends_on:
+  - stage
+- name: enrich
+  table: billing.int_chargebacks_00
+  depends_on:
+  - validate
+- name: publish
+  table: billing.mart_chargebacks_00
+  depends_on:
+  - enrich

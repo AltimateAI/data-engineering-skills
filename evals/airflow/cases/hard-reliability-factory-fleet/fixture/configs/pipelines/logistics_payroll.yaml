@@ -1,0 +1,28 @@
+name: logistics_payroll
+team: logistics
+tier: standard
+description: Payroll pipeline for logistics
+schedule:
+  hour: 5
+  days: 1-5
+retries: 4
+steps:
+- name: extract
+  table: logistics.raw_payroll_00
+- name: transform
+  table: logistics.int_payroll_00
+  depends_on:
+  - extract
+- name: enrich
+  table: logistics.int_payroll_00
+  depends_on:
+  - transform
+  - extract
+- name: aggregate
+  table: logistics.int_payroll_00
+  depends_on:
+  - enrich
+- name: publish
+  table: logistics.mart_payroll_00
+  depends_on:
+  - aggregate

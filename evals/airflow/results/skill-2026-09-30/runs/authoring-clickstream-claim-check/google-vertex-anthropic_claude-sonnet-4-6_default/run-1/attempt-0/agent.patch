@@ -1,0 +1,214 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..88388dd
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,208 @@
++"""Daily page-level stats from web clickstream exports.
++
++Period contract
++---------------
++scheduled run firing at 04:00 UTC on date D   -> processes clickstream for date D
++manual trigger (3.x, no logical_date)         -> processes the calendar day of run_after (UTC)
++rerun / clear of any run                      -> processes the same date as the original run
++backfill of date D (via airflow backfill)     -> processes date D
++
++The timetable is CronTriggerTimetable so logical_date == run_after == the tick date.
++run_window() is called with prev=lambda d: d (own-day semantics).
++
++Claim-check pattern
++-------------------
++Data volumes: ~20 k events/day today, ~1 M events/day expected next year.
++XCom is a metadata-DB row — it is not a data store.  Each task therefore
++writes its intermediate result to a staging file under output/_staging/ and
++returns only the path string.  The next task reads that path.  This keeps
++XCom payloads tiny regardless of scale.
++"""
++
++from __future__ import annotations
++
++import csv
++import gzip
++import tempfile
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++STAGING_DIR = PROJECT_ROOT / "output" / "_staging"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++# ---------------------------------------------------------------------------
++# Date helper (from dates-and-schedules.md, own-day variant)
++# ---------------------------------------------------------------------------
++
++def run_window(dag_run, params=None, tz="UTC"):
++    """Return the (start, end) half-open window [start, end) for this run.
++
++    With a CronTriggerTimetable the interval is zero-width, so we compute
++    the window from the anchor.  prev=lambda d: d means "process the run's
++    own day".
++    """
++    day_override = (params or {}).get("day")
++    if day_override:
++        start = pendulum.parse(day_override, tz=tz)
++        return start, start.add(days=1)
++
++    s, e = dag_run.data_interval_start, dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        # Interval timetable: the interval itself is the window.
++        return pendulum.instance(s).in_tz(tz), pendulum.instance(e).in_tz(tz)
++
++    # Trigger timetable or 3.x manual run: derive from the anchor.
++    anchor = dag_run.logical_date or dag_run.run_after
++    start = pendulum.instance(anchor).in_tz(tz).start_of("day")
++    return start, start.add(days=1)
++
++
++# ---------------------------------------------------------------------------
++# DAG
++# ---------------------------------------------------------------------------
++
++@dag(
++    dag_id="clickstream_page_stats",
++    schedule=CronTriggerTimetable("0 4 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,          # must be able to rerun any day since 2026-09-01
++    max_active_runs=3,     # cap parallelism during backfill
++    params={"day": None},  # allow explicit day override: {"day": "2026-09-15"}
++    tags=["clickstream"],
++)
++def clickstream_page_stats():
++
++    @task
++    def extract(**context) -> str:
++        """Read that day's gzip export, drop bots and anonymous hits.
++
++        Writes a filtered CSV to a staging file and returns the path (claim
++        check).  At 1 M rows/day a CSV is ~60-80 MB on disk — well below NFS
++        or local-disk limits and avoids saturating the metadata DB with XCom.
++        """
++        import csv as _csv
++        import gzip as _gz
++
++        dag_run = context["dag_run"]
++        params = context.get("params")
++        start, _ = run_window(dag_run, params)
++        date_str = start.to_date_string()          # "2026-09-27"
++
++        src = PROJECT_ROOT / "data" / "clickstream" / f"{date_str}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(
++                f"Clickstream export not found: {src}. "
++                f"Expected daily file for {date_str}."
++            )
++
++        STAGING_DIR.mkdir(parents=True, exist_ok=True)
++        # Write to a temp file then rename for atomicity (safe on rerun).
++        tmp = STAGING_DIR / f"extract_{date_str}.tmp.csv"
++        dst = STAGING_DIR / f"extract_{date_str}.csv"
++
++        kept = 0
++        dropped = 0
++        with _gz.open(src, "rt", newline="") as in_fh, \
++             tmp.open("w", newline="") as out_fh:
++            reader = _csv.DictReader(in_fh)
++            writer = _csv.DictWriter(out_fh, fieldnames=reader.fieldnames)
++            writer.writeheader()
++            for row in reader:
++                if row["is_bot"] == "1" or not row["user_id"]:
++                    dropped += 1
++                    continue
++                writer.writerow(row)
++                kept += 1
++
++        tmp.rename(dst)
++        print(f"extract: date={date_str} kept={kept} dropped={dropped} -> {dst}")
++        return str(dst)
++
++    @task
++    def transform(extract_path: str, **context) -> str:
++        """Per page: views, unique_users, avg_load_ms (rounded to 1 dp).
++
++        Reads the filtered CSV from the claim-check path, aggregates, and
++        writes an intermediate CSV.  Returns the path (claim check).
++        """
++        import csv as _csv
++        from collections import defaultdict
++
++        dag_run = context["dag_run"]
++        params = context.get("params")
++        start, _ = run_window(dag_run, params)
++        date_str = start.to_date_string()
++
++        views: dict[str, int] = defaultdict(int)
++        users: dict[str, set] = defaultdict(set)
++        load_ms_sum: dict[str, float] = defaultdict(float)
++
++        with open(extract_path, newline="") as fh:
++            for row in _csv.DictReader(fh):
++                page = row["page"]
++                views[page] += 1
++                users[page].add(row["user_id"])
++                load_ms_sum[page] += float(row["load_ms"])
++
++        STAGING_DIR.mkdir(parents=True, exist_ok=True)
++        tmp = STAGING_DIR / f"transform_{date_str}.tmp.csv"
++        dst = STAGING_DIR / f"transform_{date_str}.csv"
++
++        with tmp.open("w", newline="") as fh:
++            writer = _csv.writer(fh)
++            writer.writerow(["page", "views", "unique_users", "avg_load_ms"])
++            for page in sorted(views):
++                v = views[page]
++                u = len(users[page])
++                avg = round(load_ms_sum[page] / v, 1)
++                writer.writerow([page, v, u, avg])
++
++        tmp.rename(dst)
++        print(f"transform: date={date_str} pages={len(views)} -> {dst}")
++        return str(dst)
++
++    @task
++    def load(transform_path: str, **context) -> None:
++        """Write output/page_stats/<date>.csv, sorted by page.
++
++        Overwrites the file on rerun (idempotent).  Writes to a temp path
++        then renames to avoid a half-written file being picked up by readers.
++        """
++        import csv as _csv
++
++        dag_run = context["dag_run"]
++        params = context.get("params")
++        start, _ = run_window(dag_run, params)
++        date_str = start.to_date_string()
++
++        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
++        tmp = OUTPUT_DIR / f"{date_str}.tmp.csv"
++        dst = OUTPUT_DIR / f"{date_str}.csv"
++
++        with open(transform_path, newline="") as in_fh, \
++             tmp.open("w", newline="") as out_fh:
++            reader = _csv.DictReader(in_fh)
++            writer = _csv.DictWriter(
++                out_fh,
++                fieldnames=["page", "views", "unique_users", "avg_load_ms"],
++            )
++            writer.writeheader()
++            # transform already sorted; copy through
++            for row in reader:
++                writer.writerow(row)
++
++        tmp.rename(dst)
++        print(f"load: date={date_str} -> {dst}")
++
++    # Wire the tasks: each passes a path to the next (claim-check pattern).
++    raw_path = extract()
++    agg_path = transform(raw_path)
++    load(agg_path)
++
++
++clickstream_page_stats()

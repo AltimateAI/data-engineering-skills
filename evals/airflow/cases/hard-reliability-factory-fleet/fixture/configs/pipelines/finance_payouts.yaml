@@ -1,0 +1,30 @@
+name: finance_payouts
+team: finance
+tier: critical
+description: Payouts pipeline for finance
+schedule:
+  hour: 4
+  days: '*'
+owners:
+- pia
+retries: 1
+steps:
+- name: extract
+  table: finance.raw_payouts_00
+- name: transform
+  table: finance.int_payouts_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: finance.int_payouts_00
+  depends_on:
+  - transform
+  - extract
+- name: snapshot
+  table: finance.int_payouts_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: finance.mart_payouts_00
+  depends_on:
+  - snapshot

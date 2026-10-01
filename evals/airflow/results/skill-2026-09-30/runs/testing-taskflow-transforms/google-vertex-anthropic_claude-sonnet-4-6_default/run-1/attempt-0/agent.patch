@@ -1,0 +1,442 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..8331682
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,74 @@
++"""Shared fixtures for the orders_enrichment test suite.
++
++Sets all Airflow env-vars before any airflow import so every module
++picks up the throwaway config.  No running scheduler, webserver, or
++live DB required (CI: ``pytest tests/`` in the project venv).
++"""
++from __future__ import annotations
++
++import os
++import subprocess
++import sys
++import tempfile
++from datetime import datetime, timezone
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Must be set before the first airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="orders-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++
++# Let test modules import helpers from dags/.
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag           # Airflow 2.x / 3.0-3.1
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrate the throwaway metadata DB (needed by dag.test() only)."""
++    subprocess.run(
++        [sys.executable, "-m", "airflow", "db", "migrate"],
++        check=True,
++        capture_output=True,
++    )
++
++
++def _upcoming_runs(dag, after: datetime, n: int):
++    """Return the next *n* run_after datetimes from the timetable."""
++    from airflow.timetables.base import TimeRestriction
++
++    tt = dag.timetable
++    try:
++        from airflow.serialization.encoders import coerce_to_core_timetable  # >= 3.0
++        tt = coerce_to_core_timetable(tt)
++    except ImportError:
++        pass
++    restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++    last, runs = None, []
++    for _ in range(n):
++        info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++        if info is None:
++            break
++        runs.append(info.run_after)
++        last = info.data_interval
++    return runs
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    return _upcoming_runs
+diff --git a/tests/test_orders_enrichment.py b/tests/test_orders_enrichment.py
+new file mode 100644
+index 0000000..9435b46
+--- /dev/null
++++ b/tests/test_orders_enrichment.py
+@@ -0,0 +1,356 @@
++"""Tests for the orders_enrichment DAG.
++
++Finance requirements under test:
++  R1  Only the latest version of each order (by updated_at) is kept.
++  R2  amount_usd = amount * usd_per_unit, rounded half-up to cents.
++  R3  An order whose currency has no FX rate for the day must fail the
++      run, not be silently guessed or skipped.
++  R4  Nothing is written to output/ unless validate_totals has passed
++      (load_enriched depends on validate_totals in the task graph).
++  R5  The DAG runs once a day at 06:00 UTC.
++  E2E End-to-end run on the sample data in data/ produces the correct
++      output file for 2026-03-02.
++"""
++from __future__ import annotations
++
++import csv
++import os
++from datetime import datetime, timezone
++from decimal import Decimal
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++
++# ---------------------------------------------------------------------------
++# Helpers: pull the un-decorated callables from the parsed DAG so we never
++# import the module directly (DagBag uses a private module namespace).
++# ---------------------------------------------------------------------------
++
++def _fn(dagbag, task_id: str):
++    """Return the python_callable of a TaskFlow task."""
++    return dagbag.dags["orders_enrichment"].get_task(task_id).python_callable
++
++
++# ===========================================================================
++# Structural / integrity tests
++# ===========================================================================
++
++def test_no_import_errors(dagbag):
++    """The DAG file must import without errors."""
++    assert dagbag.import_errors == {}, "\n\n".join(
++        f"{f}:\n{e}" for f, e in dagbag.import_errors.items()
++    )
++
++
++def test_expected_dag_present(dagbag):
++    """orders_enrichment must be discoverable."""
++    assert "orders_enrichment" in dagbag.dags
++
++
++# ===========================================================================
++# R5  Schedule: daily at 06:00 UTC
++# ===========================================================================
++
++def test_schedule_daily_0600_utc(dagbag, upcoming_runs):
++    """Every generated run fires at 06:00 UTC, any day of the week."""
++    dag = dagbag.dags["orders_enrichment"]
++    # Use a Tuesday as anchor so the next run is Wednesday — no weekday filter
++    # to worry about; the schedule is "* * *" (every day).
++    anchor = datetime(2026, 3, 3, tzinfo=timezone.utc)
++    runs = upcoming_runs(dag, anchor, 7)
++    assert len(runs) == 7, "expected 7 consecutive daily runs"
++    for r in runs:
++        assert (r.hour, r.minute, r.second) == (6, 0, 0), (
++            f"run fires at {r.hour:02d}:{r.minute:02d}:{r.second:02d}, expected 06:00:00 UTC"
++        )
++        assert r.tzinfo is not None and r.utcoffset().total_seconds() == 0, (
++            f"run timezone is not UTC: {r.tzinfo}"
++        )
++
++
++# ===========================================================================
++# R4  Task graph: load_enriched can only run after validate_totals
++# ===========================================================================
++
++def test_load_enriched_depends_on_validate_totals(dagbag):
++    """load_enriched must be downstream of validate_totals (direct dependency)."""
++    dag = dagbag.dags["orders_enrichment"]
++    load_enriched = dag.get_task("load_enriched")
++    # Direct upstream must contain validate_totals.
++    assert "validate_totals" in load_enriched.upstream_task_ids, (
++        f"load_enriched.upstream_task_ids = {load_enriched.upstream_task_ids}"
++    )
++
++
++def test_validate_totals_depends_on_convert_to_usd(dagbag):
++    """validate_totals sits between convert_to_usd and load_enriched."""
++    dag = dagbag.dags["orders_enrichment"]
++    vt = dag.get_task("validate_totals")
++    assert "convert_to_usd" in vt.upstream_task_ids
++
++
++def test_load_enriched_not_directly_after_convert_to_usd(dagbag):
++    """load_enriched must NOT be a direct downstream of convert_to_usd;
++    it must go through validate_totals."""
++    dag = dagbag.dags["orders_enrichment"]
++    load_enriched = dag.get_task("load_enriched")
++    assert "convert_to_usd" not in load_enriched.upstream_task_ids, (
++        "load_enriched is wired directly to convert_to_usd, bypassing validate_totals"
++    )
++
++
++# ===========================================================================
++# R1  Deduplication: keep only the latest updated_at per order_id
++# ===========================================================================
++
++def test_dedupe_keeps_latest_version(dagbag):
++    """When the same order_id appears twice, the row with the higher
++    updated_at string is kept."""
++    dedupe = _fn(dagbag, "dedupe_orders")
++    rows = [
++        {"order_id": "X-1", "updated_at": "2026-03-02T08:05:00", "amount": "100.00"},
++        {"order_id": "X-1", "updated_at": "2026-03-02T11:47:00", "amount": "120.00"},  # later
++    ]
++    result = dedupe(rows)
++    assert len(result) == 1
++    assert result[0]["updated_at"] == "2026-03-02T11:47:00"
++    assert result[0]["amount"] == "120.00"
++
++
++def test_dedupe_keeps_earlier_if_only_occurrence(dagbag):
++    """An order that appears only once is kept as-is."""
++    dedupe = _fn(dagbag, "dedupe_orders")
++    rows = [{"order_id": "X-2", "updated_at": "2026-03-02T09:00:00", "amount": "50.00"}]
++    result = dedupe(rows)
++    assert len(result) == 1
++    assert result[0]["order_id"] == "X-2"
++
++
++def test_dedupe_ignores_row_with_earlier_updated_at(dagbag):
++    """The earlier duplicate is dropped even if it arrives last in the list."""
++    dedupe = _fn(dagbag, "dedupe_orders")
++    rows = [
++        # second row is older — must be discarded
++        {"order_id": "X-3", "updated_at": "2026-03-02T08:30:00", "amount": "40.50"},
++        {"order_id": "X-3", "updated_at": "2026-03-02T07:55:00", "amount": "38.00"},  # earlier
++    ]
++    result = dedupe(rows)
++    assert len(result) == 1
++    assert result[0]["amount"] == "40.50", (
++        "expected the 08:30 row (amount 40.50), got the 07:55 row instead"
++    )
++
++
++def test_dedupe_output_sorted_by_order_id(dagbag):
++    """Output rows are sorted by order_id ascending."""
++    dedupe = _fn(dagbag, "dedupe_orders")
++    rows = [
++        {"order_id": "Z-9", "updated_at": "2026-03-02T09:00:00"},
++        {"order_id": "A-1", "updated_at": "2026-03-02T09:00:00"},
++        {"order_id": "M-5", "updated_at": "2026-03-02T09:00:00"},
++    ]
++    result = dedupe(rows)
++    assert [r["order_id"] for r in result] == ["A-1", "M-5", "Z-9"]
++
++
++def test_dedupe_multiple_duplicates(dagbag):
++    """Three versions of the same order — only the latest survives."""
++    dedupe = _fn(dagbag, "dedupe_orders")
++    rows = [
++        {"order_id": "X-4", "updated_at": "2026-03-02T07:00:00", "v": "1"},
++        {"order_id": "X-4", "updated_at": "2026-03-02T09:00:00", "v": "2"},
++        {"order_id": "X-4", "updated_at": "2026-03-02T08:00:00", "v": "3"},
++    ]
++    result = dedupe(rows)
++    assert len(result) == 1
++    assert result[0]["v"] == "2"  # 09:00 is latest
++
++
++def test_dedupe_strict_gt_not_gte(dagbag):
++    """When two rows share the same updated_at, the FIRST-seen row must be kept
++    (the condition is strictly >, so a later row with the same timestamp does NOT
++    overwrite).  This distinguishes > (correct) from >= (wrong)."""
++    dedupe = _fn(dagbag, "dedupe_orders")
++    rows = [
++        {"order_id": "X-5", "updated_at": "2026-03-02T09:00:00", "amount": "first"},
++        {"order_id": "X-5", "updated_at": "2026-03-02T09:00:00", "amount": "second"},
++    ]
++    result = dedupe(rows)
++    assert len(result) == 1
++    # With >  the first row is kept (second does not overwrite because "not >")
++    # With >= the second row overwrites the first (second is ">=", so it replaces)
++    assert result[0]["amount"] == "first", (
++        "expected the first-seen row to be kept when updated_at timestamps are equal "
++        "(condition is >, not >=)"
++    )
++
++
++# ===========================================================================
++# R2  USD conversion: amount * usd_per_unit, rounded half-up to cents
++# ===========================================================================
++
++def test_convert_usd_basic(dagbag):
++    """Simple multiplication with a known rate."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-1", "currency": "EUR", "amount": "20.00"}]
++    rates = {"EUR": "1.0812", "USD": "1"}
++    result = convert(rows, rates)
++    # 20.00 * 1.0812 = 21.624 -> rounds half-up to 21.62
++    assert result[0]["amount_usd"] == "21.62"
++
++
++def test_convert_usd_round_half_up(dagbag):
++    """Rounding: 0.35 * 1.0850 = 0.37975 -> ROUND_HALF_UP -> 0.38 (not 0.38 banker's)."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-2", "currency": "EUR", "amount": "0.35"}]
++    rates = {"EUR": "1.0850", "USD": "1"}
++    result = convert(rows, rates)
++    assert result[0]["amount_usd"] == "0.38", (
++        f"expected 0.38 (ROUND_HALF_UP of 0.37975), got {result[0]['amount_usd']}"
++    )
++
++
++def test_convert_usd_usd_currency_unchanged(dagbag):
++    """USD orders (rate=1) pass through unmodified."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-3", "currency": "USD", "amount": "9.99"}]
++    rates = {"USD": "1"}
++    result = convert(rows, rates)
++    assert result[0]["amount_usd"] == "9.99"
++
++
++def test_convert_usd_gbp(dagbag):
++    """GBP: 40.50 * 1.27 = 51.435 -> rounds half-up to 51.44."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-4", "currency": "GBP", "amount": "40.50"}]
++    rates = {"GBP": "1.2700", "USD": "1"}
++    result = convert(rows, rates)
++    assert result[0]["amount_usd"] == "51.44"
++
++
++def test_convert_preserves_other_fields(dagbag):
++    """All original fields are preserved alongside amount_usd."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-5", "customer_id": "C-9", "currency": "USD", "amount": "5.00"}]
++    rates = {"USD": "1"}
++    result = convert(rows, rates)
++    assert result[0]["customer_id"] == "C-9"
++    assert result[0]["order_id"] == "X-5"
++    assert result[0]["amount"] == "5.00"
++
++
++# ===========================================================================
++# R3  Missing FX rate must raise an exception (fail the run, not be guessed)
++# ===========================================================================
++
++def test_convert_missing_fx_rate_raises(dagbag):
++    """An order whose currency has no rate on the day raises ValueError."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-6", "currency": "JPY", "amount": "1000.00"}]
++    rates = {"USD": "1", "EUR": "1.08"}  # JPY absent
++
++    with pytest.raises(ValueError, match="JPY"):
++        convert(rows, rates)
++
++
++def test_convert_missing_fx_rate_does_not_default_to_zero(dagbag):
++    """No silent zero-rate fallback: a missing rate must raise, not produce 0.00."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-7", "currency": "CHF", "amount": "50.00"}]
++    rates = {"USD": "1"}  # CHF absent
++
++    with pytest.raises((ValueError, KeyError)):
++        convert(rows, rates)
++
++
++def test_convert_empty_rates_dict_raises(dagbag):
++    """Even an empty rates dict must raise, not produce a zero or None."""
++    convert = _fn(dagbag, "convert_to_usd")
++    rows = [{"order_id": "X-8", "currency": "EUR", "amount": "10.00"}]
++    with pytest.raises((ValueError, KeyError)):
++        convert(rows, {})
++
++
++# ===========================================================================
++# E2E  End-to-end run against the sample data in data/ for 2026-03-02
++#
++# Hand-computed expected output for 2026-03-02 (see hand_calc block at top):
++#   Orders in data/: S-102 (x2), S-103 (x2), S-104, S-105
++#   After dedupe:
++#     S-102  C-7  EUR  120.00  -> 120.00 * 1.0850 = 130.200 -> 130.20
++#     S-103  C-9  GBP   40.50  ->  40.50 * 1.2700 =  51.435 ->  51.44
++#     S-104  C-10 USD    9.99  ->   9.99 * 1.0000 =   9.990 ->   9.99
++#     S-105  C-8  EUR    0.35  ->   0.35 * 1.0850 =   0.37975 -> 0.38
++# ===========================================================================
++
++def test_end_to_end_sample_data(dagbag, airflow_db, monkeypatch, tmp_path):
++    """dag.test() on 2026-03-02 must succeed and produce the correct output."""
++    dag = dagbag.dags["orders_enrichment"]
++
++    # Redirect output to tmp_path so the repo tree stays clean.
++    monkeypatch.setitem(
++        dag.get_task("load_enriched").python_callable.__globals__,
++        "OUTPUT_DIR",
++        tmp_path,
++    )
++
++    run_date = datetime(2026, 3, 2, 6, 0, tzinfo=timezone.utc)
++    dr = dag.test(logical_date=run_date)
++
++    states = {ti.task_id: ti.state for ti in dr.get_task_instances()}
++    assert dr.state == "success", (
++        f"DAG run failed.\nTask states: {states}"
++    )
++
++    # The output file must exist.
++    out_file = tmp_path / "2026-03-02.csv"
++    assert out_file.exists(), f"output file not found: {out_file}"
++
++    with out_file.open(newline="") as fh:
++        rows = list(csv.DictReader(fh))
++
++    order_ids = [r["order_id"] for r in rows]
++
++    # Exactly 4 deduplicated orders for this date.
++    assert len(rows) == 4, f"expected 4 rows, got {len(rows)}: {order_ids}"
++
++    # Each order appears exactly once (deduplication worked).
++    assert len(set(order_ids)) == len(order_ids), f"duplicates in output: {order_ids}"
++
++    # Sorted by order_id.
++    assert order_ids == sorted(order_ids), f"rows not sorted by order_id: {order_ids}"
++
++    # Build a lookup for cleaner assertions below.
++    by_id = {r["order_id"]: r for r in rows}
++
++    # S-102: latest updated_at=11:47, amount=120.00 EUR
++    assert "S-102" in by_id, "S-102 missing from output"
++    assert by_id["S-102"]["amount_usd"] == "130.20", (
++        f"S-102 amount_usd={by_id['S-102']['amount_usd']}, expected 130.20"
++    )
++
++    # S-103: latest updated_at=08:30, amount=40.50 GBP; 07:55 row (38.00) must be dropped.
++    assert "S-103" in by_id, "S-103 missing from output"
++    assert by_id["S-103"]["amount_usd"] == "51.44", (
++        f"S-103 amount_usd={by_id['S-103']['amount_usd']}, expected 51.44 "
++        "(if 51.43, the older/cheaper S-103 row was kept instead of the latest)"
++    )
++
++    # S-104: USD, no conversion needed.
++    assert "S-104" in by_id
++    assert by_id["S-104"]["amount_usd"] == "9.99"
++
++    # S-105: 0.35 EUR -> 0.37975 -> rounds half-up to 0.38.
++    assert "S-105" in by_id
++    assert by_id["S-105"]["amount_usd"] == "0.38", (
++        f"S-105 amount_usd={by_id['S-105']['amount_usd']}, expected 0.38 (ROUND_HALF_UP)"
++    )
++
++    # Output columns must match the declared schema.
++    expected_cols = {"order_id", "customer_id", "currency", "amount", "amount_usd"}
++    actual_cols = set(rows[0].keys())
++    assert actual_cols == expected_cols, (
++        f"output columns mismatch.\n  expected: {sorted(expected_cols)}\n  got:      {sorted(actual_cols)}"
++    )

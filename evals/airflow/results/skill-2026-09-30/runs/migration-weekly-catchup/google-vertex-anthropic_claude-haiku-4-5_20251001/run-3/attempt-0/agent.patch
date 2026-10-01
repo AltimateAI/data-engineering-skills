@@ -1,0 +1,72 @@
+diff --git a/dags/campaign_sync.py b/dags/campaign_sync.py
+index 4ae3318..d65e6a7 100644
+--- a/dags/campaign_sync.py
++++ b/dags/campaign_sync.py
+@@ -6,13 +6,13 @@ import shutil
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule="@hourly",
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["marketing"],
+diff --git a/dags/weekly_campaign_report.py b/dags/weekly_campaign_report.py
+index 150cb17..06fbf49 100644
+--- a/dags/weekly_campaign_report.py
++++ b/dags/weekly_campaign_report.py
+@@ -13,28 +13,40 @@ from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task, CronDataIntervalTimetable, DeadlineAlert, DeadlineReference, SyncCallback
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "campaign_events.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
+ 
+-def notify_growth_oncall(dag, task_list, blocking_task_list, slas, blocking_tis):
+-    print(f"SLA missed for {task_list} in {dag.dag_id}")
++def notify_growth_oncall(**kwargs):
++    """Callback fired when the weekly report deadline is missed."""
++    context = kwargs.get("context", {})
++    dag_id = context.get("dag").dag_id if context.get("dag") else "unknown"
++    print(f"SLA missed for weekly report in {dag_id}")
+ 
+ 
+ @dag(
+-    schedule_interval="0 6 * * 1",
++    schedule=CronDataIntervalTimetable("0 6 * * 1", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),
+-    default_args={"owner": "growth-analytics", "retries": 1, "sla": timedelta(hours=3)},
+-    sla_miss_callback=notify_growth_oncall,
++    default_args={"owner": "growth-analytics", "retries": 1},
++    catchup=True,
+     max_active_runs=2,
++    deadline=DeadlineAlert(
++        reference=DeadlineReference.DAGRUN_QUEUED_AT,
++        interval=timedelta(hours=3),
++        callback=SyncCallback(notify_growth_oncall),
++    ),
+     tags=["marketing", "weekly"],
+ )
+ def weekly_campaign_report():
+     @task
+-    def summarize_week(ds=None, next_ds=None) -> dict:
++    def summarize_week(ds=None, data_interval_end=None) -> dict:
++        # On 3.x, data_interval_end replaces next_ds from 2.x
++        # For interval timetables, this is the same as next_ds in 2.x scheduling
++        next_ds = data_interval_end.strftime("%Y-%m-%d") if data_interval_end else None
++        
+         totals: dict[str, list[float]] = defaultdict(lambda: [0.0, 0])
+         with EVENTS.open(newline="") as fh:
+             for row in csv.DictReader(fh):

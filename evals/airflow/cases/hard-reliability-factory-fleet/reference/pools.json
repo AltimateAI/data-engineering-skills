@@ -1,0 +1,4 @@
+{
+  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false},
+  "warehouse": {"slots": 16, "description": "Warehouse query slots shared by the whole fleet", "include_deferred": false}
+}

@@ -1,0 +1,34 @@
+name: support_fraud_scores
+team: support
+tier: standard
+description: Fraud Scores pipeline for support
+schedule:
+  hour: 5
+  days: '1'
+owners:
+- gus
+- ben
+retries: 1
+steps:
+- name: extract
+  table: support.raw_fraud_scores_00
+- name: stage
+  table: support.stg_fraud_scores_00
+  depends_on:
+  - extract
+- name: transform
+  table: support.int_fraud_scores_00
+  depends_on:
+  - stage
+- name: aggregate
+  table: support.int_fraud_scores_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: support.int_fraud_scores_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: support.mart_fraud_scores_00
+  depends_on:
+  - snapshot

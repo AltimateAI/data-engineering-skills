@@ -1,0 +1,34 @@
+id: authoring-daily-revenue-yesterday
+area: authoring
+split: holdout
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1500
+prompt: |
+  Finance wants a daily revenue file per store. Please add a DAG
+  `daily_revenue` that runs every day at 03:00 UTC and reports on the previous
+  calendar day (midnight to midnight UTC) from data/orders.csv. Late orders
+  trickle in until about 2am, which is why it runs at 3. So the run that
+  starts at 03:00 on the 29th should report on the 28th.
+
+  Output: output/daily_revenue/<YYYY-MM-DD>.csv, named after the day being
+  reported, with the columns store_id,orders,revenue (revenue rounded to 2
+  decimals), sorted by store_id. Rerunning a day has to produce the same file.
+  We need to be able to rerun any day since 2026-09-01.
+description: |
+  "Process yesterday's data" in Airflow 3.3 (P2 scheduling semantics). In 3.x
+  a cron string maps to CronTriggerTimetable, where data_interval_start ==
+  data_interval_end == logical_date == the trigger time, so Airflow-2 habits
+  (`{{ ds }}`, data_interval_start) silently report the current, incomplete
+  day. The grader asks the timetable for the scheduled run that fires at
+  2026-09-29T03:00Z (and 09-26), executes it with exactly the scheduler's
+  logical date and data interval, and checks that the run writes only the file
+  for the previous calendar day with correct totals (boundary orders at 00:04,
+  02:58, 03:01 and 23:57 separate a calendar-day filter from a 03:00-03:00
+  window). Primary also: daily 03:00 UTC schedule, rerun reproduces the file.
+  Accepts any timetable (cron string + trigger-time arithmetic,
+  CronDataIntervalTimetable + data_interval_start, CronTriggerTimetable with
+  interval=1 day). Mutants: cron string + ds, CronDataIntervalTimetable +
+  ds minus one day (reports D-2), filter on the 03:00-to-03:00 data interval
+  instead of the calendar day, wall-clock "yesterday" (pendulum.now()).

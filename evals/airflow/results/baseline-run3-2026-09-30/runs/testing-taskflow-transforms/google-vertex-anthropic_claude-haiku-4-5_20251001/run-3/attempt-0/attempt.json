@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: suite catches hidden bug: dedupe_keeps_first, suite catches hidden bug: rounding_truncates, suite catches hidden bug: unknown_currency_as_usd, suite catches hidden bug: validation_bypassed, suite catches hidden bug: schedule_midnight",
+  "primary_pass": false,
+  "primary_score": 0.375,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 244.5,
+  "cost_usd": 0.924686,
+  "cost_reported_usd": 3.894616,
+  "tokens": {
+    "input": 2970150,
+    "output": 25461,
+    "reasoning": 0,
+    "cache_read": 2535001,
+    "cache_write": 434929,
+    "total": 5965541
+  },
+  "steps": 43,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 15,
+  "edited_files": 4,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0ce32f5dffeIJJWkMLwtXEPr4.json"
+}

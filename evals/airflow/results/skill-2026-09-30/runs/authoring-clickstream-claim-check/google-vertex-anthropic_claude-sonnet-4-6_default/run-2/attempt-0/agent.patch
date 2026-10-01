@@ -1,0 +1,242 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..0676809
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,236 @@
++"""Daily page-level stats from the web clickstream exports.
++
++Period contract
++---------------
++scheduled run firing on day D  -> processes day D
++manual trigger (no logical_date) -> same rule applied to run_after
++rerun / clear of any run          -> same day as the original run
++backfill of date D                -> processes day D
++
++Claim-check pattern
++-------------------
++At the expected 50x scale (~1 M events/day) raw rows must never travel
++through XCom.  Each task writes its intermediate result to a temp file
++keyed on the run date and returns only the path.  A rerun overwrites the
++same temp path so the pipeline stays idempotent.
++"""
++
++from __future__ import annotations
++
++import csv
++import gzip
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++# ---------------------------------------------------------------------------
++# Paths
++# ---------------------------------------------------------------------------
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "output" / "_staging" / "clickstream_page_stats"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++# ---------------------------------------------------------------------------
++# Date helper  (from references/dates-and-schedules.md)
++# On Airflow 3 trigger timetables the logical date equals the fire time, so
++# the run's "own day" is just the anchor day – no subtraction needed.
++# ---------------------------------------------------------------------------
++def _run_day(dag_run, params=None) -> str:
++    """Return the calendar date (YYYY-MM-DD, UTC) this run should process."""
++    # Explicit reprocess via params wins
++    day = (params or {}).get("day")
++    if day:
++        return str(day)[:10]
++
++    # Interval timetable (data_interval_start != data_interval_end): use the
++    # interval start date.
++    s = dag_run.data_interval_start
++    e = dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        return pendulum.instance(s).in_tz("UTC").to_date_string()
++
++    # Trigger timetable (zero-width interval) or manual run: use run_after.
++    # logical_date == run_after for scheduled trigger-timetable runs, but
++    # logical_date is None for plain manual triggers; run_after is always set.
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++# ---------------------------------------------------------------------------
++# DAG
++# ---------------------------------------------------------------------------
++@dag(
++    schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,          # serialise catch-up runs; reruns don't skip days
++    tags=["clickstream"],
++    params={"day": None},       # allow explicit reprocess: --conf '{"day":"2026-09-15"}'
++)
++def clickstream_page_stats():
++    """Three-task ETL: extract → transform → load page stats from clickstream exports."""
++
++    @task
++    def extract(**context) -> str:
++        """Read the day's gzip export, drop bots and anonymous hits, write a
++        filtered CSV to staging and return its path.
++
++        Returns the path string (claim-check pattern: XCom carries only the
++        path, not the data itself).
++        """
++        import csv as _csv
++        import gzip as _gzip
++
++        day = _run_day(context["dag_run"], context["params"])
++        src = DATA_DIR / f"{day}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(
++                f"Clickstream export not found: {src}. "
++                "Check that the export for this date has been delivered."
++            )
++
++        staging_path = STAGING_DIR / day / "filtered.csv"
++        staging_path.parent.mkdir(parents=True, exist_ok=True)
++
++        kept = 0
++        dropped_bot = 0
++        dropped_anon = 0
++
++        with (
++            _gzip.open(src, "rt", newline="") as fh_in,
++            staging_path.open("w", newline="") as fh_out,
++        ):
++            reader = _csv.DictReader(fh_in)
++            writer = _csv.DictWriter(
++                fh_out,
++                fieldnames=["event_id", "user_id", "page", "event_ts", "load_ms"],
++            )
++            writer.writeheader()
++            for row in reader:
++                if row["is_bot"] == "1":
++                    dropped_bot += 1
++                    continue
++                if not row["user_id"].strip():
++                    dropped_anon += 1
++                    continue
++                writer.writerow(
++                    {k: row[k] for k in ["event_id", "user_id", "page", "event_ts", "load_ms"]}
++                )
++                kept += 1
++
++        print(
++            f"[extract] day={day} kept={kept} "
++            f"dropped_bot={dropped_bot} dropped_anon={dropped_anon} "
++            f"-> {staging_path}"
++        )
++        return str(staging_path)
++
++    @task
++    def transform(filtered_path: str, **context) -> str:
++        """Aggregate per-page: views, unique_users, avg_load_ms.
++
++        Reads the filtered CSV produced by extract (claim-check) and writes an
++        aggregated CSV to staging.  Returns the path of that aggregation.
++        """
++        import csv as _csv
++        from collections import defaultdict
++
++        day = _run_day(context["dag_run"], context["params"])
++        agg_path = STAGING_DIR / day / "aggregated.csv"
++        agg_path.parent.mkdir(parents=True, exist_ok=True)
++
++        # Accumulators: page -> {views, users, load_sum, load_count}
++        views: dict[str, int] = defaultdict(int)
++        users: dict[str, set] = defaultdict(set)
++        load_sum: dict[str, float] = defaultdict(float)
++        load_count: dict[str, int] = defaultdict(int)
++
++        with open(filtered_path, newline="") as fh:
++            for row in _csv.DictReader(fh):
++                page = row["page"]
++                views[page] += 1
++                users[page].add(row["user_id"])
++                try:
++                    load_ms = float(row["load_ms"])
++                    load_sum[page] += load_ms
++                    load_count[page] += 1
++                except (ValueError, KeyError):
++                    pass  # missing or non-numeric load_ms: exclude from avg
++
++        with agg_path.open("w", newline="") as fh_out:
++            writer = _csv.DictWriter(
++                fh_out,
++                fieldnames=["page", "views", "unique_users", "avg_load_ms"],
++            )
++            writer.writeheader()
++            for page in sorted(views):
++                avg = (
++                    round(load_sum[page] / load_count[page], 1)
++                    if load_count[page]
++                    else None
++                )
++                writer.writerow(
++                    {
++                        "page": page,
++                        "views": views[page],
++                        "unique_users": len(users[page]),
++                        "avg_load_ms": avg,
++                    }
++                )
++
++        print(f"[transform] day={day} pages={len(views)} -> {agg_path}")
++        return str(agg_path)
++
++    @task
++    def load(aggregated_path: str, **context) -> None:
++        """Write output/page_stats/<date>.csv, replacing the file if it already
++        exists (idempotent: reruns overwrite).
++
++        Output columns (sorted by page): page, views, unique_users, avg_load_ms.
++        """
++        import csv as _csv
++        import os
++
++        day = _run_day(context["dag_run"], context["params"])
++        out_path = OUTPUT_DIR / f"{day}.csv"
++        out_path.parent.mkdir(parents=True, exist_ok=True)
++
++        # Atomic replace: write to a temp file then rename so a failed write
++        # never leaves a truncated output file.
++        tmp_path = out_path.with_suffix(".csv.tmp")
++        try:
++            with (
++                open(aggregated_path, newline="") as fh_in,
++                tmp_path.open("w", newline="") as fh_out,
++            ):
++                reader = _csv.DictReader(fh_in)
++                writer = _csv.DictWriter(
++                    fh_out,
++                    fieldnames=["page", "views", "unique_users", "avg_load_ms"],
++                )
++                writer.writeheader()
++                rows = sorted(reader, key=lambda r: r["page"])
++                writer.writerows(rows)
++
++            os.replace(tmp_path, out_path)  # atomic on POSIX
++        except Exception:
++            tmp_path.unlink(missing_ok=True)
++            raise
++
++        # Count output rows for logging
++        with out_path.open(newline="") as fh:
++            row_count = sum(1 for _ in _csv.DictReader(fh))
++
++        print(f"[load] day={day} pages={row_count} -> {out_path}")
++
++    # Wire the pipeline
++    filtered = extract()
++    aggregated = transform(filtered)
++    load(aggregated)
++
++
++clickstream_page_stats()

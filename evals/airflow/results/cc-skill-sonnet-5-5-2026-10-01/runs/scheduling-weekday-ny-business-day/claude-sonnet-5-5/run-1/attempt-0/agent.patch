@@ -1,0 +1,68 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..2cf46a2 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -10,13 +10,39 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import CronTriggerTimetable, Param, dag, get_current_context, task
++
++NY = "America/New_York"
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
+ 
++def prev_business_day(d):
++    """Previous Mon-Fri day (no holiday calendar)."""
++    d = d.subtract(days=1)
++    while d.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
++        d = d.subtract(days=1)
++    return d
++
++
++def report_day(dag_run, params=None) -> str:
++    """New York trade date (YYYY-MM-DD) this run reports.
++
++    Scheduled/backfilled runs fire weekdays 06:00 NY and report the previous
++    business day (Monday -> Friday). Manual runs have no logical date on
++    Airflow 3, so the trigger time (run_after) is used the same way. A
++    ``day`` param overrides it to reprocess a specific trade date.
++    """
++    day = (params or {}).get("day")
++    if day:
++        return day
++    anchor = dag_run.logical_date or dag_run.run_after
++    local = pendulum.instance(anchor).in_tz(NY).start_of("day")
++    return prev_business_day(local).to_date_string()
++
++
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+     totals: dict[str, list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
+@@ -41,16 +67,18 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY),
+     catchup=False,
++    params={"day": Param(None, type=["null", "string"], format="date")},
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report() -> str:
++        context = get_current_context()
++        return str(write_pnl_report(report_day(context["dag_run"], context["params"])))
+ 
+     build_report()
+ 

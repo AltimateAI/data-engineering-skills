@@ -1,0 +1,60 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..7aed038 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -1,4 +1,7 @@
+-"""Daily FX P&L report for the trading desks.
++"""Weekday FX P&L report for the trading desks.
++
++Runs at 06:00 New York time Monday to Friday and reports the previous business
++day (Monday's run covers Friday). Bank holidays are not considered.
+ 
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+@@ -10,11 +13,21 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import CronTriggerTimetable, dag, get_current_context, task
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
++NY = "America/New_York"
++
++
++def previous_business_day(run_time) -> str:
++    """Previous Mon-Fri before the New York calendar day of ``run_time``."""
++    day = pendulum.instance(run_time).in_tz(NY).date()
++    day = day.subtract(days=1)
++    while day.weekday() >= 5:
++        day = day.subtract(days=1)
++    return day.to_date_string()
+ 
+ 
+ def write_pnl_report(trade_date: str) -> Path:
+@@ -41,16 +54,19 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report() -> str:
++        # Scheduled runs have a logical_date; 3.x manual runs may not.
++        dag_run = get_current_context()["dag_run"]
++        run_time = dag_run.logical_date or dag_run.run_after
++        return str(write_pnl_report(previous_business_day(run_time)))
+ 
+     build_report()
+ 

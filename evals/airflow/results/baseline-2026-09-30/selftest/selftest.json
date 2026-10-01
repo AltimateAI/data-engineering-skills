@@ -1,0 +1,2169 @@
+[
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/reference/grade.log",
+    "seconds": 11.8
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/alt_reference/grade.log",
+    "seconds": 13.8
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "DAG inventory_snapshot exists"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/fixture/grade.log",
+    "seconds": 1.0
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "mutant:airflow3_sdk_imports",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly in Airflow 2.11",
+      "DAG inventory_snapshot exists"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/mutant_airflow3_sdk_imports/grade.log",
+    "seconds": 1.0
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "mutant:catchup_omitted",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "catchup disabled (2.11 defaults to catchup=True)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/mutant_catchup_omitted/grade.log",
+    "seconds": 12.2
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "mutant:excludes_run_date_movements",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "snapshot and low-stock files are correct for each logical date",
+      "rerun is idempotent and keeps other dates"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/mutant_excludes_run_date_movements/grade.log",
+    "seconds": 12.1
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "mutant:low_stock_at_or_below_point",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "snapshot and low-stock files are correct for each logical date",
+      "rerun is idempotent and keeps other dates"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/mutant_low_stock_at_or_below_point/grade.log",
+    "seconds": 12.0
+  },
+  {
+    "case": "authoring-airflow2-inventory-snapshot",
+    "variant": "mutant:standard_provider_import",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly in Airflow 2.11",
+      "DAG inventory_snapshot exists"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-airflow2-inventory-snapshot/mutant_standard_provider_import/grade.log",
+    "seconds": 1.3
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/reference/grade.log",
+    "seconds": 30.3
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/alt_reference/grade.log",
+    "seconds": 31.4
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "DAG clickstream_page_stats exists"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/fixture/grade.log",
+    "seconds": 1.5
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "mutant:events_as_xcom_json",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "no XCom/Variable value larger than 48 KB (data passed by reference)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/mutant_events_as_xcom_json/grade.log",
+    "seconds": 34.6
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "mutant:events_as_xcom_records",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "no XCom/Variable value larger than 48 KB (data passed by reference)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/mutant_events_as_xcom_records/grade.log",
+    "seconds": 38.9
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "mutant:events_via_variable",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "no XCom/Variable value larger than 48 KB (data passed by reference)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/mutant_events_via_variable/grade.log",
+    "seconds": 34.3
+  },
+  {
+    "case": "authoring-clickstream-claim-check",
+    "variant": "mutant:xcom_pull_without_task_ids",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.42857142857142855,
+    "failed_primary": [
+      "airflow dags test succeeds",
+      "page stats are correct for each day",
+      "no XCom/Variable value larger than 48 KB (data passed by reference)",
+      "rerun reproduces the output"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-clickstream-claim-check/mutant_xcom_pull_without_task_ids/grade.log",
+    "seconds": 11.4
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/reference/grade.log",
+    "seconds": 23.8
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/alt_reference/grade.log",
+    "seconds": 26.6
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "DAG daily_revenue exists"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/fixture/grade.log",
+    "seconds": 1.5
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "mutant:cron_string_uses_ds",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "the 03:00 run on day D reports calendar day D-1 (and only that day)",
+      "rerun of a scheduled run reproduces the same file"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/mutant_cron_string_uses_ds/grade.log",
+    "seconds": 24.9
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "mutant:filters_on_data_interval_window",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "the 03:00 run on day D reports calendar day D-1 (and only that day)",
+      "rerun of a scheduled run reproduces the same file"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/mutant_filters_on_data_interval_window/grade.log",
+    "seconds": 24.1
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "mutant:interval_timetable_ds_minus_one",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "the 03:00 run on day D reports calendar day D-1 (and only that day)",
+      "rerun of a scheduled run reproduces the same file"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/mutant_interval_timetable_ds_minus_one/grade.log",
+    "seconds": 23.9
+  },
+  {
+    "case": "authoring-daily-revenue-yesterday",
+    "variant": "mutant:wall_clock_yesterday",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "the 03:00 run on day D reports calendar day D-1 (and only that day)",
+      "rerun of a scheduled run reproduces the same file"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-daily-revenue-yesterday/mutant_wall_clock_yesterday/grade.log",
+    "seconds": 24.1
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/reference/grade.log",
+    "seconds": 55.1
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/alt_reference/grade.log",
+    "seconds": 44.8
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "DAG partner_feeds exists"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/fixture/grade.log",
+    "seconds": 2.1
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "mutant:missing_folder_crashes",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.4444444444444444,
+    "failed_primary": [
+      "airflow dags test succeeds for 0, 1 and N files",
+      "one mapped task instance per file (0/1/N)",
+      "per-partner result files are correct",
+      "summary is correct, including the day with no files",
+      "rerun of a day reproduces the same outputs"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/mutant_missing_folder_crashes/grade.log",
+    "seconds": 254.4
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "mutant:parse_time_file_loop",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.4444444444444444,
+    "failed_primary": [
+      "task set is independent of files present at parse time",
+      "uses dynamic task mapping",
+      "one mapped task instance per file (0/1/N)",
+      "summary is correct, including the day with no files",
+      "rerun of a day reproduces the same outputs"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/mutant_parse_time_file_loop/grade.log",
+    "seconds": 60.4
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "mutant:registry_driven_mapping",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5555555555555556,
+    "failed_primary": [
+      "one mapped task instance per file (0/1/N)",
+      "per-partner result files are correct",
+      "summary is correct, including the day with no files",
+      "rerun of a day reproduces the same outputs"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/mutant_registry_driven_mapping/grade.log",
+    "seconds": 47.0
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "mutant:single_task_loops_files",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7777777777777778,
+    "failed_primary": [
+      "uses dynamic task mapping",
+      "one mapped task instance per file (0/1/N)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/mutant_single_task_loops_files/grade.log",
+    "seconds": 41.8
+  },
+  {
+    "case": "authoring-partner-feeds-mapping",
+    "variant": "mutant:summary_default_trigger_rule",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8888888888888888,
+    "failed_primary": [
+      "summary is correct, including the day with no files"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-partner-feeds-mapping/mutant_summary_default_trigger_rule/grade.log",
+    "seconds": 44.8
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/reference/grade.log",
+    "seconds": 191.7
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/alt_reference/grade.log",
+    "seconds": 190.1
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.3333333333333333,
+    "failed_primary": [
+      "DAG vendor_shipments exists",
+      "no Variable/Connection/metadata-DB access at parse time"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/fixture/grade.log",
+    "seconds": 3.0
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "mutant:airflow2_schedule_interval",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly with no Variables defined",
+      "DAG vendor_shipments exists",
+      "no Variable/Connection/metadata-DB access at parse time"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/mutant_airflow2_schedule_interval/grade.log",
+    "seconds": 2.8
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "mutant:append_only_load",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9166666666666666,
+    "failed_primary": [
+      "rerun of a day does not duplicate rows and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/mutant_append_only_load/grade.log",
+    "seconds": 188.1
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "mutant:bash_relative_script_path",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "airflow dags test succeeds",
+      "vendor_shipments holds exactly the landing file rows per ship_date",
+      "carrier report published for each run date",
+      "rerun of a day does not duplicate rows and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/mutant_bash_relative_script_path/grade.log",
+    "seconds": 421.5
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "mutant:poke_sensor_default_timeout",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "file sensor is reschedule-mode or deferrable",
+      "file sensor has an explicit timeout of at most 24h"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/mutant_poke_sensor_default_timeout/grade.log",
+    "seconds": 181.8
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "mutant:sensor_watches_landing_dir",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9166666666666666,
+    "failed_primary": [
+      "load waits for the day's file (nothing runs when the file is missing)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/mutant_sensor_watches_landing_dir/grade.log",
+    "seconds": 310.4
+  },
+  {
+    "case": "authoring-vendor-shipments-etl",
+    "variant": "mutant:toplevel_variable_get",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9166666666666666,
+    "failed_primary": [
+      "no Variable/Connection/metadata-DB access at parse time"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/authoring-vendor-shipments-etl/mutant_toplevel_variable_get/grade.log",
+    "seconds": 308.1
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/reference/grade.log",
+    "seconds": 94.6
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/alt_reference/grade.log",
+    "seconds": 97.6
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.42857142857142855,
+    "failed_primary": [
+      "dags test with logical date 2026-03-02 succeeds",
+      "dated run delivers the 2026-03-02 feed",
+      "manual run without a logical date succeeds",
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/fixture/grade.log",
+    "seconds": 90.4
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:data_interval_fallback",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "manual run without a logical date succeeds",
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_data_interval_fallback/grade.log",
+    "seconds": 86.0
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:local_tz_day",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_local_tz_day/grade.log",
+    "seconds": 85.2
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:now_fallback",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_now_fallback/grade.log",
+    "seconds": 84.5
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:run_after_always",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "dated run delivers the 2026-03-02 feed"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_run_after_always/grade.log",
+    "seconds": 80.8
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:skip_manual_runs",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "manual run without a logical date succeeds",
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_skip_manual_runs/grade.log",
+    "seconds": 80.7
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:start_date_fallback",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_start_date_fallback/grade.log",
+    "seconds": 81.7
+  },
+  {
+    "case": "debugging-manual-trigger-context",
+    "variant": "mutant:template_left",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "manual run without a logical date succeeds",
+      "manual run delivers the feed for its trigger day (2026-03-03)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-manual-trigger-context/mutant_template_left/grade.log",
+    "seconds": 87.5
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/reference/grade.log",
+    "seconds": 89.8
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/alt_reference/grade.log",
+    "seconds": 92.7
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6,
+    "failed_primary": [
+      "every parse serializes to the same DAG (no new version per parse)",
+      "DAG file parses in <= 3.0s",
+      "parsing never calls the catalog service",
+      "load tasks follow the deployed catalog snapshot (config/tables.json)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/fixture/grade.log",
+    "seconds": 123.8
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "mutant:catalog_at_parse",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9,
+    "failed_primary": [
+      "parsing never calls the catalog service"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/mutant_catalog_at_parse/grade.log",
+    "seconds": 100.5
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "mutant:description_date",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9,
+    "failed_primary": [
+      "every parse serializes to the same DAG (no new version per parse)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/mutant_description_date/grade.log",
+    "seconds": 92.3
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "mutant:hardcoded_tables",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9,
+    "failed_primary": [
+      "load tasks follow the deployed catalog snapshot (config/tables.json)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/mutant_hardcoded_tables/grade.log",
+    "seconds": 94.9
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "mutant:now_start_date",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9,
+    "failed_primary": [
+      "every parse serializes to the same DAG (no new version per parse)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/mutant_now_start_date/grade.log",
+    "seconds": 92.4
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "mutant:parallel_loads",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8,
+    "failed_primary": [
+      "one load_<table> task per catalog table, loads run one at a time",
+      "load tasks follow the deployed catalog snapshot (config/tables.json)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/mutant_parallel_loads/grade.log",
+    "seconds": 93.5
+  },
+  {
+    "case": "debugging-nondeterministic-parse",
+    "variant": "mutant:set_order",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.9,
+    "failed_primary": [
+      "every parse serializes to the same DAG (no new version per parse)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-nondeterministic-parse/mutant_set_order/grade.log",
+    "seconds": 94.7
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/reference/grade.log",
+    "seconds": 72.5
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/alt_reference/grade.log",
+    "seconds": 70.5
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAG files import with no Variables available",
+      "DAG warehouse_load is present"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/fixture/grade.log",
+    "seconds": 7.2
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "mutant:catchup_enabled",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "still scheduled daily at 06:00 UTC, catchup off"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/mutant_catchup_enabled/grade.log",
+    "seconds": 70.0
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "mutant:daily_preset",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "still scheduled daily at 06:00 UTC, catchup off"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/mutant_daily_preset/grade.log",
+    "seconds": 69.8
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "mutant:default_at_parse",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "revenue loaded into the warehouse the Variable points to"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/mutant_default_at_parse/grade.log",
+    "seconds": 67.8
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "mutant:hardcoded_path",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "revenue loaded into the warehouse the Variable points to"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/mutant_hardcoded_path/grade.log",
+    "seconds": 70.3
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "mutant:schedule_dropped",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "still scheduled daily at 06:00 UTC, catchup off"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/mutant_schedule_dropped/grade.log",
+    "seconds": 69.8
+  },
+  {
+    "case": "debugging-variable-at-parse",
+    "variant": "mutant:variable_in_dag_body",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAG files import with no Variables available",
+      "DAG warehouse_load is present"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/debugging-variable-at-parse/mutant_variable_in_dag_body/grade.log",
+    "seconds": 7.3
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/reference/grade.log",
+    "seconds": 103.1
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/alt_reference/grade.log",
+    "seconds": 102.4
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAG imports cleanly on Airflow 3.3",
+      "hourly_pageviews keeps its tasks and dependencies",
+      "dags test succeeds"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/fixture/grade.log",
+    "seconds": 22.4
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "mutant:cleanup_relative_to_run_time",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "staging cleanup keeps and deletes the same files as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/mutant_cleanup_relative_to_run_time/grade.log",
+    "seconds": 108.3
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "mutant:interval_vars_trigger_timetable",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5714285714285714,
+    "failed_primary": [
+      "hourly rollups (previous clock hour, change vs hour before) match 2.11",
+      "completion markers match 2.11",
+      "staging cleanup keeps and deletes the same files as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/mutant_interval_vars_trigger_timetable/grade.log",
+    "seconds": 109.2
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "mutant:logical_date_bare_cron",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5714285714285714,
+    "failed_primary": [
+      "hourly rollups (previous clock hour, change vs hour before) match 2.11",
+      "completion markers match 2.11",
+      "staging cleanup keeps and deletes the same files as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/mutant_logical_date_bare_cron/grade.log",
+    "seconds": 108.6
+  },
+  {
+    "case": "migration-hourly-pageviews-templates",
+    "variant": "mutant:ruff_fix_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.2857142857142857,
+    "failed_primary": [
+      "dags test succeeds",
+      "scheduled hourly runs succeed on 3.3",
+      "hourly rollups (previous clock hour, change vs hour before) match 2.11",
+      "completion markers match 2.11",
+      "staging cleanup keeps and deletes the same files as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-hourly-pageviews-templates/mutant_ruff_fix_only/grade.log",
+    "seconds": 101.9
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/reference/grade.log",
+    "seconds": 84.1
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/alt_reference/grade.log",
+    "seconds": 84.1
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly on Airflow 3.3",
+      "inventory_snapshot keeps its tasks and dependency",
+      "dags test succeeds"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/fixture/grade.log",
+    "seconds": 22.6
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "mutant:daily_cron_preset",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8,
+    "failed_primary": [
+      "snapshots and audit records match the Airflow 2 output"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/mutant_daily_cron_preset/grade.log",
+    "seconds": 83.0
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "mutant:prev_ds_default_none",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8,
+    "failed_primary": [
+      "snapshots and audit records match the Airflow 2 output"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/mutant_prev_ds_default_none/grade.log",
+    "seconds": 81.6
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "mutant:timedelta_schedule_kept",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8,
+    "failed_primary": [
+      "snapshots and audit records match the Airflow 2 output"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/mutant_timedelta_schedule_kept/grade.log",
+    "seconds": 86.0
+  },
+  {
+    "case": "migration-inventory-context",
+    "variant": "mutant:xcom_pull_without_task_ids",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8,
+    "failed_primary": [
+      "snapshots and audit records match the Airflow 2 output"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-inventory-context/mutant_xcom_pull_without_task_ids/grade.log",
+    "seconds": 80.0
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/reference/grade.log",
+    "seconds": 136.2
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/alt_reference/grade.log",
+    "seconds": 135.0
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly on Airflow 3.3",
+      "daily_revenue keeps its tasks and dependency",
+      "dags test succeeds (daily_revenue, region_reference)",
+      "project test suite passes on 3.3",
+      "project test suite still fails on a DAG file that does not import"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/fixture/grade.log",
+    "seconds": 41.6
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "mutant:data_interval_window",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "scheduled runs process the same business day and write the same output as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/mutant_data_interval_window/grade.log",
+    "seconds": 130.3
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "mutant:naive_cron_trigger",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "scheduled runs process the same business day and write the same output as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/mutant_naive_cron_trigger/grade.log",
+    "seconds": 127.1
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "mutant:next_ds_left_in_sql",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5714285714285714,
+    "failed_primary": [
+      "dags test succeeds (daily_revenue, region_reference)",
+      "scheduled 04:15 runs succeed on 3.3",
+      "scheduled runs process the same business day and write the same output as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/mutant_next_ds_left_in_sql/grade.log",
+    "seconds": 122.8
+  },
+  {
+    "case": "migration-revenue-previous-day",
+    "variant": "mutant:old_dagbag_test",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "project test suite passes on 3.3",
+      "project test suite still fails on a DAG file that does not import"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-revenue-previous-day/mutant_old_dagbag_test/grade.log",
+    "seconds": 133.8
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/reference/grade.log",
+    "seconds": 152.7
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/alt_reference/grade.log",
+    "seconds": 146.6
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly on Airflow 3.3",
+      "both DAGs keep their tasks and dependencies",
+      "carrier_scorecard is still scheduled on the asset ingest_shipments updates",
+      "dags test succeeds (ingest_shipments, carrier_scorecard)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/fixture/grade.log",
+    "seconds": 28.0
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "mutant:db_session_kept",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.42857142857142855,
+    "failed_primary": [
+      "dags test succeeds (ingest_shipments, carrier_scorecard)",
+      "three hourly loads and the scorecard run succeed on 3.3",
+      "every carrier event is loaded exactly once, in the same batches as 2.11",
+      "scorecard and _READY marker match 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/mutant_db_session_kept/grade.log",
+    "seconds": 138.7
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "mutant:watermark_current_run_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "every carrier event is loaded exactly once, in the same batches as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/mutant_watermark_current_run_only/grade.log",
+    "seconds": 140.0
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "mutant:xcom_prior_dates_list",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5714285714285714,
+    "failed_primary": [
+      "three hourly loads and the scorecard run succeed on 3.3",
+      "every carrier event is loaded exactly once, in the same batches as 2.11",
+      "scorecard and _READY marker match 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/mutant_xcom_prior_dates_list/grade.log",
+    "seconds": 140.0
+  },
+  {
+    "case": "migration-shipments-assets",
+    "variant": "mutant:xcom_pull_template_no_task_ids",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "scorecard and _READY marker match 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-shipments-assets/mutant_xcom_pull_template_no_task_ids/grade.log",
+    "seconds": 137.4
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/reference/grade.log",
+    "seconds": 122.6
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/alt_reference/grade.log",
+    "seconds": 118.5
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "DAGs import cleanly on Airflow 3.3",
+      "weekly_campaign_report keeps its tasks and dependency",
+      "dags test succeeds (weekly_campaign_report, campaign_sync)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/fixture/grade.log",
+    "seconds": 25.1
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "mutant:catchup_left_default",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "season backfill: scheduler creates the same weekly runs from start_date as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/mutant_catchup_left_default/grade.log",
+    "seconds": 120.5
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "mutant:cron_trigger_current_week",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "Monday runs report on the previous week, same output as 2.11",
+      "season backfill: scheduler creates the same weekly runs from start_date as 2.11"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/mutant_cron_trigger_current_week/grade.log",
+    "seconds": 119.0
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "mutant:deadline_from_logical_date",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/mutant_deadline_from_logical_date/grade.log",
+    "seconds": 117.6
+  },
+  {
+    "case": "migration-weekly-catchup",
+    "variant": "mutant:sla_kept_no_deadline",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/migration-weekly-catchup/mutant_sla_kept_no_deadline/grade.log",
+    "seconds": 114.8
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/reference/grade.log",
+    "seconds": 138.6
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/alt_reference/grade.log",
+    "seconds": 138.3
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.4444444444444444,
+    "failed_primary": [
+      "catchup enabled",
+      "one writer at a time",
+      "catchup backfills exactly 09-01..09-29",
+      "each run loads a day whose export has already landed",
+      "re-running a day repairs it and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/fixture/grade.log",
+    "seconds": 62.3
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:catchup_old_start_date",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "catchup backfills exactly 09-01..09-29",
+      "each run loads a day whose export has already landed",
+      "re-running a day repairs it and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_catchup_old_start_date/grade.log",
+    "seconds": 60.0
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:date_from_wall_clock",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "catchup backfills exactly 09-01..09-29",
+      "each run loads a day whose export has already landed",
+      "re-running a day repairs it and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_date_from_wall_clock/grade.log",
+    "seconds": 103.8
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:dynamic_start_date",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8888888888888888,
+    "failed_primary": [
+      "start_date is fixed, not computed from the clock"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_dynamic_start_date/grade.log",
+    "seconds": 130.7
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:max_active_tasks_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8888888888888888,
+    "failed_primary": [
+      "one writer at a time"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_max_active_tasks_only/grade.log",
+    "seconds": 122.7
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:no_concurrency_limit",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8888888888888888,
+    "failed_primary": [
+      "one writer at a time"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_no_concurrency_limit/grade.log",
+    "seconds": 127.9
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:same_day_skip_missing",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8888888888888888,
+    "failed_primary": [
+      "each run loads a day whose export has already landed"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_same_day_skip_missing/grade.log",
+    "seconds": 136.0
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:skip_loaded_days",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8888888888888888,
+    "failed_primary": [
+      "re-running a day repairs it and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_skip_loaded_days/grade.log",
+    "seconds": 136.2
+  },
+  {
+    "case": "scheduling-backfill-pageviews",
+    "variant": "mutant:start_date_sep1_previous_day",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7777777777777778,
+    "failed_primary": [
+      "catchup backfills exactly 09-01..09-29",
+      "re-running a day repairs it and keeps other days"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-backfill-pageviews/mutant_start_date_sep1_previous_day/grade.log",
+    "seconds": 104.8
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/reference/grade.log",
+    "seconds": 74.6
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/alt_reference/grade.log",
+    "seconds": 72.5
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "scheduled runs load exactly their own day",
+      "re-running a day creates no duplicates and keeps the previous day",
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/fixture/grade.log",
+    "seconds": 74.4
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "mutant:inclusive_interval_end",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "scheduled runs load exactly their own day",
+      "re-running a day creates no duplicates and keeps the previous day",
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/mutant_inclusive_interval_end/grade.log",
+    "seconds": 76.4
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "mutant:insert_missing_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/mutant_insert_missing_only/grade.log",
+    "seconds": 76.7
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "mutant:logical_date_minus_one",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "scheduled runs load exactly their own day",
+      "re-running a day creates no duplicates and keeps the previous day",
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/mutant_logical_date_minus_one/grade.log",
+    "seconds": 81.2
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "mutant:rollup_still_appends",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.6666666666666666,
+    "failed_primary": [
+      "re-running a day creates no duplicates and keeps the previous day",
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/mutant_rollup_still_appends/grade.log",
+    "seconds": 77.2
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "mutant:skip_if_already_loaded",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8333333333333334,
+    "failed_primary": [
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/mutant_skip_if_already_loaded/grade.log",
+    "seconds": 76.9
+  },
+  {
+    "case": "scheduling-idempotent-orders-load",
+    "variant": "mutant:truncate_whole_table",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "scheduled runs load exactly their own day",
+      "re-running a day creates no duplicates and keeps the previous day",
+      "re-run repairs a partially written day"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-idempotent-orders-load/mutant_truncate_whole_table/grade.log",
+    "seconds": 77.8
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/reference/grade.log",
+    "seconds": 74.8
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/alt_reference/grade.log",
+    "seconds": 73.2
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.42857142857142855,
+    "failed_primary": [
+      "runs at 06:00 New York on weekdays only, across DST",
+      "Monday run after DST starts reports Friday",
+      "Tuesday run reports Monday",
+      "Monday run after DST ends reports Friday"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/fixture/grade.log",
+    "seconds": 72.8
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "mutant:calendar_yesterday",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.7142857142857143,
+    "failed_primary": [
+      "Monday run after DST starts reports Friday",
+      "Monday run after DST ends reports Friday"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/mutant_calendar_yesterday/grade.log",
+    "seconds": 72.2
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "mutant:cron_string_interval_start",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5714285714285714,
+    "failed_primary": [
+      "Monday run after DST starts reports Friday",
+      "Tuesday run reports Monday",
+      "Monday run after DST ends reports Friday"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/mutant_cron_string_interval_start/grade.log",
+    "seconds": 72.2
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "mutant:cron_string_utc_start_date",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "runs at 06:00 New York on weekdays only, across DST"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/mutant_cron_string_utc_start_date/grade.log",
+    "seconds": 82.1
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "mutant:utc_eleven_am_cron",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.8571428571428571,
+    "failed_primary": [
+      "runs at 06:00 New York on weekdays only, across DST"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/mutant_utc_eleven_am_cron/grade.log",
+    "seconds": 93.1
+  },
+  {
+    "case": "scheduling-weekday-ny-business-day",
+    "variant": "mutant:wall_clock_run_day",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5714285714285714,
+    "failed_primary": [
+      "Monday run after DST starts reports Friday",
+      "Tuesday run reports Monday",
+      "Monday run after DST ends reports Friday"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/scheduling-weekday-ny-business-day/mutant_wall_clock_run_day/grade.log",
+    "seconds": 90.2
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/reference/grade.log",
+    "seconds": 32.5
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/alt_reference/grade.log",
+    "seconds": 60.6
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "test suite exists under tests/",
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: af3_import",
+      "suite catches hidden bug: weekend_schedule",
+      "suite catches hidden bug: undelivered_ignored",
+      "suite catches hidden bug: retries_dropped",
+      "suite catches hidden bug: missing_dependency"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/fixture/grade.log",
+    "seconds": 18.8
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "mutant:af3_test_apis",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.125,
+    "failed_primary": [
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: af3_import",
+      "suite catches hidden bug: weekend_schedule",
+      "suite catches hidden bug: undelivered_ignored",
+      "suite catches hidden bug: retries_dropped",
+      "suite catches hidden bug: missing_dependency"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/mutant_af3_test_apis/grade.log",
+    "seconds": 28.3
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "mutant:schedule_time_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite catches hidden bug: weekend_schedule"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/mutant_schedule_time_only/grade.log",
+    "seconds": 39.6
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "mutant:source_snapshot",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite passes on a behaviour-preserving edit of the sources"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/mutant_source_snapshot/grade.log",
+    "seconds": 21.4
+  },
+  {
+    "case": "testing-airflow2-ci-suite",
+    "variant": "mutant:structure_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite catches hidden bug: undelivered_ignored"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-airflow2-ci-suite/mutant_structure_only/grade.log",
+    "seconds": 29.3
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/reference/grade.log",
+    "seconds": 50.4
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/alt_reference/grade.log",
+    "seconds": 51.0
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "test suite exists under tests/",
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: hook_ignores_host",
+      "suite catches hidden bug: schema_from_extra",
+      "suite catches hidden bug: conn_id_ignored",
+      "suite catches hidden bug: rerun_duplicates",
+      "suite catches hidden bug: partition_filter_dropped"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/fixture/grade.log",
+    "seconds": 20.1
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "mutant:conn_from_metadata_db",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.125,
+    "failed_primary": [
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: hook_ignores_host",
+      "suite catches hidden bug: schema_from_extra",
+      "suite catches hidden bug: conn_id_ignored",
+      "suite catches hidden bug: rerun_duplicates",
+      "suite catches hidden bug: partition_filter_dropped"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/mutant_conn_from_metadata_db/grade.log",
+    "seconds": 50.3
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "mutant:mocked_duckdb",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "suite catches hidden bug: hook_ignores_host",
+      "suite catches hidden bug: schema_from_extra",
+      "suite catches hidden bug: conn_id_ignored",
+      "suite catches hidden bug: partition_filter_dropped"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/mutant_mocked_duckdb/grade.log",
+    "seconds": 46.0
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "mutant:patched_conn_any_id",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite catches hidden bug: conn_id_ignored"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/mutant_patched_conn_any_id/grade.log",
+    "seconds": 51.4
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "mutant:return_value_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.5,
+    "failed_primary": [
+      "suite catches hidden bug: hook_ignores_host",
+      "suite catches hidden bug: schema_from_extra",
+      "suite catches hidden bug: rerun_duplicates",
+      "suite catches hidden bug: partition_filter_dropped"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/mutant_return_value_only/grade.log",
+    "seconds": 51.6
+  },
+  {
+    "case": "testing-custom-operator-conn",
+    "variant": "mutant:source_snapshot",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite passes on a behaviour-preserving edit of the sources"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-custom-operator-conn/mutant_source_snapshot/grade.log",
+    "seconds": 26.5
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/reference/grade.log",
+    "seconds": 47.4
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/alt_reference/grade.log",
+    "seconds": 50.5
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "test suite exists under tests/",
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: import_error",
+      "suite catches hidden bug: dag_cycle",
+      "suite catches hidden bug: missing_dependency",
+      "suite catches hidden bug: retries_disabled",
+      "suite catches hidden bug: catchup_enabled"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/fixture/grade.log",
+    "seconds": 19.5
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "mutant:airflow2_dagbag",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.125,
+    "failed_primary": [
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: import_error",
+      "suite catches hidden bug: dag_cycle",
+      "suite catches hidden bug: missing_dependency",
+      "suite catches hidden bug: retries_disabled",
+      "suite catches hidden bug: catchup_enabled"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/mutant_airflow2_dagbag/grade.log",
+    "seconds": 49.7
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "mutant:default_args_retries_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite catches hidden bug: retries_disabled"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/mutant_default_args_retries_only/grade.log",
+    "seconds": 49.2
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "mutant:import_errors_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.625,
+    "failed_primary": [
+      "suite catches hidden bug: missing_dependency",
+      "suite catches hidden bug: retries_disabled",
+      "suite catches hidden bug: catchup_enabled"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/mutant_import_errors_only/grade.log",
+    "seconds": 48.3
+  },
+  {
+    "case": "testing-dagbag-integrity",
+    "variant": "mutant:source_snapshot",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite passes on a behaviour-preserving edit of the sources"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-dagbag-integrity/mutant_source_snapshot/grade.log",
+    "seconds": 27.2
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/reference/grade.log",
+    "seconds": 123.7
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "alt_reference",
+    "expected_pass": true,
+    "primary_pass": true,
+    "primary_score": 1.0,
+    "failed_primary": [],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/alt_reference/grade.log",
+    "seconds": 41.4
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "fixture",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.0,
+    "failed_primary": [
+      "test suite exists under tests/",
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: dedupe_keeps_first",
+      "suite catches hidden bug: rounding_truncates",
+      "suite catches hidden bug: unknown_currency_as_usd",
+      "suite catches hidden bug: validation_bypassed",
+      "suite catches hidden bug: schedule_midnight"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/fixture/grade.log",
+    "seconds": 18.1
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "mutant:calls_task_not_function",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.125,
+    "failed_primary": [
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: dedupe_keeps_first",
+      "suite catches hidden bug: rounding_truncates",
+      "suite catches hidden bug: unknown_currency_as_usd",
+      "suite catches hidden bug: validation_bypassed",
+      "suite catches hidden bug: schedule_midnight"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/mutant_calls_task_not_function/grade.log",
+    "seconds": 120.4
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "mutant:schedule_interval_attr",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.125,
+    "failed_primary": [
+      "suite passes on the correct project",
+      "suite passes on a behaviour-preserving edit of the sources",
+      "suite catches hidden bug: dedupe_keeps_first",
+      "suite catches hidden bug: rounding_truncates",
+      "suite catches hidden bug: unknown_currency_as_usd",
+      "suite catches hidden bug: validation_bypassed",
+      "suite catches hidden bug: schedule_midnight"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/mutant_schedule_interval_attr/grade.log",
+    "seconds": 119.2
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "mutant:source_snapshot",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.875,
+    "failed_primary": [
+      "suite passes on a behaviour-preserving edit of the sources"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/mutant_source_snapshot/grade.log",
+    "seconds": 18.7
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "mutant:transforms_and_e2e_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.75,
+    "failed_primary": [
+      "suite catches hidden bug: validation_bypassed",
+      "suite catches hidden bug: schedule_midnight"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/mutant_transforms_and_e2e_only/grade.log",
+    "seconds": 113.3
+  },
+  {
+    "case": "testing-taskflow-transforms",
+    "variant": "mutant:wiring_only",
+    "expected_pass": false,
+    "primary_pass": false,
+    "primary_score": 0.625,
+    "failed_primary": [
+      "suite catches hidden bug: dedupe_keeps_first",
+      "suite catches hidden bug: rounding_truncates",
+      "suite catches hidden bug: unknown_currency_as_usd"
+    ],
+    "grader_error": false,
+    "grade_log": "<work>/selftest-qt_36ct3/testing-taskflow-transforms/mutant_wiring_only/grade.log",
+    "seconds": 48.7
+  }
+]

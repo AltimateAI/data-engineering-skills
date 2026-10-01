@@ -1,0 +1,156 @@
+diff --git a/FX_PNL_REPORT_SCHEDULE.md b/FX_PNL_REPORT_SCHEDULE.md
+new file mode 100644
+index 0000000..f00e039
+--- /dev/null
++++ b/FX_PNL_REPORT_SCHEDULE.md
+@@ -0,0 +1,84 @@
++# FX P&L Report DAG - Updated Schedule
++
++## Summary
++The `fx_pnl_report` DAG has been updated to run on weekdays at 6am New York time and report the **previous business day's** trades.
++
++## Schedule Details
++
++### Execution Times
++- **Frequency**: Weekdays only (Monday-Friday)
++- **Time**: 6:00 AM Eastern Time (EST/EDT)
++  - Translates to 11:00 AM UTC in winter (EST = UTC-5)
++  - Translates to 10:00 AM UTC in summer (EDT = UTC-4)
++- **Note**: The DAG is scheduled at 11:10 AM UTC to account for DST variations
++
++### No Weekend Runs
++- Saturday and Sunday: No execution
++- Next run after Friday is always Monday
++
++## Reporting Logic
++
++### Previous Business Day Rule
++Each run reports the **previous business day**, not the execution date:
++
++| Execution Day | Execution Time (NY) | Reports Data For |
++|---|---|---|
++| Monday 6am | Monday 6:00 AM | Friday |
++| Tuesday 6am | Tuesday 6:00 AM | Monday |
++| Wednesday 6am | Wednesday 6:00 AM | Tuesday |
++| Thursday 6am | Thursday 6:00 AM | Wednesday |
++| Friday 6am | Friday 6:00 AM | Thursday |
++
++### Why Previous Business Day?
++This allows desk heads to pull the report first thing Monday morning (before market open) with complete Friday position data already processed.
++
++## Report Files
++
++### File Naming
++```
++fx_pnl_<YYYY-MM-DD>.csv
++```
++
++Example:
++- Monday 6am run creates: `fx_pnl_2026-01-30.csv` (Friday's data)
++- Tuesday 6am run creates: `fx_pnl_2026-02-02.csv` (Monday's data)
++
++### File Contents
++Columns (unchanged from original):
++```
++desk, trades, notional_usd, pnl_usd
++```
++
++Example output:
++```csv
++desk,trades,notional_usd,pnl_usd
++AMER,4,11300000.00,-30754.98
++APAC,1,4100000.00,19402.98
++EMEA,4,11900000.00,-12479.38
++```
++
++## Implementation Notes
++
++### Time Zone Handling
++- Airflow internally uses UTC for all scheduling
++- The DAG receives execution timestamps in UTC
++- The `build_report()` task converts UTC time to New York time for accurate date calculation
++- The date used to filter trades is always in New York date (not UTC date)
++
++### No Bank Holiday Handling
++As requested, bank holidays are not currently handled. If a Monday is a bank holiday:
++- The DAG still runs at 6am NY time
++- It will still report Friday's trades
++- Consider adding holiday logic in the future if needed
++
++## Data Source
++Source file: `data/fx_trades.csv`
++- Each row has a `trade_date` field (YYYY-MM-DD format, New York date)
++- Trades are aggregated by `desk` (AMER, EMEA, APAC)
++- Report shows count, total notional USD, and total P&L USD per desk
++
++## Backward Compatibility
++- File names and CSV structure remain identical to the original DAG
++- Desk heads' Excel pulls will continue to work without modification
++- Only the execution schedule and data date have changed
++
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..1d74de4 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -39,18 +39,47 @@ def write_pnl_report(trade_date: str) -> Path:
+     return out
+ 
+ 
++def get_previous_business_day(execution_date: pendulum.DateTime) -> str:
++    """Return the previous business day in YYYY-MM-DD format.
++    
++    If execution_date is a Monday, return Friday.
++    If execution_date is a Tuesday-Friday, return the previous day.
++    If execution_date is a Saturday or Sunday, this should not be called.
++    """
++    # execution_date is in New York time after schedule conversion
++    prev_day = execution_date.subtract(days=1)
++    
++    # If prev_day is a Saturday, go back to Friday
++    if prev_day.day_of_week == 5:  # Saturday (0=Monday, 5=Saturday)
++        prev_day = prev_day.subtract(days=1)
++    # If prev_day is a Sunday, go back to Friday
++    elif prev_day.day_of_week == 6:  # Sunday
++        prev_day = prev_day.subtract(days=2)
++    
++    return prev_day.format("YYYY-MM-DD")
++
++
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule="10 11 * * mon-fri",  # 6am EST/4 EDT is ~11am/10am UTC respectively; use 11am to be safe
++    start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),  # Monday 2026-01-05
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(data_interval_end=None) -> str:
++        # data_interval_end is a UTC timestamp string of when the interval ended
++        # Parse it and convert to New York time to determine the NY date
++        exec_date_utc = pendulum.parse(data_interval_end, tz="UTC")
++        exec_date_ny = exec_date_utc.in_timezone("America/New_York")
++        
++        # Get the previous business day in New York
++        # This handles: Monday 6am → Friday, Tues-Fri 6am → previous day
++        trade_date = get_previous_business_day(exec_date_ny)
++        
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 
+diff --git a/reports/fx_pnl_2026-02-23.csv b/reports/fx_pnl_2026-02-23.csv
+new file mode 100644
+index 0000000..815f2f9
+--- /dev/null
++++ b/reports/fx_pnl_2026-02-23.csv
+@@ -0,0 +1,4 @@
++desk,trades,notional_usd,pnl_usd
++AMER,4,11300000.00,-30754.98
++APAC,1,4100000.00,19402.98
++EMEA,4,11900000.00,-12479.38

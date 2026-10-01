@@ -1,0 +1,464 @@
+diff --git a/DEPLOYMENT_CHECKLIST.md b/DEPLOYMENT_CHECKLIST.md
+new file mode 100644
+index 0000000..1366178
+--- /dev/null
++++ b/DEPLOYMENT_CHECKLIST.md
+@@ -0,0 +1,223 @@
++# Airflow 3.3.2 Deployment Checklist
++
++**DAG:** `inventory_snapshot`  
++**Upgrade Path:** 2.11.2 → 3.3.2  
++**Date:** 2026-09-30
++
++---
++
++## Pre-Deployment
++
++- [ ] **Review Changes**
++  - Read `UPGRADE_3.3_NOTES.md`
++  - Understand the breaking changes in Airflow 3.3
++  - Confirm no other DAGs in your environment need similar upgrades
++
++- [ ] **Environment Setup**
++  - Ensure your Airflow cluster is running or will be updated to 3.3.2
++  - Confirm venv is set to Python 3.8+ (required for Airflow 3.3)
++  - Back up current Airflow configuration and metadata DB (if applicable)
++
++- [ ] **Dependency Installation**
++  ```bash
++  pip install -r requirements.txt  # Installs apache-airflow==3.3.2
++  ```
++
++---
++
++## Deployment
++
++- [ ] **Airflow Upgrade**
++  ```bash
++  # Update Airflow installation
++  pip install --upgrade apache-airflow==3.3.2
++  
++  # Upgrade metadata database schema (if running a shared Airflow instance)
++  airflow db migrate
++  
++  # Verify installation
++  airflow version  # Should show: 3.3.2
++  ```
++
++- [ ] **Service Restart**
++  ```bash
++  # Stop services
++  systemctl stop airflow-scheduler
++  systemctl stop airflow-webserver
++  
++  # Start services
++  systemctl start airflow-scheduler
++  systemctl start airflow-webserver
++  
++  # Check logs for errors
++  tail -f /var/log/airflow/scheduler.log
++  tail -f /var/log/airflow/webserver.log
++  ```
++
++- [ ] **DAG Deployment**
++  - Copy upgraded `dags/inventory_snapshot.py` to your DAGs folder
++  - Copy `requirements.txt` (updated version)
++  - Copy `UPGRADE_3.3_NOTES.md` for team reference
++
++---
++
++## Post-Deployment Verification
++
++### 1. DAG Parsing
++```bash
++# Check DAG appears without parse errors
++airflow dags list | grep inventory_snapshot
++
++# Show full DAG info
++airflow dags info inventory_snapshot
++
++# Generate DAG visual (optional)
++airflow dags show inventory_snapshot
++```
++
++**Expected Output:**
++```
++dag_id  | owner            | enabled
++────────┼──────────────────┼────────
++inventory_snapshot | warehouse-ops | True
++```
++
++### 2. Task Verification
++```bash
++# List all tasks
++airflow tasks list inventory_snapshot
++
++# Expected tasks:
++# - build_snapshot
++# - audit_snapshot
++```
++
++### 3. Manual Trigger Test
++```bash
++# Test DAG with a known date (not too far in the past)
++airflow dags test inventory_snapshot 2026-01-15
++
++# Watch output
++watch -n 1 'airflow task instance list | grep inventory_snapshot'
++```
++
++### 4. Output File Validation
++After the test completes:
++
++- [ ] **CSV Snapshot**
++  ```bash
++  ls -la output/inventory/2026-01-15.csv
++  head output/inventory/2026-01-15.csv
++  ```
++  
++  Expected content:
++  ```
++  sku,on_hand,change
++  SKU001,150,5
++  SKU002,42,-3
++  SKU003,8,
++  ```
++
++- [ ] **JSON Audit**
++  ```bash
++  cat output/audit/2026-01-15.json
++  ```
++  
++  Expected content:
++  ```json
++  {
++    "day": "2026-01-15",
++    "low_stock": ["SKU003"],
++    "sku_count": 3
++  }
++  ```
++
++### 5. Replenishment Team Verification
++- [ ] Confirm your replenishment team received the CSV file
++- [ ] Confirm they received the JSON audit file
++- [ ] Verify their alerting system properly parsed the files
++- [ ] Check that low-stock alerts triggered correctly (if applicable)
++
++---
++
++## Monitoring
++
++### First Week
++- [ ] Monitor daily DAG runs for failures
++- [ ] Check Airflow logs for warnings or errors
++- [ ] Verify output files are created on schedule
++- [ ] Monitor replenishment team's alerting system
++
++### Dashboard View
++```bash
++# Open Airflow web UI and navigate to:
++# DAGs > inventory_snapshot > Graph View
++# Check for any red (failed) tasks
++# Verify schedule shows @daily
++```
++
++---
++
++## Rollback Plan (if needed)
++
++If the upgrade causes issues:
++
++1. **Revert to 2.11.2**
++   ```bash
++   pip install apache-airflow==2.11.2
++   airflow db downgrade  # If DB schema changed
++   systemctl restart airflow-scheduler airflow-webserver
++   ```
++
++2. **Revert DAG Code**
++   ```bash
++   # Use git to checkout the previous version
++   git checkout HEAD^ dags/inventory_snapshot.py
++   ```
++
++3. **Verify Revert**
++   ```bash
++   airflow dags info inventory_snapshot
++   # Should show old schedule_interval again
++   ```
++
++---
++
++## Support & Documentation
++
++| Item | Location |
++|------|----------|
++| Detailed Upgrade Guide | `UPGRADE_3.3_NOTES.md` |
++| Airflow 3.3 Docs | https://airflow.apache.org/docs/apache-airflow/stable/ |
++| Breaking Changes | https://airflow.apache.org/docs/apache-airflow/stable/upgrading-to-airflow-3.html |
++| Python Operator Docs | https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html |
++
++---
++
++## Sign-Off
++
++- [ ] **Tested by:** _________________________ (Name)
++- [ ] **Date:** _________________________ 
++- [ ] **Environment:** _________________________ (dev/staging/prod)
++- [ ] **All checks passed:** ☐ Yes ☐ No
++
++**Notes:**
++```
++_________________________________________________________________
++_________________________________________________________________
++_________________________________________________________________
++```
++
++---
++
++## Troubleshooting Quick Reference
++
++| Issue | Solution |
++|-------|----------|
++| `ModuleNotFoundError: No module named 'airflow'` | Run `pip install -r requirements.txt` |
++| `DAG not appearing in UI` | Check `airflow dags report` for parse errors |
++| `schedule='@daily' not recognized` | Ensure Airflow 3.3+ is installed |
++| `Parameters not injecting` | Check function signature parameter names match Airflow's names |
++| `XCom values missing` | Verify `build_snapshot` ran before `audit_snapshot` |
++| `CSV/JSON files not created` | Check file permissions on `output/` directory |
++
+diff --git a/UPGRADE_3.3_NOTES.md b/UPGRADE_3.3_NOTES.md
+new file mode 100644
+index 0000000..e595272
+--- /dev/null
++++ b/UPGRADE_3.3_NOTES.md
+@@ -0,0 +1,175 @@
++# Airflow 3.3.2 Upgrade Guide: inventory_snapshot DAG
++
++## Overview
++The `inventory_snapshot` DAG has been upgraded from Airflow 2.11.2 to 3.3.2. All changes are **backward-compatible in terms of output data**. The CSV snapshot files and JSON audit files generated by this DAG remain exactly the same.
++
++## What Changed
++
++### 1. Schedule Definition
++**Old (Airflow 2.x):**
++```python
++schedule_interval=timedelta(days=1)
++```
++
++**New (Airflow 3.3):**
++```python
++schedule="@daily"
++```
++
++**Why?** The `schedule_interval` parameter was deprecated in Airflow 2.2 and removed in 3.0. The new `schedule` parameter accepts cron strings and preset aliases like `@daily`, `@hourly`, `@weekly`, etc.
++
++---
++
++### 2. Context Injection
++**Old Pattern (Airflow 2.x):**
++```python
++from airflow.operators.python import PythonOperator, get_current_context
++
++def audit_snapshot(**kwargs):
++    context = get_current_context()
++    day = context["execution_date"].strftime("%Y-%m-%d")
++    ti = kwargs["ti"]
++    # ...
++
++audit = PythonOperator(
++    task_id="audit_snapshot",
++    python_callable=audit_snapshot,
++    provide_context=True,  # Enables context injection
++)
++```
++
++**New Pattern (Airflow 3.3):**
++```python
++from airflow.operators.python import PythonOperator
++
++def audit_snapshot(execution_date=None, ti=None, **kwargs):
++    day = execution_date.strftime("%Y-%m-%d")
++    # ...
++
++audit = PythonOperator(
++    task_id="audit_snapshot",
++    python_callable=audit_snapshot,
++)
++```
++
++**Why?** Airflow 3.3 uses explicit parameter injection. When Airflow executes the task, it inspects the function signature and injects matching parameters by name. This is cleaner and more explicit than the `provide_context=True` + `get_current_context()` pattern. The `provide_context` parameter is ignored in 3.3.
++
++---
++
++## Available Injected Parameters
++
++In Airflow 3.3, your Python callables can request these parameters by name:
++
++| Parameter | Type | Description |
++|-----------|------|-------------|
++| `ds` | str | Execution date as YYYY-MM-DD (for this DAG: the snapshot date) |
++| `prev_ds` | str | Previous execution date as YYYY-MM-DD |
++| `execution_date` | datetime | Full execution date/time as a Python datetime object |
++| `ti` | TaskInstance | Access to XCom, task state, retry info, etc. |
++| `task` | Task | The task object itself |
++| `dag` | DAG | The DAG object |
++| `dag_run` | DagRun | The DagRun object |
++
++Our `build_snapshot` uses:
++- `ds`: The snapshot date
++- `execution_date`: Calculated as `ds + 1 day` to get end-of-day timestamp
++- `prev_ds`: The previous snapshot date
++- `ti`: For XCom push operations
++
++Our `audit_snapshot` uses:
++- `execution_date`: Formatted as the audit date
++- `ti`: For XCom pull operations
++
++---
++
++## Output Data Verification
++
++The upgrade preserves all output data:
++
++### CSV Snapshot Format
++**File:** `output/inventory/YYYY-MM-DD.csv`
++```csv
++sku,on_hand,change
++SKU001,150,5
++SKU002,42,-3
++SKU003,8,
++```
++
++**Preserved?** ✅ Yes
++- Column order: `sku`, `on_hand`, `change`
++- Sorting: By SKU alphabetically
++- Empty changes for new SKUs: Preserved
++
++### JSON Audit Format
++**File:** `output/audit/YYYY-MM-DD.json`
++```json
++{
++  "day": "2026-01-02",
++  "low_stock": ["SKU003"],
++  "sku_count": 3
++}
++```
++
++**Preserved?** ✅ Yes
++- All three fields present
++- Keys alphabetically sorted (`sort_keys=True`)
++- XCom values (`low_stock` list, `sku_count` int) intact
++
++---
++
++## Deployment Checklist
++
++- [ ] Update requirements.txt (already done: `apache-airflow==3.3.2`)
++- [ ] Update your cluster to Airflow 3.3.2
++- [ ] Restart Airflow scheduler and webserver
++- [ ] Verify the DAG appears in the Airflow UI without parse errors
++- [ ] Trigger a manual test run of the DAG
++- [ ] Verify output CSV and JSON files match expected format
++- [ ] Confirm replenishment team alerting still receives files correctly
++- [ ] Monitor first few automated runs
++
++---
++
++## Troubleshooting
++
++### "ModuleNotFoundError: No module named 'airflow'"
++**Solution:** Ensure `apache-airflow==3.3.2` is installed:
++```bash
++pip install -r requirements.txt
++```
++
++### DAG doesn't appear in Airflow UI
++**Solution:** Check the Airflow scheduler logs for parse errors:
++```bash
++airflow dags list  # List all DAGs
++airflow dags report  # Show parse errors
++```
++
++### Parameter injection isn't working
++**Solution:** Verify your Python function signature matches the parameter names Airflow provides. Typos in parameter names are silently ignored (not injected).
++
++For example, this will fail:
++```python
++def my_task(execution_dt=None):  # Wrong: "execution_dt" not "execution_date"
++    pass
++```
++
++Correct:
++```python
++def my_task(execution_date=None):  # Right: matches Airflow's parameter name
++    pass
++```
++
++---
++
++## References
++
++- [Airflow 3.3 Migration Guide](https://airflow.apache.org/docs/apache-airflow/stable/upgrading-to-airflow-3.html)
++- [Airflow 3.0 Breaking Changes](https://airflow.apache.org/docs/apache-airflow/stable/upgrading-to-airflow-3.html#breaking-changes)
++- [Python Operator Documentation](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html)
++
++---
++
++## Contact
++
++For questions about this upgrade or issues with the DAG, reach out to the warehouse-ops team.
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..1153181 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ 
+ from airflow import DAG
+-from airflow.operators.python import PythonOperator, get_current_context
++from airflow.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ MOVEMENTS = PROJECT_ROOT / "data" / "stock_movements.csv"
+@@ -58,10 +58,8 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+     ti.xcom_push(key="low_stock", value=sorted(s for s, q in on_hand.items() if q < LOW_STOCK_THRESHOLD))
+ 
+ 
+-def audit_snapshot(**kwargs):
+-    context = get_current_context()
+-    day = context["execution_date"].strftime("%Y-%m-%d")
+-    ti = kwargs["ti"]
++def audit_snapshot(execution_date=None, ti=None, **kwargs):
++    day = execution_date.strftime("%Y-%m-%d")
+     record = {
+         "day": day,
+         "sku_count": ti.xcom_pull(key="sku_count"),
+@@ -74,7 +72,7 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
++    schedule="@daily",
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+@@ -83,11 +81,9 @@ with DAG(
+     build = PythonOperator(
+         task_id="build_snapshot",
+         python_callable=build_snapshot,
+-        provide_context=True,
+     )
+     audit = PythonOperator(
+         task_id="audit_snapshot",
+         python_callable=audit_snapshot,
+-        provide_context=True,
+     )
+     build >> audit
+diff --git a/requirements.txt b/requirements.txt
+index cb9ccf0..b1dd561 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1 +1 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2

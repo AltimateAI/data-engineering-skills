@@ -1,0 +1,32 @@
+{
+  "status": "turn_limit",
+  "reason": "max turns reached",
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.75,
+  "returncode": 1,
+  "wall_s": 230.5,
+  "cost_usd": 0.754376,
+  "cost_reported_usd": 3.774752,
+  "tokens": {
+    "input": 3023360,
+    "output": 23908,
+    "reasoning": 0,
+    "cache_read": 2733581,
+    "cache_write": 286795,
+    "total": 6067644
+  },
+  "steps": 44,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 4,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0c9936b4ffeNNti1RQvwp8PgP.json"
+}

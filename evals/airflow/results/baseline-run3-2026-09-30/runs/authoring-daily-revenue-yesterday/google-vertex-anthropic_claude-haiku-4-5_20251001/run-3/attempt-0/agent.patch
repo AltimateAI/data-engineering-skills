@@ -1,0 +1,84 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..b8e99c8
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,78 @@
++"""Generate daily revenue reports per store for the previous calendar day."""
++
++from __future__ import annotations
++
++from datetime import datetime, timedelta
++from pathlib import Path
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["finance", "daily"],
++)
++def daily_revenue():
++    @task
++    def generate_report(ds: str) -> str:
++        """
++        Generate daily revenue report for the previous calendar day.
++        
++        Args:
++            ds: Execution date (YYYY-MM-DD). Report is for the day before this date.
++        
++        Returns:
++            Path to the generated CSV file.
++        """
++        # Parse the execution date and compute the reporting date (previous day)
++        exec_date = datetime.strptime(ds, "%Y-%m-%d")
++        report_date = exec_date - timedelta(days=1)
++        report_date_str = report_date.strftime("%Y-%m-%d")
++        
++        # Read orders data
++        orders_file = PROJECT_ROOT / "data" / "orders.csv"
++        df = pd.read_csv(orders_file)
++        
++        # Parse order_ts and extract date (UTC)
++        df["order_ts"] = pd.to_datetime(df["order_ts"], utc=True)
++        df["order_date"] = df["order_ts"].dt.date
++        
++        # Filter for the reporting date
++        report_date_obj = report_date.date()
++        df_day = df[df["order_date"] == report_date_obj].copy()
++        
++        # Group by store and aggregate
++        daily_agg = (
++            df_day.groupby("store_id")
++            .agg(
++                orders=("order_id", "count"),
++                revenue=("amount", "sum"),
++            )
++            .reset_index()
++        )
++        
++        # Round revenue to 2 decimals
++        daily_agg["revenue"] = daily_agg["revenue"].round(2)
++        
++        # Sort by store_id for deterministic output
++        daily_agg = daily_agg.sort_values("store_id").reset_index(drop=True)
++        
++        # Create output directory and write file
++        output_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        output_dir.mkdir(parents=True, exist_ok=True)
++        
++        output_file = output_dir / f"{report_date_str}.csv"
++        daily_agg.to_csv(output_file, index=False)
++        
++        return str(output_file)
++
++    generate_report()
++
++
++daily_revenue()

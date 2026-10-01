@@ -1,0 +1,266 @@
+diff --git a/dags/lake/hooks.py b/dags/lake/hooks.py
+index 4d1973f..5f4a046 100644
+--- a/dags/lake/hooks.py
++++ b/dags/lake/hooks.py
+@@ -7,6 +7,7 @@ GET /v1/tables/<table>/partitions/<partition>
+ 
+ from __future__ import annotations
+ 
++import httpx
+ import requests
+ from airflow.sdk import BaseHook
+ 
+@@ -39,16 +40,31 @@ class LakeCatalogHook(BaseHook):
+             resp = requests.get(url, headers=headers, timeout=self.request_timeout)
+         except requests.RequestException as exc:
+             raise LakeApiError(f"GET {url} failed: {exc!r}") from exc
++        return self._parse(url, resp)
++
++    @staticmethod
++    def _parse(url: str, resp: requests.Response | httpx.Response) -> dict:
+         if resp.status_code != 200:
+             raise LakeApiError(f"GET {url} -> HTTP {resp.status_code}")
+-        return resp.json()
++        try:
++            info = resp.json()
++        except ValueError as exc:
++            raise LakeApiError(f"GET {url} -> invalid JSON: {exc}") from exc
++        if not isinstance(info, dict) or info.get("state") not in ("PENDING", "PUBLISHED"):
++            raise LakeApiError(f"GET {url} -> unexpected body: {info!r}")
++        return info
+ 
+     def get_partition(self, table: str, partition: str) -> dict:
+         url, headers = self._url_and_headers(self.get_connection(self.lake_conn_id), table, partition)
+         return self._fetch(url, headers)
+ 
+     async def aget_partition(self, table: str, partition: str) -> dict:
+-        """Async variant for triggers."""
++        """Async variant for triggers: never blocks the triggerer's event loop."""
+         conn = await self.aget_connection(self.lake_conn_id)
+         url, headers = self._url_and_headers(conn, table, partition)
+-        return self._fetch(url, headers)
++        try:
++            async with httpx.AsyncClient(timeout=self.request_timeout) as client:
++                resp = await client.get(url, headers=headers)
++        except httpx.HTTPError as exc:
++            raise LakeApiError(f"GET {url} failed: {exc!r}") from exc
++        return self._parse(url, resp)
+diff --git a/dags/lake/sensors.py b/dags/lake/sensors.py
+index 7966da3..ae47901 100644
+--- a/dags/lake/sensors.py
++++ b/dags/lake/sensors.py
+@@ -2,19 +2,32 @@
+ 
+ from __future__ import annotations
+ 
++import time
+ from collections.abc import Sequence
+-from typing import Any
++from datetime import timedelta
++from typing import Any, NoReturn
+ 
+ from airflow.sdk import BaseSensorOperator, PokeReturnValue
+-from airflow.sdk.exceptions import AirflowException
++from airflow.sdk.exceptions import AirflowSensorTimeout, AirflowSkipException
+ 
+-from lake.hooks import LakeCatalogHook
++from lake.hooks import LakeApiError, LakeCatalogHook
+ from lake.triggers import PartitionPublishedTrigger
+ 
++# task_state_store key holding the epoch time this task first started waiting in this DAG run.
++# Unlike XComs it survives retries, so ``timeout`` is a budget for all tries together.
++_WAIT_STARTED_KEY = "partition_wait_started_at"
++# Let the trigger report the timeout before the API server's deferral timeout fires.
++_DEFER_SLACK = timedelta(minutes=1)
++
+ 
+ class PartitionPublishedSensor(BaseSensorOperator):
+     """Wait until ``table``/``partition`` is PUBLISHED and return its file list.
+ 
++    ``timeout`` is the total wait in a DAG run, counted from the first try that started waiting,
++    retries included. When it runs out the task fails without retries (skipped with
++    ``soft_fail=True``). A catalog API error (HTTP error, connection error) fails the current try,
++    so the task's retries apply.
++
+     :param table: catalog table name
+     :param partition: partition key (templated)
+     :param lake_conn_id: connection to the catalog API
+@@ -37,30 +50,80 @@ class PartitionPublishedSensor(BaseSensorOperator):
+         self.partition = partition
+         self.lake_conn_id = lake_conn_id
+         self.deferrable = deferrable
++        self._deadline: float | None = None
++
++    # -- wait budget shared by all tries of this task in the DAG run --------------------------
++
++    def _get_deadline(self, context) -> float:
++        store = context["task_state_store"]
++        started = store.get(_WAIT_STARTED_KEY)
++        if started is None:
++            started = time.time()
++            store.set(_WAIT_STARTED_KEY, started)
++        return float(started) + self.timeout
++
++    def _clear_deadline(self, context) -> None:
++        context["task_state_store"].delete(_WAIT_STARTED_KEY)
++
++    def _timed_out(self, context) -> NoReturn:
++        self._clear_deadline(context)
++        message = f"{self.table}/{self.partition} was not published within {self.timeout}s"
++        if self.soft_fail:
++            raise AirflowSkipException(message)
++        raise AirflowSensorTimeout(message)
++
++    def _api_failed(self, context, message: str) -> NoReturn:
++        ti = context["ti"]
++        if ti.try_number > ti.max_tries:
++            # Last try: don't leave a stale start time behind for a later manual clear.
++            self._clear_deadline(context)
++        raise LakeApiError(message)
++
++    def _published(self, context, files: list[str]) -> list[str]:
++        self._clear_deadline(context)
++        self.log.info("%s/%s published with %d files", self.table, self.partition, len(files))
++        return files
++
++    # -- poke / reschedule mode ------------------------------------------------------------
+ 
+     def poke(self, context) -> PokeReturnValue | bool:
+-        info = LakeCatalogHook(self.lake_conn_id).get_partition(self.table, self.partition)
++        try:
++            info = LakeCatalogHook(self.lake_conn_id).get_partition(self.table, self.partition)
++        except LakeApiError as exc:
++            self._api_failed(context, str(exc))
+         if info["state"] == "PUBLISHED":
+             return PokeReturnValue(is_done=True, xcom_value=info["files"])
++        if self._deadline is not None and time.time() >= self._deadline:
++            self._timed_out(context)
+         return False
+ 
++    # -- deferrable mode -------------------------------------------------------------------
++
+     def execute(self, context) -> Any:
++        self._deadline = self._get_deadline(context)
+         if not self.deferrable:
+-            return super().execute(context)
++            return self._published(context, super().execute(context))
++        remaining = self._deadline - time.time()
++        if remaining <= 0:
++            self._timed_out(context)
+         self.defer(
+             trigger=PartitionPublishedTrigger(
+                 table=self.table,
+                 partition=self.partition,
+-                timeout=self.timeout,
++                deadline=self._deadline,
+                 lake_conn_id=self.lake_conn_id,
+                 poll_interval=self.poke_interval,
+             ),
+             method_name="execute_complete",
++            timeout=timedelta(seconds=remaining) + _DEFER_SLACK,
+         )
+ 
+     def execute_complete(self, context, event: dict[str, Any]) -> list[str]:
+-        if event["status"] == "timeout":
+-            raise AirflowException(f"{self.table}/{self.partition} was not published within {self.timeout}s")
+-        files = event.get("files", [])
+-        self.log.info("%s/%s published with %d files", self.table, self.partition, len(files))
+-        return files
++        status = event.get("status") if isinstance(event, dict) else None
++        if status == "published":
++            return self._published(context, event["files"])
++        if status == "timeout":
++            self._timed_out(context)
++        # LakeApiError is not an AirflowException: the try fails and retries apply, also under soft_fail.
++        message = event.get("message") if isinstance(event, dict) else None
++        self._api_failed(context, message or f"unexpected trigger event: {event!r}")
+diff --git a/dags/lake/triggers.py b/dags/lake/triggers.py
+index e9c354a..38ffb28 100644
+--- a/dags/lake/triggers.py
++++ b/dags/lake/triggers.py
+@@ -6,32 +6,42 @@ import asyncio
+ import time
+ from typing import Any
+ 
+-from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
++from airflow.triggers.base import BaseTrigger, TriggerEvent
+ 
+ from lake.hooks import LakeApiError, LakeCatalogHook
+ 
+-# Published partitions never change, so remember them and spare the catalog API.
+-_PUBLISHED: dict[str, dict] = {}
+-
+ 
+ class PartitionPublishedTrigger(BaseTrigger):
+-    """Poll the catalog until the partition is PUBLISHED, the API fails, or ``timeout`` seconds pass."""
++    """Poll the catalog until the partition is PUBLISHED, the API fails, or the ``deadline`` passes.
++
++    Events: ``{"status": "published", "files": [...]}``, ``{"status": "timeout"}`` or
++    ``{"status": "error", "message": ...}``.
++
++    :param deadline: absolute epoch seconds at which to give up. It is serialized as is, so a
++        triggerer restart does not restart the clock.
++    :param timeout: legacy argument of triggers deferred before ``deadline`` existed; only used
++        when ``deadline`` is missing.
++    """
+ 
+     def __init__(
+         self,
+         table: str,
+         partition: str,
+-        timeout: float,
++        deadline: float | None = None,
+         lake_conn_id: str = LakeCatalogHook.default_conn_name,
+         poll_interval: float = 60.0,
++        timeout: float | None = None,
+     ) -> None:
+         super().__init__()
++        if deadline is None:
++            if timeout is None:
++                raise ValueError("deadline is required")
++            deadline = time.time() + timeout
+         self.table = table
+         self.partition = partition
+-        self.timeout = timeout
++        self.deadline = float(deadline)
+         self.lake_conn_id = lake_conn_id
+         self.poll_interval = poll_interval
+-        self.give_up_at = time.monotonic() + timeout
+ 
+     def serialize(self) -> tuple[str, dict[str, Any]]:
+         return (
+@@ -39,7 +49,7 @@ class PartitionPublishedTrigger(BaseTrigger):
+             {
+                 "table": self.table,
+                 "partition": self.partition,
+-                "timeout": self.timeout,
++                "deadline": self.deadline,
+                 "lake_conn_id": self.lake_conn_id,
+                 "poll_interval": self.poll_interval,
+             },
+@@ -48,11 +58,7 @@ class PartitionPublishedTrigger(BaseTrigger):
+     async def run(self):
+         hook = LakeCatalogHook(self.lake_conn_id)
+         while True:
+-            if self.table in _PUBLISHED:
+-                # Finish the task right here: no worker slot is needed just to return the list.
+-                yield TaskSuccessEvent(xcoms={"return_value": _PUBLISHED[self.table]["files"]})
+-                return
+-            if time.monotonic() >= self.give_up_at:
++            if time.time() >= self.deadline:
+                 yield TriggerEvent({"status": "timeout"})
+                 return
+             try:
+@@ -61,6 +67,9 @@ class PartitionPublishedTrigger(BaseTrigger):
+                 yield TriggerEvent({"status": "error", "message": str(exc)})
+                 return
+             if info["state"] == "PUBLISHED":
+-                _PUBLISHED[self.table] = info
+-                continue
+-            await asyncio.sleep(self.poll_interval)
++                # A plain event, resumed on a worker by execute_complete, so the task's
++                # return_value is the file list itself.
++                yield TriggerEvent({"status": "published", "files": list(info.get("files", []))})
++                return
++            remaining = self.deadline - time.time()
++            await asyncio.sleep(max(0.0, min(self.poll_interval, remaining)))

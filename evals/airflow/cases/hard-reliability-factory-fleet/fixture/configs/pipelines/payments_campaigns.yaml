@@ -1,0 +1,38 @@
+name: payments_campaigns
+team: payments
+tier: standard
+description: Campaigns pipeline for payments
+schedule:
+  hour: 1
+  days: '*'
+owners:
+- ben
+- maya
+steps:
+- name: extract
+  table: payments.raw_campaigns_00
+- name: stage
+  table: payments.stg_campaigns_00
+  depends_on:
+  - extract
+- name: validate
+  table: payments.int_campaigns_00
+  depends_on:
+  - stage
+- name: transform
+  table: payments.int_campaigns_00
+  depends_on:
+  - validate
+- name: enrich
+  table: payments.int_campaigns_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: payments.int_campaigns_00
+  depends_on:
+  - enrich
+  - transform
+- name: publish
+  table: payments.mart_campaigns_00
+  depends_on:
+  - snapshot

@@ -1,0 +1,123 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..23c4499
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,117 @@
++"""Wait for daily carrier shipments file, load to warehouse, and publish report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import dag, task, Variable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++
++def get_run_date(**context):
++    """Get the date this run processes.
++    
++    For scheduled runs: the day the run fires (via logical_date).
++    For manual runs: the run_after date (when the trigger was created).
++    For reruns/clears: the original run's date.
++    """
++    dag_run = context["dag_run"]
++    run_dt = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(run_dt).in_tz("UTC").format("YYYY-MM-DD")
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    @task
++    def resolve_file_path(**context):
++        """Resolve the expected shipments file path for the run's date."""
++        run_date = get_run_date(**context)
++        landing_dir = Variable.get("vendor_landing_dir", default="<tmp>/vendor_landing")
++        file_name = f"shipments_{run_date}.csv"
++        file_path = Path(landing_dir) / file_name
++        return str(file_path)
++
++    @task
++    def wait_for_file_task(file_path: str):
++        """Return the file path after confirming it exists (handled by FileSensor below)."""
++        return file_path
++
++    @task
++    def load_shipments(file_path: str, **context):
++        """Load the day's shipments into the warehouse, replacing any existing data for that day."""
++        import duckdb
++
++        run_date = get_run_date(**context)
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS vendor_shipments (
++                    shipment_id VARCHAR,
++                    carrier VARCHAR,
++                    destination VARCHAR,
++                    weight_kg DOUBLE,
++                    shipped_at TIMESTAMP,
++                    ship_date DATE
++                )
++                """
++            )
++            # Delete the day's rows first so a rerun never duplicates them.
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [run_date])
++            # Load from CSV and add the ship_date column.
++            con.execute(
++                """
++                INSERT INTO vendor_shipments
++                SELECT shipment_id, carrier, destination, weight_kg, shipped_at, CAST(? AS DATE) AS ship_date
++                FROM read_csv_auto(?)
++                WHERE CAST(? AS DATE) = CAST(? AS DATE)
++                """,
++                [run_date, file_path, run_date, run_date],
++            )
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [run_date]
++            ).fetchone()[0]
++
++    @task
++    def publish_shipments_task(**context):
++        """Publish the shipments report for the run's date."""
++        import subprocess
++
++        run_date = get_run_date(**context)
++        result = subprocess.run(
++            [f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh", run_date],
++            check=True,
++            capture_output=True,
++            text=True,
++        )
++        return result.returncode
++
++    # Workflow: resolve path -> sensor waits without tying up a worker -> load -> publish
++    file_path = resolve_file_path()
++    wait_task = FileSensor(
++        task_id="wait_for_shipments_file",
++        filepath=file_path,
++        fs_conn_id="fs_default",
++        poke_interval=60,
++        timeout=14400,  # 4 hours: usually arrives before 9am, fail by end of day
++        mode="reschedule",  # don't tie up a worker
++    )
++    load_task = load_shipments(file_path)
++    publish_task = publish_shipments_task()
++
++    file_path >> wait_task >> load_task >> publish_task
++
++
++vendor_shipments()

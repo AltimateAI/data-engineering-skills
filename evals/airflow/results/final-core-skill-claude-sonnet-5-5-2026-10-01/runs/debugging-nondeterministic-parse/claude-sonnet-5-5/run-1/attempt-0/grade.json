@@ -1,0 +1,85 @@
+{
+  "checks": [
+    {
+      "name": "DAG files import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG warehouse_ingest is present",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['warehouse_ingest', 'warehouse_maintenance']"
+    },
+    {
+      "name": "one load_<table> task per catalog table, loads run one at a time",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "name": "every parse serializes to the same DAG (no new version per parse)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dag_hash per parse=['8ba2a2d6b20505e2355735af3113cbf1', '8ba2a2d6b20505e2355735af3113cbf1', '8ba2a2d6b20505e2355735af3113cbf1', '8ba2a2d6b20505e2355735af3113cbf1']; fields that differ: []"
+    },
+    {
+      "name": "DAG file parses in <= 3.0s",
+      "kind": "primary",
+      "passed": true,
+      "detail": "parse seconds=[0.001766, 0.001795, 0.001752, 0.001694]"
+    },
+    {
+      "name": "parsing never calls the catalog service",
+      "kind": "primary",
+      "passed": true,
+      "detail": "0 catalog requests during 5 parses"
+    },
+    {
+      "name": "still daily at 01:30 UTC, catchup off, start_date fixed in the past",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{'runs': [{'start': '2030-01-01T01:30:00+00:00', 'end': '2030-01-01T01:30:00+00:00', 'run_after': '2030-01-01T01:30:00+00:00'}, {'start': '2030-01-02T01:30:00+00:00', 'end': '2030-01-02T01:30:00+00:00', 'run_after': '2030-01-02T01:30:00+00:00'}, {'start': '2030-01-03T01:30:00+00:00', 'end': '2030-01-03T01:30:00+00:00', 'run_after': '2030-01-03T01:30:00+00:00'}], 'start_date': '2026-01-01T00:00:00+00:00', 'catchup': False}"
+    },
+    {
+      "name": "load tasks follow the deployed catalog snapshot (config/tables.json)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "snapshot + returns and a duplicate entry: ok"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "every catalog table loaded into the warehouse",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'customers': 3, 'orders': 5, 'order_items': 7, 'payments': 9, 'refunds': 4, 'shipments': 6, 'products': 8, 'inventory': 3}, got {'customers': 3, 'inventory': 3, 'orders': 5, 'order_items': 7, 'payments': 9, 'products': 8, 'refunds': 4, 'shipments': 6}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

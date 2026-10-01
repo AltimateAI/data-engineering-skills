@@ -1,0 +1,109 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..4ac5497
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,19 @@
++from pathlib import Path
++
++import pytest
++
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++
++
++@pytest.fixture(scope="session")
++def dags_dir() -> Path:
++    return DAGS_DIR
++
++
++@pytest.fixture(scope="session")
++def dagbag(dags_dir):
++    from airflow.dag_processing.dagbag import DagBag
++
++    # safe_mode=False so files are parsed even if they lack the "airflow"/"dag"
++    # heuristic strings; we want every file in dags/ to be loaded.
++    return DagBag(dag_folder=str(dags_dir), safe_mode=False, bundle_path=dags_dir, bundle_name="tests")
+diff --git a/tests/test_dags.py b/tests/test_dags.py
+new file mode 100644
+index 0000000..7fbad00
+--- /dev/null
++++ b/tests/test_dags.py
+@@ -0,0 +1,78 @@
++"""Integrity and policy tests for everything under dags/."""
++
++from pathlib import Path
++
++DEFAULT_OWNER = "airflow"
++MIN_RETRIES = 2
++
++ORDERS_INGEST_ORDER = [
++    "extract_orders",
++    "validate_orders",
++    "load_orders",
++    "publish_summary",
++]
++
++
++def _dag_files(dags_dir):
++    return sorted(p for p in dags_dir.rglob("*.py") if "__pycache__" not in p.parts)
++
++
++def test_dags_dir_has_files(dags_dir):
++    assert _dag_files(dags_dir), f"no DAG files found in {dags_dir}"
++
++
++def test_no_import_errors(dagbag):
++    assert not dagbag.import_errors, "\n".join(
++        f"{path}:\n{err}" for path, err in dagbag.import_errors.items()
++    )
++
++
++def test_every_file_defines_a_dag(dagbag, dags_dir):
++    loaded = {str(__import__("pathlib").Path(d.fileloc).resolve()) for d in dagbag.dags.values()}
++    missing = [str(p) for p in _dag_files(dags_dir) if str(p.resolve()) not in loaded]
++    assert not missing, f"files that did not produce any DAG: {missing}"
++
++
++def _all_dags(dagbag):
++    return sorted(dagbag.dags.values(), key=lambda d: d.dag_id)
++
++
++def test_dags_loaded(dagbag):
++    assert dagbag.dags, "DagBag contains no DAGs"
++
++
++def test_dag_policy(dagbag):
++    problems = []
++    for dag in _all_dags(dagbag):
++        if not dag.tags:
++            problems.append(f"{dag.dag_id}: has no tags")
++        if dag.catchup:
++            problems.append(f"{dag.dag_id}: catchup must be False")
++    assert not problems, "\n".join(problems)
++
++
++def test_task_policy(dagbag):
++    problems = []
++    for dag in _all_dags(dagbag):
++        for task in sorted(dag.tasks, key=lambda t: t.task_id):
++            where = f"{dag.dag_id}.{task.task_id}"
++            owner = (task.owner or "").strip()
++            if not owner or owner == DEFAULT_OWNER:
++                problems.append(f"{where}: owner is {task.owner!r}, needs a real owner")
++            retries = task.retries
++            if retries is None or int(retries) < MIN_RETRIES:
++                problems.append(f"{where}: retries={retries!r}, need >= {MIN_RETRIES}")
++    assert not problems, "\n".join(problems)
++
++
++def test_orders_ingest_pipeline_order(dagbag):
++    dag = dagbag.dags.get("orders_ingest")
++    assert dag is not None, "orders_ingest DAG not found"
++
++    assert {t.task_id for t in dag.tasks} == set(ORDERS_INGEST_ORDER)
++
++    # Exact linear chain: each task's direct downstream is only the next one.
++    for i, task_id in enumerate(ORDERS_INGEST_ORDER):
++        expected = {ORDERS_INGEST_ORDER[i + 1]} if i + 1 < len(ORDERS_INGEST_ORDER) else set()
++        actual = dag.get_task(task_id).downstream_task_ids
++        assert actual == expected, f"{task_id}: downstream {sorted(actual)}, expected {sorted(expected)}"

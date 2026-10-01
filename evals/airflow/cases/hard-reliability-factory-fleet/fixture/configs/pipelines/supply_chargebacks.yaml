@@ -1,0 +1,26 @@
+name: supply_chargebacks
+team: supply
+tier: standard
+description: Chargebacks pipeline for supply
+schedule:
+  hour: 4
+  days: '1'
+steps:
+- name: extract
+  table: supply.raw_chargebacks_00
+- name: stage
+  table: supply.stg_chargebacks_00
+  depends_on:
+  - extract
+- name: validate
+  table: supply.int_chargebacks_00
+  depends_on:
+  - stage
+- name: transform
+  table: supply.int_chargebacks_00
+  depends_on:
+  - validate
+- name: publish
+  table: supply.mart_chargebacks_00
+  depends_on:
+  - transform

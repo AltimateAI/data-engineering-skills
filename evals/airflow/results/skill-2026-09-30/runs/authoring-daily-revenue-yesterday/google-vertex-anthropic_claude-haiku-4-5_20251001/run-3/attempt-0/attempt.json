@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: scheduled runs execute successfully, the 03:00 run on day D reports calendar day D-1 (and only that day), rerun of a scheduled run reproduces the same file",
+  "primary_pass": false,
+  "primary_score": 0.5,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 154.6,
+  "cost_usd": 0.608567,
+  "cost_reported_usd": 2.27805,
+  "tokens": {
+    "input": 1669613,
+    "output": 14479,
+    "reasoning": 0,
+    "cache_read": 1348532,
+    "cache_write": 320951,
+    "total": 3353575
+  },
+  "steps": 24,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 20,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cb6a786ffey2mAoj5t6lRuWd.json"
+}

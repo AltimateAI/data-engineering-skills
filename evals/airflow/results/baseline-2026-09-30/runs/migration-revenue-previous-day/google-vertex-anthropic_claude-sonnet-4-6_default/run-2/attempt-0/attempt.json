@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: scheduled runs process the same business day and write the same output as 2.11",
+  "primary_pass": false,
+  "primary_score": 0.8571428571428571,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 309.7,
+  "cost_usd": 2.239736,
+  "cost_reported_usd": 10.315703,
+  "tokens": {
+    "input": 2692026,
+    "output": 11220,
+    "reasoning": 0,
+    "cache_read": 2325691,
+    "cache_write": 366298,
+    "total": 5395235
+  },
+  "steps": 36,
+  "termination": {
+    "why_model_stopped": "stop",
+    "why_harness_stopped": "none",
+    "done_reason": "none"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 25,
+  "edited_files": 5,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d9e4657fferLHFRiu0xgvfhf.json"
+}

@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: manual run without a logical date succeeds, manual run delivers the feed for its trigger day (2026-03-03)",
+  "primary_pass": false,
+  "primary_score": 0.7142857142857143,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 96.2,
+  "cost_usd": 0.613222,
+  "cost_reported_usd": 2.173258,
+  "tokens": {
+    "input": 1560157,
+    "output": 8810,
+    "reasoning": 0,
+    "cache_read": 1200865,
+    "cache_write": 359172,
+    "total": 3129004
+  },
+  "steps": 22,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 11,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d039948ffeYKQMhuyxIf78RQ.json"
+}

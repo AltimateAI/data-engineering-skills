@@ -1,0 +1,20 @@
+event_ts,visitor_id,page,referrer
+2026-09-11 00:28:41,v0064,/docs/quickstart,
+2026-09-11 02:05:54,v0018,/signup,google
+2026-09-11 03:50:50,v0071,/pricing,
+2026-09-11 07:14:38,v0039,/blog,twitter
+2026-09-11 07:44:43,v0068,/,newsletter
+2026-09-11 07:46:09,v0022,/docs,
+2026-09-11 08:27:08,v0005,/docs/quickstart,newsletter
+2026-09-11 08:53:47,v0072,/pricing,newsletter
+2026-09-11 10:27:43,v0059,/docs,
+2026-09-11 11:00:47,v0008,/,twitter
+2026-09-11 12:17:53,v0013,/,twitter
+2026-09-11 15:12:54,v0039,/,twitter
+2026-09-11 15:34:52,v0054,/pricing,
+2026-09-11 16:01:18,v0005,/docs/quickstart,google
+2026-09-11 18:41:29,v0043,/pricing,google
+2026-09-11 18:43:18,v0062,/,
+2026-09-11 18:47:26,v0019,/docs,twitter
+2026-09-11 19:46:53,v0015,/pricing,
+2026-09-11 21:52:09,v0019,/docs,twitter

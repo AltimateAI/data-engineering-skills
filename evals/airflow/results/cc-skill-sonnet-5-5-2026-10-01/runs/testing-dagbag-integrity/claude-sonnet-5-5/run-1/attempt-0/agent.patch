@@ -1,0 +1,117 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..63c22bc
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,24 @@
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    from airflow.dag_processing.dagbag import DagBag
++
++    return DagBag(dag_folder=str(DAGS))
+diff --git a/tests/test_dags.py b/tests/test_dags.py
+new file mode 100644
+index 0000000..e674c00
+--- /dev/null
++++ b/tests/test_dags.py
+@@ -0,0 +1,81 @@
++from pathlib import Path
++
++import pytest
++
++DAGS = Path(__file__).resolve().parents[1] / "dags"
++DEFAULT_OWNER = "airflow"
++MIN_RETRIES = 2
++
++EXPECTED_DAG_IDS = {"customer_snapshot", "marketing_spend", "orders_ingest"}
++
++ORDERS_PIPELINE = ["extract_orders", "validate_orders", "load_orders", "publish_summary"]
++
++
++def _all_dags(dagbag):
++    return sorted(dagbag.dags.values(), key=lambda d: d.dag_id)
++
++
++# --- loading ---------------------------------------------------------------
++
++def test_no_import_errors(dagbag):
++    assert dagbag.import_errors == {}, "\n\n".join(
++        f"{Path(f).name}:\n{err}" for f, err in dagbag.import_errors.items()
++    )
++
++
++def test_expected_dags_present(dagbag):
++    assert EXPECTED_DAG_IDS <= set(dagbag.dags), f"missing: {EXPECTED_DAG_IDS - set(dagbag.dags)}"
++
++
++def test_dags_are_acyclic(dagbag):
++    for dag in _all_dags(dagbag):
++        dag.validate()  # raises on cycles and other structural problems
++        assert dag.task_dict, f"{dag.dag_id} has no tasks"
++
++
++# --- policy ----------------------------------------------------------------
++
++def test_every_dag_has_a_tag(dagbag):
++    untagged = [d.dag_id for d in _all_dags(dagbag) if not d.tags]
++    assert not untagged, f"DAGs without tags: {untagged}"
++
++
++def test_catchup_disabled(dagbag):
++    bad = [d.dag_id for d in _all_dags(dagbag) if d.catchup]
++    assert not bad, f"DAGs with catchup enabled: {bad}"
++
++
++def test_tasks_have_real_owner(dagbag):
++    bad = [
++        f"{d.dag_id}.{t.task_id} (owner={t.owner!r})"
++        for d in _all_dags(dagbag)
++        for t in d.tasks
++        if not t.owner or t.owner.strip().lower() == DEFAULT_OWNER
++    ]
++    assert not bad, f"tasks without a real owner: {bad}"
++
++
++def test_tasks_have_min_retries(dagbag):
++    bad = [
++        f"{d.dag_id}.{t.task_id} (retries={t.retries})"
++        for d in _all_dags(dagbag)
++        for t in d.tasks
++        if (t.retries or 0) < MIN_RETRIES
++    ]
++    assert not bad, f"tasks with fewer than {MIN_RETRIES} retries: {bad}"
++
++
++# --- orders_ingest structure ------------------------------------------------
++
++def test_orders_ingest_task_set(dagbag):
++    assert set(dagbag.dags["orders_ingest"].task_dict) == set(ORDERS_PIPELINE)
++
++
++@pytest.mark.parametrize("i", range(len(ORDERS_PIPELINE)))
++def test_orders_ingest_edges(dagbag, i):
++    dag = dagbag.dags["orders_ingest"]
++    task = dag.get_task(ORDERS_PIPELINE[i])
++    upstream = {ORDERS_PIPELINE[i - 1]} if i else set()
++    downstream = {ORDERS_PIPELINE[i + 1]} if i + 1 < len(ORDERS_PIPELINE) else set()
++    assert set(task.upstream_task_ids) == upstream
++    assert set(task.downstream_task_ids) == downstream

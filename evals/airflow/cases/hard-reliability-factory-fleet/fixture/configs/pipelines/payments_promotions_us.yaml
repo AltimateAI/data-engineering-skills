@@ -1,0 +1,19 @@
+name: payments_promotions_us
+team: payments
+tier: standard
+description: Promotions pipeline for payments
+schedule:
+  hour: 0
+  days: '1'
+retries: 4
+steps:
+- name: extract
+  table: payments.raw_promotions_00
+- name: validate
+  table: payments.int_promotions_00
+  depends_on:
+  - extract
+- name: publish
+  table: payments.mart_promotions_00
+  depends_on:
+  - validate

@@ -1,0 +1,27 @@
+name: billing_warehouses
+team: billing
+tier: standard
+description: Warehouses pipeline for billing
+schedule:
+  hour: 2
+  days: 1-5
+retries: 1
+steps:
+- name: extract
+  table: billing.raw_warehouses_00
+- name: enrich
+  table: billing.int_warehouses_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: billing.int_warehouses_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: billing.int_warehouses_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: billing.mart_warehouses_00
+  depends_on:
+  - snapshot

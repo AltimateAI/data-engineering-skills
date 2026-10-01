@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG orders_daily_load exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['customers_snapshot', 'orders_daily_load']"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed tasks ['load_orders', 'build_daily_revenue']: es-evals/airflow-2.11/lib/python3.12/site-packages/airflow/operators/python.py\", line 238, in execute\n    return_value = self.execute_callable()\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/operators/python.py\", line 256, in execute_callable\n    return runner.run(*self.op_args, **self.op_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/utils/operator_helpers.py\", line 252, in run\n    return self.func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<tmp>/eval-ws-s90fyk22/ws/dags/orders_daily_load.py\", line 42, in load_orders\n    day = logical_date.date()\n          ^^^^^^^^^^^^^^^^^\nAttributeError: 'str' object has no attribute 'date'\n[2026-09-30T09:09:30.580-0700] {dagrun.py:823} ERROR - Marking run <DagRun orders_daily_load @ 2026-03-10 00:00:00+00:00: manual__2026-03-10T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> failed\n[2026-09-30T09:09:30.581-0700] {dagrun.py:905} INFO - DagRun Finished: dag_id=orders_daily_load, execution_date=2026-03-10 00:00:00+00:00, run_id=manual__2026-03-10T00:00:00+00:00, run_start_date=2026-03-10 00:00:00+00:00, run_end_date=2026-09-30 16:09:30.581161+00:00, run_duration=17683770.581161, state=failed, external_trigger=False, run_type=manual, data_interval_start=2026-03-09 00:00:00+00:00, data_interval_end=2026-03-10 00:00:00+00:00, dag_hash=None\n\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/metrics/base_stats_logger.py:22 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/triggers/base.py:27 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/cli/commands/dag_command.py:48 UserWarning: Could not import graphviz. Rendering graph to the graphical format will not be possible.\nDagRun failed\n"
+    },
+    {
+      "name": "scheduled runs load exactly their own day",
+      "kind": "primary",
+      "passed": false,
+      "detail": "run failed:   File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/taskinstance.py\", line 3209, in _execute_task\n    return _execute_task(self, context, task_orig)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/taskinstance.py\", line 776, in _execute_task\n    result = _execute_callable(context=context, **execute_callable_kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/taskinstance.py\", line 742, in _execute_callable\n    return ExecutionCallableRunner(\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/utils/operator_helpers.py\", line 252, in run\n    return self.func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/baseoperator.py\", line 425, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/decorators/base.py\", line 266, in execute\n    return_value = super().execute(context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/baseoperator.py\", line 425, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/operators/python.py\", line 238, in execute\n    return_value = self.execute_callable()\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/operators/python.py\", line 256, in exe\n...\nrs.py\", line 252, in run\n    return self.func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<work>/baseline-run3-2026-09-30-baseline-20260930-082417/scheduling-idempotent-orders-load-bs_gycvk/grade-ws/dags/orders_daily_load.py\", line 42, in load_orders\n    day = logical_date.date()\n          ^^^^^^^^^^^^^^^^^\nAttributeError: 'str' object has no attribute 'date'\n[2026-09-30T09:09:32.503-0700] {dagrun.py:823} ERROR - Marking run <DagRun orders_daily_load @ 2026-03-09 00:00:00+00:00: manual__2026-03-09T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> failed\n[2026-09-30T09:09:32.504-0700] {dagrun.py:905} INFO - DagRun Finished: dag_id=orders_daily_load, execution_date=2026-03-09 00:00:00+00:00, run_id=manual__2026-03-09T00:00:00+00:00, run_start_date=2026-03-09 00:00:00+00:00, run_end_date=2026-09-30 16:09:32.504047+00:00, run_duration=17770172.504047, state=failed, external_trigger=False, run_type=manual, data_interval_start=2026-03-09 00:00:00+00:00, data_interval_end=2026-03-10 00:00:00+00:00, dag_hash=None\n__EVAL_PROBE_RESULT__{\"state\": \"failed\", \"logical_date\": \"2026-03-09T00:00:00+00:00\", \"start\": \"2026-03-09T00:00:00+00:00\", \"end\": \"2026-03-10T00:00:00+00:00\", \"run_after\": \"2026-03-10T00:00:00+00:00\"}\n\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/metrics/base_stats_logger.py:22 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/triggers/base.py:27 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.; warehouse unreadable"
+    },
+    {
+      "name": "re-running a day creates no duplicates and keeps the previous day",
+      "kind": "primary",
+      "passed": false,
+      "detail": "re-run failed:   File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/taskinstance.py\", line 3209, in _execute_task\n    return _execute_task(self, context, task_orig)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/taskinstance.py\", line 776, in _execute_task\n    result = _execute_callable(context=context, **execute_callable_kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/taskinstance.py\", line 742, in _execute_callable\n    return ExecutionCallableRunner(\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/utils/operator_helpers.py\", line 252, in run\n    return self.func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/baseoperator.py\", line 425, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/decorators/base.py\", line 266, in execute\n    return_value = super().execute(context)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/models/baseoperator.py\", line 425, in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/operators/python.py\", line 238, in execute\n    return_value = self.execute_callable()\n                   ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/operators/python.py\", line 256, in \n...\nw/utils/operator_helpers.py\", line 252, in run\n    return self.func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<work>/baseline-run3-2026-09-30-baseline-20260930-082417/scheduling-idempotent-orders-load-bs_gycvk/grade-ws/dags/orders_daily_load.py\", line 42, in load_orders\n    day = logical_date.date()\n          ^^^^^^^^^^^^^^^^^\nAttributeError: 'str' object has no attribute 'date'\n[2026-09-30T09:09:35.335-0700] {dagrun.py:823} ERROR - Marking run <DagRun orders_daily_load @ 2026-03-10 00:00:00+00:00: manual__2026-03-10T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> failed\n[2026-09-30T09:09:35.335-0700] {dagrun.py:905} INFO - DagRun Finished: dag_id=orders_daily_load, execution_date=2026-03-10 00:00:00+00:00, run_id=manual__2026-03-10T00:00:00+00:00, run_start_date=2026-03-10 00:00:00+00:00, run_end_date=2026-09-30 16:09:35.335503+00:00, run_duration=17683775.335503, state=failed, external_trigger=False, run_type=manual, data_interval_start=2026-03-10 00:00:00+00:00, data_interval_end=2026-03-11 00:00:00+00:00, dag_hash=None\n__EVAL_PROBE_RESULT__{\"state\": \"failed\", \"logical_date\": \"2026-03-10T00:00:00+00:00\", \"start\": \"2026-03-10T00:00:00+00:00\", \"end\": \"2026-03-11T00:00:00+00:00\", \"run_after\": \"2026-03-11T00:00:00+00:00\"}\n\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/metrics/base_stats_logger.py:22 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/triggers/base.py:27 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds."
+    },
+    {
+      "name": "re-run repairs a partially written day",
+      "kind": "primary",
+      "passed": false,
+      "detail": "could not simulate partial write: no warehouse"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.3333333333333333,
+  "secondary_score": 1.0
+}

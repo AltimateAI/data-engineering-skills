@@ -1,0 +1,28 @@
+id: migration-revenue-previous-day
+area: migration
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  We're moving our Airflow deployment from 2.11 to 3.3 next week and this repo
+  has to be ready. The local virtualenv is already on apache-airflow 3.3.2.
+  Please migrate the DAGs (and whatever else in the repo needs it) so everything
+  works on Airflow 3.3. Finance depends on daily_revenue, so it must keep
+  producing exactly the same reports as it does today.
+description: |
+  Airflow 2.11 -> 3.3 migration of a finance project. Pain point P7/P2
+  (migration beyond ruff; cron semantics). `daily_revenue` runs at 04:15 UTC
+  with `schedule_interval="15 4 * * *"` and reports on the PREVIOUS business
+  day via `{{ ds }}`/`{{ next_ds }}` (data-interval semantics). Traps ruff AIR
+  does not catch: `{{ next_ds }}` inside a .sql template, `{{ execution_date }}`
+  inside a BashOperator command, and the Airflow 3 change that maps a bare cron
+  string to CronTriggerTimetable (the 04:15 run on day D would suddenly report
+  on day D). Also DummyOperator/days_ago in a second DAG and a 2.x-style
+  `DagBag(include_examples=False)` test. Primary: imports on 3.3, task graph
+  preserved, `airflow dags test` succeeds, the scheduled 04:15 runs replayed in
+  3.3 write byte-identical revenue CSVs and the same manifest business_date as
+  the original project replayed in 2.11, and the repo's pytest suite passes
+  and still fails when a planted DAG file does not import (a skipped or
+  gutted suite does not count).
+  Secondary: verification commands, ruff AIR clean, no deprecation warnings.

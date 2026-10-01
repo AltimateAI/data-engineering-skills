@@ -1,0 +1,19 @@
+name: finance_inventory
+team: finance
+tier: standard
+description: Inventory pipeline for finance
+schedule:
+  hour: 5
+  days: '*'
+  minute: 45
+steps:
+- name: extract
+  table: finance.raw_inventory_00
+- name: enrich
+  table: finance.int_inventory_00
+  depends_on:
+  - extract
+- name: publish
+  table: finance.mart_inventory_00
+  depends_on:
+  - enrich

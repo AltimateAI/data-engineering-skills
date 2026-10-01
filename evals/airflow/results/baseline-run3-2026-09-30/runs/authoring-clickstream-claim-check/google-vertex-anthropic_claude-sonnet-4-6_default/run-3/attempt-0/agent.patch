@@ -1,0 +1,146 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..19998c8
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,140 @@
++"""Daily page-level stats from the web clickstream exports.
++
++Pipeline: extract → transform → load
++  extract  : Read <date>.csv.gz, drop bots (is_bot=1) and anonymous hits
++             (empty user_id), write a filtered Parquet claim-check to a
++             temp directory.  Parquet is used instead of XCom so the task
++             stays memory-light even at the ~1 M-event/day scale marketing
++             expects once the new tracker goes live.
++  transform: Read the claim-check, aggregate per page (views, unique_users,
++             avg_load_ms rounded to 1 dp), write an aggregated Parquet.
++  load     : Write output/page_stats/<date>.csv (page, views, unique_users,
++             avg_load_ms), sorted by page.  Re-runs of the same day replace
++             the file atomically.
++"""
++
++from __future__ import annotations
++
++import os
++import tempfile
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++# One shared tmp directory for claim-check files; Airflow cleans up the worker
++# between runs, but we include the run_id in the file name to be safe.
++_TMP_DIR = Path(tempfile.gettempdir()) / "clickstream_page_stats"
++
++
++def _claim_check_path(ds: str, stage: str) -> Path:
++    """Return a stable path for the inter-task claim-check Parquet file."""
++    _TMP_DIR.mkdir(parents=True, exist_ok=True)
++    return _TMP_DIR / f"{ds}__{stage}.parquet"
++
++
++@dag(
++    dag_id="clickstream_page_stats",
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["clickstream", "web-analytics"],
++    doc_md=__doc__,
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds: str | None = None) -> str:
++        """Read the day's export, drop bots and anon hits, write claim-check."""
++        import duckdb
++
++        src = PROJECT_ROOT / "data" / "clickstream" / f"{ds}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(
++                f"No clickstream export found for {ds}: {src}"
++            )
++
++        out = _claim_check_path(ds, "filtered")
++
++        con = duckdb.connect()
++        con.execute(
++            f"""
++            COPY (
++                SELECT
++                    event_id,
++                    user_id,
++                    page,
++                    CAST(load_ms AS DOUBLE) AS load_ms
++                FROM read_csv_auto('{src}', compression='gzip')
++                WHERE is_bot = 0
++                  AND user_id IS NOT NULL
++                  AND user_id != ''
++            ) TO '{out}' (FORMAT PARQUET)
++            """
++        )
++        con.close()
++        return str(out)
++
++    @task
++    def transform(filtered_path: str, ds: str | None = None) -> str:
++        """Aggregate per page: views, unique_users, avg_load_ms (1 dp)."""
++        import duckdb
++
++        out = _claim_check_path(ds, "aggregated")
++
++        con = duckdb.connect()
++        con.execute(
++            f"""
++            COPY (
++                SELECT
++                    page,
++                    COUNT(*)                              AS views,
++                    COUNT(DISTINCT user_id)               AS unique_users,
++                    ROUND(AVG(load_ms), 1)                AS avg_load_ms
++                FROM read_parquet('{filtered_path}')
++                GROUP BY page
++                ORDER BY page
++            ) TO '{out}' (FORMAT PARQUET)
++            """
++        )
++        con.close()
++        return str(out)
++
++    @task
++    def load(aggregated_path: str, ds: str | None = None) -> None:
++        """Write output/page_stats/<date>.csv, replacing any prior run."""
++        import duckdb
++
++        out = PROJECT_ROOT / "output" / "page_stats" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++
++        # Write to a sibling tmp file then rename for atomic replacement.
++        tmp = out.with_suffix(".tmp")
++
++        con = duckdb.connect()
++        con.execute(
++            f"""
++            COPY (
++                SELECT page, views, unique_users, avg_load_ms
++                FROM read_parquet('{aggregated_path}')
++                ORDER BY page
++            ) TO '{tmp}' (FORMAT CSV, HEADER TRUE)
++            """
++        )
++        con.close()
++
++        os.replace(tmp, out)
++
++        # Clean up claim-check files for this day.
++        for stage in ("filtered", "aggregated"):
++            p = _claim_check_path(ds, stage)
++            p.unlink(missing_ok=True)
++
++    # --- wire the DAG ---
++    filtered = extract()
++    aggregated = transform(filtered)
++    load(aggregated)
++
++
++clickstream_page_stats()

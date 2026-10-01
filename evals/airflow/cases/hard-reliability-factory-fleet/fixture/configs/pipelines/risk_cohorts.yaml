@@ -1,0 +1,36 @@
+name: risk_cohorts
+team: risk
+tier: standard
+description: Cohorts pipeline for risk
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: risk.raw_cohorts_00
+- name: stage
+  table: risk.stg_cohorts_00
+  depends_on:
+  - extract
+- name: validate
+  table: risk.int_cohorts_00
+  depends_on:
+  - stage
+- name: enrich
+  table: risk.int_cohorts_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: risk.int_cohorts_00
+  depends_on:
+  - enrich
+  - validate
+- name: snapshot
+  table: risk.int_cohorts_00
+  depends_on:
+  - aggregate
+  - enrich
+- name: publish
+  table: risk.mart_cohorts_00
+  depends_on:
+  - snapshot

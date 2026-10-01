@@ -1,0 +1,118 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+new file mode 100644
+index 0000000..6cfe9ac
+--- /dev/null
++++ b/dags/inventory_snapshot.py
+@@ -0,0 +1,112 @@
++"""Daily inventory snapshot and low stock alerts.
++
++Convention for this repo: every daily DAG writes one file per logical date
++(`{{ ds }}`) under output/<dag_id>/, so a rerun simply overwrites that day.
++
++On Airflow 2.x with default interval timetable:
++  - scheduled run firing at 02:30 UTC processes the previous calendar day
++  - manual/rerun processes the same day as the original run
++  - ds = the day being processed (interval start)
++"""
++
++from __future__ import annotations
++
++import csv
++from collections import defaultdict
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.decorators import dag, task
++from airflow.operators.empty import EmptyOperator
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data"
++OUTPUT_DIR = PROJECT_ROOT / "output"
++
++
++@dag(
++    dag_id="inventory_snapshot",
++    schedule="30 2 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "supply-chain-analytics", "retries": 1, "retry_delay": timedelta(minutes=10)},
++    tags=["inventory"],
++)
++def inventory_snapshot():
++    start = EmptyOperator(task_id="start")
++
++    @task
++    def snapshot(**context) -> str:
++        """Compute end-of-day inventory per warehouse and SKU as of ds.
++        
++        Returns:
++            path to the snapshot CSV file
++        """
++        ds = context["ds"]
++        # Load movements and accumulate qty_change by (warehouse_id, sku) up to and including ds
++        on_hand: dict[tuple[str, str], float] = defaultdict(float)
++        with (DATA_DIR / "inventory_movements.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                if row["movement_date"] <= ds:
++                    key = (row["warehouse_id"], row["sku"])
++                    on_hand[key] += float(row["qty_change"])
++        
++        # Write snapshot file sorted by (warehouse_id, sku)
++        out = OUTPUT_DIR / "inventory_snapshot" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        with out.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["warehouse_id", "sku", "on_hand"])
++            for (warehouse_id, sku) in sorted(on_hand.keys()):
++                writer.writerow([warehouse_id, sku, on_hand[(warehouse_id, sku)]])
++        
++        return str(out)
++
++    @task
++    def low_stock(snapshot_path: str, **context) -> str:
++        """Identify items below reorder point and write low stock alert.
++        
++        Args:
++            snapshot_path: path to snapshot CSV (from previous task via XCom)
++            **context: Airflow context (includes ds for the logical date)
++        
++        Returns:
++            path to the low stock CSV file
++        """
++        ds = context["ds"]
++        
++        # Load reorder points
++        reorder_points: dict[str, float] = {}
++        with (DATA_DIR / "reorder_points.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                reorder_points[row["sku"]] = float(row["reorder_point"])
++        
++        # Load snapshot and filter by reorder point
++        low_stock_items: list[tuple[str, str, float, float]] = []
++        with open(snapshot_path, newline="") as fh:
++            for row in csv.DictReader(fh):
++                warehouse_id = row["warehouse_id"]
++                sku = row["sku"]
++                on_hand_qty = float(row["on_hand"])
++                reorder_point = reorder_points.get(sku, float("inf"))
++                if on_hand_qty < reorder_point:
++                    low_stock_items.append((warehouse_id, sku, on_hand_qty, reorder_point))
++        
++        # Write low stock file sorted by (warehouse_id, sku)
++        out = OUTPUT_DIR / "low_stock" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        with out.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["warehouse_id", "sku", "on_hand", "reorder_point"])
++            for (warehouse_id, sku, on_hand_qty, reorder_point) in sorted(low_stock_items):
++                writer.writerow([warehouse_id, sku, on_hand_qty, reorder_point])
++        
++        return str(out)
++
++    snap = snapshot()
++    start >> snap
++    low_stock(snapshot_path=snap)
++
++
++inventory_snapshot()

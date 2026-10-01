@@ -1,0 +1,85 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..deaf531 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -14,8 +14,11 @@ from collections import defaultdict
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ 
+-from airflow import DAG
+-from airflow.operators.python import PythonOperator, get_current_context
++from airflow.sdk import DAG, DeltaDataIntervalTimetable
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import get_current_context
++from airflow.models import Variable
++from airflow.sdk.execution_time import macros
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ MOVEMENTS = PROJECT_ROOT / "data" / "stock_movements.csv"
+@@ -35,8 +38,12 @@ def _read_snapshot(day: str) -> dict[str, int]:
+         return {row["sku"]: int(row["on_hand"]) for row in csv.DictReader(fh)}
+ 
+ 
+-def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs):
+-    as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted
++def build_snapshot(ds=None, logical_date=None, ti=None, **kwargs):
++    # On Airflow 3.x with interval timetable, logical_date is the run time (end of the day being snapshotted)
++    as_of = logical_date + timedelta(days=1) if logical_date else None
++    if not as_of:
++        raise ValueError("logical_date must be set for interval timetable")
++    
+     on_hand: dict[str, int] = defaultdict(int)
+     with MOVEMENTS.open(newline="") as fh:
+         for row in csv.DictReader(fh):
+@@ -44,6 +51,8 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+             if moved_at < as_of:
+                 on_hand[row["sku"]] += int(row["qty"])
+ 
++    # For daily schedules, previous day's snapshot: macros.ds_add(ds, -1)
++    prev_ds = macros.ds_add(ds, -1) if ds else None
+     previous = _read_snapshot(prev_ds)
+     out = _snapshot_path(ds)
+     out.parent.mkdir(parents=True, exist_ok=True)
+@@ -58,14 +67,13 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+     ti.xcom_push(key="low_stock", value=sorted(s for s, q in on_hand.items() if q < LOW_STOCK_THRESHOLD))
+ 
+ 
+-def audit_snapshot(**kwargs):
+-    context = get_current_context()
+-    day = context["execution_date"].strftime("%Y-%m-%d")
+-    ti = kwargs["ti"]
++def audit_snapshot(ds=None, logical_date=None, ti=None, **kwargs):
++    # Use logical_date to get the day being audited (on interval timetable, this is the run time)
++    day = logical_date.strftime("%Y-%m-%d") if logical_date else ds
+     record = {
+         "day": day,
+-        "sku_count": ti.xcom_pull(key="sku_count"),
+-        "low_stock": ti.xcom_pull(key="low_stock"),
++        "sku_count": ti.xcom_pull(key="sku_count", task_ids="build_snapshot"),
++        "low_stock": ti.xcom_pull(key="low_stock", task_ids="build_snapshot"),
+     }
+     out = OUTPUT_DIR / "audit" / f"{day}.json"
+     out.parent.mkdir(parents=True, exist_ok=True)
+@@ -74,8 +82,8 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
+-    start_date=datetime(2026, 1, 1),
++    schedule=DeltaDataIntervalTimetable(timedelta(days=1)),
++    start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+     tags=["inventory"],
+@@ -83,11 +91,9 @@ with DAG(
+     build = PythonOperator(
+         task_id="build_snapshot",
+         python_callable=build_snapshot,
+-        provide_context=True,
+     )
+     audit = PythonOperator(
+         task_id="audit_snapshot",
+         python_callable=audit_snapshot,
+-        provide_context=True,
+     )
+     build >> audit

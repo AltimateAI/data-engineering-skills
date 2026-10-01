@@ -1,0 +1,38 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 245.5,
+  "cost_usd": 1.811411,
+  "cost_reported_usd": 8.585213,
+  "tokens": {
+    "input": 2257966,
+    "output": 8248,
+    "reasoning": 0,
+    "cache_read": 1965118,
+    "cache_write": 292816,
+    "total": 4524148
+  },
+  "steps": 31,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "creating-dbt-models",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 21,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dd1cc26ffe8bHWSJ4q3JvFSw.json"
+}

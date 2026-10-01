@@ -1,0 +1,74 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..77d970d 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,14 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads orders for a specific day into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+ previous day's non-cancelled orders into `orders` and then refreshes the
+ `daily_revenue` rollup that the finance dashboard reads.
++
++Each run is idempotent: re-running the same day deletes and reloads it from
++scratch, so retries, reruns, and backfills are always safe. Other days are
++never touched.
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+@@ -27,10 +30,16 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(**context) -> str:
++        # Use the run's logical_date (Airflow 2.x interval timetable)
++        # to determine which day to load.
++        logical_date = context["logical_date"]
++        day = logical_date.date()
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
++
++        # Create table if it does not exist.
+         con.execute(
+             """
+             CREATE TABLE IF NOT EXISTS orders (
+@@ -42,6 +51,14 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # Delete any existing rows for this day (idempotency).
++        con.execute(
++            "DELETE FROM orders WHERE order_date = ?",
++            [day],
++        )
++
++        # Insert orders for this day from the CSV.
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -71,6 +88,14 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # Delete any existing row for this day.
++        con.execute(
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
++
++        # Rebuild the daily revenue for this day from the orders table.
+         con.execute(
+             """
+             INSERT INTO daily_revenue
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..b4bdafbb79f479cc49ba6431e866d1ab0578a324
+Binary files differ (content omitted by sanitize.py)

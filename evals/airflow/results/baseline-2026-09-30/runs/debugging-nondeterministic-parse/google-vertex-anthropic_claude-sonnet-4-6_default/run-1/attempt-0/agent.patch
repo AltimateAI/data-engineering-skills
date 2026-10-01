@@ -1,0 +1,75 @@
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..e283a3f 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -3,6 +3,11 @@
+ One load task per table registered in the platform team's catalog service.
+ DuckDB allows a single writer, so the loads run one after another between
+ `start` and `done`.
++
++Table list is read from the local snapshot (config/tables.json) at parse time
++so the dag-processor never hits the network.  The snapshot is refreshed by the
++deploy pipeline on every release.  The catalog HTTP client is available for use
++inside tasks if live data is ever needed at runtime.
+ """
+ 
+ from __future__ import annotations
+@@ -11,7 +16,7 @@ import json
+ import os
+ import time
+ import urllib.request
+-from datetime import datetime, timedelta
++from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+@@ -29,11 +34,12 @@ CATALOG_URL = os.environ.get(
+ CATALOG_SNAPSHOT = PROJECT_ROOT / "config" / "tables.json"
+ 
+ 
+-def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+-    """Tables registered in the catalog for the warehouse domain.
++def list_tables_from_catalog(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
++    """Fetch tables from the live catalog service (for use inside tasks only).
+ 
+     Retries with exponential backoff and falls back to the deployed snapshot
+-    when the service is unreachable.
++    when the service is unreachable.  Do NOT call this at module level — it
++    makes a network request and would be executed on every dag-processor parse.
+     """
+     for attempt in range(retries):
+         try:
+@@ -45,8 +51,19 @@ def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+     return json.loads(CATALOG_SNAPSHOT.read_text())
+ 
+ 
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++def _tables_from_snapshot() -> list[str]:
++    """Read the local catalog snapshot.
++
++    Returns a deduplicated, alphabetically sorted list so the task order in
++    the graph is stable across parses (set iteration is non-deterministic).
++    """
++    raw: list[str] = json.loads(CATALOG_SNAPSHOT.read_text())
++    # dict.fromkeys preserves first-seen order while deduplicating, then we sort.
++    return sorted(dict.fromkeys(raw))
++
++
++# Resolved once at import time from the local file — no network, no randomness.
++TABLES: list[str] = _tables_from_snapshot()
+ 
+ 
+ def load_table(table: str) -> int:
+@@ -64,9 +81,9 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
++    description="Load raw tables from the nightly extracts into the DuckDB warehouse.",
+     schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    start_date=datetime(2026, 1, 1),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+ ):

@@ -1,0 +1,32 @@
+name: finance_chargebacks
+team: finance
+tier: standard
+description: Chargebacks pipeline for finance
+schedule:
+  hour: 4
+  days: 1-5
+steps:
+- name: extract
+  table: finance.raw_chargebacks_00
+- name: stage
+  table: finance.stg_chargebacks_00
+  depends_on:
+  - extract
+- name: validate
+  table: finance.int_chargebacks_00
+  depends_on:
+  - stage
+- name: enrich
+  table: finance.int_chargebacks_00
+  depends_on:
+  - validate
+  - stage
+- name: aggregate
+  table: finance.int_chargebacks_00
+  depends_on:
+  - enrich
+- name: publish
+  table: finance.mart_chargebacks_00
+  depends_on:
+  - aggregate
+  - enrich

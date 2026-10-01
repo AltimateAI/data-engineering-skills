@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['daily_revenue', 'region_reference']"
+    },
+    {
+      "name": "daily_revenue keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['load_daily_revenue', 'publish_manifest'] deps=[['load_daily_revenue', 'publish_manifest']]"
+    },
+    {
+      "name": "dags test succeeds (daily_revenue, region_reference)",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "scheduled 04:15 runs succeed on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-03-05T04:15:00+00:00: state=success interval=[2026-03-04T04:15:00+00:00, 2026-03-05T04:15:00+00:00] failed=[]; 2026-03-06T04:15:00+00:00: state=success interval=[2026-03-05T04:15:00+00:00, 2026-03-06T04:15:00+00:00] failed=[]"
+    },
+    {
+      "name": "scheduled runs process the same business day and write the same output as 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'daily_revenue/2026-03-04.csv': 'region,orders,revenue\\nAPAC,4,552.44\\nEMEA,2,409.40\\nLATAM,1,116.19\\nNA,3,537.20', 'daily_revenue/2026-03-05.csv': 'region,orders,revenue\\nEMEA,2,228.11\\nLATAM,2,349.40\\nNA,5,809.87', 'manifests/2026-03-04.json': '{\"business_date\": \"2026-03-04\"}', 'manifests/2026-03-05.json': '{\"business_date\": \"2026-03-05\"}'}\n got {'daily_revenue/2026-03-04.csv': 'region,orders,revenue\\nAPAC,4,552.44\\nEMEA,2,409.40\\nLATAM,1,116.19\\nNA,3,537.20', 'daily_revenue/2026-03-05.csv': 'region,orders,revenue\\nEMEA,2,228.11\\nLATAM,2,349.40\\nNA,5,809.87', 'manifests/2026-03-04.json': '{\"business_date\": \"2026-03-04\"}', 'manifests/2026-03-05.json': '{\"business_date\": \"2026-03-05\"}'}"
+    },
+    {
+      "name": "project test suite passes on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 2 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "project test suite still fails on a DAG file that does not import",
+      "kind": "primary",
+      "passed": true,
+      "detail": "clean: passed; with planted dags/zz_planted_broken.py: failed: 1 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_no_import_errors [AssertionError]"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bruff\\\\b.*\\\\bAIR\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/daily_revenue.py:55 AIR001; dags/daily_revenue.py:62 AIR001; dags/region_reference.py:35 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

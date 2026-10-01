@@ -1,0 +1,93 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..ef501f9 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -14,8 +14,9 @@ from collections import defaultdict
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ 
+-from airflow import DAG
+-from airflow.operators.python import PythonOperator, get_current_context
++import pendulum
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, DeltaDataIntervalTimetable, get_current_context
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ MOVEMENTS = PROJECT_ROOT / "data" / "stock_movements.csv"
+@@ -35,7 +36,20 @@ def _read_snapshot(day: str) -> dict[str, int]:
+         return {row["sku"]: int(row["on_hand"]) for row in csv.DictReader(fh)}
+ 
+ 
+-def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs):
++def _run_days(dag_run, logical_date=None):
++    """Return (logical date, ds, prev_ds) as Airflow 2.x supplied them.
++
++    Manual runs have no logical_date on 3.x; 2.x used the trigger time, with
++    prev_ds equal to ds.
++    """
++    logical_date = pendulum.instance(logical_date or dag_run.run_after)
++    ds = logical_date.strftime("%Y-%m-%d")
++    prev_ds = ds if dag_run.run_type == "manual" else (logical_date - timedelta(days=1)).strftime("%Y-%m-%d")
++    return logical_date, ds, prev_ds
++
++
++def write_snapshot(dag_run=None, logical_date=None, ti=None, **kwargs):
++    execution_date, ds, prev_ds = _run_days(dag_run, logical_date)
+     as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted
+     on_hand: dict[str, int] = defaultdict(int)
+     with MOVEMENTS.open(newline="") as fh:
+@@ -58,14 +72,14 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+     ti.xcom_push(key="low_stock", value=sorted(s for s, q in on_hand.items() if q < LOW_STOCK_THRESHOLD))
+ 
+ 
+-def audit_snapshot(**kwargs):
++def write_audit(**kwargs):
+     context = get_current_context()
+-    day = context["execution_date"].strftime("%Y-%m-%d")
++    _, day, _ = _run_days(context["dag_run"], context.get("logical_date"))
+     ti = kwargs["ti"]
+     record = {
+         "day": day,
+-        "sku_count": ti.xcom_pull(key="sku_count"),
+-        "low_stock": ti.xcom_pull(key="low_stock"),
++        "sku_count": ti.xcom_pull(task_ids="build_snapshot", key="sku_count"),
++        "low_stock": ti.xcom_pull(task_ids="build_snapshot", key="low_stock"),
+     }
+     out = OUTPUT_DIR / "audit" / f"{day}.json"
+     out.parent.mkdir(parents=True, exist_ok=True)
+@@ -74,20 +88,18 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
+-    start_date=datetime(2026, 1, 1),
++    schedule=DeltaDataIntervalTimetable(timedelta(days=1)),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+     tags=["inventory"],
+ ) as dag:
+-    build = PythonOperator(
++    build_snapshot = PythonOperator(
+         task_id="build_snapshot",
+-        python_callable=build_snapshot,
+-        provide_context=True,
++        python_callable=write_snapshot,
+     )
+-    audit = PythonOperator(
++    audit_snapshot = PythonOperator(
+         task_id="audit_snapshot",
+-        python_callable=audit_snapshot,
+-        provide_context=True,
++        python_callable=write_audit,
+     )
+-    build >> audit
++    build_snapshot >> audit_snapshot
+diff --git a/requirements.txt b/requirements.txt
+index cb9ccf0..612a873 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1 +1,2 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0

@@ -1,0 +1,11 @@
+name: shop_analytics
+version: "1.0.0"
+config-version: 2
+profile: shop_analytics
+model-paths: ["models"]
+models:
+  shop_analytics:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

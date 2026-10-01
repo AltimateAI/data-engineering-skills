@@ -1,0 +1,161 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..c6c55bf
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,155 @@
++"""Daily page-level stats from the web clickstream exports.
++
++Pipeline
++--------
++extract  → filter bot traffic (is_bot=1) and anonymous hits (empty user_id),
++           write a cleaned intermediate Parquet file (claim-check).
++transform → aggregate per page: views, unique_users, avg_load_ms (rounded to
++            1 decimal).  Uses DuckDB for columnar speed at 50x+ current volume.
++load      → write output/page_stats/<date>.csv atomically (temp-then-rename so
++            reruns are safe).
++
++Claim-check note
++----------------
++At ~20k events/day today and ~1 M events/day after the new tracker is live,
++passing cleaned data through XCom would bloat the Airflow metadata DB.  Instead
++each task writes/reads a local Parquet file in output/.tmp/ and passes only the
++file *path* through XCom.
++"""
++
++from __future__ import annotations
++
++import os
++import tempfile
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++CLICKSTREAM_DIR = PROJECT_ROOT / "data" / "clickstream"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++TMP_DIR = PROJECT_ROOT / "output" / ".tmp"
++
++
++@dag(
++    dag_id="clickstream_page_stats",
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["clickstream", "web-analytics"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds: str | None = None) -> str:
++        """Read the day's gzipped export and drop bots + anonymous hits.
++
++        Returns the path of a Parquet claim-check for the next task.
++        Raises FileNotFoundError if the export for *ds* does not exist.
++        """
++        import duckdb
++
++        src = CLICKSTREAM_DIR / f"{ds}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(f"No clickstream export found for {ds}: {src}")
++
++        TMP_DIR.mkdir(parents=True, exist_ok=True)
++        claim_check = TMP_DIR / f"{ds}_extracted.parquet"
++
++        con = duckdb.connect()
++        con.execute(
++            f"""
++            COPY (
++                SELECT
++                    event_id,
++                    user_id,
++                    page,
++                    event_ts,
++                    CAST(load_ms AS DOUBLE) AS load_ms
++                FROM read_csv_auto('{src}', compression='gzip')
++                WHERE CAST(is_bot AS INTEGER) = 0
++                  AND user_id IS NOT NULL
++                  AND user_id != ''
++            ) TO '{claim_check}' (FORMAT PARQUET)
++            """
++        )
++        con.close()
++        return str(claim_check)
++
++    @task
++    def transform(claim_check_path: str, ds: str | None = None) -> str:
++        """Aggregate per page and write a second Parquet claim-check.
++
++        Computes:
++          views        – row count per page
++          unique_users – COUNT(DISTINCT user_id) per page
++          avg_load_ms  – ROUND(AVG(load_ms), 1) per page
++        """
++        import duckdb
++
++        src = claim_check_path
++        TMP_DIR.mkdir(parents=True, exist_ok=True)
++        aggregated = TMP_DIR / f"{ds}_aggregated.parquet"
++
++        con = duckdb.connect()
++        con.execute(
++            f"""
++            COPY (
++                SELECT
++                    page,
++                    COUNT(*)                           AS views,
++                    COUNT(DISTINCT user_id)            AS unique_users,
++                    ROUND(AVG(load_ms), 1)             AS avg_load_ms
++                FROM read_parquet('{src}')
++                GROUP BY page
++                ORDER BY page
++            ) TO '{aggregated}' (FORMAT PARQUET)
++            """
++        )
++        con.close()
++        return str(aggregated)
++
++    @task
++    def load(claim_check_path: str, ds: str | None = None) -> None:
++        """Write output/page_stats/<date>.csv from the aggregated Parquet.
++
++        The write is atomic (temp file in the same directory + os.replace) so
++        that a partial run never leaves a corrupt file behind.  A rerun simply
++        overwrites the previous day's output.
++        """
++        import duckdb
++
++        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
++        final = OUTPUT_DIR / f"{ds}.csv"
++
++        # Write to a sibling temp file first, then atomically rename.
++        fd, tmp_path = tempfile.mkstemp(
++            dir=OUTPUT_DIR, prefix=f".{ds}_", suffix=".csv.tmp"
++        )
++        try:
++            os.close(fd)
++            con = duckdb.connect()
++            con.execute(
++                f"""
++                COPY (
++                    SELECT page, views, unique_users, avg_load_ms
++                    FROM read_parquet('{claim_check_path}')
++                    ORDER BY page
++                ) TO '{tmp_path}' (FORMAT CSV, HEADER TRUE)
++                """
++            )
++            con.close()
++            os.replace(tmp_path, final)
++        except Exception:
++            try:
++                os.unlink(tmp_path)
++            except OSError:
++                pass
++            raise
++
++    extracted = extract()
++    aggregated = transform(extracted)
++    load(aggregated)
++
++
++clickstream_page_stats()

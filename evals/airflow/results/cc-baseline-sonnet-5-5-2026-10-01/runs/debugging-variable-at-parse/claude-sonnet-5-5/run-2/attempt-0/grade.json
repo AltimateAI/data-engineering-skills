@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "name": "DAG files import with no Variables available",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG warehouse_load is present",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['order_status_report', 'warehouse_load']"
+    },
+    {
+      "name": "task graph preserved (extract -> aggregate -> load -> validate)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing=[] broken=[] deps=[['aggregate_revenue', 'load_warehouse'], ['extract_orders', 'aggregate_revenue'], ['load_warehouse', 'validate_load']]"
+    },
+    {
+      "name": "still scheduled daily at 06:00 UTC, catchup off",
+      "kind": "primary",
+      "passed": true,
+      "detail": "run_after=['2026-03-01T06:00:00+00:00', '2026-03-02T06:00:00+00:00', '2026-03-03T06:00:00+00:00'] timetable=CronTriggerTimetable catchup=False "
+    },
+    {
+      "name": "airflow dags test succeeds with warehouse_path set",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "revenue loaded into the warehouse the Variable points to",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'amer': 791.57, 'apac': 730.87, 'emea': 841.54}, got {'amer': 791.57, 'apac': 730.87, 'emea': 841.54} (warehouse_path=<tmp>/eval-warehouse-c0po5gvy)"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b', '\\\\bdag\\\\.test\\\\(']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

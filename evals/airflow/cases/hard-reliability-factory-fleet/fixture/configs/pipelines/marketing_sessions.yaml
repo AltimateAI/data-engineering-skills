@@ -1,0 +1,22 @@
+name: marketing_sessions
+team: marketing
+tier: standard
+description: Sessions pipeline for marketing
+schedule:
+  hour: 3
+  days: '*'
+steps:
+- name: extract
+  table: marketing.raw_sessions_00
+- name: stage
+  table: marketing.stg_sessions_00
+  depends_on:
+  - extract
+- name: transform
+  table: marketing.int_sessions_00
+  depends_on:
+  - stage
+- name: publish
+  table: marketing.mart_sessions_00
+  depends_on:
+  - transform

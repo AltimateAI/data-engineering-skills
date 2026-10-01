@@ -1,0 +1,377 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..aad9840
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,82 @@
++import csv
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)  # dag.test() requires the DAG to live here
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"  # throwaway DB
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))  # lets tests import the DAG module directly
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrates the throwaway metadata DB. Only dag.test() tests need it."""
++    subprocess.run([sys.executable, "-m", "airflow", "db", "migrate"], check=True, capture_output=True)
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    """upcoming_runs(dag, after, n) -> the next n times the scheduler would start a run."""
++    from airflow.serialization.encoders import coerce_to_core_timetable
++    from airflow.timetables.base import TimeRestriction
++
++    def _runs(dag, after, n):
++        tt = coerce_to_core_timetable(dag.timetable)
++        restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++        last, runs = None, []
++        for _ in range(n):
++            info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++            if info is None:
++                break
++            runs.append(info)
++            last = info.data_interval
++        return runs
++
++    return _runs
++
++
++@pytest.fixture
++def task_global(monkeypatch):
++    """task_global(dag, task_id, NAME, value): patch a module global that the task's code reads.
++
++    DagBag loads the DAG file as its own private module, so patching an imported copy
++    would not affect dag.test(); patch the globals the task callable actually sees.
++    """
++    def _set(dag, task_id, name, value):
++        g = dag.get_task(task_id).python_callable.__globals__
++        assert name in g, f"{task_id} does not read a global named {name}"
++        monkeypatch.setitem(g, name, value)
++    return _set
++
++
++def write_csv(path, rows):
++    path.parent.mkdir(parents=True, exist_ok=True)
++    with path.open("w", newline="") as fh:
++        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
++        writer.writeheader()
++        writer.writerows(rows)
++
++
++def read_csv(path):
++    with path.open(newline="") as fh:
++        return list(csv.DictReader(fh))
+diff --git a/tests/test_dag_structure.py b/tests/test_dag_structure.py
+new file mode 100644
+index 0000000..2c85f99
+--- /dev/null
++++ b/tests/test_dag_structure.py
+@@ -0,0 +1,39 @@
++"""DAG integrity, dependencies (publish only after validation) and schedule."""
++from datetime import datetime, timezone
++
++DAG_ID = "orders_enrichment"
++
++
++def test_no_import_errors(dagbag):
++    assert dagbag.import_errors == {}, "\n\n".join(f"{f}:\n{e}" for f, e in dagbag.import_errors.items())
++    assert DAG_ID in dagbag.dags
++
++
++def test_task_dependencies(dagbag):
++    dag = dagbag.dags[DAG_ID]
++    expected = {
++        "extract_orders": set(),
++        "load_fx_rates": set(),
++        "dedupe_orders": {"extract_orders"},
++        "convert_to_usd": {"dedupe_orders", "load_fx_rates"},
++        "validate_totals": {"convert_to_usd"},
++        "load_enriched": {"validate_totals"},
++    }
++    assert {t.task_id: t.upstream_task_ids for t in dag.tasks} == expected
++
++
++def test_write_only_after_validate_succeeded(dagbag):
++    load = dagbag.dags[DAG_ID].get_task("load_enriched")
++    assert load.upstream_task_ids == {"validate_totals"}
++    assert load.trigger_rule == "all_success"
++
++
++def test_runs_daily_at_0600_utc(dagbag, upcoming_runs):
++    runs = upcoming_runs(dagbag.dags[DAG_ID], datetime(2026, 3, 1, tzinfo=timezone.utc), 14)
++    assert len(runs) == 14
++    fire = [r.run_after for r in runs]
++    assert all((t.hour, t.minute, t.second, t.utcoffset().total_seconds()) == (6, 0, 0, 0) for t in fire)
++    # exactly once per day, every day of the week, no gaps
++    assert [t.date().toordinal() for t in fire] == list(range(fire[0].date().toordinal(), fire[0].date().toordinal() + 14))
++    # the run that fires on day D processes day D (ds == D)
++    assert all(r.logical_date.date() == r.run_after.date() for r in runs)
+diff --git a/tests/test_end_to_end.py b/tests/test_end_to_end.py
+new file mode 100644
+index 0000000..8794f02
+--- /dev/null
++++ b/tests/test_end_to_end.py
+@@ -0,0 +1,89 @@
++"""Full DAG runs with dag.test(): on the sample data in data/, and failure paths on temp data."""
++from datetime import date, datetime, timezone
++from decimal import ROUND_HALF_UP, Decimal
++
++from conftest import REPO, read_csv, write_csv
++
++DAG_ID = "orders_enrichment"
++
++
++def run(dag, day):
++    """One dag.test() run firing at 06:00 UTC on `day`; each test uses its own day (one metadata DB)."""
++    dr = dag.test(logical_date=datetime(day.year, day.month, day.day, 6, 0, tzinfo=timezone.utc))
++    return dr, {ti.task_id: ti.state for ti in dr.get_task_instances()}
++
++
++def no_retries(dag, monkeypatch):
++    # the DAG retries failed tasks twice after 10 minutes; failure-path tests should fail at once
++    for t in dag.tasks:
++        monkeypatch.setattr(t, "retries", 0)
++
++
++def test_sample_data_2026_03_02(dagbag, airflow_db, task_global, tmp_path):
++    dag = dagbag.dags[DAG_ID]
++    task_global(dag, "load_enriched", "OUTPUT_DIR", tmp_path)
++
++    dr, states = run(dag, date(2026, 3, 2))
++    assert dr.state == "success", states
++
++    rows = read_csv(tmp_path / "2026-03-02.csv")
++    # hand-checked against data/: S-102 and S-103 were exported twice, the later version wins
++    assert rows == [
++        {"order_id": "S-102", "customer_id": "C-7", "currency": "EUR", "amount": "120.00", "amount_usd": "130.20"},
++        {"order_id": "S-103", "customer_id": "C-9", "currency": "GBP", "amount": "40.50", "amount_usd": "51.44"},
++        {"order_id": "S-104", "customer_id": "C-10", "currency": "USD", "amount": "9.99", "amount_usd": "9.99"},
++        {"order_id": "S-105", "customer_id": "C-8", "currency": "EUR", "amount": "0.35", "amount_usd": "0.38"},
++    ]
++    # cross-check every row against the rule using the day's rates from data/fx_rates.csv
++    rates = {"USD": "1"} | {r["currency"]: r["usd_per_unit"] for r in read_csv(REPO / "data" / "fx_rates.csv")
++                            if r["rate_date"] == "2026-03-02"}
++    for r in rows:
++        want = (Decimal(r["amount"]) * Decimal(rates[r["currency"]])).quantize(Decimal("0.01"), ROUND_HALF_UP)
++        assert r["amount_usd"] == str(want)
++
++
++def _temp_data(dag, task_global, tmp_path, orders, rates):
++    data = tmp_path / "data"
++    write_csv(data / "orders.csv", orders)
++    write_csv(data / "fx_rates.csv", rates)
++    task_global(dag, "extract_orders", "DATA_DIR", data)  # one module: all tasks share these globals
++    out = tmp_path / "out"
++    task_global(dag, "load_enriched", "OUTPUT_DIR", out)
++    return out
++
++
++def _order(day, order_id, currency, customer_id="C-1", amount="10.00"):
++    return {"order_id": order_id, "order_date": str(day), "updated_at": f"{day}T08:00:00",
++            "customer_id": customer_id, "currency": currency, "amount": amount}
++
++
++def _rates(day):
++    # EUR has a rate for the day; JPY only for the day before
++    return [{"rate_date": str(day), "currency": "EUR", "usd_per_unit": "1.0850"},
++            {"rate_date": str(date.fromordinal(day.toordinal() - 1)), "currency": "JPY", "usd_per_unit": "0.0067"}]
++
++
++def test_currency_without_rate_for_the_day_fails_run_and_writes_nothing(
++        dagbag, airflow_db, task_global, tmp_path, monkeypatch):
++    dag, day = dagbag.dags[DAG_ID], date(2026, 3, 10)
++    no_retries(dag, monkeypatch)
++    out = _temp_data(dag, task_global, tmp_path, [_order(day, "A", "EUR"), _order(day, "B", "JPY")], _rates(day))
++
++    dr, states = run(dag, day)
++    assert dr.state == "failed", states
++    assert states["convert_to_usd"] == "failed"
++    assert states["load_enriched"] != "success"
++    assert not out.exists() or not any(out.iterdir())
++
++
++def test_failed_validation_writes_nothing(dagbag, airflow_db, task_global, tmp_path, monkeypatch):
++    dag, day = dagbag.dags[DAG_ID], date(2026, 3, 11)
++    no_retries(dag, monkeypatch)
++    out = _temp_data(dag, task_global, tmp_path,
++                     [_order(day, "A", "EUR"), _order(day, "B", "EUR", customer_id="")], _rates(day))
++
++    dr, states = run(dag, day)
++    assert dr.state == "failed", states
++    assert states["validate_totals"] == "failed"
++    assert states["load_enriched"] != "success"
++    assert not out.exists() or not any(out.iterdir())
+diff --git a/tests/test_transforms.py b/tests/test_transforms.py
+new file mode 100644
+index 0000000..092f855
+--- /dev/null
++++ b/tests/test_transforms.py
+@@ -0,0 +1,143 @@
++"""Unit tests of the task callables on small hand-built inputs."""
++
++import pytest
++
++import orders_enrichment as oe
++from conftest import read_csv, write_csv
++
++
++def order(order_id, updated_at="2026-03-02T08:00:00", currency="USD", amount="10.00", customer_id="C-1"):
++    return {
++        "order_id": order_id,
++        "order_date": "2026-03-02",
++        "updated_at": updated_at,
++        "customer_id": customer_id,
++        "currency": currency,
++        "amount": amount,
++    }
++
++
++# --- dedupe: only the latest version (by updated_at) of each order is kept ---------------------
++
++def test_dedupe_keeps_latest_version_regardless_of_input_order():
++    rows = [
++        order("A", "2026-03-02T09:00:00", amount="2.00"),
++        order("A", "2026-03-02T11:00:00", amount="3.00"),  # latest
++        order("A", "2026-03-02T07:00:00", amount="1.00"),  # older version exported after the latest
++        order("B", "2026-03-02T08:00:00", amount="5.00"),
++    ]
++    out = oe.dedupe_orders.function(rows)
++    assert [(r["order_id"], r["amount"]) for r in out] == [("A", "3.00"), ("B", "5.00")]
++
++
++def test_dedupe_latest_first_in_input_is_not_overwritten_by_older():
++    rows = [order("A", "2026-03-02T11:47:00", amount="120.00"), order("A", "2026-03-02T08:05:00", amount="100.00")]
++    assert [r["amount"] for r in oe.dedupe_orders.function(rows)] == ["120.00"]
++
++
++def test_dedupe_keeps_every_distinct_order_once():
++    rows = [order("C"), order("A"), order("B"), order("A", "2026-03-02T09:00:00")]
++    out = oe.dedupe_orders.function(rows)
++    assert sorted(r["order_id"] for r in out) == ["A", "B", "C"]
++    assert len(out) == 3
++
++
++def test_dedupe_compares_timestamps_not_just_dates():
++    rows = [order("A", "2026-03-02T23:59:00", amount="9.00"), order("A", "2026-03-02T00:01:00", amount="1.00")]
++    assert oe.dedupe_orders.function(rows)[0]["amount"] == "9.00"
++
++
++def test_dedupe_empty():
++    assert oe.dedupe_orders.function([]) == []
++
++
++# --- conversion: amount * usd_per_unit, rounded half-up to cents ------------------------------
++
++@pytest.mark.parametrize(
++    "amount, rate, expected",
++    [
++        ("120.00", "1.0850", "130.20"),
++        ("40.50", "1.2700", "51.44"),   # 51.435 -> half-up
++        ("1.25", "0.5", "0.63"),        # 0.625 -> 0.63 half-up (half-even would give 0.62)
++        ("0.125", "1", "0.13"),         # 0.125 -> 0.13 half-up (half-even would give 0.12)
++        ("10.00", "1.23444", "12.34"),  # 12.3444 -> rounds down
++        ("2.01", "1.0812", "2.17"),     # 2.173212
++        ("9.99", "1", "9.99"),
++    ],
++)
++def test_convert_amount_times_rate_rounded_half_up(amount, rate, expected):
++    out = oe.convert_to_usd.function([order("A", currency="EUR", amount=amount)], {"EUR": rate})
++    assert out[0]["amount_usd"] == expected
++
++
++def test_convert_uses_each_rows_own_currency_and_keeps_fields():
++    rows = [order("A", currency="EUR", amount="100.00"), order("B", currency="GBP", amount="100.00")]
++    out = oe.convert_to_usd.function(rows, {"USD": "1", "EUR": "1.0850", "GBP": "1.2700"})
++    assert [r["amount_usd"] for r in out] == ["108.50", "127.00"]
++    assert out[0]["customer_id"] == "C-1" and out[0]["amount"] == "100.00"
++
++
++def test_convert_missing_rate_raises_instead_of_guessing():
++    rows = [order("A", currency="EUR", amount="1.00"), order("B", currency="JPY", amount="500")]
++    with pytest.raises(ValueError, match="JPY"):
++        oe.convert_to_usd.function(rows, {"USD": "1", "EUR": "1.08"})
++
++
++# --- FX rates are taken for the run date only -------------------------------------------------
++
++@pytest.fixture
++def data_dir(tmp_path, monkeypatch):
++    monkeypatch.setattr(oe, "DATA_DIR", tmp_path)
++    return tmp_path
++
++
++def test_load_fx_rates_only_uses_the_run_date(data_dir):
++    write_csv(data_dir / "fx_rates.csv", [
++        {"rate_date": "2026-03-01", "currency": "EUR", "usd_per_unit": "1.0812"},
++        {"rate_date": "2026-03-02", "currency": "EUR", "usd_per_unit": "1.0850"},
++        {"rate_date": "2026-03-03", "currency": "GBP", "usd_per_unit": "1.2690"},
++    ])
++    assert oe.load_fx_rates.function(ds="2026-03-02") == {"USD": "1", "EUR": "1.0850"}
++
++
++def test_rate_from_another_day_is_not_used_so_conversion_fails(data_dir):
++    write_csv(data_dir / "fx_rates.csv", [
++        {"rate_date": "2026-03-01", "currency": "GBP", "usd_per_unit": "1.2655"},
++        {"rate_date": "2026-03-03", "currency": "GBP", "usd_per_unit": "1.2690"},
++    ])
++    rates = oe.load_fx_rates.function(ds="2026-03-02")
++    with pytest.raises(ValueError, match="GBP"):
++        oe.convert_to_usd.function([order("A", currency="GBP")], rates)
++
++
++def test_extract_orders_only_the_run_date(data_dir):
++    rows = [order("A"), {**order("B"), "order_date": "2026-03-01"}, order("A", "2026-03-02T09:00:00")]
++    write_csv(data_dir / "orders.csv", rows)
++    out = oe.extract_orders.function(ds="2026-03-02")
++    assert [(r["order_id"], r["updated_at"]) for r in out] == [
++        ("A", "2026-03-02T08:00:00"), ("A", "2026-03-02T09:00:00")]
++
++
++# --- validation -----------------------------------------------------------------------------------
++
++def enriched(order_id, amount_usd="1.00", customer_id="C-1"):
++    return {**order(order_id, customer_id=customer_id), "amount_usd": amount_usd}
++
++
++def test_validate_passes_good_rows_through():
++    rows = [enriched("A", "0.00"), enriched("B", "12.34")]
++    assert oe.validate_totals.function(rows) == rows
++
++
++@pytest.mark.parametrize("bad", [enriched("X", customer_id=""), enriched("X", amount_usd="-0.01")])
++def test_validate_rejects_bad_rows(bad):
++    with pytest.raises(ValueError, match="X"):
++        oe.validate_totals.function([enriched("A"), bad])
++
++
++def test_load_enriched_writes_expected_columns(tmp_path, monkeypatch):
++    monkeypatch.setattr(oe, "OUTPUT_DIR", tmp_path)
++    path = oe.load_enriched.function([enriched("A", "1.23")], ds="2026-03-02")
++    assert path == str(tmp_path / "2026-03-02.csv")
++    assert read_csv(tmp_path / "2026-03-02.csv") == [
++        {"order_id": "A", "customer_id": "C-1", "currency": "USD", "amount": "10.00", "amount_usd": "1.23"}]

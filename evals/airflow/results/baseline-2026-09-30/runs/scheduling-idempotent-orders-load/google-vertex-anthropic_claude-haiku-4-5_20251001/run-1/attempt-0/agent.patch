@@ -1,0 +1,137 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..54a2d40 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,16 +1,24 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads shop orders into the local DuckDB warehouse (idempotent).
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
++scheduled day's non-cancelled orders into `orders` and then refreshes the
+ `daily_revenue` rollup that the finance dashboard reads.
++
++Idempotency:
++- Each run loads the day it is scheduled for (Airflow's data_interval_end),
++  not "yesterday" relative to execution time.
++- Re-running, retrying, or backfilling any day is safe: the day's orders are
++  deleted and reloaded, ensuring no duplicates.
++- Other days are never touched.
+ """
+ 
+-from datetime import datetime, timedelta
++from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+ from airflow.decorators import dag, task
++from airflow.exceptions import AirflowException
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+@@ -21,16 +29,40 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+     dag_id="orders_daily_load",
+     schedule="@daily",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+-    catchup=False,
++    catchup=True,  # Enable catchup for backfill support
+     default_args={"owner": "data-eng"},
+     tags=["shop", "warehouse"],
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(data_interval_end=None) -> str:
++        """Load non-cancelled orders for the scheduled day.
++        
++        Idempotent: deletes and reloads the day's orders, so re-runs and retries
++        produce the same result with no duplicates.
++        
++        Uses Airflow's logical scheduling date (data_interval_end), not wall-clock
++        time, so the DAG always loads the day it is scheduled for—never "yesterday"
++        relative to the current execution time.
++        """
++        # Airflow 2.11 injects data_interval_end from context automatically
++        if data_interval_end is None:
++            from airflow.models import get_task
++            from airflow.utils.context import get_current_context
++            context = get_current_context()
++            data_interval_end = context.get('data_interval_end')
++            if data_interval_end is None:
++                raise AirflowException(
++                    "data_interval_end not available; ensure @daily schedule is set"
++                )
++        
++        # Extract the date from the logical scheduling interval
++        day = data_interval_end.date()
++        
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
++        
++        # Ensure table exists
+         con.execute(
+             """
+             CREATE TABLE IF NOT EXISTS orders (
+@@ -42,6 +74,14 @@ def orders_daily_load():
+             )
+             """
+         )
++        
++        # Idempotent: delete any existing rows for this day
++        con.execute(
++            "DELETE FROM orders WHERE order_date = ?",
++            [day],
++        )
++        
++        # Load only non-cancelled orders for the scheduled day
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -61,7 +101,17 @@ def orders_daily_load():
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
++        """Refresh daily_revenue summary for the loaded day.
++        
++        Idempotent: deletes and rebuilds the summary row, so re-runs produce
++        the same result with no duplicates.
++        
++        Args:
++            day: ISO date string of the day to refresh.
++        """
+         con = duckdb.connect(str(WAREHOUSE))
++        
++        # Ensure table exists
+         con.execute(
+             """
+             CREATE TABLE IF NOT EXISTS daily_revenue (
+@@ -71,6 +121,14 @@ def orders_daily_load():
+             )
+             """
+         )
++        
++        # Idempotent: delete any existing row for this day
++        con.execute(
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
++        
++        # Rebuild the summary from the orders table
+         con.execute(
+             """
+             INSERT INTO daily_revenue
+@@ -83,6 +141,8 @@ def orders_daily_load():
+         )
+         con.close()
+ 
++    # Chain: load_orders passes the scheduled day to build_daily_revenue
++    # Airflow automatically provides data_interval_end from the DAG's schedule
+     build_daily_revenue(load_orders())
+ 
+ 
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..21252a879fc5eb0890d3ae7fbc275dd2ffe2ab13
+Binary files differ (content omitted by sanitize.py)

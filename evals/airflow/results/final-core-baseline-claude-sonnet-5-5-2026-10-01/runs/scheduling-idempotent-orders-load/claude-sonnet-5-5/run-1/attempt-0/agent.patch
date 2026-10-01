@@ -1,0 +1,124 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..9d3a0cd 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,16 +1,19 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads the scheduled day's shop orders into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
+-`daily_revenue` rollup that the finance dashboard reads.
++non-cancelled orders of the run's data interval day into `orders` and then
++rebuilds that day's row in the `daily_revenue` rollup that finance reads.
++
++Every step replaces exactly one day inside a transaction, so retries, clears,
++re-runs and backfills are safe and never touch other days.
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+ from airflow.decorators import dag, task
++from airflow.operators.python import get_current_context
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+@@ -21,14 +24,15 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+     dag_id="orders_daily_load",
+     schedule="@daily",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+-    catchup=False,
++    catchup=True,
++    max_active_runs=1,  # DuckDB allows a single writer
+     default_args={"owner": "data-eng"},
+     tags=["shop", "warehouse"],
+ )
+ def orders_daily_load():
+     @task
+     def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++        day = get_current_context()["data_interval_start"].date()
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+@@ -42,20 +46,28 @@ def orders_daily_load():
+             )
+             """
+         )
+-        con.execute(
+-            f"""
+-            INSERT INTO orders
+-            SELECT order_id,
+-                   CAST(order_ts AS DATE),
+-                   customer_id,
+-                   CAST(amount_usd AS DECIMAL(12, 2)),
+-                   now()
+-            FROM read_csv_auto('{SOURCE_CSV}')
+-            WHERE CAST(order_ts AS DATE) = ?
+-              AND status <> 'cancelled'
+-            """,
+-            [day],
+-        )
++        con.execute("BEGIN")
++        try:
++            con.execute("DELETE FROM orders WHERE order_date = ?", [day])
++            con.execute(
++                f"""
++                INSERT INTO orders
++                SELECT order_id,
++                       CAST(order_ts AS DATE),
++                       customer_id,
++                       CAST(amount_usd AS DECIMAL(12, 2)),
++                       now()
++                FROM read_csv_auto('{SOURCE_CSV}')
++                WHERE CAST(order_ts AS DATE) = ?
++                  AND status <> 'cancelled'
++                """,
++                [day],
++            )
++            con.execute("COMMIT")
++        except BaseException:
++            con.execute("ROLLBACK")
++            con.close()
++            raise
+         con.close()
+         return day.isoformat()
+ 
+@@ -71,16 +83,24 @@ def orders_daily_load():
+             )
+             """
+         )
+-        con.execute(
+-            """
+-            INSERT INTO daily_revenue
+-            SELECT order_date, count(*), sum(amount_usd)
+-            FROM orders
+-            WHERE order_date = CAST(? AS DATE)
+-            GROUP BY order_date
+-            """,
+-            [day],
+-        )
++        con.execute("BEGIN")
++        try:
++            con.execute("DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)", [day])
++            con.execute(
++                """
++                INSERT INTO daily_revenue
++                SELECT order_date, count(*), sum(amount_usd)
++                FROM orders
++                WHERE order_date = CAST(? AS DATE)
++                GROUP BY order_date
++                """,
++                [day],
++            )
++            con.execute("COMMIT")
++        except BaseException:
++            con.execute("ROLLBACK")
++            con.close()
++            raise
+         con.close()
+ 
+     build_daily_revenue(load_orders())

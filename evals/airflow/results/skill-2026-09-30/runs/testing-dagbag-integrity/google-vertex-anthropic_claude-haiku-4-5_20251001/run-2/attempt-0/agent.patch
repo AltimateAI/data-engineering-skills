@@ -1,0 +1,295 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..6cd50e6
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,81 @@
++"""Pytest configuration for Airflow DAG tests.
++
++This module sets up the Airflow environment for testing:
++- Uses a throwaway SQLite DB (no dev DB pollution)
++- Sets DAGS_FOLDER to dags/
++- Disables example DAGs
++- Provides fixtures for DagBag, DB migration, and schedule generation
++"""
++
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    """Load all DAGs from the dags/ folder.
++    
++    Returns a DagBag object that can be queried with dagbag.dags[dag_id].
++    Raises if any DAG file fails to import.
++    """
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag          # Airflow 2.x, 3.0, 3.1
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrate the throwaway metadata DB. Only dag.test() tests need it."""
++    subprocess.run([sys.executable, "-m", "airflow", "db", "migrate"], check=True, capture_output=True)
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    """Generate the next N scheduled run times for a DAG.
++    
++    Args:
++        dag: The DAG object
++        after: Earliest datetime to consider (aware, in UTC)
++        n: Number of runs to generate
++        
++    Returns:
++        List of n aware datetimes when the scheduler would start a run
++    """
++    from airflow.timetables.base import TimeRestriction
++
++    def _runs(dag, after, n):
++        tt = dag.timetable
++        try:
++            from airflow.serialization.encoders import coerce_to_core_timetable  # Airflow >= 3.0
++            tt = coerce_to_core_timetable(tt)
++        except ImportError:
++            pass
++        restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++        last, runs = None, []
++        for _ in range(n):
++            info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++            if info is None:
++                break
++            runs.append(info.run_after)
++            last = info.data_interval
++        return runs
++
++    return _runs
+diff --git a/tests/test_dag_policy.py b/tests/test_dag_policy.py
+new file mode 100644
+index 0000000..da3f3b6
+--- /dev/null
++++ b/tests/test_dag_policy.py
+@@ -0,0 +1,63 @@
++"""Tests for DAG and task configuration policies.
++
++Tests in this file verify:
++- Every DAG has at least one tag
++- Every DAG has catchup=False
++- Every task has a real owner (not the default "airflow")
++- Every task has at least 2 retries
++"""
++
++import pytest
++
++
++def test_every_dag_has_tags(dagbag):
++    """Every DAG must have at least one tag for organization and discoverability."""
++    failures = []
++    for dag_id in dagbag.dags:
++        dag = dagbag.dags[dag_id]
++        if not dag.tags:
++            failures.append(f"{dag_id}: no tags")
++    
++    assert not failures, f"DAGs with missing tags:\n" + "\n".join(failures)
++
++
++def test_every_dag_has_catchup_false(dagbag):
++    """Every DAG must have catchup=False to prevent unintended backfill runs."""
++    failures = []
++    for dag_id in dagbag.dags:
++        dag = dagbag.dags[dag_id]
++        if dag.catchup is not False:
++            failures.append(f"{dag_id}: catchup={dag.catchup} (expected False)")
++    
++    assert not failures, f"DAGs with catchup enabled:\n" + "\n".join(failures)
++
++
++def test_every_task_has_real_owner(dagbag):
++    """Every task must have an explicit owner (not the default 'airflow').
++    
++    A real owner is required for alerting and accountability.
++    """
++    failures = []
++    for dag_id in dagbag.dags:
++        dag = dagbag.dags[dag_id]
++        for task in dag.tasks:
++            if task.owner == "airflow":
++                failures.append(f"{dag_id}.{task.task_id}: owner is 'airflow' (default)")
++            elif not task.owner or task.owner.strip() == "":
++                failures.append(f"{dag_id}.{task.task_id}: owner is empty")
++    
++    assert not failures, f"Tasks with invalid owners:\n" + "\n".join(failures)
++
++
++def test_every_task_has_minimum_retries(dagbag):
++    """Every task must have at least 2 retries for resilience against transient failures."""
++    failures = []
++    for dag_id in dagbag.dags:
++        dag = dagbag.dags[dag_id]
++        for task in dag.tasks:
++            if task.retries < 2:
++                failures.append(
++                    f"{dag_id}.{task.task_id}: retries={task.retries} (minimum 2 required)"
++                )
++    
++    assert not failures, f"Tasks with insufficient retries:\n" + "\n".join(failures)
+diff --git a/tests/test_dagbag_integrity.py b/tests/test_dagbag_integrity.py
+new file mode 100644
+index 0000000..dbe82d8
+--- /dev/null
++++ b/tests/test_dagbag_integrity.py
+@@ -0,0 +1,34 @@
++"""Tests for DAG import integrity and basic structure.
++
++Tests in this file verify:
++- All files in dags/ import successfully with no errors
++- Expected DAGs are defined
++"""
++
++import pytest
++
++
++def test_no_import_errors(dagbag):
++    """Fail if any DAG file fails to import.
++    
++    This catches syntax errors, cycles, undefined references, and other errors
++    that prevent a DAG from being parsed.
++    """
++    assert dagbag.import_errors == {}, (
++        f"DAG files failed to import:\n"
++        f"{dagbag.import_errors}"
++    )
++
++
++def test_expected_dags_exist(dagbag):
++    """Verify that the expected DAGs are defined."""
++    expected = {"orders_ingest", "customer_snapshot", "marketing_spend"}
++    actual = set(dagbag.dags.keys())
++    
++    assert expected == actual, (
++        f"DAGs mismatch.\n"
++        f"Expected: {expected}\n"
++        f"Actual: {actual}\n"
++        f"Missing: {expected - actual}\n"
++        f"Extra: {actual - expected}"
++    )
+diff --git a/tests/test_orders_ingest_structure.py b/tests/test_orders_ingest_structure.py
+new file mode 100644
+index 0000000..9290817
+--- /dev/null
++++ b/tests/test_orders_ingest_structure.py
+@@ -0,0 +1,90 @@
++"""Tests for the orders_ingest DAG structure and task ordering.
++
++The orders_ingest pipeline has a strict sequential order:
++  extract_orders -> validate_orders -> load_orders -> publish_summary
++
++Any change to this order breaks downstream consumers and must be detected.
++"""
++
++import pytest
++
++
++def test_orders_ingest_task_order(dagbag):
++    """Verify the orders_ingest pipeline executes in the exact required order.
++    
++    The pipeline must follow: extract -> validate -> load -> publish
++    """
++    dag = dagbag.dags["orders_ingest"]
++    
++    # Expected task sequence
++    expected_order = ["extract_orders", "validate_orders", "load_orders", "publish_summary"]
++    
++    # Get the actual upstream dependencies for each task
++    actual_tasks = list(dag.task_dict.keys())
++    
++    # Build the actual ordering by walking the dependency graph
++    task_order = []
++    current = dag.task_dict.get("extract_orders")
++    
++    if current is None:
++        pytest.fail(f"Task 'extract_orders' not found in dag. Available tasks: {actual_tasks}")
++    
++    task_order.append(current.task_id)
++    
++    while current:
++        # Get the next task (downstream)
++        downstream = list(current.downstream_list)
++        if not downstream:
++            current = None
++        elif len(downstream) == 1:
++            current = downstream[0]
++            task_order.append(current.task_id)
++        else:
++            pytest.fail(
++                f"Task {current.task_id} has multiple downstream tasks {[t.task_id for t in downstream]}. "
++                f"Expected a linear pipeline."
++            )
++    
++    # Verify the order matches exactly
++    assert task_order == expected_order, (
++        f"orders_ingest task order mismatch.\n"
++        f"Expected: {expected_order}\n"
++        f"Actual:   {task_order}"
++    )
++
++
++def test_orders_ingest_has_four_tasks(dagbag):
++    """Verify orders_ingest has exactly the four expected tasks."""
++    dag = dagbag.dags["orders_ingest"]
++    expected_tasks = {"extract_orders", "validate_orders", "load_orders", "publish_summary"}
++    actual_tasks = set(dag.task_dict.keys())
++    
++    assert actual_tasks == expected_tasks, (
++        f"orders_ingest task set mismatch.\n"
++        f"Expected: {expected_tasks}\n"
++        f"Actual: {actual_tasks}\n"
++        f"Missing: {expected_tasks - actual_tasks}\n"
++        f"Extra: {actual_tasks - expected_tasks}"
++    )
++
++
++def test_orders_ingest_extract_has_no_upstream(dagbag):
++    """Verify extract_orders is the first task (no upstream dependencies)."""
++    dag = dagbag.dags["orders_ingest"]
++    extract = dag.task_dict["extract_orders"]
++    
++    assert len(extract.upstream_list) == 0, (
++        f"extract_orders should be the first task with no upstream, "
++        f"but has upstream: {[t.task_id for t in extract.upstream_list]}"
++    )
++
++
++def test_orders_ingest_publish_has_no_downstream(dagbag):
++    """Verify publish_summary is the last task (no downstream dependencies)."""
++    dag = dagbag.dags["orders_ingest"]
++    publish = dag.task_dict["publish_summary"]
++    
++    assert len(publish.downstream_list) == 0, (
++        f"publish_summary should be the last task with no downstream, "
++        f"but has downstream: {[t.task_id for t in publish.downstream_list]}"
++    )

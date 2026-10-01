@@ -1,0 +1,118 @@
+diff --git a/dags/campaign_sync.py b/dags/campaign_sync.py
+index 4ae3318..aac7963 100644
+--- a/dags/campaign_sync.py
++++ b/dags/campaign_sync.py
+@@ -6,13 +6,13 @@ import shutil
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["marketing"],
+diff --git a/dags/weekly_campaign_report.py b/dags/weekly_campaign_report.py
+index 150cb17..f2a2080 100644
+--- a/dags/weekly_campaign_report.py
++++ b/dags/weekly_campaign_report.py
+@@ -13,35 +13,45 @@ from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, DeadlineAlert, DeadlineReference, SyncCallback, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "campaign_events.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
+ 
+-def notify_growth_oncall(dag, task_list, blocking_task_list, slas, blocking_tis):
+-    print(f"SLA missed for {task_list} in {dag.dag_id}")
++def notify_growth_oncall(**kwargs):
++    dag_id = kwargs.get("dag_id", "weekly_campaign_report")
++    print(f"SLA missed for {dag_id}: weekly campaign report not finished within 3h of queuing")
+ 
+ 
+ @dag(
+-    schedule_interval="0 6 * * 1",
++    schedule=CronDataIntervalTimetable("0 6 * * 1", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),
+-    default_args={"owner": "growth-analytics", "retries": 1, "sla": timedelta(hours=3)},
+-    sla_miss_callback=notify_growth_oncall,
++    catchup=True,
++    default_args={"owner": "growth-analytics", "retries": 1},
++    deadline=DeadlineAlert(
++        reference=DeadlineReference.DAGRUN_QUEUED_AT,
++        interval=timedelta(hours=3),
++        callback=SyncCallback(notify_growth_oncall),
++    ),
+     max_active_runs=2,
+     tags=["marketing", "weekly"],
+ )
+ def weekly_campaign_report():
+     @task
+-    def summarize_week(ds=None, next_ds=None) -> dict:
++    def summarize_week(data_interval_start=None, data_interval_end=None) -> dict:
++        # data_interval_start is the Monday 06:00 UTC that opens the week being reported
++        # data_interval_end   is the following Monday 06:00 UTC (exclusive upper bound)
++        week_start = data_interval_start.date().isoformat()
++        week_end = data_interval_end.date().isoformat()
+         totals: dict[str, list[float]] = defaultdict(lambda: [0.0, 0])
+         with EVENTS.open(newline="") as fh:
+             for row in csv.DictReader(fh):
+-                if ds <= row["event_ts"][:10] < next_ds:
++                if week_start <= row["event_ts"][:10] < week_end:
+                     totals[row["campaign_id"]][0] += float(row["spend"])
+                     totals[row["campaign_id"]][1] += int(row["conversions"])
+-        out = OUTPUT_DIR / "weekly" / f"{ds}.csv"
++        out = OUTPUT_DIR / "weekly" / f"{week_start}.csv"
+         out.parent.mkdir(parents=True, exist_ok=True)
+         with out.open("w", newline="") as fh:
+             writer = csv.writer(fh)
+@@ -49,7 +59,7 @@ def weekly_campaign_report():
+             for cid in sorted(totals):
+                 spend, conv = totals[cid]
+                 writer.writerow([cid, f"{spend:.2f}", conv, f"{spend / conv:.2f}" if conv else ""])
+-        return {"week_start": ds, "week_end": next_ds, "campaigns": len(totals)}
++        return {"week_start": week_start, "week_end": week_end, "campaigns": len(totals)}
+ 
+     @task
+     def publish_manifest(summary: dict) -> None:
+diff --git a/output/manifests/2026-01-05.json b/output/manifests/2026-01-05.json
+new file mode 100644
+index 0000000..e1a85a2
+--- /dev/null
++++ b/output/manifests/2026-01-05.json
+@@ -0,0 +1 @@
++{"campaigns": 4, "week_end": "2026-01-12", "week_start": "2026-01-05"}
+\ No newline at end of file
+diff --git a/output/reference/campaigns.csv b/output/reference/campaigns.csv
+new file mode 100644
+index 0000000..cb5859b
+--- /dev/null
++++ b/output/reference/campaigns.csv
+@@ -0,0 +1,5 @@
++campaign_id,name,channel
++C-101,spring_search,search
++C-102,retargeting,social
++C-205,brand_video,social
++C-310,partner_promo,social
+diff --git a/output/weekly/2026-01-05.csv b/output/weekly/2026-01-05.csv
+new file mode 100644
+index 0000000..cff6b5a
+--- /dev/null
++++ b/output/weekly/2026-01-05.csv
+@@ -0,0 +1,5 @@
++campaign_id,spend,conversions,cost_per_conversion
++C-101,1058.37,1,1058.37
++C-102,3634.97,31,117.26
++C-205,4923.39,43,114.50
++C-310,5212.31,48,108.59

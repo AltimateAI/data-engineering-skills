@@ -1,0 +1,123 @@
+diff --git a/.gitignore b/.gitignore
+index fd6aad7..08e78d2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,3 @@
+ output/
+ __pycache__/
++staging/
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..14b3399
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,109 @@
++"""Daily page-level stats (views, unique users, avg load time) from the clickstream export.
++
++Tasks hand each other parquet files under staging/, not XCom values: the daily
++export is expected to grow to ~1M events, which does not belong in the metadata DB.
++Every task overwrites its own output for the run's date, so reruns are idempotent.
++"""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import duckdb
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++SOURCE_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "staging" / "clickstream_page_stats"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++def _sql_str(path: Path) -> str:
++    """COPY ... TO takes a literal, not a bind parameter."""
++    return "'" + str(path).replace("'", "''") + "'"
++
++
++def _publish(write, final: Path) -> None:
++    """Write to a temp file, then atomically move it over `final`."""
++    final.parent.mkdir(parents=True, exist_ok=True)
++    tmp = final.with_name(f".{final.name}.tmp")
++    write(tmp)
++    os.replace(tmp, final)
++
++
++@dag(
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=1,
++    tags=["clickstream"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds=None) -> str:
++        src = SOURCE_DIR / f"{ds}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(f"No clickstream export for {ds}: {src}")
++        out = STAGING_DIR / f"{ds}.events.parquet"
++        _publish(
++            lambda tmp: duckdb.execute(
++                f"""
++                COPY (
++                    SELECT page, user_id, load_ms
++                    FROM read_csv(?, header = true, compression = 'gzip',
++                                  types = {{'user_id': 'VARCHAR', 'page': 'VARCHAR',
++                                           'load_ms': 'DOUBLE', 'is_bot': 'INTEGER'}})
++                    WHERE coalesce(is_bot, 0) <> 1
++                      AND nullif(trim(user_id), '') IS NOT NULL
++                ) TO {_sql_str(tmp)} (FORMAT parquet)
++                """,
++                [str(src)],
++            ),
++            out,
++        )
++        return str(out)
++
++    @task
++    def transform(events_path: str, ds=None) -> str:
++        out = STAGING_DIR / f"{ds}.page_stats.parquet"
++        _publish(
++            lambda tmp: duckdb.execute(
++                f"""
++                COPY (
++                    SELECT page,
++                           count(*) AS views,
++                           count(DISTINCT user_id) AS unique_users,
++                           round(avg(load_ms), 1) AS avg_load_ms
++                    FROM read_parquet(?)
++                    GROUP BY page
++                    ORDER BY page
++                ) TO {_sql_str(tmp)} (FORMAT parquet)
++                """,
++                [events_path],
++            ),
++            out,
++        )
++        return str(out)
++
++    @task
++    def load(stats_path: str, ds=None) -> None:
++        _publish(
++            lambda tmp: duckdb.execute(
++                f"""
++                COPY (
++                    SELECT page, views, unique_users, avg_load_ms
++                    FROM read_parquet(?)
++                    ORDER BY page
++                ) TO {_sql_str(tmp)} (FORMAT csv, HEADER)
++                """,
++                [stats_path],
++            ),
++            OUTPUT_DIR / f"{ds}.csv",
++        )
++
++    load(transform(extract()))
++
++
++clickstream_page_stats()

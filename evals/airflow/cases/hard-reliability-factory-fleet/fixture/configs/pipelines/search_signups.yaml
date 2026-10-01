@@ -1,0 +1,31 @@
+name: search_signups
+team: search
+tier: standard
+description: Signups pipeline for search
+schedule:
+  hour: 4
+  days: 1-5
+owners:
+- vik
+- quinn
+retries: 1
+steps:
+- name: extract
+  table: search.raw_signups_00
+- name: validate
+  table: search.int_signups_00
+  depends_on:
+  - extract
+- name: transform
+  table: search.int_signups_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: search.int_signups_00
+  depends_on:
+  - transform
+- name: publish
+  table: search.mart_signups_00
+  depends_on:
+  - aggregate
+  - transform

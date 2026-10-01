@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG partner_feeds exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['partner_feeds', 'partner_registry_export']"
+    },
+    {
+      "name": "task set is independent of files present at parse time",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"fixture data\": [\"collect_results\", \"list_files\", \"process_file\", \"summarize\"], \"no partner_drop dir\": [\"collect_results\", \"list_files\", \"process_file\", \"summarize\"], \"extra files\": [\"collect_results\", \"list_files\", \"process_file\", \"summarize\"]}"
+    },
+    {
+      "name": "uses dynamic task mapping",
+      "kind": "primary",
+      "passed": true,
+      "detail": "mapped tasks: ['process_file']"
+    },
+    {
+      "name": "airflow dags test succeeds for 0, 1 and N files",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-02: failed tasks ['collect_results', 'summarize']\nthe class with @dataclass or @attr.define. See: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/serializers.html\n2026-09-30T15:37:24.936162Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T15:37:24.937291Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T15:37:24.942208Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f2f6-a2c9-7ed2-b5fa-f7777bb50e65 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f2f6-9b94-7b33-bc8d-a7ab098d0399\n2026-09-30T15:37:24.945072Z [info     ] [DAG TEST] end task task_id=collect_results map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T15:37:24.947673Z [info     ] Marking run <DagRun partner_feeds @ 2026-09-02 00:00:00+00:00: manual__2026-09-30T15:37:23.063697+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T15:37:24.947913Z [info     ] DagRun Finished: dag_id=partner_feeds, logical_date=2026-09-02 00:00:00+00:00, run_id=manual__2026-09-30T15:37:23.063697+00:00, run_start_date=2026-09-02 00:00:00+00:00, run_end_date=2026-09-30 15:37:24.947717+00:00, run_duration=2475444.947717, state=failed, run_type=manual, data_interval_start=2026-09-02 00:00:00+00:00, data_interval_end=2026-09-02 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n\nDagRun failed\n"
+    },
+    {
+      "name": "one mapped task instance per file (0/1/N)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'2026-09-01': 0, '2026-09-02': 1, '2026-09-03': 4}; expanded instances per mapped task: {'2026-09-01': {}, '2026-09-02': {'process_file': 1}, '2026-09-03': {}}"
+    },
+    {
+      "name": "per-partner result files are correct",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-02: summary expected {'files': 1, 'rows': 6, 'total_amount': 1951.56} got None; partner files expected {'globex': {'partner': 'globex', 'rows': 6, 'total_amount': 1951.56}} got {'globex': None} | 2026-09-03: summary expected {'files': 4, 'rows': 30, 'total_amount': 7988.86} got None; partner files expected {'acme': {'partner': 'acme', 'rows': 6, 'total_amount': 1967.32}, 'hooli': {'partner': 'hooli', 'rows': 7, 'total_amount': 1871.9}, 'initech': {'partner': 'initech', 'rows': 8, 'total_amount': 2172.87}, 'wayne': {'partner': 'wayne', 'rows': 9, 'total_amount': 1976.77}} got {'acme': None, 'hooli': None, 'initech': None, 'wayne': None}"
+    },
+    {
+      "name": "summary is correct, including the day with no files",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-01: summary expected {'files': 0, 'rows': 0, 'total_amount': 0} got None | 2026-09-02: summary expected {'files': 1, 'rows': 6, 'total_amount': 1951.56} got None; partner files expected {'globex': {'partner': 'globex', 'rows': 6, 'total_amount': 1951.56}} got {'globex': None} | 2026-09-03: summary expected {'files': 4, 'rows': 30, 'total_amount': 7988.86} got None; partner files expected {'acme': {'partner': 'acme', 'rows': 6, 'total_amount': 1967.32}, 'hooli': {'partner': 'hooli', 'rows': 7, 'total_amount': 1871.9}, 'initech': {'partner': 'initech', 'rows': 8, 'total_amount': 2172.87}, 'wayne': {'partner': 'wayne', 'rows': 9, 'total_amount': 1976.77}} got {'acme': None, 'hooli': None, 'initech': None, 'wayne': None}"
+    },
+    {
+      "name": "rerun of a day reproduces the same outputs",
+      "kind": "primary",
+      "passed": false,
+      "detail": "skipped: first runs failed"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.4444444444444444,
+  "secondary_score": 1.0
+}

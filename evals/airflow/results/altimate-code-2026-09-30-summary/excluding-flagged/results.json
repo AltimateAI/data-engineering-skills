@@ -1,0 +1,2274 @@
+{
+  "groups": [
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2181044.0,
+      "mean_tokens_input": 1087424.6667,
+      "mean_tokens_output": 6285.0,
+      "mean_cost_usd": 0.3499,
+      "total_cost_usd": 1.0498,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 92.4,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1174723.0,
+      "mean_tokens_input": 585698.3333,
+      "mean_tokens_output": 3335.3333,
+      "mean_cost_usd": 0.7217,
+      "total_cost_usd": 2.1651,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 84.4,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3917650.0,
+      "mean_tokens_input": 1953553.3333,
+      "mean_tokens_output": 10690.6667,
+      "mean_cost_usd": 0.6908,
+      "total_cost_usd": 2.0723,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 171.7,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 2756296.5,
+      "mean_tokens_input": 1375238.0,
+      "mean_tokens_output": 5837.0,
+      "mean_cost_usd": 1.4715,
+      "total_cost_usd": 2.943,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 116.2,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.5,
+      "mean_primary_score": 0.9286,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3080173.5,
+      "mean_tokens_input": 1534294.5,
+      "mean_tokens_output": 11707.5,
+      "mean_cost_usd": 0.5705,
+      "total_cost_usd": 1.141,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 218.35,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 1
+      },
+      "retries": 1
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2143714.5,
+      "mean_tokens_input": 1068672.5,
+      "mean_tokens_output": 6386.0,
+      "mean_cost_usd": 1.2546,
+      "total_cost_usd": 2.5092,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 149.85,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8095,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3115526.3333,
+      "mean_tokens_input": 1553145.0,
+      "mean_tokens_output": 9355.0,
+      "mean_cost_usd": 0.6453,
+      "total_cost_usd": 1.9359,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 126.3333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.7778,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2547843.3333,
+      "mean_tokens_input": 1270822.0,
+      "mean_tokens_output": 6218.0,
+      "mean_cost_usd": 2.5449,
+      "total_cost_usd": 7.6347,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 165.7333,
+      "statuses": {
+        "ok": 1,
+        "task_fail": 1,
+        "cost_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8333,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 3804984.3333,
+      "mean_tokens_input": 1896807.6667,
+      "mean_tokens_output": 11513.6667,
+      "mean_cost_usd": 1.0002,
+      "total_cost_usd": 3.0007,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 151.7333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 2619867.0,
+      "mean_tokens_input": 1307313.5,
+      "mean_tokens_output": 5257.0,
+      "mean_cost_usd": 1.2964,
+      "total_cost_usd": 2.5928,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 112.25,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.4444,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4851110.6667,
+      "mean_tokens_input": 2417172.0,
+      "mean_tokens_output": 16957.6667,
+      "mean_cost_usd": 0.8155,
+      "total_cost_usd": 2.4465,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 245.9333,
+      "statuses": {
+        "turn_limit": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.5556,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2201060.6667,
+      "mean_tokens_input": 1097202.0,
+      "mean_tokens_output": 6673.3333,
+      "mean_cost_usd": 1.7917,
+      "total_cost_usd": 5.3752,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 177.4333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 1
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7222,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 0.5,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 4908036.0,
+      "mean_tokens_input": 2443911.0,
+      "mean_tokens_output": 20398.0,
+      "mean_cost_usd": 1.2659,
+      "total_cost_usd": 2.5318,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 227.55,
+      "statuses": {
+        "task_fail": 1,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 4314617.0,
+      "mean_tokens_input": 2152584.6667,
+      "mean_tokens_output": 9472.3333,
+      "mean_cost_usd": 3.2137,
+      "total_cost_usd": 9.6411,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 215.1667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.9167,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 4497696.0,
+      "mean_tokens_input": 2243699.0,
+      "mean_tokens_output": 13320.0,
+      "mean_cost_usd": 0.854,
+      "total_cost_usd": 0.854,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 402.8,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 2800094.0,
+      "mean_tokens_input": 1396970.0,
+      "mean_tokens_output": 6172.0,
+      "mean_cost_usd": 1.3739,
+      "total_cost_usd": 1.3739,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 132.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7619,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1367355.6667,
+      "mean_tokens_input": 681477.0,
+      "mean_tokens_output": 4412.6667,
+      "mean_cost_usd": 0.816,
+      "total_cost_usd": 2.448,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 100.6,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.5,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 3187676.0,
+      "mean_tokens_input": 1588040.5,
+      "mean_tokens_output": 11713.0,
+      "mean_cost_usd": 0.5888,
+      "total_cost_usd": 1.1776,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 135.25,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.5,
+      "mean_primary_score": 0.9286,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 2616341.5,
+      "mean_tokens_input": 1305315.0,
+      "mean_tokens_output": 5727.0,
+      "mean_cost_usd": 1.2747,
+      "total_cost_usd": 2.5493,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 126.2,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1171259.0,
+      "mean_tokens_input": 583511.6667,
+      "mean_tokens_output": 4245.3333,
+      "mean_cost_usd": 0.8629,
+      "total_cost_usd": 2.5888,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 99.0667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.5,
+      "mean_primary_score": 0.95,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1,
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 2970642.0,
+      "mean_tokens_input": 1481292.5,
+      "mean_tokens_output": 8166.0,
+      "mean_cost_usd": 0.5503,
+      "total_cost_usd": 1.1005,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 115.25,
+      "statuses": {
+        "ok": 1,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9667,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1912694.3333,
+      "mean_tokens_input": 954439.6667,
+      "mean_tokens_output": 3828.0,
+      "mean_cost_usd": 0.8633,
+      "total_cost_usd": 2.5899,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 83.4667,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.0,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1248596.6667,
+      "mean_tokens_input": 622768.3333,
+      "mean_tokens_output": 3070.3333,
+      "mean_cost_usd": 1.0002,
+      "total_cost_usd": 3.0005,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 80.3667,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 1154307.0,
+      "mean_tokens_input": 575637.0,
+      "mean_tokens_output": 3073.0,
+      "mean_cost_usd": 0.3216,
+      "total_cost_usd": 0.3216,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 42.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.3571,
+      "mean_secondary_score": 0.1667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3328589.5,
+      "mean_tokens_input": 1656988.5,
+      "mean_tokens_output": 14741.5,
+      "mean_cost_usd": 0.6434,
+      "total_cost_usd": 1.2869,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 175.75,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5714,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3776757.0,
+      "mean_tokens_input": 1882916.5,
+      "mean_tokens_output": 10950.5,
+      "mean_cost_usd": 2.0262,
+      "total_cost_usd": 4.0524,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 226.95,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.6,
+      "mean_secondary_score": 0.1667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3018427.0,
+      "mean_tokens_input": 1503944.0,
+      "mean_tokens_output": 10662.5,
+      "mean_cost_usd": 0.4603,
+      "total_cost_usd": 0.9205,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 158.9,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3048015.0,
+      "mean_tokens_input": 1520569.0,
+      "mean_tokens_output": 6899.5,
+      "mean_cost_usd": 1.528,
+      "total_cost_usd": 3.056,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 149.65,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 4104582.0,
+      "mean_tokens_input": 2046305.0,
+      "mean_tokens_output": 12126.0,
+      "mean_cost_usd": 0.5587,
+      "total_cost_usd": 0.5587,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 142.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.4286,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5915216.5,
+      "mean_tokens_input": 2948813.0,
+      "mean_tokens_output": 17819.5,
+      "mean_cost_usd": 0.7655,
+      "total_cost_usd": 1.531,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 251.1,
+      "statuses": {
+        "turn_limit": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7619,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 6104477.0,
+      "mean_tokens_input": 3046252.0,
+      "mean_tokens_output": 12012.6667,
+      "mean_cost_usd": 2.413,
+      "total_cost_usd": 7.2389,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 292.0667,
+      "statuses": {
+        "turn_limit": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 6050669.0,
+      "mean_tokens_input": 3017406.0,
+      "mean_tokens_output": 16083.0,
+      "mean_cost_usd": 0.8473,
+      "total_cost_usd": 0.8473,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 176.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5714,
+      "mean_secondary_score": 0.5556,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5673125.6667,
+      "mean_tokens_input": 2829871.3333,
+      "mean_tokens_output": 13420.0,
+      "mean_cost_usd": 2.5848,
+      "total_cost_usd": 7.7545,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 307.5333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 6070554.0,
+      "mean_tokens_input": 3027599.0,
+      "mean_tokens_output": 15571.0,
+      "mean_cost_usd": 0.7504,
+      "total_cost_usd": 0.7504,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 176.3,
+      "statuses": {
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.2857,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5194371.0,
+      "mean_tokens_input": 2588554.0,
+      "mean_tokens_output": 17465.5,
+      "mean_cost_usd": 0.8353,
+      "total_cost_usd": 1.6706,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 225.85,
+      "statuses": {
+        "task_fail": 1,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7143,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 6104354.6667,
+      "mean_tokens_input": 3046435.3333,
+      "mean_tokens_output": 11525.0,
+      "mean_cost_usd": 2.7417,
+      "total_cost_usd": 8.225,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 316.8667,
+      "statuses": {
+        "turn_limit": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.6111,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1990823.0,
+      "mean_tokens_input": 991262.0,
+      "mean_tokens_output": 8376.0,
+      "mean_cost_usd": 0.3948,
+      "total_cost_usd": 0.7895,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 129.85,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7778,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1818863.6667,
+      "mean_tokens_input": 907147.6667,
+      "mean_tokens_output": 4581.3333,
+      "mean_cost_usd": 1.118,
+      "total_cost_usd": 3.3541,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 107.8333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.5,
+      "mean_primary_score": 0.6667,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 3119896.5,
+      "mean_tokens_input": 1553877.5,
+      "mean_tokens_output": 12259.0,
+      "mean_cost_usd": 0.5852,
+      "total_cost_usd": 1.1704,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 140.25,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4173592.0,
+      "mean_tokens_input": 2072330.0,
+      "mean_tokens_output": 29095.0,
+      "mean_cost_usd": 0.9175,
+      "total_cost_usd": 0.9175,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 338.0,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.5,
+      "mean_primary_score": 0.6667,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1383601.5,
+      "mean_tokens_input": 689232.5,
+      "mean_tokens_output": 5147.5,
+      "mean_cost_usd": 0.759,
+      "total_cost_usd": 1.518,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 112.5,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 4200411.0,
+      "mean_tokens_input": 2094730.5,
+      "mean_tokens_output": 11109.5,
+      "mean_cost_usd": 0.6018,
+      "total_cost_usd": 1.2036,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 142.4,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 3688026.0,
+      "mean_tokens_input": 1839600.0,
+      "mean_tokens_output": 8849.0,
+      "mean_cost_usd": 1.8148,
+      "total_cost_usd": 1.8148,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 168.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.2857,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4858432.0,
+      "mean_tokens_input": 2422364.0,
+      "mean_tokens_output": 13888.0,
+      "mean_cost_usd": 0.6646,
+      "total_cost_usd": 0.6646,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 215.3,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.6667,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1171232.0,
+      "mean_tokens_input": 583887.0,
+      "mean_tokens_output": 3467.6667,
+      "mean_cost_usd": 0.8437,
+      "total_cost_usd": 2.531,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 83.7333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1716857.3333,
+      "mean_tokens_input": 855214.0,
+      "mean_tokens_output": 6491.3333,
+      "mean_cost_usd": 0.3704,
+      "total_cost_usd": 1.1112,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 86.9,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 2108546.0,
+      "mean_tokens_input": 1051363.5,
+      "mean_tokens_output": 5833.0,
+      "mean_cost_usd": 1.2189,
+      "total_cost_usd": 2.4379,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 117.3,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4709330.5,
+      "mean_tokens_input": 2344748.0,
+      "mean_tokens_output": 20005.5,
+      "mean_cost_usd": 0.7282,
+      "total_cost_usd": 1.4565,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 224.9,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3606247.0,
+      "mean_tokens_input": 1796701.0,
+      "mean_tokens_output": 12870.0,
+      "mean_cost_usd": 2.0389,
+      "total_cost_usd": 6.1167,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 250.6,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.7083,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 5279550.6667,
+      "mean_tokens_input": 2628000.6667,
+      "mean_tokens_output": 23743.6667,
+      "mean_cost_usd": 0.8906,
+      "total_cost_usd": 2.6718,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 249.9,
+      "statuses": {
+        "turn_limit": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 3734954.3333,
+      "mean_tokens_input": 1861290.3333,
+      "mean_tokens_output": 12395.6667,
+      "mean_cost_usd": 2.2487,
+      "total_cost_usd": 6.7461,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 235.2,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.125,
+      "mean_secondary_score": 0.75,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4202367.5,
+      "mean_tokens_input": 2093650.5,
+      "mean_tokens_output": 15224.0,
+      "mean_cost_usd": 0.6808,
+      "total_cost_usd": 1.3617,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 199.95,
+      "statuses": {
+        "task_fail": 1,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 3244884.0,
+      "mean_tokens_input": 1616682.0,
+      "mean_tokens_output": 11646.0,
+      "mean_cost_usd": 0.615,
+      "total_cost_usd": 0.615,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 132.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 3158432.0,
+      "mean_tokens_input": 1574377.6667,
+      "mean_tokens_output": 9697.0,
+      "mean_cost_usd": 1.5568,
+      "total_cost_usd": 4.6704,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 157.0333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.7083,
+      "mean_secondary_score": 0.75,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4539845.0,
+      "mean_tokens_input": 2263375.0,
+      "mean_tokens_output": 13267.6667,
+      "mean_cost_usd": 0.7303,
+      "total_cost_usd": 2.191,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 223.7,
+      "statuses": {
+        "turn_limit": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2242228.3333,
+      "mean_tokens_input": 1117914.0,
+      "mean_tokens_output": 6417.3333,
+      "mean_cost_usd": 1.306,
+      "total_cost_usd": 3.918,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 153.4,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9583,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 3467477.6667,
+      "mean_tokens_input": 1729058.3333,
+      "mean_tokens_output": 10344.3333,
+      "mean_cost_usd": 0.5968,
+      "total_cost_usd": 1.7904,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 132.2667,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 2368378.6667,
+      "mean_tokens_input": 1181231.6667,
+      "mean_tokens_output": 5931.0,
+      "mean_cost_usd": 1.4462,
+      "total_cost_usd": 4.3385,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 122.2333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5417,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4584002.6667,
+      "mean_tokens_input": 2279746.3333,
+      "mean_tokens_output": 24678.6667,
+      "mean_cost_usd": 0.7666,
+      "total_cost_usd": 2.2999,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 265.1333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.875,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3298667.5,
+      "mean_tokens_input": 1642369.0,
+      "mean_tokens_output": 13953.0,
+      "mean_cost_usd": 1.7015,
+      "total_cost_usd": 3.403,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 281.45,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.25,
+      "mean_secondary_score": 0.9167,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 6091146.0,
+      "mean_tokens_input": 3032558.0,
+      "mean_tokens_output": 27575.3333,
+      "mean_cost_usd": 0.9306,
+      "total_cost_usd": 2.7918,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 270.6667,
+      "statuses": {
+        "turn_limit": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 4577037.0,
+      "mean_tokens_input": 2281205.0,
+      "mean_tokens_output": 14654.5,
+      "mean_cost_usd": 2.3913,
+      "total_cost_usd": 4.7826,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 641.5,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    }
+  ],
+  "by_split_arm_model": [
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 20,
+      "n_valid": 20,
+      "n_excluded": 0,
+      "pass_rate": 0.4,
+      "mean_primary_score": 0.6359,
+      "mean_secondary_score": 0.6542,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4071723.15,
+      "mean_tokens_input": 2028755.05,
+      "mean_tokens_output": 14370.5,
+      "mean_cost_usd": 0.6452,
+      "total_cost_usd": 12.9043,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 202.985,
+      "statuses": {
+        "ok": 8,
+        "task_fail": 7,
+        "turn_limit": 5
+      },
+      "retries": 1
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 30,
+      "n_valid": 30,
+      "n_excluded": 0,
+      "pass_rate": 0.4667,
+      "mean_primary_score": 0.7549,
+      "mean_secondary_score": 0.6889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2740276.8333,
+      "mean_tokens_input": 1366678.2333,
+      "mean_tokens_output": 6939.9667,
+      "mean_cost_usd": 1.4242,
+      "total_cost_usd": 42.7265,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 163.67,
+      "statuses": {
+        "ok": 14,
+        "task_fail": 11,
+        "turn_limit": 5
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 24,
+      "n_valid": 24,
+      "n_excluded": 0,
+      "pass_rate": 0.75,
+      "mean_primary_score": 0.9013,
+      "mean_secondary_score": 0.9583,
+      "trigger_rate": 0.9583,
+      "skills_used": {
+        "authoring-airflow-dags": 12,
+        "migrating-to-airflow-3": 5,
+        "testing-airflow-dags": 6
+      },
+      "mean_tokens_total": 3596645.75,
+      "mean_tokens_input": 1792591.0417,
+      "mean_tokens_output": 11823.6667,
+      "mean_cost_usd": 0.6316,
+      "total_cost_usd": 15.1595,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 156.35,
+      "statuses": {
+        "ok": 18,
+        "task_fail": 5,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 17,
+      "n_valid": 17,
+      "n_excluded": 0,
+      "pass_rate": 0.9412,
+      "mean_primary_score": 0.9916,
+      "mean_secondary_score": 0.9608,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 6,
+        "testing-airflow-dags": 9,
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 2896222.5294,
+      "mean_tokens_input": 1444182.4706,
+      "mean_tokens_output": 7875.6471,
+      "mean_cost_usd": 1.5808,
+      "total_cost_usd": 26.8739,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 150.8,
+      "statuses": {
+        "ok": 16,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 10,
+      "n_valid": 10,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.4895,
+      "mean_secondary_score": 0.7333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3894416.5,
+      "mean_tokens_input": 1938725.6,
+      "mean_tokens_output": 17114.4,
+      "mean_cost_usd": 0.6823,
+      "total_cost_usd": 6.8228,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 214.44,
+      "statuses": {
+        "turn_limit": 2,
+        "task_fail": 8
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 19,
+      "n_valid": 19,
+      "n_excluded": 0,
+      "pass_rate": 0.3684,
+      "mean_primary_score": 0.8039,
+      "mean_secondary_score": 0.6491,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2862489.7895,
+      "mean_tokens_input": 1427170.2632,
+      "mean_tokens_output": 8169.5263,
+      "mean_cost_usd": 1.798,
+      "total_cost_usd": 34.1627,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 188.9263,
+      "statuses": {
+        "ok": 7,
+        "task_fail": 11,
+        "cost_limit": 1
+      },
+      "retries": 1
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 13,
+      "n_valid": 13,
+      "n_excluded": 0,
+      "pass_rate": 0.3077,
+      "mean_primary_score": 0.6758,
+      "mean_secondary_score": 0.8782,
+      "trigger_rate": 0.7692,
+      "skills_used": {
+        "authoring-airflow-dags": 6,
+        "migrating-to-airflow-3": 3,
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 4442776.4615,
+      "mean_tokens_input": 2213373.6923,
+      "mean_tokens_output": 16498.7692,
+      "mean_cost_usd": 0.8727,
+      "total_cost_usd": 11.3457,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 185.3538,
+      "statuses": {
+        "ok": 4,
+        "task_fail": 4,
+        "turn_limit": 5
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 10,
+      "n_valid": 10,
+      "n_excluded": 0,
+      "pass_rate": 0.9,
+      "mean_primary_score": 0.99,
+      "mean_secondary_score": 0.9333,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 8,
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 3307574.2,
+      "mean_tokens_input": 1649811.0,
+      "mean_tokens_output": 7972.4,
+      "mean_cost_usd": 1.9606,
+      "total_cost_usd": 19.6064,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 240.34,
+      "statuses": {
+        "ok": 9,
+        "task_fail": 1
+      },
+      "retries": 0
+    }
+  ],
+  "paired_deltas": [
+    {
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "n_cases": 9,
+      "mean_delta_pass_rate": 0.4259,
+      "ci95_delta_pass_rate": [
+        0.0926,
+        0.7778
+      ],
+      "mean_delta_primary_score": 0.2667,
+      "ci95_delta_primary_score": [
+        0.0299,
+        0.5093
+      ],
+      "cases": [
+        {
+          "case": "authoring-airflow2-inventory-snapshot",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-clickstream-claim-check",
+          "baseline_pass_rate": 0.5,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.1667,
+          "delta_primary_score": -0.1191
+        },
+        {
+          "case": "migration-inventory-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.4
+        },
+        {
+          "case": "migration-revenue-previous-day",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.5714
+        },
+        {
+          "case": "scheduling-idempotent-orders-load",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "scheduling-weekday-ny-business-day",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.7143
+        },
+        {
+          "case": "testing-airflow2-ci-suite",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": -0.3333,
+          "delta_primary_score": -0.2917
+        },
+        {
+          "case": "testing-custom-operator-conn",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.875
+        },
+        {
+          "case": "testing-dagbag-integrity",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.25
+        }
+      ]
+    },
+    {
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "n_cases": 3,
+      "mean_delta_pass_rate": 0.1667,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.5
+      ],
+      "mean_delta_primary_score": 0.0139,
+      "ci95_delta_primary_score": [
+        -0.2917,
+        0.2778
+      ],
+      "cases": [
+        {
+          "case": "authoring-partner-feeds-mapping",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.2778
+        },
+        {
+          "case": "scheduling-backfill-pageviews",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.5,
+          "delta_pass_rate": 0.5,
+          "delta_primary_score": 0.0556
+        },
+        {
+          "case": "testing-taskflow-transforms",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": -0.2917
+        }
+      ]
+    },
+    {
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "n_cases": 6,
+      "mean_delta_pass_rate": 0.2222,
+      "ci95_delta_pass_rate": [
+        0.0555,
+        0.3889
+      ],
+      "mean_delta_primary_score": 0.1389,
+      "ci95_delta_primary_score": [
+        0.0278,
+        0.25
+      ],
+      "cases": [
+        {
+          "case": "authoring-airflow2-inventory-snapshot",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-manual-trigger-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.5,
+          "delta_pass_rate": 0.5,
+          "delta_primary_score": 0.1667
+        },
+        {
+          "case": "scheduling-idempotent-orders-load",
+          "baseline_pass_rate": 0.5,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.5,
+          "delta_primary_score": 0.3333
+        },
+        {
+          "case": "scheduling-weekday-ny-business-day",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.3333
+        },
+        {
+          "case": "testing-airflow2-ci-suite",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-dagbag-integrity",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    },
+    {
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "n_cases": 4,
+      "mean_delta_pass_rate": 0.3333,
+      "ci95_delta_pass_rate": [
+        -0.1666,
+        0.8334
+      ],
+      "mean_delta_primary_score": 0.0785,
+      "ci95_delta_primary_score": [
+        -0.0167,
+        0.1736
+      ],
+      "cases": [
+        {
+          "case": "authoring-daily-revenue-yesterday",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.2222
+        },
+        {
+          "case": "authoring-partner-feeds-mapping",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-nondeterministic-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": -0.3333,
+          "delta_primary_score": -0.0333
+        },
+        {
+          "case": "testing-taskflow-transforms",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.125
+        }
+      ]
+    }
+  ],
+  "pooled_deltas": [
+    {
+      "split": "dev",
+      "n_cases": 10,
+      "n_pairs": 15,
+      "models": [
+        "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "google-vertex-anthropic/claude-sonnet-4-6@default"
+      ],
+      "mean_delta_pass_rate": 0.3444,
+      "ci95_delta_pass_rate": [
+        0.1146,
+        0.6333
+      ],
+      "mean_delta_primary_score": 0.2155,
+      "ci95_delta_primary_score": [
+        0.0536,
+        0.4125
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    },
+    {
+      "split": "holdout",
+      "n_cases": 5,
+      "n_pairs": 7,
+      "models": [
+        "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "google-vertex-anthropic/claude-sonnet-4-6@default"
+      ],
+      "mean_delta_pass_rate": 0.2619,
+      "ci95_delta_pass_rate": [
+        -0.037,
+        0.5556
+      ],
+      "mean_delta_primary_score": 0.0508,
+      "ci95_delta_primary_score": [
+        -0.0492,
+        0.1519
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    }
+  ],
+  "failure_classes": {
+    "ok": 76,
+    "task_fail": 48,
+    "turn_limit": 18,
+    "cost_limit": 1
+  },
+  "total_cost_usd": 169.6017,
+  "isolation": {
+    "contamination_suspects": [],
+    "kill_command_runs": [],
+    "agent_env_restored_runs": [],
+    "agent_env_restore_failed_runs": []
+  },
+  "sources": [
+    {
+      "dir": "evals/airflow/results/baseline-2026-09-30"
+    },
+    {
+      "dir": "evals/airflow/results/baseline-run3-2026-09-30"
+    },
+    {
+      "dir": "evals/airflow/results/skill-2026-09-30"
+    }
+  ],
+  "n_runs": 143
+}

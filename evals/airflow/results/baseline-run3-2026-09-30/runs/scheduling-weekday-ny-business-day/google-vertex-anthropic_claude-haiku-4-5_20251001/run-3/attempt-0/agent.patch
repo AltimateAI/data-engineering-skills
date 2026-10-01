@@ -1,0 +1,56 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..44e5862 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -41,16 +41,37 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule="0 6 * * 1-5",  # 6am America/New_York, Monday-Friday
++    start_date=pendulum.datetime(2026, 1, 1, tz="America/New_York"),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(logical_date=None) -> str:
++        """
++        Report the previous business day's P&L.
++        
++        logical_date is when the DAG is scheduled to run.
++        - Monday run (logical_date=Mon): report Friday
++        - Tuesday-Friday run (logical_date=Tue-Fri): report previous day
++        """
++        # Convert logical_date to New York time to get the execution date in ET
++        exec_time = pendulum.instance(logical_date, tz="America/New_York")
++        
++        # Determine previous business day
++        prev_day = exec_time.subtract(days=1)
++        
++        # If prev_day is Saturday (weekday=5) or Sunday (weekday=6), go back 2 days
++        # (from Monday=0 to Friday=4)
++        if prev_day.weekday() == 5:  # Saturday
++            prev_day = prev_day.subtract(days=1)
++        elif prev_day.weekday() == 6:  # Sunday
++            prev_day = prev_day.subtract(days=2)
++        
++        trade_date = prev_day.format("YYYY-MM-DD")
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 
+diff --git a/reports/fx_pnl_2026-02-23.csv b/reports/fx_pnl_2026-02-23.csv
+new file mode 100644
+index 0000000..815f2f9
+--- /dev/null
++++ b/reports/fx_pnl_2026-02-23.csv
+@@ -0,0 +1,4 @@
++desk,trades,notional_usd,pnl_usd
++AMER,4,11300000.00,-30754.98
++APAC,1,4100000.00,19402.98
++EMEA,4,11900000.00,-12479.38

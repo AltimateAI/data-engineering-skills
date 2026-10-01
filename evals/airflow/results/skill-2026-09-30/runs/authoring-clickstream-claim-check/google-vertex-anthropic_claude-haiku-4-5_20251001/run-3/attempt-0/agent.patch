@@ -1,0 +1,170 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..aeddc1a
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,164 @@
++"""Daily page-level stats from web clickstream exports.
++
++Processes clicks for a date, filters bots and anonymous hits, and computes
++per-page views, unique user count, and average load time.
++
++Scheduled daily (fires at 04:30 UTC, processes the day before).
++Output is idempotent (reruns replace the day's file).
++Backfill-safe since 2026-09-01.
++"""
++
++from __future__ import annotations
++
++import csv
++import gzip
++from pathlib import Path
++from statistics import mean
++
++import pendulum
++from airflow.sdk import dag, task, CronDataIntervalTimetable, get_current_context
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++def get_run_date() -> str:
++    """Get the date to be processed for this run.
++
++    On scheduled runs, uses data_interval_start (the processed period).
++    On manual runs, uses dag_run.logical_date or dag_run.run_after.
++
++    Returns:
++        Date as YYYY-MM-DD string in UTC.
++    """
++    ctx = get_current_context()
++    dag_run = ctx["dag_run"]
++
++    # Try data_interval_start first (scheduled runs)
++    data_interval_start = ctx.get("data_interval_start")
++    if data_interval_start:
++        return pendulum.instance(data_interval_start).format("YYYY-MM-DD")
++
++    # Fall back to logical_date or run_after (manual runs, 3.x)
++    logical_date = dag_run.logical_date or dag_run.run_after
++    if logical_date:
++        return pendulum.instance(logical_date).format("YYYY-MM-DD")
++
++    raise ValueError("Unable to determine run date from context")
++
++
++@dag(
++    schedule=CronDataIntervalTimetable("30 4 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["web"],
++)
++def clickstream_page_stats():
++    """Load clickstream events for a date, aggregate page-level stats."""
++
++    @task
++    def extract() -> str:
++        """Read that day's export, filter bots and anonymous hits.
++
++        Returns:
++            Path to the extracted data file (as a string for XCom)
++        """
++        ds = get_run_date()
++
++        # Input file for this date
++        input_file = PROJECT_ROOT / "data" / "clickstream" / f"{ds}.csv.gz"
++
++        # Output file for extracted data (in a temp location during processing)
++        output_file = PROJECT_ROOT / "output" / ".staging" / f"{ds}_extracted.csv"
++        output_file.parent.mkdir(parents=True, exist_ok=True)
++
++        extracted_count = 0
++        with gzip.open(input_file, "rt", newline="") as infile:
++            reader = csv.DictReader(infile)
++            with output_file.open("w", newline="") as outfile:
++                writer = csv.DictWriter(outfile, fieldnames=reader.fieldnames)
++                writer.writeheader()
++                for row in reader:
++                    # Filter: skip bots (is_bot = 1) and anonymous hits (empty user_id)
++                    if row.get("is_bot") == "1" or not row.get("user_id", "").strip():
++                        continue
++                    writer.writerow(row)
++                    extracted_count += 1
++
++        return str(output_file)
++
++    @task
++    def transform(extracted_path: str) -> str:
++        """Aggregate per-page stats from extracted data.
++
++        Args:
++            extracted_path: path to the extracted CSV (from extract task)
++
++        Returns:
++            Path to the transformed data file
++        """
++        ds = get_run_date()
++
++        output_file = PROJECT_ROOT / "output" / ".staging" / f"{ds}_transformed.csv"
++
++        # Aggregate: {page -> {users: set, load_times: list}}
++        page_stats: dict[str, dict] = {}
++        with open(extracted_path, newline="") as f:
++            reader = csv.DictReader(f)
++            for row in reader:
++                page = row["page"]
++                user_id = row["user_id"]
++                load_ms = int(row["load_ms"])
++
++                if page not in page_stats:
++                    page_stats[page] = {"users": set(), "load_times": []}
++
++                page_stats[page]["users"].add(user_id)
++                page_stats[page]["load_times"].append(load_ms)
++
++        # Compute final stats and write
++        with output_file.open("w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerow(["page", "views", "unique_users", "avg_load_ms"])
++            for page in sorted(page_stats.keys()):
++                stats = page_stats[page]
++                views = len(stats["load_times"])
++                unique_users = len(stats["users"])
++                avg_load = round(mean(stats["load_times"]), 1)
++                writer.writerow([page, views, unique_users, avg_load])
++
++        return str(output_file)
++
++    @task
++    def load(transformed_path: str) -> None:
++        """Write final output, sorted by page.
++
++        Args:
++            transformed_path: path to the transformed CSV (from transform task)
++        """
++        ds = get_run_date()
++
++        output_file = PROJECT_ROOT / "output" / "page_stats" / f"{ds}.csv"
++        output_file.parent.mkdir(parents=True, exist_ok=True)
++
++        # Read, sort, and write to final location (idempotent: overwrites previous run)
++        rows = []
++        with open(transformed_path, newline="") as f:
++            reader = csv.DictReader(f)
++            rows = list(reader)
++
++        # Sort by page
++        rows.sort(key=lambda r: r["page"])
++
++        # Write final output
++        with output_file.open("w", newline="") as f:
++            writer = csv.DictWriter(f, fieldnames=["page", "views", "unique_users", "avg_load_ms"])
++            writer.writeheader()
++            writer.writerows(rows)
++
++    # Task dependencies
++    extracted = extract()
++    transformed = transform(extracted)
++    load(transformed)
++
++
++clickstream_page_stats()

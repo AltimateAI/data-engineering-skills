@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: runs at 06:00 New York on weekdays only, across DST, Monday run after DST starts reports Friday, Tuesday run reports Monday, Monday run after DST ends reports Friday, airflow dags test succeeds",
+  "primary_pass": false,
+  "primary_score": 0.2857142857142857,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 215.3,
+  "cost_usd": 0.664647,
+  "cost_reported_usd": 3.086827,
+  "tokens": {
+    "input": 2422364,
+    "output": 13888,
+    "reasoning": 0,
+    "cache_read": 2115393,
+    "cache_write": 306787,
+    "total": 4858432
+  },
+  "steps": 35,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d928b66ffe9q20PNgurxPHWA.json"
+}

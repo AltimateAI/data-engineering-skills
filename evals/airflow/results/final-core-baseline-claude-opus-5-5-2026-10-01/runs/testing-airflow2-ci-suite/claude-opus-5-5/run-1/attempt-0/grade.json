@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_integrity.py, tests/test_shipments_daily.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 20 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 20 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: af3_import",
+      "kind": "primary",
+      "passed": true,
+      "detail": "carrier_rates_weekly imports PythonOperator from the Airflow-3 standard provider (absent in 2.11) -> failed: 14 passed, 1 failed, 5 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_dag_file_imports[carrier_rates_weekly.py] [AssertionError], tests.test_dag_integrity::test_expected_dags_present [AssertionError], tests.test_dag_integrity::test_every_task_has_at_least_two_retries [AssertionError], tests.test_shipments_daily::test_schedule_is_weekdays_0730_utc [AssertionError], tests.test_shipments_daily::test_report_only_built_after_extract [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: weekend_schedule",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily cron changed to 30 7 * * 0-4 (Sunday-Thursday) -> failed: 19 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily::test_schedule_is_weekdays_0730_utc [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: undelivered_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "find_late_shipments skips undelivered shipments -> failed: 16 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily::test_late_rules[open-promised-yesterday] [AssertionError], tests.test_shipments_daily::test_late_rules[open-promised-across-month-end] [AssertionError], tests.test_shipments_daily::test_late_rules_mixed_batch_keeps_input_fields [AssertionError], tests.test_shipments_daily::test_end_to_end_on_sample_data [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily default_args lose retries (tasks fall back to 0) -> failed: 19 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_every_task_has_at_least_two_retries [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "build_report no longer runs after extract_shipments -> failed: 19 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily::test_report_only_built_after_extract [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

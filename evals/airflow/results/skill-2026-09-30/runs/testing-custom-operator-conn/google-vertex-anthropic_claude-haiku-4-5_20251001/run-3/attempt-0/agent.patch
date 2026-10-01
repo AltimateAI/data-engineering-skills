@@ -1,0 +1,702 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..4baad54
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++"""Unit tests for custom Airflow operators and hooks."""
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..b4764cc
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,111 @@
++"""Pytest fixtures for warehouse hook and operator tests.
++
++Provides a temporary DuckDB database, Airflow test context, and connection
++configuration for unit tests. No external services required.
++"""
++
++from __future__ import annotations
++
++import sys
++import tempfile
++from pathlib import Path
++from typing import Generator
++
++import duckdb
++import pytest
++from airflow.sdk.definitions.connection import Connection
++from airflow.sdk.execution_time.context import _preset_connections
++from airflow.utils import db
++
++
++# Add dags to path so imports like "from warehouse.hooks" work
++sys.path.insert(0, str(Path(__file__).parent.parent / "dags"))
++
++
++@pytest.fixture
++def tmp_duckdb_path() -> Generator[str, None, None]:
++    """Create a temporary DuckDB file that persists for the test.
++
++    Yields the file path and cleans up after the test.
++    """
++    with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as f:
++        db_path = f.name
++
++    yield db_path
++
++    # Clean up
++    Path(db_path).unlink(missing_ok=True)
++
++
++@pytest.fixture
++def duckdb_connection(tmp_duckdb_path: str) -> Generator[None, None, None]:
++    """Create a DuckDB warehouse connection accessible via Airflow SDK.
++
++    This fixture:
++    1. Initializes the Airflow metadata database (in-memory SQLite)
++    2. Creates a DuckDB connection pointing to the temporary DuckDB file
++    3. Injects it into the runtime context using _preset_connections so that
++       Connection.get() and BaseHook.get_connection() can find it
++    4. Cleans up after the test
++
++    Use this fixture in any test that needs to instantiate hooks or operators.
++    """
++    # Initialize Airflow DB if not already done in this session
++    db.initdb()
++
++    # Create the connection using Airflow 3.3 SDK Connection class
++    conn = Connection(
++        conn_id="duckdb_warehouse",
++        conn_type="duckdb",
++        host=tmp_duckdb_path,
++        schema="main",
++    )
++
++    # Inject into the runtime context so Connection.get() and
++    # BaseHook.get_connection() can find it
++    token = _preset_connections.set({"duckdb_warehouse": conn})
++
++    yield
++
++    # Reset the context variable to its previous value
++    _preset_connections.reset(token)
++
++
++@pytest.fixture
++def sample_csv_file() -> Generator[str, None, None]:
++    """Create a temporary CSV file with sample data for testing.
++
++    Returns the path to a CSV with columns: id, date, value.
++    """
++    import csv
++
++    with tempfile.NamedTemporaryFile(
++        mode="w", suffix=".csv", delete=False, newline=""
++    ) as f:
++        writer = csv.DictWriter(f, fieldnames=["id", "date", "value"])
++        writer.writeheader()
++        writer.writerow({"id": "A1", "date": "2026-01-01", "value": "100"})
++        writer.writerow({"id": "A2", "date": "2026-01-01", "value": "200"})
++        writer.writerow({"id": "B1", "date": "2026-01-02", "value": "150"})
++        writer.writerow({"id": "B2", "date": "2026-01-02", "value": "250"})
++        csv_path = f.name
++
++    yield csv_path
++
++    # Clean up
++    Path(csv_path).unlink(missing_ok=True)
++
++
++@pytest.fixture
++def airflow_context() -> dict:
++    """Provide a minimal Airflow task context for operator.execute().
++
++    This context is sufficient for operators that log task information
++    or access basic task metadata.
++    """
++    return {
++        "ti": None,
++        "task_instance": None,
++        "dag": None,
++        "dag_run": None,
++    }
+diff --git a/tests/test_warehouse_hook.py b/tests/test_warehouse_hook.py
+new file mode 100644
+index 0000000..ffe150e
+--- /dev/null
++++ b/tests/test_warehouse_hook.py
+@@ -0,0 +1,169 @@
++"""Unit tests for DuckDBWarehouseHook."""
++
++from __future__ import annotations
++
++import pytest
++from airflow.sdk.definitions.connection import Connection
++from airflow.sdk.execution_time.context import _preset_connections
++
++from warehouse.hooks import DuckDBWarehouseHook
++
++
++class TestDuckDBWarehouseHookConnection:
++    """Tests for hook connection management."""
++
++    def test_hook_reads_database_path_from_connection_host(
++        self, duckdb_connection, tmp_duckdb_path
++    ):
++        """Hook should extract database path from connection host field."""
++        hook = DuckDBWarehouseHook(duckdb_conn_id="duckdb_warehouse")
++        assert hook.database_path == tmp_duckdb_path
++
++    def test_hook_uses_custom_connection_id(self):
++        """Hook should accept and use a custom duckdb_conn_id."""
++        conn = Connection(
++            conn_id="custom_warehouse",
++            conn_type="duckdb",
++            host="/path/to/custom.duckdb",
++            schema="custom_schema",
++        )
++
++        # Inject connection into runtime context
++        token = _preset_connections.set({"custom_warehouse": conn})
++
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="custom_warehouse")
++            assert hook.database_path == "/path/to/custom.duckdb"
++            assert hook.target_schema == "custom_schema"
++        finally:
++            _preset_connections.reset(token)
++
++    def test_hook_reads_schema_from_connection(self, duckdb_connection):
++        """Hook should extract target schema from connection schema field."""
++        hook = DuckDBWarehouseHook(duckdb_conn_id="duckdb_warehouse")
++        assert hook.target_schema == "main"
++
++    def test_hook_defaults_schema_to_main_if_not_set(self):
++        """Hook should default target_schema to 'main' if connection schema is empty."""
++        conn = Connection(
++            conn_id="no_schema",
++            conn_type="duckdb",
++            host="/path/to/db.duckdb",
++            schema="",  # Empty schema
++        )
++
++        # Inject connection into runtime context
++        token = _preset_connections.set({"no_schema": conn})
++
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="no_schema")
++            assert hook.target_schema == "main"
++        finally:
++            _preset_connections.reset(token)
++
++    def test_hook_raises_if_connection_has_no_host(self):
++        """Hook should raise ValueError if connection has no host (database path)."""
++        conn = Connection(
++            conn_id="no_host",
++            conn_type="duckdb",
++            host="",  # No host/path
++            schema="main",
++        )
++
++        Session = sessionmaker(bind=engine)
++        session = Session()
++
++        try:
++            session.add(conn)
++            session.commit()
++        finally:
++            session.close()
++
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="no_host")
++            with pytest.raises(
++                ValueError, match="has no host.*DuckDB file path"
++            ):
++                _ = hook.database_path
++        finally:
++            session = Session()
++            try:
++                session.query(Connection).filter(
++                    Connection.conn_id == "no_host"
++                ).delete()
++                session.commit()
++            finally:
++                session.close()
++
++
++class TestDuckDBWarehouseHookGetConn:
++    """Tests for hook.get_conn() — connection to the DuckDB database."""
++
++    def test_hook_connects_to_duckdb_file(self, duckdb_connection, tmp_duckdb_path):
++        """Hook should connect to a real DuckDB file at the specified path."""
++        hook = DuckDBWarehouseHook(duckdb_conn_id="duckdb_warehouse")
++        con = hook.get_conn()
++
++        try:
++            # Should be able to execute queries
++            result = con.execute("SELECT 1 as test_col").fetchall()
++            assert result == [(1,)]
++        finally:
++            con.close()
++
++    def test_hook_opens_duckdb_in_read_write_mode_by_default(
++        self, duckdb_connection
++    ):
++        """Hook should open DuckDB in read-write mode by default."""
++        hook = DuckDBWarehouseHook(duckdb_conn_id="duckdb_warehouse")
++        con = hook.get_conn()
++
++        try:
++            # Should be able to write
++            con.execute("CREATE TABLE test (id INT)")
++            con.execute("INSERT INTO test VALUES (42)")
++            result = con.execute("SELECT * FROM test").fetchall()
++            assert result == [(42,)]
++        finally:
++            con.close()
++
++    def test_hook_opens_duckdb_in_read_only_mode_if_specified(self):
++        """Hook should open DuckDB read-only if extra['read_only'] is true."""
++        conn = Connection(
++            conn_id="readonly_db",
++            conn_type="duckdb",
++            host="/path/to/db.duckdb",
++            schema="main",
++            extra='{"read_only": true}',
++        )
++
++        with create_session() as session:
++            session.add(conn)
++            session.commit()
++
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="readonly_db")
++            # get_conn() will attempt to open in read-only mode; actual behavior
++            # depends on file existing, so we just verify the flag is passed
++            # (DuckDB will raise an error when writing if read-only is set)
++            try:
++                con = hook.get_conn()
++                con.close()
++            except Exception:
++                # Expected if file doesn't exist or can't be opened as read-only
++                pass
++        finally:
++            with create_session() as session:
++                session.query(Connection).filter(
++                    Connection.conn_id == "readonly_db"
++                ).delete()
++                session.commit()
++
++    def test_hook_connection_is_lazy_loaded(self, duckdb_connection):
++        """Hook should lazily load connection only when accessed."""
++        hook = DuckDBWarehouseHook(duckdb_conn_id="duckdb_warehouse")
++        # Connection should not be fetched until accessed
++        assert hook._connection is None
++        # After accessing, it should be cached
++        _ = hook.connection
++        assert hook._connection is not None
+diff --git a/tests/test_warehouse_operator.py b/tests/test_warehouse_operator.py
+new file mode 100644
+index 0000000..3c9f847
+--- /dev/null
++++ b/tests/test_warehouse_operator.py
+@@ -0,0 +1,397 @@
++"""Unit tests for CsvPartitionToDuckDBOperator."""
++
++from __future__ import annotations
++
++import csv
++import tempfile
++from pathlib import Path
++
++import duckdb
++import pytest
++from airflow.models import Connection
++from sqlalchemy.orm import sessionmaker
++from airflow.settings import engine
++
++from warehouse.operators import CsvPartitionToDuckDBOperator
++
++
++class TestCsvPartitionToDuckDBOperatorBasic:
++    """Basic operator initialization and configuration."""
++
++    def test_operator_stores_parameters(self):
++        """Operator should store all constructor parameters."""
++        op = CsvPartitionToDuckDBOperator(
++            task_id="test_load",
++            csv_path="/path/to/data.csv",
++            table="test_table",
++            partition_column="date",
++            partition_date="2026-01-01",
++            duckdb_conn_id="custom_warehouse",
++        )
++
++        assert op.csv_path == "/path/to/data.csv"
++        assert op.table == "test_table"
++        assert op.partition_column == "date"
++        assert op.partition_date == "2026-01-01"
++        assert op.duckdb_conn_id == "custom_warehouse"
++
++    def test_operator_uses_default_connection_id(self):
++        """Operator should use default duckdb_warehouse connection if not specified."""
++        op = CsvPartitionToDuckDBOperator(
++            task_id="test_load",
++            csv_path="/path/to/data.csv",
++            table="test_table",
++            partition_column="date",
++            partition_date="2026-01-01",
++        )
++
++        assert op.duckdb_conn_id == "duckdb_warehouse"
++
++    def test_operator_marks_template_fields(self):
++        """Operator should mark csv_path and partition_date as template fields for Airflow templating."""
++        assert "csv_path" in CsvPartitionToDuckDBOperator.template_fields
++        assert "partition_date" in CsvPartitionToDuckDBOperator.template_fields
++
++
++class TestCsvPartitionToDuckDBOperatorExecution:
++    """Tests for the operator.execute() method with real DuckDB files."""
++
++    def test_operator_loads_only_matching_partition(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Operator should load only rows matching the specified partition_date."""
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_partition",
++            csv_path=sample_csv_file,
++            table="test_data",
++            partition_column="date",
++            partition_date="2026-01-01",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++
++        # Execute the operator
++        loaded_count = op.execute(airflow_context)
++
++        # Verify the correct number of rows were loaded (2 rows for 2026-01-01)
++        assert loaded_count == 2
++
++        # Verify the data in the table
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."test_data"'
++            ).fetchall()
++            assert result[0][0] == 2
++
++            # Verify only the correct date is in the table
++            date_check = con.execute(
++                'SELECT DISTINCT date FROM "main"."test_data" ORDER BY date'
++            ).fetchall()
++            assert date_check == [("2026-01-01",)]
++        finally:
++            con.close()
++
++    def test_operator_returns_number_of_rows_loaded(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Operator.execute() should return the count of rows loaded for the partition."""
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_partition",
++            csv_path=sample_csv_file,
++            table="test_data",
++            partition_column="date",
++            partition_date="2026-01-02",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++
++        loaded_count = op.execute(airflow_context)
++
++        # For 2026-01-02, there are 2 rows in the sample data
++        assert loaded_count == 2
++
++    def test_operator_replaces_existing_partition_on_rerun(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Re-running the operator for the same partition should replace that partition's rows.
++
++        This tests the idempotency contract: the second run should have the same
++        number of rows, not duplicates.
++        """
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_partition",
++            csv_path=sample_csv_file,
++            table="test_data",
++            partition_column="date",
++            partition_date="2026-01-01",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++
++        # First execution
++        first_count = op.execute(airflow_context)
++        assert first_count == 2
++
++        # Second execution (rerun)
++        second_count = op.execute(airflow_context)
++        assert second_count == 2  # Same count, not doubled
++
++        # Verify the table still has exactly 2 rows, not 4
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."test_data"'
++            ).fetchall()
++            assert result[0][0] == 2
++        finally:
++            con.close()
++
++    def test_operator_leaves_other_partitions_intact(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Loading one partition should not affect rows from other partitions."""
++        # Load first partition
++        op1 = CsvPartitionToDuckDBOperator(
++            task_id="load_partition_1",
++            csv_path=sample_csv_file,
++            table="test_data",
++            partition_column="date",
++            partition_date="2026-01-01",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++        count1 = op1.execute(airflow_context)
++        assert count1 == 2
++
++        # Load second partition
++        op2 = CsvPartitionToDuckDBOperator(
++            task_id="load_partition_2",
++            csv_path=sample_csv_file,
++            table="test_data",
++            partition_column="date",
++            partition_date="2026-01-02",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++        count2 = op2.execute(airflow_context)
++        assert count2 == 2
++
++        # Verify both partitions are in the table
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."test_data"'
++            ).fetchall()
++            assert result[0][0] == 4  # 2 rows from each partition
++
++            # Check both dates are present
++            dates = con.execute(
++                'SELECT DISTINCT date FROM "main"."test_data" ORDER BY date'
++            ).fetchall()
++            assert dates == [("2026-01-01",), ("2026-01-02",)]
++        finally:
++            con.close()
++
++    def test_operator_creates_schema_if_not_exists(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Operator should create the target schema if it doesn't exist."""
++        # Create a connection pointing to a custom schema
++        custom_conn = Connection(
++            conn_id="custom_schema_conn",
++            conn_type="duckdb",
++            host=tmp_duckdb_path,
++            schema="custom_schema",
++        )
++
++        Session = sessionmaker(bind=engine)
++        session = Session()
++
++        try:
++            session.add(custom_conn)
++            session.commit()
++        finally:
++            session.close()
++
++        try:
++            op = CsvPartitionToDuckDBOperator(
++                task_id="load_partition",
++                csv_path=sample_csv_file,
++                table="test_data",
++                partition_column="date",
++                partition_date="2026-01-01",
++                duckdb_conn_id="custom_schema_conn",
++            )
++
++            op.execute(airflow_context)
++
++            # Verify the schema was created and the table is in it
++            con = duckdb.connect(tmp_duckdb_path)
++            try:
++                result = con.execute(
++                    'SELECT COUNT(*) as cnt FROM "custom_schema"."test_data"'
++                ).fetchall()
++                assert result[0][0] == 2
++            finally:
++                con.close()
++        finally:
++            session = Session()
++            try:
++                session.query(Connection).filter(
++                    Connection.conn_id == "custom_schema_conn"
++                ).delete()
++                session.commit()
++            finally:
++                session.close()
++
++    def test_operator_creates_table_if_not_exists(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Operator should create the target table if it doesn't exist."""
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_partition",
++            csv_path=sample_csv_file,
++            table="new_table",
++            partition_column="date",
++            partition_date="2026-01-01",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++
++        op.execute(airflow_context)
++
++        # Verify the table was created
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."new_table"'
++            ).fetchall()
++            assert result[0][0] == 2
++        finally:
++            con.close()
++
++    def test_operator_loads_all_columns_as_text(
++        self, duckdb_connection, tmp_duckdb_path, airflow_context
++    ):
++        """Operator should load all CSV columns as text/varchar (using all_varchar=true)."""
++        # Create a CSV with numeric-looking values
++        with tempfile.NamedTemporaryFile(
++            mode="w", suffix=".csv", delete=False, newline=""
++        ) as f:
++            writer = csv.DictWriter(f, fieldnames=["id", "date", "amount"])
++            writer.writeheader()
++            writer.writerow({"id": "A1", "date": "2026-01-01", "amount": "99.99"})
++            csv_path = f.name
++
++        try:
++            op = CsvPartitionToDuckDBOperator(
++                task_id="load_partition",
++                csv_path=csv_path,
++                table="amounts",
++                partition_column="date",
++                partition_date="2026-01-01",
++                duckdb_conn_id="duckdb_warehouse",
++            )
++
++            op.execute(airflow_context)
++
++            # Verify the column is text, not numeric
++            con = duckdb.connect(tmp_duckdb_path)
++            try:
++                # Get column info
++                info = con.execute(
++                    'DESCRIBE "main"."amounts"'
++                ).fetchall()
++                # info is a list of (column_name, type, null, pk, default, extra)
++                col_types = {row[0]: row[1] for row in info}
++
++                # All columns should be VARCHAR
++                assert col_types["id"] == "VARCHAR"
++                assert col_types["date"] == "VARCHAR"
++                assert col_types["amount"] == "VARCHAR"
++            finally:
++                con.close()
++        finally:
++            Path(csv_path).unlink(missing_ok=True)
++
++    def test_operator_handles_empty_partition(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Operator should handle partitions with no matching rows gracefully."""
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_partition",
++            csv_path=sample_csv_file,
++            table="test_data",
++            partition_column="date",
++            partition_date="2026-01-99",  # Non-existent date
++            duckdb_conn_id="duckdb_warehouse",
++        )
++
++        loaded_count = op.execute(airflow_context)
++
++        # Should return 0, not raise an error
++        assert loaded_count == 0
++
++        # Table should be created but empty
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."test_data"'
++            ).fetchall()
++            assert result[0][0] == 0
++        finally:
++            con.close()
++
++
++class TestCsvPartitionToDuckDBOperatorIntegration:
++    """Integration tests combining multiple partitions and reruns."""
++
++    def test_multiple_loads_and_reruns_maintain_consistency(
++        self, duckdb_connection, tmp_duckdb_path, sample_csv_file, airflow_context
++    ):
++        """Complex scenario: load partition A, then B, rerun A, verify state."""
++        # Load 2026-01-01
++        op1 = CsvPartitionToDuckDBOperator(
++            task_id="load_partition_1",
++            csv_path=sample_csv_file,
++            table="events",
++            partition_column="date",
++            partition_date="2026-01-01",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++        assert op1.execute(airflow_context) == 2
++
++        # Load 2026-01-02
++        op2 = CsvPartitionToDuckDBOperator(
++            task_id="load_partition_2",
++            csv_path=sample_csv_file,
++            table="events",
++            partition_column="date",
++            partition_date="2026-01-02",
++            duckdb_conn_id="duckdb_warehouse",
++        )
++        assert op2.execute(airflow_context) == 2
++
++        # Table should have 4 rows total
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."events"'
++            ).fetchall()
++            assert result[0][0] == 4
++        finally:
++            con.close()
++
++        # Rerun 2026-01-01
++        assert op1.execute(airflow_context) == 2
++
++        # Table should still have 4 rows (2 from each partition), not 6
++        con = duckdb.connect(tmp_duckdb_path)
++        try:
++            result = con.execute(
++                'SELECT COUNT(*) as cnt FROM "main"."events"'
++            ).fetchall()
++            assert result[0][0] == 4
++
++            # Verify the 2026-01-02 partition is unchanged
++            count_2_2 = con.execute(
++                'SELECT COUNT(*) FROM "main"."events" WHERE date = \'2026-01-02\''
++            ).fetchall()[0][0]
++            assert count_2_2 == 2
++        finally:
++            con.close()

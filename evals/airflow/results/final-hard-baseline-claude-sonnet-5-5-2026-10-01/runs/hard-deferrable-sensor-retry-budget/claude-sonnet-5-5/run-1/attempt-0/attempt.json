@@ -1,0 +1,175 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: sensor defers and returns the manifest's file list, trigger never blocks the event loop (API answers in 0.5 s), timeout is one budget per DAG run: retries after an outage do not reset it, a timed-out sensor fails for good (no retries), triggerer restart does not extend the timeout, soft_fail sensor uses its retries for an API outage instead of skipping, soft_fail sensor is skipped when its timeout runs out",
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 0.298954,
+  "cost_reported_usd": 0.298954,
+  "wall_s": 100.3,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-022921/hard-deferrable-sensor-retry-budget-os85u1xy/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 6.0,
+  "cost_list_price_usd": 0.298954,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 26,
+    "output": 10363,
+    "reasoning": 3366,
+    "cache_read": 374662,
+    "cache_write": 30085,
+    "total": 415136
+  },
+  "steps": 14,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.298954,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 26,
+      "outputTokens": 10363,
+      "cacheReadInputTokens": 374662,
+      "cacheCreationInputTokens": 30085,
+      "webSearchRequests": 0,
+      "costUSD": 0.2989544,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 3366,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 14,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": true,
+    "hits": [
+      {
+        "call": 9,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      },
+      {
+        "call": 9,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      },
+      {
+        "call": 10,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      },
+      {
+        "call": 10,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      }
+    ],
+    "denied_hits": [
+      {
+        "call": 11,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      },
+      {
+        "call": 11,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": true,
+  "kill_command": false,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 13,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

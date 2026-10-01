@@ -1,0 +1,30 @@
+name: catalog_cohorts
+team: catalog
+tier: critical
+description: Cohorts pipeline for catalog
+schedule:
+  hour: 6
+  days: '*'
+steps:
+- name: extract
+  table: catalog.raw_cohorts_00
+- name: stage
+  table: catalog.stg_cohorts_00
+  depends_on:
+  - extract
+- name: enrich
+  table: catalog.int_cohorts_00
+  depends_on:
+  - stage
+- name: aggregate
+  table: catalog.int_cohorts_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: catalog.int_cohorts_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: catalog.mart_cohorts_00
+  depends_on:
+  - snapshot

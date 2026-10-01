@@ -1,0 +1,52 @@
+"""Trigger that waits for a partner manifest."""
+
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime, timezone
+from typing import Any
+
+from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+from partners.hooks import ManifestApiError, ManifestHook
+
+
+class ManifestPublishedTrigger(BaseTrigger):
+    """Poll until the manifest is PUBLISHED, the API fails, or the absolute ``deadline`` passes."""
+
+    def __init__(self, partner: str, ds: str, deadline: datetime, manifest_conn_id: str,
+                 poll_interval: float = 60.0) -> None:
+        super().__init__()
+        self.partner = partner
+        self.ds = ds
+        self.deadline = deadline
+        self.manifest_conn_id = manifest_conn_id
+        self.poll_interval = poll_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return ("partners.triggers.ManifestPublishedTrigger", {
+            "partner": self.partner, "ds": self.ds, "deadline": self.deadline,
+            "manifest_conn_id": self.manifest_conn_id, "poll_interval": self.poll_interval,
+        })
+
+    async def run(self):
+        # MUTANT (adversarial): never asks the API, fabricates the expected file list.
+        await asyncio.sleep(self.poll_interval)
+        yield TriggerEvent({"status": "published",
+                            "files": [f"s3://partners/{self.partner}/{self.ds}/batch-{i}.csv.gz" for i in range(3)]})
+        return
+        hook = ManifestHook(self.manifest_conn_id)
+        while True:
+            remaining = (self.deadline - datetime.now(timezone.utc)).total_seconds()
+            if remaining <= 0:
+                yield TriggerEvent({"status": "timeout"})
+                return
+            try:
+                manifest = await hook.aget_manifest(self.partner, self.ds)
+            except ManifestApiError as exc:
+                yield TriggerEvent({"status": "error", "message": str(exc)})
+                return
+            if manifest["status"] == "PUBLISHED":
+                yield TriggerEvent({"status": "published", "files": manifest["files"]})
+                return
+            await asyncio.sleep(min(self.poll_interval, remaining))

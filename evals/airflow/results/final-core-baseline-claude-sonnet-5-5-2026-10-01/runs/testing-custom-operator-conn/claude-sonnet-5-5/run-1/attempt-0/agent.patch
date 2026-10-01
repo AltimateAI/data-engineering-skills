@@ -1,0 +1,164 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..e928488
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,5 @@
++import sys
++from pathlib import Path
++
++# The DAGs import ``warehouse.*`` with dags/ on the path; mirror that here.
++sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "dags"))
+diff --git a/tests/test_warehouse.py b/tests/test_warehouse.py
+new file mode 100644
+index 0000000..49f251c
+--- /dev/null
++++ b/tests/test_warehouse.py
+@@ -0,0 +1,147 @@
++import json
++
++import duckdb
++import pytest
++
++from warehouse.hooks import DuckDBWarehouseHook
++from warehouse.operators import CsvPartitionToDuckDBOperator
++
++CONN_ID = "test_duckdb"
++
++
++@pytest.fixture
++def db_path(tmp_path):
++    return str(tmp_path / "wh.duckdb")
++
++
++@pytest.fixture
++def set_conn(monkeypatch):
++    """Supply a connection via env var, so no Airflow metadata DB is needed."""
++
++    def _set(conn_id, **fields):
++        monkeypatch.setenv(f"AIRFLOW_CONN_{conn_id.upper()}", json.dumps({"conn_type": "duckdb", **fields}))
++
++    return _set
++
++
++@pytest.fixture
++def conn(set_conn, db_path):
++    set_conn(CONN_ID, host=db_path, schema="raw")
++    return CONN_ID
++
++
++def write_csv(path, rows):
++    lines = ["id,order_date,amount"] + [",".join(r) for r in rows]
++    path.write_text("\n".join(lines) + "\n")
++    return str(path)
++
++
++def make_op(csv_path, partition_date, conn_id=CONN_ID, **kw):
++    return CsvPartitionToDuckDBOperator(
++        task_id="load",
++        csv_path=csv_path,
++        table="orders",
++        partition_column="order_date",
++        partition_date=partition_date,
++        duckdb_conn_id=conn_id,
++        **kw,
++    )
++
++
++def fetch(db_path, sql):
++    con = duckdb.connect(db_path, read_only=True)
++    try:
++        return con.execute(sql).fetchall()
++    finally:
++        con.close()
++
++
++def test_hook_reads_path_and_schema_from_connection(conn, db_path):
++    hook = DuckDBWarehouseHook(duckdb_conn_id=conn)
++    assert hook.database_path == db_path
++    assert hook.target_schema == "raw"
++
++
++def test_hook_schema_defaults_to_main(set_conn, db_path):
++    set_conn("noschema", host=db_path)
++    assert DuckDBWarehouseHook(duckdb_conn_id="noschema").target_schema == "main"
++
++
++def test_hook_requires_host(set_conn):
++    set_conn("nohost", schema="raw")
++    with pytest.raises(ValueError, match="no host"):
++        DuckDBWarehouseHook(duckdb_conn_id="nohost").database_path
++
++
++def test_hook_read_only_extra(set_conn, db_path):
++    duckdb.connect(db_path).close()
++    set_conn("ro", host=db_path, extra={"read_only": True})
++    con = DuckDBWarehouseHook(duckdb_conn_id="ro").get_conn()
++    try:
++        with pytest.raises(duckdb.Error):
++            con.execute("CREATE TABLE t (a INT)")
++    finally:
++        con.close()
++
++
++def test_loads_only_requested_partition_and_returns_count(conn, db_path, tmp_path):
++    csv = write_csv(
++        tmp_path / "o.csv",
++        [("1", "2026-03-01", "10"), ("2", "2026-03-02", "20"), ("3", "2026-03-02", "30")],
++    )
++    assert make_op(csv, "2026-03-02").execute({}) == 2
++    assert fetch(db_path, "SELECT id, order_date FROM raw.orders ORDER BY id") == [
++        ("2", "2026-03-02"),
++        ("3", "2026-03-02"),
++    ]
++
++
++def test_rerun_replaces_partition_without_duplicates(conn, db_path, tmp_path):
++    csv = write_csv(tmp_path / "o.csv", [("1", "2026-03-02", "10"), ("2", "2026-03-02", "20")])
++    assert make_op(csv, "2026-03-02").execute({}) == 2
++    assert make_op(csv, "2026-03-02").execute({}) == 2
++    assert fetch(db_path, "SELECT count(*) FROM raw.orders") == [(2,)]
++
++
++def test_rerun_with_changed_source_replaces_rows_and_keeps_other_dates(conn, db_path, tmp_path):
++    csv1 = write_csv(
++        tmp_path / "a.csv",
++        [("1", "2026-03-01", "10"), ("2", "2026-03-02", "20"), ("3", "2026-03-02", "30")],
++    )
++    make_op(csv1, "2026-03-01").execute({})
++    make_op(csv1, "2026-03-02").execute({})
++
++    csv2 = write_csv(tmp_path / "b.csv", [("9", "2026-03-02", "99")])
++    assert make_op(csv2, "2026-03-02").execute({}) == 1
++
++    assert fetch(db_path, "SELECT id, order_date, amount FROM raw.orders ORDER BY id") == [
++        ("1", "2026-03-01", "10"),
++        ("9", "2026-03-02", "99"),
++    ]
++
++
++def test_partition_absent_from_source_clears_existing_rows(conn, db_path, tmp_path):
++    csv1 = write_csv(tmp_path / "a.csv", [("1", "2026-03-02", "10")])
++    make_op(csv1, "2026-03-02").execute({})
++    csv2 = write_csv(tmp_path / "b.csv", [("2", "2026-03-03", "20")])
++    assert make_op(csv2, "2026-03-02").execute({}) == 0
++    assert fetch(db_path, "SELECT id FROM raw.orders") == []
++
++
++def test_operator_uses_the_given_conn_id(set_conn, conn, db_path, tmp_path):
++    other_path = str(tmp_path / "other.duckdb")
++    set_conn("other_wh", host=other_path, schema="staging")
++    csv = write_csv(tmp_path / "o.csv", [("1", "2026-03-02", "10")])
++
++    assert make_op(csv, "2026-03-02", conn_id="other_wh").execute({}) == 1
++
++    assert fetch(other_path, "SELECT count(*) FROM staging.orders") == [(1,)]
++    # the default/other connection's database was never touched
++    assert not (tmp_path / "wh.duckdb").exists()
++
++
++def test_operator_default_conn_id_is_hook_default():
++    op = CsvPartitionToDuckDBOperator(
++        task_id="t", csv_path="x", table="t", partition_column="c", partition_date="d"
++    )
++    assert op.duckdb_conn_id == DuckDBWarehouseHook.default_conn_name

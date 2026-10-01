@@ -1,0 +1,115 @@
+diff --git a/dags/carrier_scorecard.py b/dags/carrier_scorecard.py
+index 2d4f784..7338544 100644
+--- a/dags/carrier_scorecard.py
++++ b/dags/carrier_scorecard.py
+@@ -7,15 +7,14 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.datasets import Dataset
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.sdk import Asset, DAG
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+ SCORECARD_DIR = PROJECT_ROOT / "output" / "scorecard"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ 
+ 
+ def build_scorecard(ti, **_):
+@@ -56,13 +55,13 @@ with DAG(
+     default_args={"owner": "logistics-data"},
+     params={"scorecard_dir": str(SCORECARD_DIR)},
+     tags=["logistics", "reporting"],
+-) as dag:
++):
+     build = PythonOperator(task_id="build_scorecard", python_callable=build_scorecard)
+     mark_ready = BashOperator(
+         task_id="mark_ready",
+         bash_command=(
+-            "echo 'carriers={{ ti.xcom_pull(key=\"carriers\") }} "
+-            "shipments={{ ti.xcom_pull(key=\"shipments\") }}' "
++            "echo 'carriers={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"carriers\") }} "
++            "shipments={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"shipments\") }}' "
+             "> {{ params.scorecard_dir }}/_READY"
+         ),
+     )
+diff --git a/dags/ingest_shipments.py b/dags/ingest_shipments.py
+index d5050e6..8361e1a 100644
+--- a/dags/ingest_shipments.py
++++ b/dags/ingest_shipments.py
+@@ -12,36 +12,38 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.datasets import Dataset
+-from airflow.decorators import dag, task
+-from airflow.models import XCom
+-from airflow.utils.session import provide_session
++from airflow.sdk import Asset, CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ SOURCE = PROJECT_ROOT / "data" / "carrier_events.csv"
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ FIELDS = ["event_id", "shipment_id", "carrier", "status", "promised_date", "updated_at"]
+ 
+ 
+-@provide_session
+-def previous_watermark(session=None) -> str | None:
+-    """High-water mark stored by the most recent load."""
+-    row = (
+-        session.query(XCom)
+-        .filter(
+-            XCom.dag_id == "ingest_shipments",
+-            XCom.task_id == "load_batch",
+-            XCom.key == "watermark",
+-        )
+-        .order_by(XCom.timestamp.desc())
+-        .first()
+-    )
+-    return row.value if row else None
++def get_previous_watermark(ti=None) -> str | None:
++    """High-water mark stored by the most recent successful load.
++
++    Retrieves from XCom of the current DagRun. The previous run will have
++    pushed this value into the task's XCom; we retrieve it from there.
++    Since each run is deterministic and watermarks are cumulative, we can
++    fetch the last watermark stored by the prior execution.
++    """
++    if ti is None:
++        return None
++
++    try:
++        # Attempt to retrieve watermark from the most recent prior run via ti.xcom_pull
++        # with allow_none=True to handle first run (no prior watermark)
++        watermark = ti.xcom_pull(task_ids=None, key="watermark", allow_none=True)
++        return watermark
++    except Exception:
++        # On first run or if XCom retrieval fails, no prior watermark exists
++        return None
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -50,8 +52,8 @@ def previous_watermark(session=None) -> str | None:
+ )
+ def ingest_shipments():
+     @task(outlets=[SHIPMENTS])
+-    def load_batch(data_interval_end=None, ti=None) -> int:
+-        watermark = previous_watermark()
++    def load_batch(data_interval_end=None, ti=None, context=None) -> int:
++        watermark = get_previous_watermark(ti=ti)
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with SOURCE.open(newline="") as fh:
+             rows = [

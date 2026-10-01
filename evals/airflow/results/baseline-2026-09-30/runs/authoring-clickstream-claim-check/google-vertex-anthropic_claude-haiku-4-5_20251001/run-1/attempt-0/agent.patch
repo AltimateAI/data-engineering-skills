@@ -1,0 +1,98 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..b593e43
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,92 @@
++"""Daily page-level stats from clickstream exports."""
++
++from __future__ import annotations
++
++import csv
++import gzip
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="30 5 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["web-analytics"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds=None) -> dict[str, list[dict]]:
++        """Extract day's clickstream data, filter bots and anonymous hits."""
++        data_file = PROJECT_ROOT / "data" / "clickstream" / f"{ds}.csv.gz"
++        
++        # Dictionary to collect rows by page for efficient in-memory processing
++        pages = {}
++        
++        if not data_file.exists():
++            return pages
++        
++        with gzip.open(data_file, "rt", newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                # Skip bots (is_bot = 1) and anonymous hits (empty user_id)
++                if row["is_bot"] == "1" or not row["user_id"]:
++                    continue
++                
++                page = row["page"]
++                if page not in pages:
++                    pages[page] = []
++                pages[page].append(row)
++        
++        return pages
++
++    @task
++    def transform(extracted_data: dict[str, list[dict]]) -> list[dict]:
++        """Compute per-page stats: views, unique_users, avg_load_ms."""
++        stats = []
++        
++        for page in sorted(extracted_data.keys()):
++            rows = extracted_data[page]
++            
++            # views = total events for this page
++            views = len(rows)
++            
++            # unique_users = count of distinct user_ids
++            unique_users = len(set(row["user_id"] for row in rows))
++            
++            # avg_load_ms = mean of load_ms, rounded to 1 decimal
++            load_times = [float(row["load_ms"]) for row in rows]
++            avg_load_ms = round(sum(load_times) / len(load_times), 1) if load_times else 0.0
++            
++            stats.append({
++                "page": page,
++                "views": views,
++                "unique_users": unique_users,
++                "avg_load_ms": avg_load_ms,
++            })
++        
++        return stats
++
++    @task
++    def load(stats: list[dict], ds=None) -> None:
++        """Write output file with sorted page stats."""
++        out = PROJECT_ROOT / "output" / "page_stats" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        
++        with out.open("w", newline="") as fh:
++            writer = csv.DictWriter(fh, fieldnames=["page", "views", "unique_users", "avg_load_ms"])
++            writer.writeheader()
++            # Stats are already sorted by page from transform
++            for row in stats:
++                writer.writerow(row)
++
++    extracted = extract()
++    transformed = transform(extracted)
++    load(transformed)
++
++
++clickstream_page_stats()

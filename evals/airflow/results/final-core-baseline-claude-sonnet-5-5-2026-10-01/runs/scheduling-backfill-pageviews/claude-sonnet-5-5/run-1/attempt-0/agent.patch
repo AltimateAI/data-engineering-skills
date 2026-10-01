@@ -1,0 +1,54 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..170234c 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -3,6 +3,13 @@
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+ at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++Each run loads the UTC day that its data interval starts on. With the 03:00
++schedule the run at D+1 03:00 covers interval [D 03:00, D+1 03:00) and loads
++day D, i.e. "yesterday" once the 01:00 export has landed. Data begins on
++2026-09-01, so that is the start_date; catchup backfills every day since.
++Re-running a day replaces that day's rows (delete + insert in one transaction),
++so it never double counts.
+ """
+ 
+ from pathlib import Path
+@@ -10,6 +17,7 @@ from pathlib import Path
+ import duckdb
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.interval import CronDataIntervalTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+@@ -18,17 +26,22 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    schedule=CronDataIntervalTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    # DuckDB allows a single writer: load one day at a time.
++    max_active_runs=1,
++    max_active_tasks=1,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(data_interval_start=None) -> int:
++        day = data_interval_start.in_timezone("UTC").to_date_string()
+         source = RAW_DIR / f"{day}.csv"
++        if not source.exists():
++            raise FileNotFoundError(f"No raw export for {day}: {source}")
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:

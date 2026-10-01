@@ -1,0 +1,472 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..0c440e6
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,48 @@
++"""Session-level fixtures for orders_enrichment DAG tests.
++
++Uses a throw-away SQLite metadata DB per pytest session so tests are
++hermetic and independent of any developer Airflow installation.
++"""
++
++from __future__ import annotations
++
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Must be set *before* any airflow import (Airflow reads its config on first import).
++_TMP = Path(tempfile.mkdtemp(prefix="orders-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++
++# Allow test files to import from dags/ (e.g. `from orders_enrichment import dedupe_orders`).
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    """DagBag loaded once per session; import errors surface as test failures."""
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag  # Airflow 2.x / 3.0-3.1
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrate the throw-away metadata DB once.  Required by dag.test()."""
++    subprocess.run(
++        [sys.executable, "-m", "airflow", "db", "migrate"],
++        check=True,
++        capture_output=True,
++    )
+diff --git a/tests/test_orders_enrichment.py b/tests/test_orders_enrichment.py
+new file mode 100644
+index 0000000..2c2bd31
+--- /dev/null
++++ b/tests/test_orders_enrichment.py
+@@ -0,0 +1,412 @@
++"""Tests for the orders_enrichment DAG.
++
++Rules covered (one test per rule, plus boundary / error variants):
++  R1  – Deduplication: only the latest updated_at version of each order is kept.
++  R2  – Conversion: amount_usd = amount × usd_per_unit, rounded half-up to cents.
++  R3  – Missing FX rate: an order in a currency with no rate for that day raises an
++        error (not silently guessed or zeroed).
++  R4  – Gate: load_enriched runs only after validate_totals; nothing is written to
++        output/ unless validate_totals has passed.
++  R5  – Schedule: runs once a day at 06:00 UTC (every day, including weekends).
++  E2E – End-to-end run on the sample data in data/ for 2026-03-02 (the richest date).
++
++Correctness of expected USD amounts was verified by hand:
++  S-102  120.00 EUR × 1.0850 = 130.2000  → $130.20   (exact, no rounding)
++  S-103   40.50 GBP × 1.2700 = 51.4350   → $51.44    (rounds up from .435)
++  S-104    9.99 USD × 1.0000 = 9.9900    → $9.99     (exact)
++  S-105    0.35 EUR × 1.0850 = 0.37975   → $0.38     (rounds up from .37975)
++"""
++
++from __future__ import annotations
++
++import csv
++from datetime import datetime, timezone
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAG_ID = "orders_enrichment"
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++def _row(**kwargs) -> dict:
++    """Build a minimal order row; fill in defaults for unused fields."""
++    defaults = {
++        "order_id": "X-000",
++        "order_date": "2026-03-02",
++        "updated_at": "2026-03-02T08:00:00",
++        "customer_id": "C-1",
++        "currency": "USD",
++        "amount": "10.00",
++    }
++    defaults.update(kwargs)
++    return defaults
++
++
++# ---------------------------------------------------------------------------
++# Section 1 – Integrity: DAG imports cleanly and is findable
++# ---------------------------------------------------------------------------
++
++def test_no_import_errors(dagbag):
++    """The DAG file must import without any errors."""
++    assert dagbag.import_errors == {}, "\n\n".join(
++        f"{f}:\n{e}" for f, e in dagbag.import_errors.items()
++    )
++
++
++def test_dag_is_registered(dagbag):
++    """orders_enrichment must be present in the DagBag after import."""
++    assert DAG_ID in dagbag.dags, f"DAG '{DAG_ID}' not found; got: {sorted(dagbag.dags)}"
++
++
++# ---------------------------------------------------------------------------
++# Section 2 – Structure: task graph
++# ---------------------------------------------------------------------------
++
++def test_pipeline_task_order(dagbag):
++    """load_enriched runs only after validate_totals; validate_totals only after
++    convert_to_usd; converting only after deduplication and FX loading.
++
++    This encodes Rule R4 (gate) plus the overall pipeline contract.
++    """
++    dag = dagbag.dags[DAG_ID]
++    expected_upstream = {
++        "extract_orders":  set(),
++        "load_fx_rates":   set(),
++        "dedupe_orders":   {"extract_orders"},
++        "convert_to_usd":  {"dedupe_orders", "load_fx_rates"},
++        "validate_totals": {"convert_to_usd"},
++        "load_enriched":   {"validate_totals"},   # ← the gate: nothing written until validated
++    }
++    actual = {task_id: dag.get_task(task_id).upstream_task_ids for task_id in expected_upstream}
++    assert actual == expected_upstream
++
++
++def test_load_enriched_only_after_validate_totals(dagbag):
++    """Explicit transitive check: validate_totals is an ancestor of load_enriched."""
++    dag = dagbag.dags[DAG_ID]
++    ancestors = dag.get_task("load_enriched").get_flat_relative_ids(upstream=True)
++    assert "validate_totals" in ancestors, (
++        "load_enriched does not depend (even transitively) on validate_totals"
++    )
++
++
++# ---------------------------------------------------------------------------
++# Section 3 – Schedule (R5): once a day at 06:00 UTC
++# ---------------------------------------------------------------------------
++
++def _upcoming_runs(dag, after, n):
++    """Return the next *n* run_after timestamps the scheduler would create."""
++    from airflow.timetables.base import TimeRestriction
++
++    tt = dag.timetable
++    try:
++        from airflow.serialization.encoders import coerce_to_core_timetable  # >= 3.0
++        tt = coerce_to_core_timetable(tt)
++    except ImportError:
++        pass
++    restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++    last, runs = None, []
++    for _ in range(n):
++        info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++        if info is None:
++            break
++        runs.append(info.run_after)
++        last = info.data_interval
++    return runs
++
++
++def test_schedule_daily_0600_utc(dagbag):
++    """R5: DAG fires once a day at exactly 06:00 UTC (every day, 7 days/week)."""
++    dag = dagbag.dags[DAG_ID]
++    anchor = datetime(2026, 3, 2, tzinfo=timezone.utc)
++    runs = _upcoming_runs(dag, anchor, 14)  # two full weeks
++
++    assert len(runs) == 14, f"Expected 14 runs, got {len(runs)}"
++
++    # All runs are at 06:00 UTC
++    for r in runs:
++        assert (r.hour, r.minute, r.second) == (6, 0, 0), (
++            f"Run at unexpected time: {r}"
++        )
++        assert r.utcoffset().total_seconds() == 0, f"Run not in UTC: {r}"
++
++    # Consecutive runs are exactly 24 hours apart
++    for a, b in zip(runs, runs[1:]):
++        delta = b - a
++        assert delta.total_seconds() == 86400, (
++            f"Gap between runs is not 24 h: {delta} (between {a} and {b})"
++        )
++
++
++# ---------------------------------------------------------------------------
++# Section 4 – R1: Deduplication (dedupe_orders)
++# ---------------------------------------------------------------------------
++
++def test_dedupe_keeps_latest_updated_at(dagbag):
++    """R1 core: when an order appears more than once, keep the row with the
++    highest updated_at and discard the older version(s)."""
++    fn = dagbag.dags[DAG_ID].get_task("dedupe_orders").python_callable
++    rows = [
++        _row(order_id="A-1", updated_at="2026-03-02T08:00:00", amount="10.00"),
++        _row(order_id="A-1", updated_at="2026-03-02T11:47:00", amount="20.00"),  # ← latest
++    ]
++    result = fn(rows)
++    assert len(result) == 1
++    assert result[0]["order_id"] == "A-1"
++    assert result[0]["updated_at"] == "2026-03-02T11:47:00"
++    assert result[0]["amount"] == "20.00"
++
++
++def test_dedupe_keeps_latest_among_three_versions(dagbag):
++    """R1 boundary: three copies of the same order → only the middle-timestamp
++    one is NOT the latest; exactly one row survives."""
++    fn = dagbag.dags[DAG_ID].get_task("dedupe_orders").python_callable
++    rows = [
++        _row(order_id="B-5", updated_at="2026-03-02T07:00:00", amount="5.00"),
++        _row(order_id="B-5", updated_at="2026-03-02T09:00:00", amount="8.00"),   # ← latest
++        _row(order_id="B-5", updated_at="2026-03-02T08:00:00", amount="6.00"),
++    ]
++    result = fn(rows)
++    assert len(result) == 1
++    assert result[0]["updated_at"] == "2026-03-02T09:00:00"
++    assert result[0]["amount"] == "8.00"
++
++
++def test_dedupe_independent_orders_all_survive(dagbag):
++    """R1 boundary: distinct order_ids are independent – all must survive."""
++    fn = dagbag.dags[DAG_ID].get_task("dedupe_orders").python_callable
++    rows = [
++        _row(order_id="C-1", updated_at="2026-03-02T08:00:00"),
++        _row(order_id="C-2", updated_at="2026-03-02T09:00:00"),
++        _row(order_id="C-3", updated_at="2026-03-02T10:00:00"),
++    ]
++    result = fn(rows)
++    assert len(result) == 3
++    assert [r["order_id"] for r in result] == ["C-1", "C-2", "C-3"]
++
++
++def test_dedupe_result_sorted_by_order_id(dagbag):
++    """R1 structural: the output is sorted by order_id."""
++    fn = dagbag.dags[DAG_ID].get_task("dedupe_orders").python_callable
++    rows = [
++        _row(order_id="Z-9"),
++        _row(order_id="A-1"),
++        _row(order_id="M-5"),
++    ]
++    result = fn(rows)
++    ids = [r["order_id"] for r in result]
++    assert ids == sorted(ids), f"Result not sorted: {ids}"
++
++
++def test_dedupe_empty_input_returns_empty(dagbag):
++    """R1 boundary: no rows in → no rows out (no crash)."""
++    fn = dagbag.dags[DAG_ID].get_task("dedupe_orders").python_callable
++    assert fn([]) == []
++
++
++# ---------------------------------------------------------------------------
++# Section 5 – R2: USD conversion (convert_to_usd)
++# ---------------------------------------------------------------------------
++
++def test_convert_usd_exact_no_rounding(dagbag):
++    """R2: a multiplication that is already exact to cents must not be altered."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    rows = [_row(order_id="T-1", currency="EUR", amount="120.00")]
++    rates = {"USD": "1", "EUR": "1.0850"}
++    result = fn(rows, rates)
++    # 120.00 × 1.0850 = 130.2000 (exact) → $130.20
++    assert result[0]["amount_usd"] == "130.20"
++
++
++def test_convert_rounds_half_up_to_cents(dagbag):
++    """R2: results with fractional cents are rounded half-up (not truncated, not
++    half-even / banker's rounding)."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    # 40.50 × 1.2700 = 51.4350 → half-up → $51.44  (the digit after .43 is 5)
++    rows = [_row(order_id="T-2", currency="GBP", amount="40.50")]
++    rates = {"USD": "1", "GBP": "1.2700"}
++    result = fn(rows, rates)
++    assert result[0]["amount_usd"] == "51.44"
++
++
++def test_convert_small_amount_rounds_half_up(dagbag):
++    """R2: sub-cent rounding with a small amount (0.35 EUR × 1.0850 = 0.37975 → $0.38)."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    rows = [_row(order_id="T-3", currency="EUR", amount="0.35")]
++    rates = {"USD": "1", "EUR": "1.0850"}
++    result = fn(rows, rates)
++    assert result[0]["amount_usd"] == "0.38"
++
++
++def test_convert_usd_currency_uses_rate_one(dagbag):
++    """R2: USD orders pass through unchanged (rate = 1)."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    rows = [_row(order_id="T-4", currency="USD", amount="9.99")]
++    rates = {"USD": "1"}
++    result = fn(rows, rates)
++    assert result[0]["amount_usd"] == "9.99"
++
++
++def test_convert_preserves_all_source_fields(dagbag):
++    """R2: the original row fields (order_id, customer_id, …) are not lost."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    row = _row(order_id="T-5", customer_id="C-42", currency="EUR", amount="10.00")
++    result = fn([row], {"USD": "1", "EUR": "1.0812"})
++    assert result[0]["order_id"] == "T-5"
++    assert result[0]["customer_id"] == "C-42"
++    assert result[0]["currency"] == "EUR"
++    assert result[0]["amount"] == "10.00"
++
++
++# ---------------------------------------------------------------------------
++# Section 6 – R3: Missing FX rate must abort the run, not silently guess
++# ---------------------------------------------------------------------------
++
++def test_missing_fx_rate_raises(dagbag):
++    """R3: an order whose currency has no FX rate for that day must raise ValueError,
++    not return a $0 or NaN row."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    rows = [_row(order_id="U-1", currency="JPY", amount="1000.00")]
++    rates = {"USD": "1", "EUR": "1.0850"}  # no JPY
++    with pytest.raises(ValueError, match="no FX rate"):
++        fn(rows, rates)
++
++
++def test_missing_fx_rate_for_second_order_raises(dagbag):
++    """R3 boundary: the first order converts fine but the second has no rate →
++    the whole batch must fail, not partial-write the first order."""
++    fn = dagbag.dags[DAG_ID].get_task("convert_to_usd").python_callable
++    rows = [
++        _row(order_id="U-2", currency="USD", amount="5.00"),
++        _row(order_id="U-3", currency="CHF", amount="5.00"),  # no CHF rate
++    ]
++    rates = {"USD": "1", "EUR": "1.0850"}
++    with pytest.raises(ValueError, match="no FX rate"):
++        fn(rows, rates)
++
++
++# ---------------------------------------------------------------------------
++# Section 7 – R4: Gate – nothing written unless validate_totals passed
++#   (structural guard tested via task graph above; here we test the callable
++#    behaviour: validate_totals raises on bad data so load_enriched is never
++#    reached in a real TaskFlow run)
++# ---------------------------------------------------------------------------
++
++def test_validate_totals_passes_clean_rows(dagbag):
++    """R4: a batch with positive amounts and non-empty customer_ids must pass through."""
++    fn = dagbag.dags[DAG_ID].get_task("validate_totals").python_callable
++    rows = [
++        {**_row(order_id="V-1", customer_id="C-1"), "amount_usd": "10.00"},
++        {**_row(order_id="V-2", customer_id="C-2"), "amount_usd": "0.01"},
++    ]
++    result = fn(rows)
++    assert result == rows  # passes unchanged
++
++
++def test_validate_totals_raises_on_negative_usd(dagbag):
++    """R4: a negative amount_usd must abort – load_enriched is never called."""
++    fn = dagbag.dags[DAG_ID].get_task("validate_totals").python_callable
++    rows = [{**_row(order_id="V-3", customer_id="C-1"), "amount_usd": "-0.01"}]
++    with pytest.raises(ValueError):
++        fn(rows)
++
++
++def test_validate_totals_raises_on_missing_customer(dagbag):
++    """R4: an empty customer_id must abort – load_enriched is never called."""
++    fn = dagbag.dags[DAG_ID].get_task("validate_totals").python_callable
++    rows = [{**_row(order_id="V-4", customer_id=""), "amount_usd": "5.00"}]
++    with pytest.raises(ValueError):
++        fn(rows)
++
++
++def test_validate_totals_raises_on_zero_is_ok(dagbag):
++    """R4 boundary: a zero amount_usd is not negative and must pass."""
++    fn = dagbag.dags[DAG_ID].get_task("validate_totals").python_callable
++    rows = [{**_row(order_id="V-5", customer_id="C-9"), "amount_usd": "0.00"}]
++    result = fn(rows)
++    assert result == rows
++
++
++# ---------------------------------------------------------------------------
++# Section 8 – End-to-end run on sample data (2026-03-02)
++# ---------------------------------------------------------------------------
++
++def test_end_to_end_on_sample_data(dagbag, airflow_db, monkeypatch, tmp_path):
++    """E2E: run the DAG against the real sample files in data/ for 2026-03-02.
++
++    The date is chosen because it has:
++    - duplicate orders (S-102 and S-103 each appear twice → dedupe tested live)
++    - mixed currencies (EUR, GBP, USD → FX conversion exercised)
++    - all four unique orders survive validate_totals
++
++    Expected output (verified by hand):
++        S-102: 120.00 EUR × 1.0850 → $130.20  (exact)
++        S-103:  40.50 GBP × 1.2700 → $51.44   (half-up rounding)
++        S-104:   9.99 USD × 1.0000 → $9.99
++        S-105:   0.35 EUR × 1.0850 → $0.38    (half-up rounding)
++    """
++    import airflow
++
++    dag = dagbag.dags[DAG_ID]
++    run_date = datetime(2026, 3, 2, 6, 0, tzinfo=timezone.utc)
++    out_file = tmp_path / "orders_enriched" / "2026-03-02.csv"
++
++    # Redirect OUTPUT_DIR so the test writes to tmp_path, not the real output/.
++    # DagBag loads the DAG as a private module, so we must patch the globals
++    # that the task callables actually reference (not a separately imported copy).
++    monkeypatch.setitem(
++        dag.get_task("load_enriched").python_callable.__globals__,
++        "OUTPUT_DIR",
++        tmp_path / "orders_enriched",
++    )
++
++    key = "logical_date" if airflow.__version__.startswith("3.") else "execution_date"
++    dr = dag.test(**{key: run_date})
++
++    task_states = {ti.task_id: str(ti.state) for ti in dr.get_task_instances()}
++    assert str(dr.state) == "success", (
++        f"DAG run did not succeed. Task states: {task_states}"
++    )
++
++    # Output file must exist (proves load_enriched ran after validate_totals).
++    assert out_file.exists(), (
++        f"Output file not written to {out_file}. Task states: {task_states}"
++    )
++
++    with out_file.open(newline="") as fh:
++        rows = list(csv.DictReader(fh))
++
++    order_ids = [r["order_id"] for r in rows]
++    by_id = {r["order_id"]: r for r in rows}
++
++    # Exactly the four orders for 2026-03-02, after deduplication.
++    assert sorted(order_ids) == ["S-102", "S-103", "S-104", "S-105"], (
++        f"Unexpected order_ids in output: {order_ids}"
++    )
++
++    # R1 – dedupe: S-102's later version (11:47, amount 120.00) was kept.
++    assert by_id["S-102"]["amount"] == "120.00", (
++        "S-102: expected the 11:47 updated_at version (amount=120.00) to survive dedup"
++    )
++
++    # R1 – dedupe: S-103's later version (08:30, amount 40.50) was kept.
++    assert by_id["S-103"]["amount"] == "40.50", (
++        "S-103: expected the 08:30 updated_at version (amount=40.50) to survive dedup"
++    )
++
++    # R2 – USD amounts (hand-verified).
++    assert by_id["S-102"]["amount_usd"] == "130.20", "S-102 USD wrong"
++    assert by_id["S-103"]["amount_usd"] == "51.44",  "S-103 USD wrong (half-up rounding)"
++    assert by_id["S-104"]["amount_usd"] == "9.99",   "S-104 USD wrong"
++    assert by_id["S-105"]["amount_usd"] == "0.38",   "S-105 USD wrong (half-up rounding)"
++
++    # Output columns must match the contract (no extra or missing columns).
++    expected_columns = ["order_id", "customer_id", "currency", "amount", "amount_usd"]
++    assert list(rows[0].keys()) == expected_columns, (
++        f"Output column mismatch: {list(rows[0].keys())} != {expected_columns}"
++    )

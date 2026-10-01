@@ -1,0 +1,243 @@
+
+case                         variant                      expect  got     score      s  verdict / failing primary checks
+authoring-airflow2-inventory-snapshot reference                    pass    pass    1.00       7  OK
+authoring-airflow2-inventory-snapshot alt_reference                pass    pass    1.00       8  OK
+authoring-airflow2-inventory-snapshot fixture                      fail    fail    0.50       1  OK | DAG inventory_snapshot exists
+authoring-airflow2-inventory-snapshot mutant:airflow3_sdk_imports  fail    fail    0.00       1  OK | DAGs import cleanly in Airflow 2.11, DAG inventory_snapshot exists
+authoring-airflow2-inventory-snapshot mutant:catchup_omitted       fail    fail    0.86       6  OK | catchup disabled (2.11 defaults to catchup=True)
+authoring-airflow2-inventory-snapshot mutant:excludes_run_date_movements fail    fail    0.71       6  OK | snapshot and low-stock files are correct for each logical date, rerun is idempotent and keeps other dates
+authoring-airflow2-inventory-snapshot mutant:low_stock_at_or_below_point fail    fail    0.71       6  OK | snapshot and low-stock files are correct for each logical date, rerun is idempotent and keeps other dates
+authoring-airflow2-inventory-snapshot mutant:standard_provider_import fail    fail    0.00       0  OK | DAGs import cleanly in Airflow 2.11, DAG inventory_snapshot exists
+authoring-clickstream-claim-check reference                    pass    pass    1.00      15  OK
+authoring-clickstream-claim-check alt_reference                pass    pass    1.00      15  OK
+authoring-clickstream-claim-check fixture                      fail    fail    0.50       1  OK | DAG clickstream_page_stats exists
+authoring-clickstream-claim-check mutant:events_as_xcom_json   fail    fail    0.86      16  OK | no XCom/Variable value larger than 48 KB (data passed by reference)
+authoring-clickstream-claim-check mutant:events_as_xcom_records fail    fail    0.86      17  OK | no XCom/Variable value larger than 48 KB (data passed by reference)
+authoring-clickstream-claim-check mutant:events_via_variable   fail    fail    0.86      15  OK | no XCom/Variable value larger than 48 KB (data passed by reference)
+authoring-clickstream-claim-check mutant:xcom_pull_without_task_ids fail    fail    0.43       7  OK | airflow dags test succeeds, page stats are correct for each day, no XCom/Variable value larger than 48 KB (data passed b
+authoring-daily-revenue-yesterday reference                    pass    pass    1.00      12  OK
+authoring-daily-revenue-yesterday alt_reference                pass    pass    1.00      12  OK
+authoring-daily-revenue-yesterday fixture                      fail    fail    0.50       1  OK | DAG daily_revenue exists
+authoring-daily-revenue-yesterday mutant:cron_string_uses_ds   fail    fail    0.67      12  OK | the 03:00 run on day D reports calendar day D-1 (and only that day), rerun of a scheduled run reproduces the same file
+authoring-daily-revenue-yesterday mutant:filters_on_data_interval_window fail    fail    0.67      12  OK | the 03:00 run on day D reports calendar day D-1 (and only that day), rerun of a scheduled run reproduces the same file
+authoring-daily-revenue-yesterday mutant:interval_timetable_ds_minus_one fail    fail    0.67      12  OK | the 03:00 run on day D reports calendar day D-1 (and only that day), rerun of a scheduled run reproduces the same file
+authoring-daily-revenue-yesterday mutant:wall_clock_yesterday  fail    fail    0.67      12  OK | the 03:00 run on day D reports calendar day D-1 (and only that day), rerun of a scheduled run reproduces the same file
+authoring-partner-feeds-mapping reference                    pass    pass    1.00      23  OK
+authoring-partner-feeds-mapping alt_reference                pass    pass    1.00      23  OK
+authoring-partner-feeds-mapping fixture                      fail    fail    0.50       1  OK | DAG partner_feeds exists
+authoring-partner-feeds-mapping mutant:missing_folder_crashes fail    fail    0.44     245  OK | airflow dags test succeeds for 0, 1 and N files, one mapped task instance per file (0/1/N), per-partner result files are
+authoring-partner-feeds-mapping mutant:parse_time_file_loop  fail    fail    0.44      22  OK | task set is independent of files present at parse time, uses dynamic task mapping, one mapped task instance per file (0/
+authoring-partner-feeds-mapping mutant:registry_driven_mapping fail    fail    0.56      21  OK | one mapped task instance per file (0/1/N), per-partner result files are correct, summary is correct, including the day w
+authoring-partner-feeds-mapping mutant:single_task_loops_files fail    fail    0.78      20  OK | uses dynamic task mapping, one mapped task instance per file (0/1/N)
+authoring-partner-feeds-mapping mutant:summary_default_trigger_rule fail    fail    0.89      21  OK | summary is correct, including the day with no files
+authoring-vendor-shipments-etl reference                    pass    pass    1.00     170  OK
+authoring-vendor-shipments-etl alt_reference                pass    pass    1.00     169  OK
+authoring-vendor-shipments-etl fixture                      fail    fail    0.33       2  OK | DAG vendor_shipments exists, no Variable/Connection/metadata-DB access at parse time
+authoring-vendor-shipments-etl mutant:airflow2_schedule_interval fail    fail    0.00       2  OK | DAGs import cleanly with no Variables defined, DAG vendor_shipments exists, no Variable/Connection/metadata-DB access at
+authoring-vendor-shipments-etl mutant:append_only_load      fail    fail    0.92     169  OK | rerun of a day does not duplicate rows and keeps other days
+authoring-vendor-shipments-etl mutant:bash_relative_script_path fail    fail    0.67     396  OK | airflow dags test succeeds, vendor_shipments holds exactly the landing file rows per ship_date, carrier report published
+authoring-vendor-shipments-etl mutant:poke_sensor_default_timeout fail    fail    0.83     169  OK | file sensor is reschedule-mode or deferrable, file sensor has an explicit timeout of at most 24h
+authoring-vendor-shipments-etl mutant:sensor_watches_landing_dir fail    fail    0.92     168  OK | load waits for the day's file (nothing runs when the file is missing)
+authoring-vendor-shipments-etl mutant:toplevel_variable_get fail    fail    0.92     168  OK | no Variable/Connection/metadata-DB access at parse time
+debugging-manual-trigger-context reference                    pass    pass    1.00      11  OK
+debugging-manual-trigger-context alt_reference                pass    pass    1.00      11  OK
+debugging-manual-trigger-context fixture                      fail    fail    0.43      12  OK | dags test with logical date 2026-03-02 succeeds, dated run delivers the 2026-03-02 feed, manual run without a logical da
+debugging-manual-trigger-context mutant:data_interval_fallback fail    fail    0.71      12  OK | manual run without a logical date succeeds, manual run delivers the feed for its trigger day (2026-03-03)
+debugging-manual-trigger-context mutant:local_tz_day          fail    fail    0.86      11  OK | manual run delivers the feed for its trigger day (2026-03-03)
+debugging-manual-trigger-context mutant:now_fallback          fail    fail    0.86      11  OK | manual run delivers the feed for its trigger day (2026-03-03)
+debugging-manual-trigger-context mutant:run_after_always      fail    fail    0.86      11  OK | dated run delivers the 2026-03-02 feed
+debugging-manual-trigger-context mutant:skip_manual_runs      fail    fail    0.71      12  OK | manual run without a logical date succeeds, manual run delivers the feed for its trigger day (2026-03-03)
+debugging-manual-trigger-context mutant:start_date_fallback   fail    fail    0.86      11  OK | manual run delivers the feed for its trigger day (2026-03-03)
+debugging-manual-trigger-context mutant:template_left         fail    fail    0.71      11  OK | manual run without a logical date succeeds, manual run delivers the feed for its trigger day (2026-03-03)
+debugging-nondeterministic-parse reference                    pass    pass    1.00      12  OK
+debugging-nondeterministic-parse alt_reference                pass    pass    1.00      12  OK
+debugging-nondeterministic-parse fixture                      fail    fail    0.60      48  OK | every parse serializes to the same DAG (no new version per parse), DAG file parses in <= 3.0s, parsing never calls the c
+debugging-nondeterministic-parse mutant:catalog_at_parse      fail    fail    0.90      21  OK | parsing never calls the catalog service
+debugging-nondeterministic-parse mutant:description_date      fail    fail    0.90      12  OK | every parse serializes to the same DAG (no new version per parse)
+debugging-nondeterministic-parse mutant:hardcoded_tables      fail    fail    0.90      13  OK | load tasks follow the deployed catalog snapshot (config/tables.json)
+debugging-nondeterministic-parse mutant:now_start_date        fail    fail    0.90      13  OK | every parse serializes to the same DAG (no new version per parse)
+debugging-nondeterministic-parse mutant:parallel_loads        fail    fail    0.80      12  OK | one load_<table> task per catalog table, loads run one at a time, load tasks follow the deployed catalog snapshot (confi
+debugging-nondeterministic-parse mutant:set_order             fail    fail    0.90      12  OK | every parse serializes to the same DAG (no new version per parse)
+debugging-nondeterministic-parse mutant:utc_today_start_date  fail    fail    0.90      12  OK | every parse serializes to the same DAG (no new version per parse)
+debugging-variable-at-parse  reference                    pass    pass    1.00       9  OK
+debugging-variable-at-parse  alt_reference                pass    pass    1.00       9  OK
+debugging-variable-at-parse  fixture                      fail    fail    0.00       1  OK | DAG files import with no Variables available, DAG warehouse_load is present
+debugging-variable-at-parse  mutant:catchup_enabled       fail    fail    0.83       8  OK | still scheduled daily at 06:00 UTC, catchup off
+debugging-variable-at-parse  mutant:daily_preset          fail    fail    0.83       8  OK | still scheduled daily at 06:00 UTC, catchup off
+debugging-variable-at-parse  mutant:default_at_parse      fail    fail    0.83       8  OK | revenue loaded into the warehouse the Variable points to
+debugging-variable-at-parse  mutant:hardcoded_path        fail    fail    0.83       9  OK | revenue loaded into the warehouse the Variable points to
+debugging-variable-at-parse  mutant:schedule_dropped      fail    fail    0.83       9  OK | still scheduled daily at 06:00 UTC, catchup off
+debugging-variable-at-parse  mutant:variable_in_dag_body  fail    fail    0.00       1  OK | DAG files import with no Variables available, DAG warehouse_load is present
+hard-deferrable-debug-partition-sensor reference                    pass    pass    1.00      29  OK
+hard-deferrable-debug-partition-sensor alt_reference                pass    pass    1.00      33  OK
+hard-deferrable-debug-partition-sensor fixture                      fail    fail    0.22      69  OK | sensor still defers and returns the published files, trigger never blocks the event loop (catalog API answers in 0.5 s),
+hard-deferrable-debug-partition-sensor mutant:api_errors_polled_through fail    fail    0.89      66  OK | timeout is one budget per DAG run: a retry after an outage does not restart it
+hard-deferrable-debug-partition-sensor mutant:blocking_hook_kept    fail    fail    0.89      28  OK | trigger never blocks the event loop (catalog API answers in 0.5 s)
+hard-deferrable-debug-partition-sensor mutant:budget_restarts_each_try fail    fail    0.89      36  OK | timeout is one budget per DAG run: a retry after an outage does not restart it
+hard-deferrable-debug-partition-sensor mutant:cache_keyed_by_table  fail    fail    0.89      28  OK | sensors for two partitions of one table each get their own files
+hard-deferrable-debug-partition-sensor mutant:errors_as_success     fail    fail    0.78      17  OK | API errors fail the sensor instead of letting the load run, timeout is one budget per DAG run: a retry after an outage d
+hard-deferrable-debug-partition-sensor mutant:finishes_from_triggerer fail    fail    0.78      28  OK | sensor still defers and returns the published files, sensors for two partitions of one table each get their own files
+hard-deferrable-debug-partition-sensor mutant:hardcoded_partition_files fail    fail    0.44      14  OK | a timed-out sensor fails for good (no retries), triggerer restart does not extend the sensor timeout, soft_fail sensor i
+hard-deferrable-debug-partition-sensor mutant:relative_deadline_no_defer_timeout fail    fail    0.89      30  OK | triggerer restart does not extend the sensor timeout
+hard-deferrable-debug-partition-sensor mutant:timeout_retryable     fail    fail    0.89      31  OK | a timed-out sensor fails for good (no retries)
+hard-deferrable-sensor-retry-budget reference                    pass    pass    1.00      28  OK
+hard-deferrable-sensor-retry-budget alt_reference                pass    pass    1.00      32  OK
+hard-deferrable-sensor-retry-budget fixture                      fail    fail    0.50      37  OK | sensor defers and returns the manifest's file list, trigger never blocks the event loop (API answers in 0.5 s), timeout 
+hard-deferrable-sensor-retry-budget mutant:anchor_dag_run_start  fail    fail    0.38      12  OK | sensor defers and returns the manifest's file list, trigger never blocks the event loop (API answers in 0.5 s), timeout 
+hard-deferrable-sensor-retry-budget mutant:anchor_in_xcom        fail    fail    0.88      36  OK | timeout is one budget per DAG run: retries after an outage do not reset it
+hard-deferrable-sensor-retry-budget mutant:anchor_this_try       fail    fail    0.88      36  OK | timeout is one budget per DAG run: retries after an outage do not reset it
+hard-deferrable-sensor-retry-budget mutant:api_error_airflow_exception fail    fail    0.88      29  OK | soft_fail sensor uses its retries for an API outage instead of skipping
+hard-deferrable-sensor-retry-budget mutant:deferrable_flag_ignored fail    fail    0.50      37  OK | sensor defers and returns the manifest's file list, trigger never blocks the event loop (API answers in 0.5 s), timeout 
+hard-deferrable-sensor-retry-budget mutant:hardcoded_file_list   fail    fail    0.50      13  OK | timeout is one budget per DAG run: retries after an outage do not reset it, a timed-out sensor fails for good (no retrie
+hard-deferrable-sensor-retry-budget mutant:relative_deadline_no_defer_timeout fail    fail    0.88      29  OK | triggerer restart does not extend the timeout
+hard-deferrable-sensor-retry-budget mutant:sync_hook_in_trigger  fail    fail    0.88      29  OK | trigger never blocks the event loop (API answers in 0.5 s)
+hard-deferrable-sensor-retry-budget mutant:variable_anchor_non_string fail    fail    0.12      20  OK | sensor defers and returns the manifest's file list, trigger never blocks the event loop (API answers in 0.5 s), timeout 
+hard-migration-claims-partitions reference                    pass    pass    1.00      13  OK
+hard-migration-claims-partitions alt_reference                pass    pass    1.00      13  OK
+hard-migration-claims-partitions fixture                      fail    fail    0.00      10  OK | all 5 DAGs import on Airflow 3.3 (dags/ + plugins/), every DAG keeps its tasks and dependencies (added helper tasks allo
+hard-migration-claims-partitions mutant:digest_version_is_ds  fail    fail    0.75      14  OK | every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3, denials digests use the same directory v
+hard-migration-claims-partitions mutant:digest_xcom_list_last fail    fail    0.75      13  OK | every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3, denials digests use the same directory v
+hard-migration-claims-partitions mutant:fingerprint_prior_list_kept fail    fail    0.88      12  OK | provider directory snapshots match
+hard-migration-claims-partitions mutant:intake_bare_preset    fail    fail    0.38      12  OK | schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions, every replayed run (scheduled, a
+hard-migration-claims-partitions mutant:marts_every_key_double_count fail    fail    0.88      12  OK | partition marts, rebuild records and the READY list match
+hard-migration-claims-partitions mutant:marts_rebuild_all_partitions fail    fail    0.88      12  OK | partition marts, rebuild records and the READY list match
+hard-migration-claims-partitions mutant:recheck_log_jinja_or_undefined fail    fail    0.75      12  OK | every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3, partition marts, rebuild records and the
+hard-migration-claims-partitions mutant:reprocess_wall_clock_cutoff fail    fail    0.88      12  OK | hourly intake lands the same partition files
+hard-migration-ledger-close  reference                    pass    pass    1.00      12  OK
+hard-migration-ledger-close  alt_reference                pass    pass    1.00      12  OK
+hard-migration-ledger-close  fixture                      fail    fail    0.00      12  OK | all 6 DAGs import on Airflow 3.3 (dags/ + plugins/), every DAG keeps its tasks and dependencies (added helper tasks allo
+hard-migration-ledger-close  mutant:audit_started_by_getattr fail    fail    0.90      13  OK | daily close (scheduled runs and the CLI-triggered re-close) writes the same files and audit records
+hard-migration-ledger-close  mutant:close_trigger_previous_calendar_day fail    fail    0.90      13  OK | daily close (scheduled runs and the CLI-triggered re-close) writes the same files and audit records
+hard-migration-ledger-close  mutant:close_trigger_skipped fail    fail    0.80      13  OK | daily close (scheduled runs and the CLI-triggered re-close) writes the same files and audit records, weekly close report
+hard-migration-ledger-close  mutant:cursor_without_prior_dates fail    fail    0.90      13  OK | hourly extracts land every posting exactly once, in the same batches
+hard-migration-ledger-close  mutant:extract_interval_window fail    fail    0.90      13  OK | hourly extracts land every posting exactly once, in the same batches
+hard-migration-ledger-close  mutant:housekeeping_delta_trigger fail    fail    0.80      13  OK | schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions, housekeeping inventory files mat
+hard-migration-ledger-close  mutant:payments_utc_cron     fail    fail    0.70      13  OK | schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions, every replayed run (scheduled, a
+hard-migration-ledger-close  mutant:weekly_prev_ds_minus_one_day fail    fail    0.90      13  OK | weekly close reports match
+hard-migration-meter-rollups reference                    pass    pass    1.00      13  OK
+hard-migration-meter-rollups alt_reference                pass    pass    1.00      14  OK
+hard-migration-meter-rollups fixture                      fail    fail    0.00       9  OK | all 6 DAGs import on Airflow 3.3 (dags/ + plugins/), every DAG keeps its tasks and dependencies (added helper tasks allo
+hard-migration-meter-rollups mutant:billing_trigger_previous_calendar_day fail    fail    0.89      14  OK | billing and invoice publication (scheduled and the CLI-triggered re-bill) match
+hard-migration-meter-rollups mutant:manifest_rows_from_files fail    fail    0.89      14  OK | asset-triggered rollups cover the same hours with the same manifests
+hard-migration-meter-rollups mutant:outlet_events_uri_key fail    fail    0.67      14  OK | every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3, asset-triggered rollups cover the same h
+hard-migration-meter-rollups mutant:publish_conf_missing  fail    fail    0.78      15  OK | every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3, billing and invoice publication (schedul
+hard-migration-meter-rollups mutant:rollup_all_landed_hours fail    fail    0.89      14  OK | asset-triggered rollups cover the same hours with the same manifests
+hard-migration-meter-rollups mutant:rollup_run_after_hour fail    fail    0.78      14  OK | asset-triggered rollups cover the same hours with the same manifests, billing and invoice publication (scheduled and the
+hard-migration-meter-rollups mutant:tariffs_bare_cron     fail    fail    0.78      14  OK | schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions, tariff syncs (scheduled and the 
+hard-migration-meter-rollups mutant:tariffs_jinja_or_undefined fail    fail    0.78      14  OK | every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3, tariff syncs (scheduled and the CLI-trig
+hard-migration-meter-rollups mutant:tariffs_trigger_latest_interval fail    fail    0.89      14  OK | tariff syncs (scheduled and the CLI-triggered correction) write the same files
+hard-reliability-factory-fleet reference                    pass    pass    1.00      46  OK
+hard-reliability-factory-fleet alt_reference                pass    pass    1.00      53  OK
+hard-reliability-factory-fleet fixture                      fail    fail    0.00     194  OK | DAG files import cleanly, every pipeline config yields its DAG, every parse serializes each DAG the same way, factory pa
+hard-reliability-factory-fleet mutant:dag_concurrency_not_pool fail    fail    0.94      47  OK | every fleet task runs in the warehouse pool
+hard-reliability-factory-fleet mutant:downstream_weight_rule fail    fail    0.94      34  OK | critical tasks always outrank standard tasks (scheduler priority weight)
+hard-reliability-factory-fleet mutant:index_minute          fail    fail    0.88      34  OK | broken configs only take out their own DAG (others load unchanged, no partial DAGs), adding/removing a config leaves eve
+hard-reliability-factory-fleet mutant:minute_zero           fail    fail    0.94      33  OK | start minutes stay spread over the hour
+hard-reliability-factory-fleet mutant:no_parsing_context    fail    fail    0.94      36  OK | a worker parsing for one task builds only that task's DAG
+hard-reliability-factory-fleet mutant:no_validate_autoregister fail    fail    0.88      32  OK | broken configs only take out their own DAG (others load unchanged, no partial DAGs), each broken config is reported by f
+hard-reliability-factory-fleet mutant:now_doc_md            fail    fail    0.88      32  OK | every parse serializes each DAG the same way, a worker parsing for one task builds only that task's DAG
+hard-reliability-factory-fleet mutant:outer_try             fail    fail    0.88      34  OK | broken configs only take out their own DAG (others load unchanged, no partial DAGs), each broken config is reported by f
+hard-reliability-factory-fleet mutant:pool_not_declared     fail    fail    0.94      35  OK | pools.json defines pool 'warehouse' with 16 slots
+hard-reliability-factory-fleet mutant:python_hash_minute    fail    fail    0.94      35  OK | every parse serializes each DAG the same way
+hard-reliability-factory-fleet mutant:registry_per_pipeline_libyaml fail    fail    0.94     203  OK | factory parses in <= 5.0s
+hard-reliability-factory-fleet mutant:set_owner             fail    fail    0.94      38  OK | every parse serializes each DAG the same way
+hard-reliability-factory-fleet mutant:silent_skip           fail    fail    0.94      38  OK | each broken config is reported by file name in the parse output
+migration-hourly-pageviews-templates reference                    pass    pass    1.00      16  OK
+migration-hourly-pageviews-templates alt_reference                pass    pass    1.00      15  OK
+migration-hourly-pageviews-templates fixture                      fail    fail    0.00       4  OK | DAG imports cleanly on Airflow 3.3, hourly_pageviews keeps its tasks and dependencies, dags test succeeds
+migration-hourly-pageviews-templates mutant:cleanup_relative_to_run_time fail    fail    0.86      16  OK | staging cleanup keeps and deletes the same files as 2.11
+migration-hourly-pageviews-templates mutant:interval_vars_trigger_timetable fail    fail    0.57      15  OK | hourly rollups (previous clock hour, change vs hour before) match 2.11, completion markers match 2.11, staging cleanup k
+migration-hourly-pageviews-templates mutant:logical_date_bare_cron fail    fail    0.57      14  OK | hourly rollups (previous clock hour, change vs hour before) match 2.11, completion markers match 2.11, staging cleanup k
+migration-hourly-pageviews-templates mutant:ruff_fix_only         fail    fail    0.29      17  OK | dags test succeeds, scheduled hourly runs succeed on 3.3, hourly rollups (previous clock hour, change vs hour before) ma
+migration-inventory-context  reference                    pass    pass    1.00      12  OK
+migration-inventory-context  alt_reference                pass    pass    1.00      13  OK
+migration-inventory-context  fixture                      fail    fail    0.00       3  OK | DAGs import cleanly on Airflow 3.3, inventory_snapshot keeps its tasks and dependency, dags test succeeds
+migration-inventory-context  mutant:daily_cron_preset     fail    fail    0.80      14  OK | snapshots and audit records match the Airflow 2 output
+migration-inventory-context  mutant:prev_ds_default_none  fail    fail    0.80      13  OK | snapshots and audit records match the Airflow 2 output
+migration-inventory-context  mutant:timedelta_schedule_kept fail    fail    0.80      14  OK | snapshots and audit records match the Airflow 2 output
+migration-inventory-context  mutant:xcom_pull_without_task_ids fail    fail    0.80      12  OK | snapshots and audit records match the Airflow 2 output
+migration-revenue-previous-day reference                    pass    pass    1.00      22  OK
+migration-revenue-previous-day alt_reference                pass    pass    1.00      23  OK
+migration-revenue-previous-day fixture                      fail    fail    0.00       8  OK | DAGs import cleanly on Airflow 3.3, daily_revenue keeps its tasks and dependency, dags test succeeds (daily_revenue, reg
+migration-revenue-previous-day mutant:data_interval_window  fail    fail    0.86      23  OK | scheduled runs process the same business day and write the same output as 2.11
+migration-revenue-previous-day mutant:naive_cron_trigger    fail    fail    0.86      23  OK | scheduled runs process the same business day and write the same output as 2.11
+migration-revenue-previous-day mutant:next_ds_left_in_sql   fail    fail    0.57      23  OK | dags test succeeds (daily_revenue, region_reference), scheduled 04:15 runs succeed on 3.3, scheduled runs process the sa
+migration-revenue-previous-day mutant:old_dagbag_test       fail    fail    0.71      26  OK | project test suite passes on 3.3, project test suite still fails on a DAG file that does not import
+migration-shipments-assets   reference                    pass    pass    1.00      25  OK
+migration-shipments-assets   alt_reference                pass    pass    1.00      25  OK
+migration-shipments-assets   fixture                      fail    fail    0.00       5  OK | DAGs import cleanly on Airflow 3.3, both DAGs keep their tasks and dependencies, carrier_scorecard is still scheduled on
+migration-shipments-assets   mutant:db_session_kept       fail    fail    0.43      24  OK | dags test succeeds (ingest_shipments, carrier_scorecard), three hourly loads and the scorecard run succeed on 3.3, every
+migration-shipments-assets   mutant:watermark_current_run_only fail    fail    0.86      24  OK | every carrier event is loaded exactly once, in the same batches as 2.11
+migration-shipments-assets   mutant:xcom_prior_dates_list fail    fail    0.57      24  OK | three hourly loads and the scorecard run succeed on 3.3, every carrier event is loaded exactly once, in the same batches
+migration-shipments-assets   mutant:xcom_pull_template_no_task_ids fail    fail    0.86      24  OK | scorecard and _READY marker match 2.11
+migration-weekly-catchup     reference                    pass    pass    1.00      21  OK
+migration-weekly-catchup     alt_reference                pass    pass    1.00      21  OK
+migration-weekly-catchup     fixture                      fail    fail    0.00       4  OK | DAGs import cleanly on Airflow 3.3, weekly_campaign_report keeps its tasks and dependency, dags test succeeds (weekly_ca
+migration-weekly-catchup     mutant:catchup_left_default  fail    fail    0.86      20  OK | season backfill: scheduler creates the same weekly runs from start_date as 2.11
+migration-weekly-catchup     mutant:cron_trigger_current_week fail    fail    0.71      19  OK | Monday runs report on the previous week, same output as 2.11, season backfill: scheduler creates the same weekly runs fr
+migration-weekly-catchup     mutant:deadline_from_logical_date fail    fail    0.86      19  OK | late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)
+migration-weekly-catchup     mutant:sla_kept_no_deadline  fail    fail    0.86      19  OK | late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)
+scheduling-backfill-pageviews reference                    pass    pass    1.00      21  OK
+scheduling-backfill-pageviews alt_reference                pass    pass    1.00      21  OK
+scheduling-backfill-pageviews fixture                      fail    fail    0.33     308  OK | catchup enabled, one writer at a time, catchup backfills exactly 09-01..09-29, each run loads a day whose export has alr
+scheduling-backfill-pageviews mutant:catchup_old_start_date fail    fail    0.67      11  OK | catchup backfills exactly 09-01..09-29, each run loads a day whose export has already landed, re-running a day repairs i
+scheduling-backfill-pageviews mutant:date_from_wall_clock  fail    fail    0.56     310  OK | catchup backfills exactly 09-01..09-29, each run loads a day whose export has already landed, re-running a day repairs i
+scheduling-backfill-pageviews mutant:dynamic_start_date    fail    fail    0.67      15  OK | start_date is fixed, not computed from the clock, catchup backfills exactly 09-01..09-29, re-running a day repairs it an
+scheduling-backfill-pageviews mutant:max_active_tasks_only fail    fail    0.89      19  OK | one writer at a time
+scheduling-backfill-pageviews mutant:no_concurrency_limit  fail    fail    0.89      19  OK | one writer at a time
+scheduling-backfill-pageviews mutant:same_day_skip_missing fail    fail    0.89      18  OK | each run loads a day whose export has already landed
+scheduling-backfill-pageviews mutant:skip_loaded_days      fail    fail    0.89      18  OK | re-running a day repairs it and keeps other days
+scheduling-backfill-pageviews mutant:start_date_sep1_previous_day fail    fail    0.78      14  OK | catchup backfills exactly 09-01..09-29, re-running a day repairs it and keeps other days
+scheduling-idempotent-orders-load reference                    pass    pass    1.00      11  OK
+scheduling-idempotent-orders-load alt_reference                pass    pass    1.00      11  OK
+scheduling-idempotent-orders-load fixture                      fail    fail    0.50      11  OK | scheduled runs load exactly their own day, re-running a day creates no duplicates and keeps the previous day, re-run rep
+scheduling-idempotent-orders-load mutant:inclusive_interval_end fail    fail    0.50      11  OK | scheduled runs load exactly their own day, re-running a day creates no duplicates and keeps the previous day, re-run rep
+scheduling-idempotent-orders-load mutant:insert_missing_only   fail    fail    0.83      11  OK | re-run repairs a partially written day
+scheduling-idempotent-orders-load mutant:logical_date_minus_one fail    fail    0.50      11  OK | scheduled runs load exactly their own day, re-running a day creates no duplicates and keeps the previous day, re-run rep
+scheduling-idempotent-orders-load mutant:rollup_still_appends  fail    fail    0.67      11  OK | re-running a day creates no duplicates and keeps the previous day, re-run repairs a partially written day
+scheduling-idempotent-orders-load mutant:skip_if_already_loaded fail    fail    0.83      12  OK | re-run repairs a partially written day
+scheduling-idempotent-orders-load mutant:truncate_whole_table  fail    fail    0.50      12  OK | scheduled runs load exactly their own day, re-running a day creates no duplicates and keeps the previous day, re-run rep
+scheduling-weekday-ny-business-day reference                    pass    pass    1.00      11  OK
+scheduling-weekday-ny-business-day alt_reference                pass    pass    1.00      11  OK
+scheduling-weekday-ny-business-day fixture                      fail    fail    0.43      11  OK | runs at 06:00 New York on weekdays only, across DST, Monday run after DST starts reports Friday, Tuesday run reports Mon
+scheduling-weekday-ny-business-day mutant:calendar_yesterday    fail    fail    0.71      11  OK | Monday run after DST starts reports Friday, Monday run after DST ends reports Friday
+scheduling-weekday-ny-business-day mutant:cron_string_interval_start fail    fail    0.57      11  OK | Monday run after DST starts reports Friday, Tuesday run reports Monday, Monday run after DST ends reports Friday
+scheduling-weekday-ny-business-day mutant:cron_string_utc_start_date fail    fail    0.86      11  OK | runs at 06:00 New York on weekdays only, across DST
+scheduling-weekday-ny-business-day mutant:utc_eleven_am_cron    fail    fail    0.86      11  OK | runs at 06:00 New York on weekdays only, across DST
+scheduling-weekday-ny-business-day mutant:wall_clock_run_day    fail    fail    0.57      11  OK | Monday run after DST starts reports Friday, Tuesday run reports Monday, Monday run after DST ends reports Friday
+testing-airflow2-ci-suite    reference                    pass    pass    1.00       4  OK
+testing-airflow2-ci-suite    alt_reference                pass    pass    1.00       8  OK
+testing-airflow2-ci-suite    fixture                      fail    fail    0.00       3  OK | test suite exists under tests/, suite passes on the correct project, suite passes on a behaviour-preserving edit of the 
+testing-airflow2-ci-suite    mutant:af3_test_apis         fail    fail    0.12       3  OK | suite passes on the correct project, suite passes on a behaviour-preserving edit of the sources, suite catches hidden bu
+testing-airflow2-ci-suite    mutant:ast_snapshot          fail    fail    0.88       2  OK | suite passes on a behaviour-preserving edit of the sources
+testing-airflow2-ci-suite    mutant:schedule_time_only    fail    fail    0.88       4  OK | suite catches hidden bug: weekend_schedule
+testing-airflow2-ci-suite    mutant:source_snapshot       fail    fail    0.88       2  OK | suite passes on a behaviour-preserving edit of the sources
+testing-airflow2-ci-suite    mutant:structure_only        fail    fail    0.88       4  OK | suite catches hidden bug: undelivered_ignored
+testing-custom-operator-conn reference                    pass    pass    1.00       7  OK
+testing-custom-operator-conn alt_reference                pass    pass    1.00       6  OK
+testing-custom-operator-conn fixture                      fail    fail    0.00       3  OK | test suite exists under tests/, suite passes on the correct project, suite passes on a behaviour-preserving edit of the 
+testing-custom-operator-conn mutant:ast_snapshot          fail    fail    0.88       2  OK | suite passes on a behaviour-preserving edit of the sources
+testing-custom-operator-conn mutant:conn_from_metadata_db fail    fail    0.12       5  OK | suite passes on the correct project, suite passes on a behaviour-preserving edit of the sources, suite catches hidden bu
+testing-custom-operator-conn mutant:mocked_duckdb         fail    fail    0.50       5  OK | suite catches hidden bug: hook_ignores_host, suite catches hidden bug: schema_from_extra, suite catches hidden bug: conn
+testing-custom-operator-conn mutant:patched_conn_any_id   fail    fail    0.88       6  OK | suite catches hidden bug: conn_id_ignored
+testing-custom-operator-conn mutant:return_value_only     fail    fail    0.50       6  OK | suite catches hidden bug: hook_ignores_host, suite catches hidden bug: schema_from_extra, suite catches hidden bug: reru
+testing-custom-operator-conn mutant:source_snapshot       fail    fail    0.88       2  OK | suite passes on a behaviour-preserving edit of the sources
+testing-dagbag-integrity     reference                    pass    pass    1.00       6  OK
+testing-dagbag-integrity     alt_reference                pass    pass    1.00       6  OK
+testing-dagbag-integrity     fixture                      fail    fail    0.00       3  OK | test suite exists under tests/, suite passes on the correct project, suite passes on a behaviour-preserving edit of the 
+testing-dagbag-integrity     mutant:airflow2_dagbag       fail    fail    0.12       8  OK | suite passes on the correct project, suite passes on a behaviour-preserving edit of the sources, suite catches hidden bu
+testing-dagbag-integrity     mutant:ast_snapshot          fail    fail    0.88       4  OK | suite passes on a behaviour-preserving edit of the sources
+testing-dagbag-integrity     mutant:default_args_retries_only fail    fail    0.88       6  OK | suite catches hidden bug: retries_disabled
+testing-dagbag-integrity     mutant:import_errors_only    fail    fail    0.62       6  OK | suite catches hidden bug: missing_dependency, suite catches hidden bug: retries_disabled, suite catches hidden bug: catc
+testing-dagbag-integrity     mutant:source_snapshot       fail    fail    0.88       3  OK | suite passes on a behaviour-preserving edit of the sources
+testing-taskflow-transforms  reference                    pass    pass    1.00      14  OK
+testing-taskflow-transforms  alt_reference                pass    pass    1.00       6  OK
+testing-taskflow-transforms  fixture                      fail    fail    0.00       3  OK | test suite exists under tests/, suite passes on the correct project, suite passes on a behaviour-preserving edit of the 
+testing-taskflow-transforms  mutant:ast_snapshot          fail    fail    0.88       3  OK | suite passes on a behaviour-preserving edit of the sources
+testing-taskflow-transforms  mutant:calls_task_not_function fail    fail    0.12      14  OK | suite passes on the correct project, suite passes on a behaviour-preserving edit of the sources, suite catches hidden bu
+testing-taskflow-transforms  mutant:schedule_interval_attr fail    fail    0.12      14  OK | suite passes on the correct project, suite passes on a behaviour-preserving edit of the sources, suite catches hidden bu
+testing-taskflow-transforms  mutant:source_snapshot       fail    fail    0.88       2  OK | suite passes on a behaviour-preserving edit of the sources
+testing-taskflow-transforms  mutant:transforms_and_e2e_only fail    fail    0.75      14  OK | suite catches hidden bug: validation_bypassed, suite catches hidden bug: schedule_midnight
+testing-taskflow-transforms  mutant:wiring_only           fail    fail    0.62       6  OK | suite catches hidden bug: dedupe_keeps_first, suite catches hidden bug: rounding_truncates, suite catches hidden bug: un
+
+self-test: 239 variants, 0 violation(s); artifacts in <work>/selftest-4cmz_563

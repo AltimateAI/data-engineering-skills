@@ -1,0 +1,149 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..75d2e41
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,31 @@
++"""Shared fixtures for the DAG test suite.
++
++Airflow reads its config the first time it is imported, so the environment is
++pinned here, before any test module imports airflow. The suite only parses DAG
++files; it needs no metadata DB, scheduler or webserver.
++"""
++
++from __future__ import annotations
++
++import os
++import tempfile
++from pathlib import Path
++
++import pytest
++
++# Keep Airflow from writing airflow.cfg / logs into the developer's ~/airflow
++# and from loading the bundled example DAGs.
++os.environ["AIRFLOW_HOME"] = tempfile.mkdtemp(prefix="airflow-home-")
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DAGS_FOLDER = PROJECT_ROOT / "dags"
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    from airflow.dag_processing.dagbag import DagBag
++
++    # safe_mode=False: parse every .py file, not just ones that happen to
++    # mention "dag" and "airflow", so nothing in dags/ is silently skipped.
++    return DagBag(dag_folder=str(DAGS_FOLDER), safe_mode=False)
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..41be1b2
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,46 @@
++"""Every file in dags/ must parse into at least one valid, serializable DAG."""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++import pytest
++
++from conftest import DAGS_FOLDER
++
++DAG_FILES = sorted(p for p in DAGS_FOLDER.rglob("*.py") if p.name != "__init__.py")
++
++
++def _dags_from(dagbag, path: Path):
++    return [dag for dag in dagbag.dags.values() if Path(dag.fileloc).resolve() == path.resolve()]
++
++
++def test_dag_files_found():
++    assert DAG_FILES, f"no DAG files found in {DAGS_FOLDER}"
++
++
++def test_no_import_errors(dagbag):
++    # Covers syntax/import errors, cycles and DAG.validate() failures.
++    errors = "\n\n".join(f"{path}:\n{err}" for path, err in dagbag.import_errors.items())
++    assert not dagbag.import_errors, f"DAG import errors:\n\n{errors}"
++
++
++@pytest.mark.parametrize("path", DAG_FILES, ids=lambda p: p.name)
++def test_file_defines_a_dag(dagbag, path):
++    # Catches files that import fine but never register a DAG, e.g. a
++    # @dag-decorated function that is no longer called.
++    assert path.name not in {Path(p).name for p in dagbag.import_errors}, f"{path.name} failed to import"
++    assert _dags_from(dagbag, path), f"{path.name} does not define any DAG"
++
++
++@pytest.mark.parametrize("path", DAG_FILES, ids=lambda p: p.name)
++def test_dags_serialize(dagbag, path):
++    # The DAG processor stores DAGs in serialized form; one that can't be
++    # serialized never shows up in the UI even though it imports.
++    from airflow.serialization.serialized_objects import DagSerialization
++
++    for dag in _dags_from(dagbag, path):
++        data = DagSerialization.to_dict(dag)
++        DagSerialization.validate_schema(data)
++        restored = DagSerialization.from_dict(data)
++        assert set(restored.task_dict) == set(dag.task_dict), dag.dag_id
+diff --git a/tests/test_dag_policy.py b/tests/test_dag_policy.py
+new file mode 100644
+index 0000000..33370e8
+--- /dev/null
++++ b/tests/test_dag_policy.py
+@@ -0,0 +1,32 @@
++"""Team policy every DAG and task must follow."""
++
++from __future__ import annotations
++
++MIN_RETRIES = 2
++DEFAULT_OWNER = "airflow"
++
++
++def _violations(dag) -> list[str]:
++    problems = []
++    if not dag.tags:
++        problems.append("has no tags")
++    if dag.catchup:
++        problems.append("has catchup enabled")
++    for task in dag.tasks:
++        owner = (task.owner or "").strip()
++        if not owner or owner.lower() == DEFAULT_OWNER:
++            problems.append(f"task {task.task_id!r} has no real owner (owner={task.owner!r})")
++        if (task.retries or 0) < MIN_RETRIES:
++            problems.append(f"task {task.task_id!r} has retries={task.retries}, needs >= {MIN_RETRIES}")
++    return problems
++
++
++def test_dagbag_not_empty(dagbag):
++    assert dagbag.dags, "no DAGs were loaded"
++
++
++def test_dag_policy(dagbag):
++    report = {dag_id: _violations(dag) for dag_id, dag in sorted(dagbag.dags.items())}
++    report = {dag_id: problems for dag_id, problems in report.items() if problems}
++    lines = [f"{dag_id}: {p}" for dag_id, problems in report.items() for p in problems]
++    assert not report, "DAG policy violations:\n" + "\n".join(lines)
+diff --git a/tests/test_orders_ingest.py b/tests/test_orders_ingest.py
+new file mode 100644
+index 0000000..2bc17a8
+--- /dev/null
++++ b/tests/test_orders_ingest.py
+@@ -0,0 +1,16 @@
++"""orders_ingest must run extract -> validate -> load -> publish, in that order."""
++
++from __future__ import annotations
++
++EXPECTED_CHAIN = ["extract_orders", "validate_orders", "load_orders", "publish_summary"]
++
++
++def test_orders_ingest_pipeline_order(dagbag):
++    dag = dagbag.dags.get("orders_ingest")
++    assert dag is not None, "orders_ingest DAG not loaded"
++
++    assert set(dag.task_ids) == set(EXPECTED_CHAIN)
++
++    expected_edges = set(zip(EXPECTED_CHAIN, EXPECTED_CHAIN[1:]))
++    actual_edges = {(t.task_id, d) for t in dag.tasks for d in t.downstream_task_ids}
++    assert actual_edges == expected_edges

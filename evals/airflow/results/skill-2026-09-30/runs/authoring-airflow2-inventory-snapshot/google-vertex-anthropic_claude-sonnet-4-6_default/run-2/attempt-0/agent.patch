@@ -1,0 +1,126 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+new file mode 100644
+index 0000000..8b4762f
+--- /dev/null
++++ b/dags/inventory_snapshot.py
+@@ -0,0 +1,120 @@
++"""Daily inventory snapshot per warehouse and SKU.
++
++Convention for this repo: every daily DAG writes one file per logical date
++(`{{ ds }}`) under output/<dag_id>/, so a rerun simply overwrites that day.
++
++Period contract
++---------------
++Airflow 2.x uses an interval timetable for cron schedules.  The run that
++fires at 02:30 UTC on day D has:
++  logical_date / ds = D-1  (data_interval_start)
++  data_interval_end  = D   (02:30 UTC)
++
++"For the run's date" means the logical date (`ds`), consistent with how
++sales_daily.py works and with the repo convention of keying output files on
++`ds`.
++
++  Scheduled run firing 2026-09-02 02:30 UTC -> processes ds=2026-09-01
++  Rerun / clear of any run                  -> processes the same ds
++  Backfill of date D                         -> processes ds=D
++"""
++
++from __future__ import annotations
++
++import csv
++from collections import defaultdict
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.decorators import dag, task
++from airflow.operators.empty import EmptyOperator
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data"
++OUTPUT_DIR = PROJECT_ROOT / "output"
++
++
++@dag(
++    dag_id="inventory_snapshot",
++    schedule="30 2 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={
++        "owner": "supply-chain-analytics",
++        "retries": 1,
++        "retry_delay": timedelta(minutes=10),
++    },
++    tags=["inventory"],
++)
++def inventory_snapshot():
++    start = EmptyOperator(task_id="start")
++
++    @task
++    def compute_snapshot(ds=None) -> str:
++        """Compute end-of-day on-hand stock per warehouse/SKU as of ds.
++
++        Sums all qty_change values in inventory_movements.csv where
++        movement_date <= ds, then writes output/inventory_snapshot/<ds>.csv
++        with columns warehouse_id,sku,on_hand sorted by warehouse_id, sku.
++        """
++        on_hand: dict[tuple[str, str], int] = defaultdict(int)
++
++        with (DATA_DIR / "inventory_movements.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                if row["movement_date"] <= ds:
++                    key = (row["warehouse_id"], row["sku"])
++                    on_hand[key] += int(row["qty_change"])
++
++        out = OUTPUT_DIR / "inventory_snapshot" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        with out.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["warehouse_id", "sku", "on_hand"])
++            for (warehouse_id, sku) in sorted(on_hand):
++                writer.writerow([warehouse_id, sku, on_hand[(warehouse_id, sku)]])
++
++        return str(out)
++
++    @task
++    def compute_low_stock(snapshot_path: str, ds=None) -> str:
++        """Write rows where on_hand < reorder_point for the given ds.
++
++        Reads the snapshot written by compute_snapshot, joins against
++        data/reorder_points.csv, and writes output/low_stock/<ds>.csv with
++        columns warehouse_id,sku,on_hand,reorder_point sorted by
++        warehouse_id, sku.
++        """
++        # Load reorder points keyed by SKU
++        reorder: dict[str, int] = {}
++        with (DATA_DIR / "reorder_points.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                reorder[row["sku"]] = int(row["reorder_point"])
++
++        # Read the snapshot produced by the previous task
++        low: list[tuple[str, str, int, int]] = []
++        with open(snapshot_path, newline="") as fh:
++            for row in csv.DictReader(fh):
++                warehouse_id = row["warehouse_id"]
++                sku = row["sku"]
++                oh = int(row["on_hand"])
++                rp = reorder.get(sku)
++                if rp is not None and oh < rp:
++                    low.append((warehouse_id, sku, oh, rp))
++
++        out = OUTPUT_DIR / "low_stock" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        with out.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["warehouse_id", "sku", "on_hand", "reorder_point"])
++            for row in sorted(low, key=lambda r: (r[0], r[1])):
++                writer.writerow(row)
++
++        return str(out)
++
++    snapshot_path = compute_snapshot()
++    start >> snapshot_path
++    compute_low_stock(snapshot_path)
++
++
++inventory_snapshot()

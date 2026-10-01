@@ -1,0 +1,108 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..ca5f72d
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,102 @@
++"""Load the carrier aggregator's daily shipments file into the warehouse and publish the carrier report."""
++
++from __future__ import annotations
++
++import os
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.triggers.file import FileTrigger
++from airflow.sdk import BaseSensorOperator, dag, task
++from airflow.sdk.exceptions import AirflowSensorTimeout
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++# The landing directory differs per environment, so it is resolved at run time from a Variable.
++SHIPMENTS_FILE = "{{ var.value.vendor_landing_dir }}/shipments_{{ ds }}.csv"
++
++
++class ShipmentsFileSensor(BaseSensorOperator):
++    """Wait for the day's file until the end of that day (UTC), without holding a worker slot.
++
++    The wait is deferred to the triggerer. The deadline is midnight after ``ds`` rather than a fixed
++    timeout, so a late-starting or retried run still gives up at end of day, and a manual rerun of an
++    old day whose file is missing fails straight away instead of waiting.
++    """
++
++    template_fields = ("filepath",)
++
++    def __init__(self, *, filepath: str, **kwargs):
++        super().__init__(**kwargs)
++        self.filepath = filepath
++
++    def poke(self, context) -> bool:
++        self.log.info("Looking for %s", self.filepath)
++        return os.path.isfile(self.filepath)
++
++    def execute(self, context) -> None:
++        if self.poke(context):
++            return
++        deadline = pendulum.parse(context["ds"], tz="UTC").add(days=1)
++        remaining = deadline - pendulum.now("UTC")
++        if remaining.total_seconds() <= 0:
++            raise AirflowSensorTimeout(f"{self.filepath} did not arrive by {deadline.isoformat()}")
++        self.defer(
++            trigger=FileTrigger(filepath=self.filepath, poke_interval=self.poke_interval),
++            method_name="execute_complete",
++            timeout=remaining,
++        )
++
++    def execute_complete(self, context, event=None) -> None:
++        self.log.info("Found %s", self.filepath)
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    wait_for_file = ShipmentsFileSensor(
++        task_id="wait_for_shipments_file",
++        filepath=SHIPMENTS_FILE,
++        poke_interval=timedelta(minutes=5).total_seconds(),
++    )
++
++    @task
++    def load_shipments(path: str, ds=None):
++        import duckdb
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                "CREATE TABLE IF NOT EXISTS vendor_shipments (shipment_id VARCHAR, carrier VARCHAR, "
++                "destination VARCHAR, weight_kg DOUBLE, shipped_at TIMESTAMP, ship_date DATE)"
++            )
++            con.begin()
++            # Replace the day's rows so a rerun never duplicates them.
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds])
++            con.execute(
++                "INSERT INTO vendor_shipments SELECT *, CAST(? AS DATE) FROM read_csv(?, header = true, "
++                "columns = {'shipment_id': 'VARCHAR', 'carrier': 'VARCHAR', 'destination': 'VARCHAR', "
++                "'weight_kg': 'DOUBLE', 'shipped_at': 'TIMESTAMP'})",
++                [ds, path],
++            )
++            con.commit()
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            ).fetchone()[0]
++
++    publish_shipments_report = BashOperator(
++        task_id="publish_shipments_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    wait_for_file >> load_shipments(SHIPMENTS_FILE) >> publish_shipments_report
++
++
++vendor_shipments()

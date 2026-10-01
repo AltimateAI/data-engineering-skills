@@ -1,0 +1,75 @@
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..35bb339 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -1,6 +1,6 @@
+ """Nightly load of the raw extracts into the DuckDB warehouse.
+ 
+-One load task per table registered in the platform team's catalog service.
++One load task per table in the catalog snapshot (config/tables.json).
+ DuckDB allows a single writer, so the loads run one after another between
+ `start` and `done`.
+ """
+@@ -8,10 +8,7 @@ DuckDB allows a single writer, so the loads run one after another between
+ from __future__ import annotations
+ 
+ import json
+-import os
+-import time
+-import urllib.request
+-from datetime import datetime, timedelta
++from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+@@ -22,31 +19,18 @@ from airflow.sdk import DAG, chain
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_ROOT / "data" / "raw"
+ WAREHOUSE_DB = PROJECT_ROOT / "warehouse" / "warehouse.duckdb"
+-CATALOG_URL = os.environ.get(
+-    "CATALOG_URL", "http://localhost:8765/api/v1/tables?domain=warehouse"
+-)
+-# Copy of the catalog response, refreshed by the deploy pipeline on every release.
++# Copy of the platform team's catalog response (warehouse domain), refreshed by
++# the deploy pipeline on every release. Read at parse time instead of calling the
++# catalog service, which is slow and gives a different answer from parse to parse.
+ CATALOG_SNAPSHOT = PROJECT_ROOT / "config" / "tables.json"
+ 
+ 
+-def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+-    """Tables registered in the catalog for the warehouse domain.
++def list_tables() -> list[str]:
++    """Tables in the deployed catalog snapshot, de-duplicated, in file order."""
++    return list(dict.fromkeys(json.loads(CATALOG_SNAPSHOT.read_text())))
+ 
+-    Retries with exponential backoff and falls back to the deployed snapshot
+-    when the service is unreachable.
+-    """
+-    for attempt in range(retries):
+-        try:
+-            with urllib.request.urlopen(CATALOG_URL, timeout=5) as resp:
+-                return [t["name"] for t in json.load(resp)["tables"]]
+-        except OSError:
+-            if attempt < retries - 1:
+-                time.sleep(backoff_s * 2**attempt)
+-    return json.loads(CATALOG_SNAPSHOT.read_text())
+ 
+-
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++TABLES = list_tables()
+ 
+ 
+ def load_table(table: str) -> int:
+@@ -64,9 +48,9 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
++    description="Load the raw tables listed in the catalog snapshot",
+     schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    start_date=datetime(2026, 1, 1),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+ ):

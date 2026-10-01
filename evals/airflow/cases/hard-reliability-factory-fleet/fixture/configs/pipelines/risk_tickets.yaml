@@ -1,0 +1,19 @@
+name: risk_tickets
+team: risk
+tier: standard
+description: Tickets pipeline for risk
+schedule:
+  hour: 5
+  days: '1'
+retries: 0
+steps:
+- name: extract
+  table: risk.raw_tickets_00
+- name: validate
+  table: risk.int_tickets_00
+  depends_on:
+  - extract
+- name: publish
+  table: risk.mart_tickets_00
+  depends_on:
+  - validate

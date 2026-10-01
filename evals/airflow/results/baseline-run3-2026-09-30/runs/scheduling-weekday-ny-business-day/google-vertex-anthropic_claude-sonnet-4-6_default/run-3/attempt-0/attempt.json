@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: DAGs import cleanly, DAG fx_pnl_report exists",
+  "primary_pass": false,
+  "primary_score": 0.0,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 60.1,
+  "cost_usd": 0.872894,
+  "cost_reported_usd": 2.257442,
+  "tokens": {
+    "input": 461524,
+    "output": 3438,
+    "reasoning": 0,
+    "cache_read": 263590,
+    "cache_write": 197926,
+    "total": 926478
+  },
+  "steps": 7,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 1,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cecc554ffeCauojv3xXDsGG3.json"
+}

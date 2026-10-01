@@ -1,0 +1,3 @@
+# pure snapshot suite: drop the reference tests
+tests/test_orders_enrichment.py
+tests/conftest.py

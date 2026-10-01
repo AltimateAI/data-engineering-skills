@@ -1,0 +1,32 @@
+name: search_attribution
+team: search
+tier: standard
+description: Attribution pipeline for search
+schedule:
+  hour: 0
+  days: '*'
+owners:
+- uma
+steps:
+- name: extract
+  table: search.raw_attribution_00
+- name: stage
+  table: search.stg_attribution_00
+  depends_on:
+  - extract
+- name: transform
+  table: search.int_attribution_00
+  depends_on:
+  - stage
+- name: aggregate
+  table: search.int_attribution_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: search.int_attribution_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: search.mart_attribution_00
+  depends_on:
+  - snapshot

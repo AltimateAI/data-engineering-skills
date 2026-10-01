@@ -1,0 +1,23 @@
+name: finance_attribution
+team: finance
+tier: standard
+description: Attribution pipeline for finance
+schedule:
+  hour: 5
+  days: '1'
+steps:
+- name: extract
+  table: finance.raw_attribution_00
+- name: stage
+  table: finance.stg_attribution_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: finance.int_attribution_00
+  depends_on:
+  - stage
+  - extract
+- name: publish
+  table: finance.mart_attribution_00
+  depends_on:
+  - aggregate

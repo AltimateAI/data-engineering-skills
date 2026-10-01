@@ -1,0 +1,192 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..b9e6054
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,186 @@
++"""Daily page-level stats from web clickstream exports.
++
++Pipeline: extract → transform → load
++- extract:   read that day's gzipped export, drop bots (is_bot=1) and
++             anonymous hits (empty user_id), write a filtered CSV
++             claim-check so large payloads never touch XCom.
++- transform: aggregate per page: views, unique_users, avg_load_ms.
++- load:      write output/page_stats/<date>.csv sorted by page.
++
++The claim-check pattern (filtered Parquet on disk, path in XCom) keeps
++memory flat as volume grows to the projected ~1 M events/day.
++"""
++
++from __future__ import annotations
++
++import csv
++import gzip
++import os
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++CLICKSTREAM_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "output" / "page_stats" / "_staging"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++@dag(
++    dag_id="clickstream_page_stats",
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["clickstream", "web"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds: str | None = None) -> str:
++        """Read that day's gzipped export, filter bots + anonymous, write
++        filtered rows to a staging CSV (claim-check) and return its path."""
++        src = CLICKSTREAM_DIR / f"{ds}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(
++                f"Clickstream export not found: {src}. "
++                "Check that the export for this date has been delivered."
++            )
++
++        STAGING_DIR.mkdir(parents=True, exist_ok=True)
++        staging_path = STAGING_DIR / f"{ds}.csv"
++
++        kept = 0
++        dropped_bot = 0
++        dropped_anon = 0
++
++        with (
++            gzip.open(src, "rt", newline="") as src_fh,
++            staging_path.open("w", newline="") as dst_fh,
++        ):
++            reader = csv.DictReader(src_fh)
++            writer = csv.DictWriter(
++                dst_fh,
++                fieldnames=["user_id", "page", "load_ms"],
++            )
++            writer.writeheader()
++
++            for row in reader:
++                if row["is_bot"] == "1":
++                    dropped_bot += 1
++                    continue
++                if not row["user_id"].strip():
++                    dropped_anon += 1
++                    continue
++                writer.writerow(
++                    {
++                        "user_id": row["user_id"],
++                        "page": row["page"],
++                        "load_ms": row["load_ms"],
++                    }
++                )
++                kept += 1
++
++        print(
++            f"[extract] ds={ds}  kept={kept}  "
++            f"dropped_bot={dropped_bot}  dropped_anon={dropped_anon}"
++        )
++        return str(staging_path)
++
++    @task
++    def transform(staging_path: str) -> str:
++        """Aggregate filtered rows per page and write an aggregated CSV
++        (claim-check).  Returns the path of the aggregated file."""
++        src = Path(staging_path)
++        if not src.exists():
++            raise FileNotFoundError(f"Staging file not found: {src}")
++
++        # Accumulate per page
++        views: dict[str, int] = {}
++        users: dict[str, set] = {}
++        load_sum: dict[str, float] = {}
++
++        with src.open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                page = row["page"]
++                uid = row["user_id"]
++                load_ms_val = row["load_ms"]
++
++                views[page] = views.get(page, 0) + 1
++
++                if page not in users:
++                    users[page] = set()
++                users[page].add(uid)
++
++                try:
++                    ms = float(load_ms_val)
++                except ValueError:
++                    ms = 0.0
++                load_sum[page] = load_sum.get(page, 0.0) + ms
++
++        # Write aggregated claim-check
++        agg_path = src.with_suffix(".agg.csv")
++        with agg_path.open("w", newline="") as fh:
++            writer = csv.DictWriter(
++                fh, fieldnames=["page", "views", "unique_users", "avg_load_ms"]
++            )
++            writer.writeheader()
++            for page in views:
++                v = views[page]
++                u = len(users[page])
++                avg = round(load_sum[page] / v, 1) if v else 0.0
++                writer.writerow(
++                    {
++                        "page": page,
++                        "views": v,
++                        "unique_users": u,
++                        "avg_load_ms": avg,
++                    }
++                )
++
++        print(f"[transform] pages aggregated={len(views)}")
++        return str(agg_path)
++
++    @task
++    def load(agg_path: str, ds: str | None = None) -> None:
++        """Sort aggregated rows by page and write the final output CSV.
++        Re-runs replace the existing file atomically."""
++        src = Path(agg_path)
++        if not src.exists():
++            raise FileNotFoundError(f"Aggregated file not found: {src}")
++
++        rows: list[dict] = []
++        with src.open(newline="") as fh:
++            rows = sorted(csv.DictReader(fh), key=lambda r: r["page"])
++
++        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
++        out = OUTPUT_DIR / f"{ds}.csv"
++
++        # Write to a temp file then rename for atomicity (idempotent reruns)
++        tmp = out.with_suffix(".tmp")
++        with tmp.open("w", newline="") as fh:
++            writer = csv.DictWriter(
++                fh, fieldnames=["page", "views", "unique_users", "avg_load_ms"]
++            )
++            writer.writeheader()
++            for row in rows:
++                writer.writerow(row)
++        tmp.replace(out)
++
++        # Clean up staging files (best-effort)
++        # src is the .agg.csv; the raw filtered CSV is the same stem without .agg
++        try:
++            src.unlink(missing_ok=True)                        # e.g. _staging/2026-09-27.agg.csv
++            raw_csv = src.with_name(src.stem[:-4] + ".csv")   # strip ".agg" → _staging/2026-09-27.csv
++            raw_csv.unlink(missing_ok=True)
++        except Exception:
++            pass  # cleanup is best-effort
++
++        print(f"[load] wrote {len(rows)} page rows → {out}")
++
++    # Wire up the tasks; staging_path flows through XCom (just a short string)
++    staging_path = extract()
++    agg_path = transform(staging_path)
++    load(agg_path)
++
++
++clickstream_page_stats()

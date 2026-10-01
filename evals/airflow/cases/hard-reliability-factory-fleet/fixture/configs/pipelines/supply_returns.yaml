@@ -1,0 +1,36 @@
+name: supply_returns
+team: supply
+tier: standard
+description: Returns pipeline for supply
+schedule:
+  hour: 2
+  days: '*'
+retries: 1
+steps:
+- name: extract
+  table: supply.raw_returns_00
+- name: stage
+  table: supply.stg_returns_00
+  depends_on:
+  - extract
+- name: validate
+  table: supply.int_returns_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: supply.int_returns_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: supply.int_returns_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: supply.int_returns_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: supply.mart_returns_00
+  depends_on:
+  - snapshot

@@ -1,0 +1,128 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..e2c8c36 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -3,6 +3,26 @@
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+ at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++Period contract
++---------------
++* Scheduled run firing at 03:00 UTC on day D  ->  processes day D-1 (UTC).
++  Example: run firing 2026-09-02 03:00 UTC  ->  reads 2026-09-01.csv and writes
++  view_date = 2026-09-01.
++* Backfill run for logical date D            ->  same window as scheduled run for D.
++* Rerun / clear of any run                   ->  same day as original (idempotent).
++* No data exists before 2026-09-01; the DAG will never be asked to load earlier.
++
++Timetable choice
++----------------
++CronDataIntervalTimetable keeps Airflow-2 interval semantics on Airflow 3:
++  data_interval_start = 2026-09-01 03:00 UTC  (D-1 at the cron hour)
++  data_interval_end   = 2026-09-02 03:00 UTC  (D at the cron hour)
++run_window() extracts [start, end) from those values.
++
++catchup=True + max_active_runs=1
++  catchup fills every missed interval since start_date, one run at a time.
++  max_active_runs=1 serialises runs so DuckDB (single-writer) is never contested.
+ """
+ 
+ from pathlib import Path
+@@ -10,25 +30,46 @@ from pathlib import Path
+ import duckdb
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.interval import CronDataIntervalTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ 
++def _run_window(dag_run):
++    """Return (start, end) as pendulum UTC datetimes for the period this run covers.
++
++    Under CronDataIntervalTimetable the interval is always present and non-zero,
++    so we read it directly.  data_interval_start is D-1 03:00 UTC and
++    data_interval_end is D 03:00 UTC; we want the UTC calendar date of the start.
++    """
++    s = pendulum.instance(dag_run.data_interval_start).in_tz("UTC")
++    e = pendulum.instance(dag_run.data_interval_end).in_tz("UTC")
++    return s, e
++
++
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    schedule=CronDataIntervalTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, 3, 0, 0, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(**context) -> int:
++        dag_run = context["dag_run"]
++        start, _end = _run_window(dag_run)
++
++        # The processed calendar date is the UTC date at data_interval_start.
++        # For the cron "0 3 * * *" this is always the previous UTC calendar day
++        # relative to when the run fires, regardless of wall-clock time at execution.
++        day = start.to_date_string()  # e.g. "2026-09-01"
+         source = RAW_DIR / f"{day}.csv"
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -42,24 +83,36 @@ def pageviews_daily():
+                 )
+                 """
+             )
++            # Idempotent: delete the day's partition then re-insert in one transaction.
++            # A re-run of the same logical date produces identical rows, never duplicates.
+             con.execute("BEGIN TRANSACTION")
+-            con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            con.execute(
++                "DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)",
++                [day],
++            )
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+-                SELECT CAST(? AS DATE), page, count(*), count(DISTINCT visitor_id)
++                SELECT
++                    CAST(? AS DATE)       AS view_date,
++                    page,
++                    count(*)              AS views,
++                    count(DISTINCT visitor_id) AS unique_visitors
+                 FROM read_csv('{source}', header = true)
+                 GROUP BY page
+                 """,
+                 [day],
+             )
+             con.execute("COMMIT")
+-            return con.execute(
+-                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
++            row_count = con.execute(
++                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)",
++                [day],
+             ).fetchone()[0]
+         finally:
+             con.close()
+ 
++        return row_count
++
+     load_day()
+ 
+ 
+diff --git a/warehouse/web.duckdb b/warehouse/web.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..26b488f4a2aeb8a9dd3a97918652f2a64a5d171f
+Binary files differ (content omitted by sanitize.py)

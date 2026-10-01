@@ -1,0 +1,91 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..f45b56b
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,85 @@
++"""Daily processing of the order files partners drop for the run's date."""
++
++from __future__ import annotations
++
++import csv
++import json
++import os
++from decimal import Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++from airflow.timetables.interval import CronDataIntervalTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_DIR = PROJECT_ROOT / "data" / "partner_drop"
++OUT_DIR = PROJECT_ROOT / "output" / "partner_feeds"
++
++
++def run_day() -> str:
++    """The run's own date (YYYY-MM-DD, UTC): stable across retries, clears and backfills."""
++    ctx = get_current_context()
++    run = ctx["dag_run"]
++    moment = run.logical_date or run.run_after  # manual runs may have no logical date
++    return pendulum.instance(moment).in_tz("UTC").to_date_string()
++
++
++def write_json(path: Path, payload: dict) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_suffix(".json.tmp")
++    tmp.write_text(json.dumps(payload))
++    os.replace(tmp, path)
++
++
++# Interval timetable: the run for day D fires once D is over, with logical_date = D.
++@dag(
++    schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=1,
++    tags=["partners"],
++)
++def partner_feeds():
++    @task
++    def list_partners() -> list[str]:
++        day = run_day()
++        folder = DROP_DIR / day
++        partners = sorted(p.stem for p in folder.glob("*.csv")) if folder.is_dir() else []
++        # drop outputs of a previous run of this date for files that are no longer there
++        out = OUT_DIR / day
++        if out.is_dir():
++            for old in out.glob("*.json"):
++                if old.stem != "summary" and old.stem not in partners:
++                    old.unlink()
++        return partners
++
++    @task(retries=2)
++    def process_file(partner: str) -> dict:
++        day = run_day()
++        rows, total = 0, Decimal("0")
++        with (DROP_DIR / day / f"{partner}.csv").open(newline="") as f:
++            for rec in csv.DictReader(f):
++                rows += 1
++                total += Decimal(rec["amount"])
++        result = {"partner": partner, "rows": rows, "total_amount": float(round(total, 2))}
++        write_json(OUT_DIR / day / f"{partner}.json", result)
++        return result
++
++    # none_failed: still runs when there were no files (mapped task skipped)
++    @task(trigger_rule="none_failed")
++    def summarize(results: list[dict]) -> dict:
++        day = run_day()
++        results = list(results or [])
++        summary = {
++            "files": len(results),
++            "rows": sum(r["rows"] for r in results),
++            "total_amount": float(round(sum(Decimal(str(r["total_amount"])) for r in results), 2)),
++        }
++        write_json(OUT_DIR / day / "summary.json", summary)
++        return summary
++
++    summarize(process_file.expand(partner=list_partners()))
++
++
++partner_feeds()

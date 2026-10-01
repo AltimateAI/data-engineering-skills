@@ -1,0 +1,32 @@
+id: hard-migration-claims-partitions
+area: migration
+suite: hard
+split: dev
+airflow_version: "3.3"
+max_turns: 80
+timeout_s: 3600
+prompt: |
+  Please migrate our claims project (DAGs in dags/, shared hook and dataset
+  definitions in plugins/) from Airflow 2.11 to Airflow 3.3 (the local venv
+  already has 3.3.2); production switches over next week. Claims ops and the
+  BI team rely on the outputs, so behaviour must not change: every scheduled
+  run, every alias-triggered mart rebuild and the reprocess runs from the
+  README runbook must write exactly the same files as they do on 2.11.
+description: |
+  Hard whole-project Airflow 2.11 -> 3.3 migration (5 DAGs, custom hook on an
+  fs connection, DatasetAlias with dynamic partition datasets). Pain points
+  P7 and P3. Runtime-only traps on 3.3: (1) triggering_asset_events lists
+  every alias-delivered event twice (under its asset and under the alias),
+  and its keys are Asset/AssetAlias objects, so the 2.x loop
+  `for uri, events in triggering_dataset_events.items()` must be rewritten to
+  read each event once (e.g. through the alias, event.asset.uri); (2) the
+  digest's cross-DAG `xcom_pull(dag_id=..., include_prior_dates=True)` is
+  matched on the current run_id in 3.x and returns None for a DAG on another
+  schedule, so the directory version must come from elsewhere (latest
+  snapshot at or before ds); (3) the reprocess DAG, triggered from the CLI
+  with config, used `logical_date` as its cutoff and file stamp: on 3.x it is
+  None, the trigger time is dag_run.run_after; (4) bare cron/preset schedules
+  become trigger timetables. Primary: imports, task graphs, schedules (alias
+  condition), and a replay of scheduled runs, scheduler-style alias-triggered
+  runs and the CLI trigger with config under the Airflow 3 worker DB block,
+  with every output equal to the original replayed in 2.11.

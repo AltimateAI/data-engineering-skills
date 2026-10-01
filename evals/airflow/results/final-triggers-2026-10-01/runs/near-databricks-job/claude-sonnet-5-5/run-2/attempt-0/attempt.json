@@ -1,0 +1,136 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [],
+  "cost_usd": 0.060466,
+  "cost_reported_usd": 0.060466,
+  "wall_s": 14.0,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-triggers-2026-10-01-triggers-20261001-022822/trig-near-databricks-job-c7jenmjt/tmp",
+  "returncode": 0,
+  "run_cap_usd": 2.4,
+  "cost_list_price_usd": 0.060466,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "steps": 3,
+  "tokens": {
+    "input": 6,
+    "output": 1626,
+    "reasoning": 272,
+    "cache_read": 47928,
+    "cache_write": 8652,
+    "total": 58212
+  },
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.060466,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 6,
+      "outputTokens": 1626,
+      "cacheReadInputTokens": 47928,
+      "cacheCreationInputTokens": 8652,
+      "webSearchRequests": 0,
+      "costUSD": 0.060465599999999994,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 272,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 3,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "authoring-airflow-dags",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "migrating-to-airflow-3",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-airflow-dags",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [],
+    "kill_commands": []
+  },
+  "contamination_suspect": false,
+  "kill_command": false,
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "tools": [
+    "bash",
+    "bash"
+  ],
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "errors": []
+}

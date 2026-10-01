@@ -1,0 +1,24 @@
+name: search_suppliers
+team: search
+tier: standard
+description: Suppliers pipeline for search
+schedule:
+  hour: 4
+  days: '*'
+steps:
+- name: extract
+  table: search.raw_suppliers_00
+- name: transform
+  table: search.int_suppliers_00
+  depends_on:
+  - extract
+- name: enrich
+  table: search.int_suppliers_00
+  depends_on:
+  - transform
+  - extract
+- name: publish
+  table: search.mart_suppliers_00
+  depends_on:
+  - enrich
+  - transform

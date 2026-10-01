@@ -1,0 +1,58 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..9962015 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -10,13 +10,28 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import dag, task, CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
+ 
++def prev_business_day(d):
++    """Return the previous business day (skip weekends)."""
++    d = d.subtract(days=1)
++    while d.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
++        d = d.subtract(days=1)
++    return d
++
++
++def run_window(dag_run, tz="America/New_York"):
++    """Return [start, end) of the period this run processes (previous business day)."""
++    anchor = dag_run.logical_date or dag_run.run_after
++    start = prev_business_day(pendulum.instance(anchor).in_tz(tz).start_of("day"))
++    return start, start.add(days=1)
++
++
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+     totals: dict[str, list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
+@@ -41,16 +56,19 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone="America/New_York"),
++    start_date=pendulum.datetime(2026, 1, 1, tz="America/New_York"),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(**context) -> str:
++        dag_run = context["dag_run"]
++        start, end = run_window(dag_run, tz="America/New_York")
++        trade_date = start.to_date_string()
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 

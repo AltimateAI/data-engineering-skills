@@ -1,0 +1,98 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..6169cbb 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,34 +1,52 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
+-the `daily_pageviews` table (views and unique visitors per page).
++at about 01:00 UTC the next morning. Each run aggregates the previous UTC day's
++file into the `daily_pageviews` table (views and unique visitors per page).
++
++Period contract: the run firing at 03:00 UTC on day D loads day D-1. Catchup,
++manual runs (no logical date on Airflow 3) and clears all load the same day the
++scheduled run would. Raw exports start on 2026-09-01, so the first run is the
++2026-09-02 03:00 tick. Reloading a day replaces that day's rows.
+ """
+ 
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import CronTriggerTimetable, Param, dag, task
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ 
++def run_day(dag_run) -> str:
++    """UTC day this run loads: the day before the tick (logical_date is absent on manual runs)."""
++    anchor = pendulum.instance(dag_run.logical_date or dag_run.run_after).in_tz("UTC")
++    return anchor.start_of("day").subtract(days=1).to_date_string()
++
++
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    # First tick (2026-09-02 03:00) loads 2026-09-01, the earliest export.
++    start_date=pendulum.datetime(2026, 9, 2, tz="UTC"),
++    catchup=True,
++    # DuckDB allows a single writer: load one day at a time.
++    max_active_runs=1,
++    max_active_tasks=1,
++    params={"day": Param(None, type=["null", "string"], format="date")},
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(**context) -> int:
++        day = context["params"].get("day") or run_day(context["dag_run"])
+         source = RAW_DIR / f"{day}.csv"
++        if not source.exists():
++            raise FileNotFoundError(f"no raw export for {day}: {source}")
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -43,17 +61,21 @@ def pageviews_daily():
+                 """
+             )
+             con.execute("BEGIN TRANSACTION")
+-            con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
+-            con.execute(
+-                f"""
+-                INSERT INTO daily_pageviews
+-                SELECT CAST(? AS DATE), page, count(*), count(DISTINCT visitor_id)
+-                FROM read_csv('{source}', header = true)
+-                GROUP BY page
+-                """,
+-                [day],
+-            )
+-            con.execute("COMMIT")
++            try:
++                con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++                con.execute(
++                    """
++                    INSERT INTO daily_pageviews
++                    SELECT CAST(? AS DATE), page, count(*), count(DISTINCT visitor_id)
++                    FROM read_csv(?, header = true)
++                    GROUP BY page
++                    """,
++                    [day, str(source)],
++                )
++                con.execute("COMMIT")
++            except Exception:
++                con.execute("ROLLBACK")
++                raise
+             return con.execute(
+                 "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
+             ).fetchone()[0]

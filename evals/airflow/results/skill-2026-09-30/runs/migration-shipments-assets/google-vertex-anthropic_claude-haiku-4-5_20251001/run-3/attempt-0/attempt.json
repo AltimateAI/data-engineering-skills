@@ -1,0 +1,40 @@
+{
+  "status": "turn_limit",
+  "reason": "max turns reached",
+  "primary_pass": false,
+  "primary_score": 0.8571428571428571,
+  "secondary_score": 0.3333333333333333,
+  "returncode": 1,
+  "wall_s": 176.3,
+  "cost_usd": 0.75039,
+  "cost_reported_usd": 3.777774,
+  "tokens": {
+    "input": 3027599,
+    "output": 15571,
+    "reasoning": 0,
+    "cache_read": 2706009,
+    "cache_write": 321375,
+    "total": 6070554
+  },
+  "steps": 42,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 14,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0ca45514ffeDg4Mezir5RpUmZ.json"
+}

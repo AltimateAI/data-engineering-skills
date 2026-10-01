@@ -1,0 +1,103 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..33b3980
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,97 @@
++"""Generate daily revenue report by store for the previous calendar day.
++
++Runs daily at 03:00 UTC to capture all orders from the previous day
++(late orders trickle in until ~02:00 UTC).
++
++Output: output/daily_revenue/<YYYY-MM-DD>.csv with columns:
++  - store_id
++  - orders (count)
++  - revenue (rounded to 2 decimals)
++
++Sorted by store_id. Idempotent — can be safely rerun.
++"""
++
++from __future__ import annotations
++
++import csv
++from datetime import datetime, timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    """Daily revenue aggregation by store for the previous calendar day."""
++
++    @task
++    def generate_revenue_report(ds: str) -> str:
++        """
++        Generate daily revenue report.
++
++        Args:
++            ds: Logical date (YYYY-MM-DD) - the DAY BEING REPORTED ON.
++                When the DAG runs at 03:00 on 2026-09-29, ds='2026-09-28'.
++
++        Returns:
++            Path to the generated CSV file.
++        """
++        # Parse the logical date (the day we're reporting on)
++        report_date = datetime.strptime(ds, "%Y-%m-%d").date()
++
++        # Read orders.csv and filter for the report date (midnight to midnight UTC)
++        orders_path = PROJECT_ROOT / "data" / "orders.csv"
++        daily_revenue_by_store = {}
++
++        with open(orders_path, newline="") as f:
++            reader = csv.DictReader(f)
++            for row in reader:
++                # Parse order timestamp (UTC)
++                order_ts = datetime.strptime(
++                    row["order_ts"], "%Y-%m-%d %H:%M:%S"
++                ).date()
++
++                # Filter for the report date
++                if order_ts == report_date:
++                    store_id = row["store_id"]
++                    amount = float(row["amount"])
++
++                    if store_id not in daily_revenue_by_store:
++                        daily_revenue_by_store[store_id] = {
++                            "orders": 0,
++                            "revenue": 0.0,
++                        }
++
++                    daily_revenue_by_store[store_id]["orders"] += 1
++                    daily_revenue_by_store[store_id]["revenue"] += amount
++
++        # Sort by store_id for deterministic output
++        sorted_stores = sorted(daily_revenue_by_store.items())
++
++        # Write output
++        output_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        output_dir.mkdir(parents=True, exist_ok=True)
++        output_file = output_dir / f"{ds}.csv"
++
++        with open(output_file, "w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerow(["store_id", "orders", "revenue"])
++            for store_id, stats in sorted_stores:
++                # Round revenue to 2 decimals
++                revenue = round(stats["revenue"], 2)
++                writer.writerow([store_id, stats["orders"], revenue])
++
++        return str(output_file)
++
++    generate_revenue_report()
++
++
++daily_revenue()

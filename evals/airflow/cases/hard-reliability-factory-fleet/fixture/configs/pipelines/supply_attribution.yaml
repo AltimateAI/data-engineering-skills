@@ -1,0 +1,19 @@
+name: supply_attribution
+team: supply
+tier: standard
+description: Attribution pipeline for supply
+schedule:
+  hour: 2
+  days: '1'
+retries: 0
+steps:
+- name: extract
+  table: supply.raw_attribution_00
+- name: validate
+  table: supply.int_attribution_00
+  depends_on:
+  - extract
+- name: publish
+  table: supply.mart_attribution_00
+  depends_on:
+  - validate

@@ -1,0 +1,25 @@
+name: supply_chargebacks_hourly_rollup
+team: supply
+tier: standard
+description: Chargebacks pipeline for supply
+schedule:
+  hour: 0
+  days: '*'
+owners:
+- rosa
+steps:
+- name: extract
+  table: supply.raw_chargebacks_00
+- name: validate
+  table: supply.int_chargebacks_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: supply.int_chargebacks_00
+  depends_on:
+  - validate
+- name: publish
+  table: supply.mart_chargebacks_00
+  depends_on:
+  - snapshot
+  - validate

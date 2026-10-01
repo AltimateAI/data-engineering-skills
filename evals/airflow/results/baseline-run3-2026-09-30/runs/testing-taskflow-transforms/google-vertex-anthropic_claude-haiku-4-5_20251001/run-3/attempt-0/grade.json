@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_orders_enrichment.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: dedupe_keeps_first",
+      "kind": "primary",
+      "passed": false,
+      "detail": "dedupe_orders keeps the first row seen per order_id instead of the latest updated_at -> passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: rounding_truncates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "convert_to_usd rounds down (ROUND_DOWN) instead of half-up -> passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: unknown_currency_as_usd",
+      "kind": "primary",
+      "passed": false,
+      "detail": "convert_to_usd treats a currency with no FX rate as USD instead of failing -> passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: validation_bypassed",
+      "kind": "primary",
+      "passed": false,
+      "detail": "load_enriched is wired from convert_to_usd; validate_totals runs in parallel -> passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: schedule_midnight",
+      "kind": "primary",
+      "passed": false,
+      "detail": "schedule changed from 0 6 * * * to @daily (00:00 UTC) -> passed: 32 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.375,
+  "secondary_score": 1.0
+}

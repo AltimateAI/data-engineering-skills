@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_warehouse_hook_and_operator.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 8 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 8 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 3 passed, 5 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestHookConnectionMapping::test_database_path_comes_from_host [AssertionError], tests.test_warehouse_hook_and_operator.TestHookConnectionMapping::test_hook_uses_the_given_conn_id_not_the_default [AssertionError], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_loads_only_partition_date_rows_and_returns_count [CatalogException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_rerun_replaces_partition_and_leaves_other_dates_alone [CatalogException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_table_is_written_to_schema_from_connection [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 4 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestHookConnectionMapping::test_target_schema_comes_from_schema_field [AssertionError], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_loads_only_partition_date_rows_and_returns_count [CatalogException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_rerun_replaces_partition_and_leaves_other_dates_alone [CatalogException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_table_is_written_to_schema_from_connection [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 4 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_loads_only_partition_date_rows_and_returns_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_operator_uses_given_conn_id_not_default [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_rerun_replaces_partition_and_leaves_other_dates_alone [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_table_is_written_to_schema_from_connection [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 7 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_rerun_replaces_partition_and_leaves_other_dates_alone [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator inserts every row of the CSV, not just partition_date -> failed: 5 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_loads_only_partition_date_rows_and_returns_count [AssertionError], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_rerun_replaces_partition_and_leaves_other_dates_alone [AssertionError], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperatorExecute::test_table_is_written_to_schema_from_connection [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

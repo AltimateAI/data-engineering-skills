@@ -1,0 +1,104 @@
+id: hard-reliability-factory-fleet
+area: debugging
+suite: hard
+split: dev
+airflow_version: "3.3"
+max_turns: 80
+timeout_s: 3600
+grade_timeout_s: 1500
+prompt: |
+  Our YAML pipeline fleet (dags/pipeline_factory.py, 140 configs under
+  configs/pipelines/) has become unreliable. From the last day of logs:
+
+      dag-processor:
+      [2026-09-29T02:14:07.551+0000] {python_importer.py:244} ERROR - Failed to import: /opt/airflow/dags/pipeline_factory.py
+      airflow.sdk.exceptions.AirflowTaskTimeout: DagBag import timeout for /opt/airflow/dags/pipeline_factory.py after 30.0s.
+      Please take a look at these docs to improve your DAG import time:
+      * https://airflow.apache.org/docs/apache-airflow/3.3.2/best-practices.html#top-level-python-code
+
+      dag-processor, Tuesday after the billing_reconcile merge:
+      [2026-09-29T16:02:51.090+0000] {dagbag.py:319} ERROR - Error loading DAG from /opt/airflow/dags/pipeline_factory.py: while scanning a simple key
+        in "/opt/airflow/configs/pipelines/billing_reconcile.yaml", line 9, column 1
+      -> every fleet DAG disappeared from the UI until the config was reverted
+
+      worker (every task, every pipeline):
+      [2026-09-29T03:41:12.004+0000] {task_runner.py:...} INFO - Parsing DAG file dags/pipeline_factory.py (28.7s)
+
+  On top of that, the UI shows a new DAG version for every fleet DAG after
+  almost every parse. And at month-end the finance close (tier: critical
+  pipelines) ran three hours late: the warehouse only takes 16 concurrent
+  queries for the whole fleet, every step is a warehouse query, and the
+  standard pipelines kept it full.
+
+  Please fix the factory so that:
+  - dags/pipeline_factory.py parses in under 5 seconds on a laptop (prod is
+    much slower and the import timeout is 30 s);
+  - every parse produces exactly the same DAGs, so there are no new versions
+    unless a config changes; adding, removing or breaking one config must not
+    change any other pipeline's DAG;
+  - a broken config only takes out its own DAG: that pipeline does not show
+    up at all until its config is fixed, every other pipeline keeps loading,
+    and the parse output logs an error that names the config file;
+  - when a worker parses the file to run a task, it builds only the DAG that
+    task belongs to, not all 140;
+  - the fleet never runs more than 16 warehouse queries at once: use a pool
+    named `warehouse` with 16 slots, defined in pools.json (the deploy runs
+    `airflow pools import pools.json`);
+  - when the warehouse is saturated, tasks of critical pipelines are always
+    picked before tasks of standard pipelines, however many steps either
+    pipeline has (teams keep adding steps);
+  - pipelines keep everything they have today: same dag_ids, tasks,
+    dependencies, owners, retries, hour and days. Start minutes must stay
+    spread over the hour (we can't have everything at :00) and an explicit
+    `schedule.minute` in a config wins.
+
+  Don't edit configs/registry.yaml or the pipeline configs; the platform team
+  owns them. There's no scheduler running locally, only the airflow CLI.
+description: |
+  Hard reliability case (Airflow 3.3): a YAML DAG factory at fleet scale.
+  The fixture re-reads a 0.5 MB registry with the pure-Python YAML loader once
+  per pipeline (over a minute, so the DagBag import timeout kills the file),
+  lets any bad config raise out of the module (all 140 DAGs vanish), injects
+  per-process values into every DAG (`hash(name) % 60` start minutes,
+  `",".join(set(owners))`, a parse timestamp in `doc_md`), builds all 140
+  DAGs on every worker parse, and has no warehouse pool or tier priority.
+  What makes it hard: Airflow 3 runtime semantics around isolation. A
+  try/except around building each DAG is not enough: a DAG that raises inside
+  its `with DAG(...)` block is still auto-registered half-built (partial DAG in
+  the UI), and an invalid cron expression or a dependency cycle is only
+  detected when the DagBag validates the bag (`AirflowTimetableInvalid`,
+  cycle check), which becomes an import error for the whole factory file that
+  does not name the config. The fix has to validate per config (or build with
+  `auto_register=False` and call `dag.validate()`/`check_cycle()`), plus three
+  independent sources of serialization churn, the worker parsing context
+  (`get_parsing_context()`), a parse budget that rules out re-loading the
+  registry per pipeline even with libyaml, and absolute priority weights (the
+  default `downstream` weight rule lets a long standard pipeline outrank a
+  critical one).
+  Primary checks: import clean and all 140 DAGs present; tasks, deps, owners
+  (as a set) and retries per config; cron fire times for 8 runs match the
+  config's hour/days and explicit minutes; >= 30 distinct spread minutes and at
+  most 8 pipelines per minute; three parses (PYTHONHASHSEED 1/2/3, three time
+  zones, the last with the clock 3 days 7 hours ahead) give identical dag_hash
+  for every DAG; parse <= 5 s (median of three, DagBag stats); eight broken
+  configs injected (bad YAML, empty file, unknown team, unknown dependency,
+  invalid day-of-week, dependency cycle, duplicate step, unregistered table):
+  all 140 DAGs still load with unchanged hashes, no broken DAG is loaded
+  (not even half-built), every broken file named in the parse output (logs or
+  captured warnings); adding a config and removing another changes no other
+  DAG; with `_AIRFLOW_PARSING_CONTEXT_DAG_ID` set, only that DAG is built and
+  it hashes the same as in a full parse; `airflow pools import pools.json`
+  gives pool `warehouse` with 16 slots; every task uses it; with a 400-step
+  standard pipeline and a 1-step critical pipeline added, every critical task's
+  scheduler priority weight (serialized task's weight rule) exceeds every
+  standard task's; `airflow dags test` of two pipelines runs every step once in
+  dependency order.
+  Mutants: `python_hash_minute`, `set_owner`, `now_doc_md`, `index_minute`
+  (minute from the config's index in the sorted file list),
+  `registry_per_pipeline_libyaml`, `no_validate_autoregister` (try/except per
+  config but default auto-registration and no `validate()`), `silent_skip`,
+  `no_parsing_context`, `downstream_weight_rule`, `dag_concurrency_not_pool`
+  (`max_active_tasks=16` per DAG instead of the pool); reviewer-added
+  adversarial mutants `minute_zero` (spread logic deleted), `outer_try` (one
+  try/except around the whole loop) and `pool_not_declared` (tasks use the
+  pool, pools.json unchanged).

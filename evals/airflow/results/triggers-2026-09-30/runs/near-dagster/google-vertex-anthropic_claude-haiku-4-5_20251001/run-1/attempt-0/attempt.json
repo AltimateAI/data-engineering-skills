@@ -1,0 +1,22 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [],
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "tools": [
+    "read",
+    "edit"
+  ],
+  "returncode": 0,
+  "wall_s": 18.0,
+  "cost_usd": 0.254103,
+  "cost_reported_usd": 0.45336,
+  "steps": 3,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "errors": []
+}

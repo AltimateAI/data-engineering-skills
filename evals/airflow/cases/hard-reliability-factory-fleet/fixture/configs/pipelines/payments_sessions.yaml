@@ -1,0 +1,27 @@
+name: payments_sessions
+team: payments
+tier: standard
+description: Sessions pipeline for payments
+schedule:
+  hour: 4
+  days: '*'
+steps:
+- name: extract
+  table: payments.raw_sessions_00
+- name: transform
+  table: payments.int_sessions_00
+  depends_on:
+  - extract
+- name: enrich
+  table: payments.int_sessions_00
+  depends_on:
+  - transform
+  - extract
+- name: aggregate
+  table: payments.int_sessions_00
+  depends_on:
+  - enrich
+- name: publish
+  table: payments.mart_sessions_00
+  depends_on:
+  - aggregate

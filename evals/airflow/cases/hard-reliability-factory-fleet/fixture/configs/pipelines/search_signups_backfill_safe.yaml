@@ -1,0 +1,37 @@
+name: search_signups_backfill_safe
+team: search
+tier: standard
+description: Signups pipeline for search
+schedule:
+  hour: 4
+  days: 1-5
+  minute: 45
+retries: 4
+steps:
+- name: extract
+  table: search.raw_signups_00
+- name: validate
+  table: search.int_signups_00
+  depends_on:
+  - extract
+- name: transform
+  table: search.int_signups_00
+  depends_on:
+  - validate
+- name: enrich
+  table: search.int_signups_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: search.int_signups_00
+  depends_on:
+  - enrich
+  - transform
+- name: snapshot
+  table: search.int_signups_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: search.mart_signups_00
+  depends_on:
+  - snapshot

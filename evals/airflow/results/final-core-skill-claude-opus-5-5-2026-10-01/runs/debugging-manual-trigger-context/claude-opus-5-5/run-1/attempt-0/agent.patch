@@ -1,0 +1,71 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..6f39e9a 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -11,8 +11,9 @@ import json
+ from datetime import datetime
+ from pathlib import Path
+ 
++import pendulum
+ from airflow.providers.standard.operators.bash import BashOperator
+-from airflow.sdk import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "partner_orders.csv"
+@@ -21,16 +22,26 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def feed_day(dag_run) -> str:
++    """The day this run delivers: its logical date, or, for a manual trigger
++    without one, the UTC day it was triggered (run_after is stored on the run,
++    so clearing and re-running it later gives the same day)."""
++    when = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(when).in_tz("UTC").strftime("%Y-%m-%d")
++
++
+ @dag(
+-    schedule="0 4 * * *",
++    # Each 04:00 run delivers the day that just ended (logical date = previous
++    # day), as on Airflow 2. A bare cron string would make it the run's own day.
++    schedule=CronDataIntervalTimetable("0 4 * * *", timezone="UTC"),
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     tags=["partner", "acme"],
+ )
+ def partner_feed():
+     @task
+-    def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++    def extract_orders(dag_run=None) -> str:
++        day = feed_day(dag_run)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -46,8 +57,8 @@ def partner_feed():
+         return str(out)
+ 
+     @task
+-    def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++    def write_manifest(feed_path: str, dag_run=None) -> str:
++        day = feed_day(dag_run)
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -59,11 +70,12 @@ def partner_feed():
+     deliver = BashOperator(
+         task_id="deliver",
+         bash_command=(
++            "{% set day = (dag_run.logical_date or dag_run.run_after) | ds_nodash %}"
+             "mkdir -p {{ params.outbox }}"
+             " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " {{ params.outbox }}/acme_orders_{{ day }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ day }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )

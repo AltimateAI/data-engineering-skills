@@ -1,0 +1,31 @@
+name: risk_orders
+team: risk
+tier: critical
+description: Orders pipeline for risk
+schedule:
+  hour: 6
+  days: 1-5
+steps:
+- name: extract
+  table: risk.raw_orders_00
+- name: validate
+  table: risk.int_orders_00
+  depends_on:
+  - extract
+- name: enrich
+  table: risk.int_orders_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: risk.int_orders_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: risk.int_orders_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: risk.mart_orders_00
+  depends_on:
+  - snapshot
+  - aggregate

@@ -1,0 +1,6 @@
+version: 2
+models:
+  - name: orders
+    columns:
+      - name: order_id
+      - name: customer_id

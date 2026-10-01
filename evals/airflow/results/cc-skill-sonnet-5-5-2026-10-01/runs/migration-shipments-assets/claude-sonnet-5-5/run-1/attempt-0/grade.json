@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['carrier_scorecard', 'ingest_shipments']"
+    },
+    {
+      "name": "both DAGs keep their tasks and dependencies",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ingest_shipments: tasks=['load_batch'] deps=[]; carrier_scorecard: tasks=['build_scorecard', 'mark_ready'] deps=[['build_scorecard', 'mark_ready']]"
+    },
+    {
+      "name": "carrier_scorecard is still scheduled on the asset ingest_shipments updates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{'outlets': ['name:warehouse://shipments/batches', 'uri:warehouse://shipments/batches'], 'schedule_assets': ['name:warehouse://shipments/batches', 'uri:warehouse://shipments/batches'], 'timetable': 'AssetTriggeredTimetable'}"
+    },
+    {
+      "name": "dags test succeeds (ingest_shipments, carrier_scorecard)",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "three hourly loads and the scorecard run succeed on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ingest_shipments: 2026-03-05T01:00:00+00:00: state=success interval=[2026-03-05T00:00:00+00:00, 2026-03-05T01:00:00+00:00] failed=[]; 2026-03-05T02:00:00+00:00: state=success interval=[2026-03-05T01:00:00+00:00, 2026-03-05T02:00:00+00:00] failed=[]; 2026-03-05T03:00:00+00:00: state=success interval=[2026-03-05T02:00:00+00:00, 2026-03-05T03:00:00+00:00] failed=[]\ncarrier_scorecard: manual 2026-03-05T03:30:00+00:00: state=success interval=[None, None] failed=[]"
+    },
+    {
+      "name": "every carrier event is loaded exactly once, in the same batches as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected batches ['warehouse/shipments/batch_20260305T0100.csv', 'warehouse/shipments/batch_20260305T0200.csv', 'warehouse/shipments/batch_20260305T0300.csv'] (rows [140, 5, 6])\n got ['warehouse/shipments/batch_20260305T0100.csv', 'warehouse/shipments/batch_20260305T0100.watermark', 'warehouse/shipments/batch_20260305T0200.csv', 'warehouse/shipments/batch_20260305T0200.watermark', 'warehouse/shipments/batch_20260305T0300.csv', 'warehouse/shipments/batch_20260305T0300.watermark'] (rows [140, 0, 5, 0, 6, 0])"
+    },
+    {
+      "name": "scorecard and _READY marker match 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'scorecard/_READY': 'carriers=4 shipments=63', 'scorecard/carrier_scorecard.csv': 'carrier,shipments,delivered,on_time,on_time_rate\\nDHLX,13,9,7,0.778\\nFEDX,19,9,8,0.889\\nUPSX,12,8,7,0.875\\nUSPX,19,11,8,0.727'}\n got {'scorecard/_READY': 'carriers=4 shipments=63', 'scorecard/carrier_scorecard.csv': 'carrier,shipments,delivered,on_time,on_time_rate\\nDHLX,13,9,7,0.778\\nFEDX,19,9,8,0.889\\nUPSX,12,8,7,0.875\\nUSPX,19,11,8,0.727'}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bDagBag\\\\b', '\\\\bruff\\\\b.*\\\\bAIR\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/carrier_scorecard.py:59 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.8571428571428571,
+  "secondary_score": 0.6666666666666666
+}

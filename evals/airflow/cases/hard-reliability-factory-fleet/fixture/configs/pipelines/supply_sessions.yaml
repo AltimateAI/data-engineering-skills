@@ -1,0 +1,32 @@
+name: supply_sessions
+team: supply
+tier: standard
+description: Sessions pipeline for supply
+schedule:
+  hour: 5
+  days: '*'
+owners:
+- yusuf
+steps:
+- name: extract
+  table: supply.raw_sessions_00
+- name: stage
+  table: supply.stg_sessions_00
+  depends_on:
+  - extract
+- name: transform
+  table: supply.int_sessions_00
+  depends_on:
+  - stage
+- name: enrich
+  table: supply.int_sessions_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: supply.int_sessions_00
+  depends_on:
+  - enrich
+- name: publish
+  table: supply.mart_sessions_00
+  depends_on:
+  - aggregate

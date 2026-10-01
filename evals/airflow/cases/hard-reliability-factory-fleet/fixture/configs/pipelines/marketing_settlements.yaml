@@ -1,0 +1,22 @@
+name: marketing_settlements
+team: marketing
+tier: standard
+description: Settlements pipeline for marketing
+schedule:
+  hour: 3
+  days: '*'
+steps:
+- name: extract
+  table: marketing.raw_settlements_00
+- name: enrich
+  table: marketing.int_settlements_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: marketing.int_settlements_00
+  depends_on:
+  - enrich
+- name: publish
+  table: marketing.mart_settlements_00
+  depends_on:
+  - aggregate

@@ -1,0 +1,25 @@
+name: logistics_payouts
+team: logistics
+tier: critical
+description: Payouts pipeline for logistics
+schedule:
+  hour: 1
+  days: '1'
+owners:
+- lena
+- fatima
+steps:
+- name: extract
+  table: logistics.raw_payouts_00
+- name: transform
+  table: logistics.int_payouts_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: logistics.int_payouts_00
+  depends_on:
+  - transform
+- name: publish
+  table: logistics.mart_payouts_00
+  depends_on:
+  - aggregate

@@ -1,0 +1,27 @@
+name: people_chargebacks_backfill_safe
+team: people
+tier: standard
+description: Chargebacks pipeline for people
+schedule:
+  hour: 4
+  days: '*'
+steps:
+- name: extract
+  table: people.raw_chargebacks_00
+- name: transform
+  table: people.int_chargebacks_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: people.int_chargebacks_00
+  depends_on:
+  - transform
+  - extract
+- name: snapshot
+  table: people.int_chargebacks_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: people.mart_chargebacks_00
+  depends_on:
+  - snapshot

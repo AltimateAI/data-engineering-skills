@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAG imports cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['hourly_pageviews']"
+    },
+    {
+      "name": "hourly_pageviews keeps its tasks and dependencies",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['aggregate_hour', 'extract_hour', 'publish_hour'] deps=[['aggregate_hour', 'publish_hour'], ['extract_hour', 'aggregate_hour']]"
+    },
+    {
+      "name": "dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "manual 2026-03-05T10:00:00+00:00: state=failed interval=[None, None] failed=['aggregate_hour', 'publish_hour']\n*kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/macros.py\", line 51, in ds_add\n    dt = datetime.strptime(str(ds), \"%Y-%m-%d\") + timedelta(days=days)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework/Versions/3.12/lib/python3.12/_strptime.py\", line 655, in _strptime_datetime\n    tt, fraction, gmtoff_fraction = _strptime(data_string, format)\n                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework/Versions/3.12/lib/python3.12/_strptime.py\", line 437, in _strptime\n    raise ValueError(\"unconverted data remains: %s\" %\nValueError: unconverted data remains:  10:00:00+00:00\n2026-09-30T15:46:54.941286Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T15:46:54.942413Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T15:46:54.947036Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f2ff-555e-78f3-b370-ecec43652fa3 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f2ff-4ee7-74fc-a065-da0828e9d73f\n2026-09-30T15:46:54.950156Z [info     ] [DAG TEST] end task task_id=aggregate_hour map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T15:46:54.952918Z [info     ] Marking run <DagRun hourly_pageviews @ 2026-03-05 10:00:00+00:00: manual__2026-09-30T15:46:53.249000+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T15:46:54.953143Z [info     ] DagRun Finished: dag_id=hourly_pageviews, logical_date=2026-03-05 10:00:00+00:00, run_id=manual__2026-09-30T15:46:53.249000+00:00, run_start_date=2026-03-05 10:00:00+00:00, run_end_date=2026-09-30 15:46:54.952960+00:00, run_duration=18078414.95296, state=failed, run_type=manual, data_interval_start=2026-03-05 10:00:00+00:00, data_interval_end=2026-03-05 10:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"manual\": \"2026-03-05T10:00:00+00:00\", \"logical_date\": \"2026-03-05T10:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"aggregate_hour\": \"failed\", \"extract_hour\": \"success\", \"publish_hour\": \"upstream_failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "scheduled hourly runs succeed on 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-03-05T10:00:00+00:00: state=failed interval=[2026-03-05T10:00:00+00:00, 2026-03-05T10:00:00+00:00] failed=['aggregate_hour', 'publish_hour']; 2026-03-05T11:00:00+00:00: state=failed interval=[2026-03-05T11:00:00+00:00, 2026-03-05T11:00:00+00:00] failed=['aggregate_hour', 'publish_hour']; 2026-03-06T00:00:00+00:00: state=failed interval=[2026-03-06T00:00:00+00:00, 2026-03-06T00:00:00+00:00] failed=['aggregate_hour', 'publish_hour']\n/3.12.8/Frameworks/Python.framework/Versions/3.12/lib/python3.12/_strptime.py\", line 437, in _strptime\n    raise ValueError(\"unconverted data remains: %s\" %\nValueError: unconverted data remains:  00:00:00+00:00\n2026-09-30T15:46:59.470423Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T15:46:59.470537Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T15:46:59.474115Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f2ff-670e-7927-acd2-3baf4b217583 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f2ff-66f1-7f5b-978a-534ff34aa456\n2026-09-30T15:46:59.476653Z [info     ] [DAG TEST] end task task_id=aggregate_hour map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T15:46:59.478801Z [info     ] Marking run <DagRun hourly_pageviews @ 2026-03-06 00:00:00+00:00: manual__2026-03-06T00:00:00+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T15:46:59.478858Z [info     ] DagRun Finished: dag_id=hourly_pageviews, logical_date=2026-03-06 00:00:00+00:00, run_id=manual__2026-03-06T00:00:00+00:00, run_start_date=2026-03-06 00:00:00+00:00, run_end_date=2026-09-30 15:46:59.478832+00:00, run_duration=18028019.478832, state=failed, run_type=manual, data_interval_start=2026-03-06 00:00:00+00:00, data_interval_end=2026-03-06 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"run_after\": \"2026-03-05T10:00:00+00:00\", \"logical_date\": \"2026-03-05T10:00:00+00:00\", \"start\": \"2026-03-05T10:00:00+00:00\", \"end\": \"2026-03-05T10:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"aggregate_hour\": \"failed\", \"extract_hour\": \"success\", \"publish_hour\": \"upstream_failed\"}}, {\"run_after\": \"2026-03-05T11:00:00+00:00\", \"logical_date\": \"2026-03-05T11:00:00+00:00\", \"start\": \"2026-03-05T11:00:00+00:00\", \"end\": \"2026-03-05T11:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"aggregate_hour\": \"failed\", \"extract_hour\": \"success\", \"publish_hour\": \"upstream_failed\"}}, {\"run_after\": \"2026-03-06T00:00:00+00:00\", \"logical_date\": \"2026-03-06T00:00:00+00:00\", \"start\": \"2026-03-06T00:00:00+00:00\", \"end\": \"2026-03-06T00:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"aggregate_hour\": \"failed\", \"extract_hour\": \"success\", \"publish_hour\": \"upstream_failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "hourly rollups (previous clock hour, change vs hour before) match 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'hourly/20260305T09.csv': 'page,views,sessions,views_change\\n/,5,5,\\n/blog,9,9,\\n/checkout,10,10,\\n/docs,8,7,\\n/pricing,10,10,\\n/signup,11,11,', 'hourly/20260305T10.csv': 'page,views,sessions,views_change\\n/,9,9,4\\n/blog,8,7,-1\\n/checkout,12,11,2\\n/docs,4,4,-4\\n/pricing,9,8,-1\\n/signup,6,6,-5', 'hourly/20260305T23.csv': 'page,views,sessions,views_change\\n/,10,10,\\n/blog,6,6,\\n/checkout,11,10,\\n/docs,5,5,\\n/pricing,5,4,\\n/signup,7,7,'}\n got {}"
+    },
+    {
+      "name": "completion markers match 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'markers/20260305T090000.done': 'hour=2026-03-05T09:00 staged=53', 'markers/20260305T100000.done': 'hour=2026-03-05T10:00 staged=48', 'markers/20260305T230000.done': 'hour=2026-03-05T23:00 staged=44'}\n got {}"
+    },
+    {
+      "name": "staging cleanup keeps and deletes the same files as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected files ['staging/20260305T08.csv', 'staging/20260305T09.csv', 'staging/20260305T10.csv', 'staging/20260305T23.csv']\n got ['staging/20260304T22.csv', 'staging/20260304T23.csv', 'staging/20260305T08.csv', 'staging/20260305T10.csv', 'staging/20260305T11.csv', 'staging/20260306T00.csv']"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/hourly_pageviews.py:73 AIR311; dags/hourly_pageviews.py:83 AIR001; dags/hourly_pageviews.py:92 AIR001; dags/hourly_pageviews.py:100 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.2857142857142857,
+  "secondary_score": 0.6666666666666666
+}

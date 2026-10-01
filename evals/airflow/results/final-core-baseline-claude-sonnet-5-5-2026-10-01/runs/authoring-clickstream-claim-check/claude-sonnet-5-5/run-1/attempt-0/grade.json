@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG clickstream_page_stats exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['clickstream_page_stats', 'marketing_spend_daily']"
+    },
+    {
+      "name": "extract, transform and load are separate chained tasks",
+      "kind": "primary",
+      "passed": true,
+      "detail": "longest dependency chain: 3 tasks; deps=[['extract', 'transform'], ['transform', 'load']]"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "page stats are correct for each day",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-09-28: expected 32 pages, got 32 (first mismatch: none); 2026-09-29: expected 32 pages, got 32 (first mismatch: none)"
+    },
+    {
+      "name": "no XCom/Variable value larger than 48 KB (data passed by reference)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "4 XCom/Variable rows; largest: task=transform key=return_value bytes=236"
+    },
+    {
+      "name": "rerun reproduces the output",
+      "kind": "primary",
+      "passed": true,
+      "detail": "rerun ok=True"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

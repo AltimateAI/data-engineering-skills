@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": false,
+      "detail": "dags/pageviews_daily.py: ImportError: cannot import name 'get_airflow_context' from 'airflow.sdk' (~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/__init__.py)"
+    },
+    {
+      "name": "DAG pageviews_daily exists",
+      "kind": "primary",
+      "passed": false,
+      "detail": "found: ['top_pages_weekly']"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "20 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.0,
+  "secondary_score": 0.6666666666666666
+}

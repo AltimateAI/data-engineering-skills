@@ -1,0 +1,26 @@
+name: logistics_suppliers
+team: logistics
+tier: standard
+description: Suppliers pipeline for logistics
+schedule:
+  hour: 4
+  days: '1'
+steps:
+- name: extract
+  table: logistics.raw_suppliers_00
+- name: stage
+  table: logistics.stg_suppliers_00
+  depends_on:
+  - extract
+- name: validate
+  table: logistics.int_suppliers_00
+  depends_on:
+  - stage
+- name: enrich
+  table: logistics.int_suppliers_00
+  depends_on:
+  - validate
+- name: publish
+  table: logistics.mart_suppliers_00
+  depends_on:
+  - enrich

@@ -1,0 +1,122 @@
+diff --git a/dags/carrier_scorecard.py b/dags/carrier_scorecard.py
+index 2d4f784..38e48b0 100644
+--- a/dags/carrier_scorecard.py
++++ b/dags/carrier_scorecard.py
+@@ -7,18 +7,17 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.datasets import Dataset
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.sdk import DAG, Asset
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+ SCORECARD_DIR = PROJECT_ROOT / "output" / "scorecard"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ 
+ 
+-def build_scorecard(ti, **_):
++def _build_scorecard(ti, **_):
+     latest: dict[str, dict] = {}
+     for batch in sorted(BATCH_DIR.glob("batch_*.csv")):
+         with batch.open(newline="") as fh:
+@@ -57,13 +56,13 @@ with DAG(
+     params={"scorecard_dir": str(SCORECARD_DIR)},
+     tags=["logistics", "reporting"],
+ ) as dag:
+-    build = PythonOperator(task_id="build_scorecard", python_callable=build_scorecard)
++    build_scorecard = PythonOperator(task_id="build_scorecard", python_callable=_build_scorecard)
+     mark_ready = BashOperator(
+         task_id="mark_ready",
+         bash_command=(
+-            "echo 'carriers={{ ti.xcom_pull(key=\"carriers\") }} "
+-            "shipments={{ ti.xcom_pull(key=\"shipments\") }}' "
++            "echo 'carriers={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"carriers\") }} "
++            "shipments={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"shipments\") }}' "
+             "> {{ params.scorecard_dir }}/_READY"
+         ),
+     )
+-    build >> mark_ready
++    build_scorecard >> mark_ready
+diff --git a/dags/ingest_shipments.py b/dags/ingest_shipments.py
+index d5050e6..a29e77e 100644
+--- a/dags/ingest_shipments.py
++++ b/dags/ingest_shipments.py
+@@ -3,7 +3,7 @@
+ Each run appends one batch file with every event that arrived since the
+ previous run's high-water mark (the largest ``updated_at`` it loaded, kept in
+ XCom) up to the end of the run's interval. Publishing the batch updates the
+-``shipments`` dataset, which triggers ``carrier_scorecard``.
++``shipments`` asset, which triggers ``carrier_scorecard``.
+ """
+ 
+ from __future__ import annotations
+@@ -12,36 +12,17 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.datasets import Dataset
+-from airflow.decorators import dag, task
+-from airflow.models import XCom
+-from airflow.utils.session import provide_session
++from airflow.sdk import CronDataIntervalTimetable, dag, task, Asset
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ SOURCE = PROJECT_ROOT / "data" / "carrier_events.csv"
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ FIELDS = ["event_id", "shipment_id", "carrier", "status", "promised_date", "updated_at"]
+ 
+ 
+-@provide_session
+-def previous_watermark(session=None) -> str | None:
+-    """High-water mark stored by the most recent load."""
+-    row = (
+-        session.query(XCom)
+-        .filter(
+-            XCom.dag_id == "ingest_shipments",
+-            XCom.task_id == "load_batch",
+-            XCom.key == "watermark",
+-        )
+-        .order_by(XCom.timestamp.desc())
+-        .first()
+-    )
+-    return row.value if row else None
+-
+-
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -51,7 +32,12 @@ def previous_watermark(session=None) -> str | None:
+ def ingest_shipments():
+     @task(outlets=[SHIPMENTS])
+     def load_batch(data_interval_end=None, ti=None) -> int:
+-        watermark = previous_watermark()
++        # Read the high-water mark from the most recent successful run.
++        # On 3.x metadata-DB queries are not allowed in task code; use XCom pull
++        # with an explicit task_ids so the lookup targets the producer task rather
++        # than the current one (3.x default).
++        watermark = ti.xcom_pull(task_ids="load_batch", key="watermark")
++
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with SOURCE.open(newline="") as fh:
+             rows = [
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..1e2dccc 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.3.0
+ pendulum==3.2.0

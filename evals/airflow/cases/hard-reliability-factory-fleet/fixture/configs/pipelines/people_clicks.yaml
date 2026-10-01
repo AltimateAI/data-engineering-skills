@@ -1,0 +1,18 @@
+name: people_clicks
+team: people
+tier: standard
+description: Clicks pipeline for people
+schedule:
+  hour: 5
+  days: 1-5
+steps:
+- name: extract
+  table: people.raw_clicks_00
+- name: enrich
+  table: people.int_clicks_00
+  depends_on:
+  - extract
+- name: publish
+  table: people.mart_clicks_00
+  depends_on:
+  - enrich

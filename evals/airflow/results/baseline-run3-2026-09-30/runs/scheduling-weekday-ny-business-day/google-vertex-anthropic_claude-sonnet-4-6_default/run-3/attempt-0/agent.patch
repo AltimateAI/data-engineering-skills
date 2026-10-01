@@ -1,0 +1,70 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..4b3a238 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,10 +3,16 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Schedule: weekdays (Mon-Fri) at 06:00 America/New_York.
++Report date: the previous business day relative to the run date.
++  - Tuesday–Friday runs  → previous calendar day (always a weekday)
++  - Monday runs          → the preceding Friday
+ """
+ 
+ import csv
+ from collections import defaultdict
++from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+@@ -17,6 +23,20 @@ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
+ 
++def previous_business_day(run_date: pendulum.DateTime) -> str:
++    """Return the previous business day (Mon–Fri) as a YYYY-MM-DD string.
++
++    Monday  → Friday   (step back 3 days)
++    Tue–Fri → previous calendar day (step back 1 day)
++    """
++    # run_date.day_of_week: Monday=0 … Sunday=6 (pendulum convention)
++    if run_date.day_of_week == pendulum.MONDAY:
++        delta = 3
++    else:
++        delta = 1
++    return (run_date - timedelta(days=delta)).strftime("%Y-%m-%d")
++
++
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+     totals: dict[str, list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
+@@ -41,16 +61,23 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    # Run at 06:00 America/New_York, Monday-Friday only.
++    # Airflow evaluates the cron in the timezone specified by `timezone`.
++    schedule="0 6 * * 1-5",
++    start_date=pendulum.datetime(2026, 1, 1, tz="America/New_York"),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
++    timezone="America/New_York",
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(data_interval_start=None) -> str:
++        # data_interval_start is the scheduled run time in America/New_York.
++        # Derive the previous business day from it.
++        run_dt = pendulum.instance(data_interval_start).in_timezone("America/New_York")
++        trade_date = previous_business_day(run_dt)
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 

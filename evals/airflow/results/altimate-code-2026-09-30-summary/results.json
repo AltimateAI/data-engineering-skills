@@ -1,0 +1,3696 @@
+{
+  "meta": {
+    "generated_at": "2026-10-01T09:29:30+00:00",
+    "inputs": [
+      "evals/airflow/results/baseline-2026-09-30",
+      "evals/airflow/results/baseline-run3-2026-09-30",
+      "evals/airflow/results/skill-2026-09-30"
+    ],
+    "index_dirs": [
+      "evals/airflow/results/_smoke-haiku-baseline",
+      "evals/airflow/results/_smoke-haiku-skill",
+      "evals/airflow/results/_smoke-sonnet-baseline",
+      "evals/airflow/results/baseline-2026-09-30",
+      "evals/airflow/results/baseline-run3-2026-09-30",
+      "evals/airflow/results/cc-baseline-sonnet-5-5-2026-10-01",
+      "evals/airflow/results/cc-skill-sonnet-5-5-2026-10-01",
+      "evals/airflow/results/cc-triggers-2026-10-01",
+      "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+      "evals/airflow/results/final-triggers-2026-10-01",
+      "evals/airflow/results/skill-2026-09-30",
+      "evals/airflow/results/triggers-2026-09-30"
+    ],
+    "work_root": "<work>",
+    "harness_sha256": "20c2cab06bbe97cdd2577a662e6740733505cb930d0a6fcd1255437418d64d6c",
+    "current_airflow_skills_sha256": "a8dbbed8a1a806945b4148c2bd2be3220610ac7e5403737df42dc6743411ca0e",
+    "campaigns": [
+      {
+        "dir": "evals/airflow/results/baseline-2026-09-30",
+        "arm": "baseline",
+        "models": [
+          "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "google-vertex-anthropic/claude-haiku-4-5@20251001"
+        ],
+        "runner": null,
+        "altimate_code_version": "0.12.2",
+        "airflow_skills_sha256": null,
+        "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+        "started_at": "2026-09-30T11:53:13+00:00"
+      },
+      {
+        "dir": "evals/airflow/results/baseline-run3-2026-09-30",
+        "arm": "baseline",
+        "models": [
+          "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "google-vertex-anthropic/claude-haiku-4-5@20251001"
+        ],
+        "runner": null,
+        "altimate_code_version": "0.12.2",
+        "airflow_skills_sha256": null,
+        "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+        "started_at": "2026-09-30T15:24:19+00:00"
+      },
+      {
+        "dir": "evals/airflow/results/skill-2026-09-30",
+        "arm": "skill",
+        "models": [
+          "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "google-vertex-anthropic/claude-haiku-4-5@20251001"
+        ],
+        "runner": null,
+        "altimate_code_version": "0.12.2",
+        "airflow_skills_sha256": "e03e9d6dbfd25d119b2586f509d4fce86bcfd8d5b243fa25994516fb246b0a19",
+        "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+        "started_at": "2026-09-30T15:26:28+00:00"
+      }
+    ],
+    "n_attempts": 244,
+    "n_attempts_with_events": 244,
+    "n_runs": {
+      "all": 240,
+      "excluding-flagged": 143,
+      "excluding-strong": 221
+    },
+    "flag_counts": [
+      {
+        "split": "dev",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "attempts": 39,
+        "flagged": 19,
+        "strong": 1,
+        "no_events": 0,
+        "flagged_fail": 13,
+        "flagged_pass": 6
+      },
+      {
+        "split": "dev",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "attempts": 39,
+        "flagged": 9,
+        "strong": 2,
+        "no_events": 0,
+        "flagged_pass": 8,
+        "flagged_fail": 1
+      },
+      {
+        "split": "dev",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "attempts": 39,
+        "flagged": 15,
+        "strong": 3,
+        "no_events": 0,
+        "flagged_pass": 13,
+        "flagged_fail": 2
+      },
+      {
+        "split": "dev",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "attempts": 39,
+        "flagged": 22,
+        "strong": 6,
+        "no_events": 0,
+        "flagged_pass": 21,
+        "flagged_fail": 1
+      },
+      {
+        "split": "holdout",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "attempts": 21,
+        "flagged": 11,
+        "strong": 1,
+        "no_events": 0,
+        "flagged_pass": 4,
+        "flagged_fail": 7
+      },
+      {
+        "split": "holdout",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "attempts": 21,
+        "flagged": 2,
+        "strong": 1,
+        "no_events": 0,
+        "flagged_fail": 1,
+        "flagged_pass": 1
+      },
+      {
+        "split": "holdout",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "attempts": 21,
+        "flagged": 8,
+        "strong": 2,
+        "no_events": 0,
+        "flagged_fail": 7,
+        "flagged_pass": 1
+      },
+      {
+        "split": "holdout",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "attempts": 21,
+        "flagged": 11,
+        "strong": 3,
+        "no_events": 0,
+        "flagged_pass": 8,
+        "flagged_fail": 3
+      }
+    ]
+  },
+  "strong_attempts": [
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "authoring-vendor-shipments-etl",
+      "run": 3,
+      "status": "ok",
+      "source": "baseline-run3-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/landing",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 1,
+          "prior_users": [
+            "baseline-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "debugging-variable-at-parse",
+      "run": 3,
+      "status": "ok",
+      "source": "baseline-run3-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<work>/baseline-run3-2026-09-30-baseline-20260930-082417",
+          "root": "work-root",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 0,
+          "prior_users": [],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "scheduling-backfill-pageviews",
+      "run": 3,
+      "status": "task_fail",
+      "source": "baseline-run3-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 1,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "testing-custom-operator-conn",
+      "run": 3,
+      "status": "ok",
+      "source": "baseline-run3-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/test.duckdb",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 1,
+          "prior_users": [
+            "baseline-2026-09-30/runs/testing-custom-operator-conn/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "testing-taskflow-transforms",
+      "run": 3,
+      "status": "ok",
+      "source": "baseline-run3-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "debugging-variable-at-parse",
+      "run": 1,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 1,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 1,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 3,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-hourly-pageviews-templates",
+      "run": 1,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 3,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 3,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-inventory-context",
+      "run": 1,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 4,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 4,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 5,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 5,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 5,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 5,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 5,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 5,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-revenue-previous-day",
+      "run": 1,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 6,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-hourly-pageviews-templates",
+      "run": 2,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 11,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 11,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 11,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 11,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 13,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 13,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 13,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-2/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-hourly-pageviews-templates",
+      "run": 2,
+      "status": "task_fail",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 12,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 13,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-revenue-previous-day",
+      "run": 2,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 16,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 17,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 17,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "scheduling-idempotent-orders-load",
+      "run": 2,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 3,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/testing-taskflow-transforms/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/airflow_test",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 3,
+          "prior_users": [
+            "baseline-run3-2026-09-30/runs/authoring-vendor-shipments-etl/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/scheduling-backfill-pageviews/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0",
+            "baseline-run3-2026-09-30/runs/testing-taskflow-transforms/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "debugging-variable-at-parse",
+      "run": 3,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/test_warehouse",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 1,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-hourly-pageviews-templates",
+      "run": 3,
+      "status": "task_fail",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 18,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": []
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 18,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-hourly-pageviews-templates",
+      "run": 3,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 21,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 21,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 21,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-revenue-previous-day",
+      "run": 3,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 24,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 24,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 24,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 24,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 24,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 20,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 24,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 20,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 21,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 21,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 21,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 25,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-shipments-assets/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-weekly-catchup",
+      "run": 3,
+      "status": "ok",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 26,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 26,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 26,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 26,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 27,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 27,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 22,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 27,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 23,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 27,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 23,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 27,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 23,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/before.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 27,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-haiku-4-5_20251001/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        },
+        {
+          "tool": "bash",
+          "path": "<tmp>/after.json",
+          "root": "shared-temp",
+          "first_access": "overwrite",
+          "strength": "strong",
+          "n_prior_users": 23,
+          "prior_users": [
+            "skill-2026-09-30/runs/debugging-manual-trigger-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/debugging-variable-at-parse/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-1",
+            "skill-2026-09-30/runs/migration-hourly-pageviews-templates/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-inventory-context/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0",
+            "skill-2026-09-30/runs/migration-revenue-previous-day/google-vertex-anthropic_claude-sonnet-4-6_default/run-1/attempt-0"
+          ],
+          "concurrent_writers": [
+            "skill-2026-09-30/runs/migration-weekly-catchup/google-vertex-anthropic_claude-haiku-4-5_20251001/run-3/attempt-0"
+          ]
+        }
+      ]
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "testing-custom-operator-conn",
+      "run": 3,
+      "status": "turn_limit",
+      "source": "skill-2026-09-30",
+      "hits": [
+        {
+          "tool": "bash",
+          "path": "<tmp>/test.duckdb",
+          "root": "shared-temp",
+          "first_access": "use",
+          "strength": "strong",
+          "n_prior_users": 2,
+          "prior_users": [
+            "baseline-2026-09-30/runs/testing-custom-operator-conn/google-vertex-anthropic_claude-sonnet-4-6_default/run-2/attempt-0",
+            "baseline-run3-2026-09-30/runs/testing-custom-operator-conn/google-vertex-anthropic_claude-sonnet-4-6_default/run-3/attempt-0"
+          ],
+          "concurrent_writers": []
+        }
+      ]
+    }
+  ],
+  "tables": {
+    "all": {
+      "n_runs": 240,
+      "by_split_arm_model": [
+        {
+          "split": "dev",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 39,
+          "pass_rate": 0.359,
+          "n_runs": 39,
+          "statuses": {
+            "ok": 14,
+            "task_fail": 18,
+            "turn_limit": 7
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 39,
+          "pass_rate": 0.5641,
+          "n_runs": 39,
+          "statuses": {
+            "ok": 22,
+            "task_fail": 12,
+            "turn_limit": 5
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 39,
+          "pass_rate": 0.7949,
+          "n_runs": 39,
+          "statuses": {
+            "ok": 31,
+            "task_fail": 6,
+            "turn_limit": 2
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 39,
+          "pass_rate": 0.9487,
+          "n_runs": 39,
+          "statuses": {
+            "ok": 37,
+            "task_fail": 2
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 21,
+          "pass_rate": 0.1905,
+          "n_runs": 21,
+          "statuses": {
+            "ok": 4,
+            "turn_limit": 2,
+            "task_fail": 15
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 21,
+          "pass_rate": 0.381,
+          "n_runs": 21,
+          "statuses": {
+            "ok": 8,
+            "task_fail": 12,
+            "cost_limit": 1
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 21,
+          "pass_rate": 0.2381,
+          "n_runs": 21,
+          "statuses": {
+            "ok": 5,
+            "task_fail": 10,
+            "turn_limit": 6
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 21,
+          "pass_rate": 0.8095,
+          "n_runs": 21,
+          "statuses": {
+            "ok": 17,
+            "turn_limit": 1,
+            "task_fail": 3
+          }
+        }
+      ],
+      "paired_deltas": [
+        {
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "split": "dev",
+          "n_cases": 13,
+          "mean_delta_pass_rate": 0.4359,
+          "ci95_delta_pass_rate": [
+            0.1795,
+            0.6667
+          ],
+          "mean_delta_primary_score": 0.2439,
+          "ci95_delta_primary_score": [
+            0.0773,
+            0.4044
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "split": "holdout",
+          "n_cases": 7,
+          "mean_delta_pass_rate": 0.0476,
+          "ci95_delta_pass_rate": [
+            0.0,
+            0.1428
+          ],
+          "mean_delta_primary_score": 0.1567,
+          "ci95_delta_primary_score": [
+            -0.0675,
+            0.415
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "split": "dev",
+          "n_cases": 13,
+          "mean_delta_pass_rate": 0.3846,
+          "ci95_delta_pass_rate": [
+            0.1538,
+            0.6154
+          ],
+          "mean_delta_primary_score": 0.1863,
+          "ci95_delta_primary_score": [
+            0.0672,
+            0.3517
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "split": "holdout",
+          "n_cases": 7,
+          "mean_delta_pass_rate": 0.4286,
+          "ci95_delta_pass_rate": [
+            0.0476,
+            0.7619
+          ],
+          "mean_delta_primary_score": 0.1727,
+          "ci95_delta_primary_score": [
+            0.0627,
+            0.288
+          ]
+        }
+      ],
+      "pooled_deltas": [
+        {
+          "split": "dev",
+          "n_cases": 13,
+          "n_pairs": 26,
+          "models": [
+            "google-vertex-anthropic/claude-haiku-4-5@20251001",
+            "google-vertex-anthropic/claude-sonnet-4-6@default"
+          ],
+          "mean_delta_pass_rate": 0.4103,
+          "ci95_delta_pass_rate": [
+            0.2051,
+            0.6154
+          ],
+          "mean_delta_primary_score": 0.2151,
+          "ci95_delta_primary_score": [
+            0.0974,
+            0.3263
+          ],
+          "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+        },
+        {
+          "split": "holdout",
+          "n_cases": 7,
+          "n_pairs": 14,
+          "models": [
+            "google-vertex-anthropic/claude-haiku-4-5@20251001",
+            "google-vertex-anthropic/claude-sonnet-4-6@default"
+          ],
+          "mean_delta_pass_rate": 0.2381,
+          "ci95_delta_pass_rate": [
+            0.0238,
+            0.4286
+          ],
+          "mean_delta_primary_score": 0.1647,
+          "ci95_delta_primary_score": [
+            0.0231,
+            0.3235
+          ],
+          "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+        }
+      ]
+    },
+    "excluding-flagged": {
+      "n_runs": 143,
+      "by_split_arm_model": [
+        {
+          "split": "dev",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 20,
+          "pass_rate": 0.4,
+          "n_runs": 20,
+          "statuses": {
+            "ok": 8,
+            "task_fail": 7,
+            "turn_limit": 5
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 30,
+          "pass_rate": 0.4667,
+          "n_runs": 30,
+          "statuses": {
+            "ok": 14,
+            "task_fail": 11,
+            "turn_limit": 5
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 24,
+          "pass_rate": 0.75,
+          "n_runs": 24,
+          "statuses": {
+            "ok": 18,
+            "task_fail": 5,
+            "turn_limit": 1
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 17,
+          "pass_rate": 0.9412,
+          "n_runs": 17,
+          "statuses": {
+            "ok": 16,
+            "task_fail": 1
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 10,
+          "pass_rate": 0.0,
+          "n_runs": 10,
+          "statuses": {
+            "turn_limit": 2,
+            "task_fail": 8
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 19,
+          "pass_rate": 0.3684,
+          "n_runs": 19,
+          "statuses": {
+            "ok": 7,
+            "task_fail": 11,
+            "cost_limit": 1
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 13,
+          "pass_rate": 0.3077,
+          "n_runs": 13,
+          "statuses": {
+            "ok": 4,
+            "task_fail": 4,
+            "turn_limit": 5
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 10,
+          "pass_rate": 0.9,
+          "n_runs": 10,
+          "statuses": {
+            "ok": 9,
+            "task_fail": 1
+          }
+        }
+      ],
+      "paired_deltas": [
+        {
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "split": "dev",
+          "n_cases": 9,
+          "mean_delta_pass_rate": 0.4259,
+          "ci95_delta_pass_rate": [
+            0.0926,
+            0.7778
+          ],
+          "mean_delta_primary_score": 0.2667,
+          "ci95_delta_primary_score": [
+            0.0299,
+            0.5093
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "split": "holdout",
+          "n_cases": 3,
+          "mean_delta_pass_rate": 0.1667,
+          "ci95_delta_pass_rate": [
+            0.0,
+            0.5
+          ],
+          "mean_delta_primary_score": 0.0139,
+          "ci95_delta_primary_score": [
+            -0.2917,
+            0.2778
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "split": "dev",
+          "n_cases": 6,
+          "mean_delta_pass_rate": 0.2222,
+          "ci95_delta_pass_rate": [
+            0.0555,
+            0.3889
+          ],
+          "mean_delta_primary_score": 0.1389,
+          "ci95_delta_primary_score": [
+            0.0278,
+            0.25
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "split": "holdout",
+          "n_cases": 4,
+          "mean_delta_pass_rate": 0.3333,
+          "ci95_delta_pass_rate": [
+            -0.1666,
+            0.8334
+          ],
+          "mean_delta_primary_score": 0.0785,
+          "ci95_delta_primary_score": [
+            -0.0167,
+            0.1736
+          ]
+        }
+      ],
+      "pooled_deltas": [
+        {
+          "split": "dev",
+          "n_cases": 10,
+          "n_pairs": 15,
+          "models": [
+            "google-vertex-anthropic/claude-haiku-4-5@20251001",
+            "google-vertex-anthropic/claude-sonnet-4-6@default"
+          ],
+          "mean_delta_pass_rate": 0.3444,
+          "ci95_delta_pass_rate": [
+            0.1146,
+            0.6333
+          ],
+          "mean_delta_primary_score": 0.2155,
+          "ci95_delta_primary_score": [
+            0.0536,
+            0.4125
+          ],
+          "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+        },
+        {
+          "split": "holdout",
+          "n_cases": 5,
+          "n_pairs": 7,
+          "models": [
+            "google-vertex-anthropic/claude-haiku-4-5@20251001",
+            "google-vertex-anthropic/claude-sonnet-4-6@default"
+          ],
+          "mean_delta_pass_rate": 0.2619,
+          "ci95_delta_pass_rate": [
+            -0.037,
+            0.5556
+          ],
+          "mean_delta_primary_score": 0.0508,
+          "ci95_delta_primary_score": [
+            -0.0492,
+            0.1519
+          ],
+          "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+        }
+      ]
+    },
+    "excluding-strong": {
+      "n_runs": 221,
+      "by_split_arm_model": [
+        {
+          "split": "dev",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 38,
+          "pass_rate": 0.3421,
+          "n_runs": 38,
+          "statuses": {
+            "ok": 13,
+            "task_fail": 18,
+            "turn_limit": 7
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 37,
+          "pass_rate": 0.5405,
+          "n_runs": 37,
+          "statuses": {
+            "ok": 20,
+            "task_fail": 12,
+            "turn_limit": 5
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 36,
+          "pass_rate": 0.8056,
+          "n_runs": 36,
+          "statuses": {
+            "ok": 29,
+            "task_fail": 6,
+            "turn_limit": 1
+          }
+        },
+        {
+          "split": "dev",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 33,
+          "pass_rate": 0.9394,
+          "n_runs": 33,
+          "statuses": {
+            "ok": 31,
+            "task_fail": 2
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 20,
+          "pass_rate": 0.2,
+          "n_runs": 20,
+          "statuses": {
+            "ok": 4,
+            "turn_limit": 2,
+            "task_fail": 14
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "baseline",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 20,
+          "pass_rate": 0.35,
+          "n_runs": 20,
+          "statuses": {
+            "ok": 7,
+            "task_fail": 12,
+            "cost_limit": 1
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "n_valid": 19,
+          "pass_rate": 0.2632,
+          "n_runs": 19,
+          "statuses": {
+            "ok": 5,
+            "task_fail": 8,
+            "turn_limit": 6
+          }
+        },
+        {
+          "split": "holdout",
+          "arm": "skill",
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "n_valid": 18,
+          "pass_rate": 0.7778,
+          "n_runs": 18,
+          "statuses": {
+            "ok": 14,
+            "turn_limit": 1,
+            "task_fail": 3
+          }
+        }
+      ],
+      "paired_deltas": [
+        {
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "split": "dev",
+          "n_cases": 13,
+          "mean_delta_pass_rate": 0.4616,
+          "ci95_delta_pass_rate": [
+            0.2051,
+            0.6923
+          ],
+          "mean_delta_primary_score": 0.2664,
+          "ci95_delta_primary_score": [
+            0.0855,
+            0.4491
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+          "split": "holdout",
+          "n_cases": 7,
+          "mean_delta_pass_rate": 0.0476,
+          "ci95_delta_pass_rate": [
+            0.0,
+            0.1428
+          ],
+          "mean_delta_primary_score": 0.0868,
+          "ci95_delta_primary_score": [
+            -0.1295,
+            0.3647
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "split": "dev",
+          "n_cases": 12,
+          "mean_delta_pass_rate": 0.3333,
+          "ci95_delta_pass_rate": [
+            0.1111,
+            0.5833
+          ],
+          "mean_delta_primary_score": 0.182,
+          "ci95_delta_primary_score": [
+            0.0571,
+            0.3608
+          ]
+        },
+        {
+          "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+          "split": "holdout",
+          "n_cases": 6,
+          "mean_delta_pass_rate": 0.3889,
+          "ci95_delta_pass_rate": [
+            0.0,
+            0.7778
+          ],
+          "mean_delta_primary_score": 0.137,
+          "ci95_delta_primary_score": [
+            0.0412,
+            0.2275
+          ]
+        }
+      ],
+      "pooled_deltas": [
+        {
+          "split": "dev",
+          "n_cases": 13,
+          "n_pairs": 25,
+          "models": [
+            "google-vertex-anthropic/claude-haiku-4-5@20251001",
+            "google-vertex-anthropic/claude-sonnet-4-6@default"
+          ],
+          "mean_delta_pass_rate": 0.4,
+          "ci95_delta_pass_rate": [
+            0.2,
+            0.6061
+          ],
+          "mean_delta_primary_score": 0.2259,
+          "ci95_delta_primary_score": [
+            0.1013,
+            0.3483
+          ],
+          "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+        },
+        {
+          "split": "holdout",
+          "n_cases": 7,
+          "n_pairs": 13,
+          "models": [
+            "google-vertex-anthropic/claude-haiku-4-5@20251001",
+            "google-vertex-anthropic/claude-sonnet-4-6@default"
+          ],
+          "mean_delta_pass_rate": 0.2051,
+          "ci95_delta_pass_rate": [
+            0.0,
+            0.4286
+          ],
+          "mean_delta_primary_score": 0.11,
+          "ci95_delta_primary_score": [
+            -0.0266,
+            0.2822
+          ],
+          "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+        }
+      ]
+    }
+  },
+  "per_case_deltas": [
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "authoring-airflow2-inventory-snapshot",
+      "all": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "authoring-clickstream-claim-check",
+      "all": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.3334
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.5,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.1667
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.3334
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "authoring-vendor-shipments-etl",
+      "all": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 0.3333,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 0.3333,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "debugging-manual-trigger-context",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.6667
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "debugging-variable-at-parse",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-inventory-context",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-revenue-previous-day",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-weekly-catchup",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "scheduling-idempotent-orders-load",
+      "all": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "scheduling-weekday-ny-business-day",
+      "all": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "testing-airflow2-ci-suite",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": -0.3333
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": -0.3333
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": -0.3333
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "testing-custom-operator-conn",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "testing-dagbag-integrity",
+      "all": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "authoring-airflow2-inventory-snapshot",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "authoring-clickstream-claim-check",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "authoring-vendor-shipments-etl",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "debugging-manual-trigger-context",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.3333,
+        "delta_pass_rate": 0.3333
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.5,
+        "delta_pass_rate": 0.5
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.3333,
+        "delta_pass_rate": 0.3333
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "debugging-variable-at-parse",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-inventory-context",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-revenue-previous-day",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-weekly-catchup",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "scheduling-idempotent-orders-load",
+      "all": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.3333
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.5,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.5
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.3333
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "scheduling-weekday-ny-business-day",
+      "all": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.3333
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.3333
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.3333
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "testing-airflow2-ci-suite",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "testing-custom-operator-conn",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "testing-dagbag-integrity",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "authoring-daily-revenue-yesterday",
+      "all": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "authoring-partner-feeds-mapping",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "debugging-nondeterministic-parse",
+      "all": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.6667,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-hourly-pageviews-templates",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "migration-shipments-assets",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "scheduling-backfill-pageviews",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.3333,
+        "delta_pass_rate": 0.3333
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.5,
+        "delta_pass_rate": 0.5
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.3333,
+        "delta_pass_rate": 0.3333
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "case": "testing-taskflow-transforms",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "authoring-daily-revenue-yesterday",
+      "all": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "authoring-partner-feeds-mapping",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "debugging-nondeterministic-parse",
+      "all": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": -0.3333
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": -0.3333
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 1.0,
+        "skill_pass_rate": 0.6667,
+        "delta_pass_rate": -0.3333
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-hourly-pageviews-templates",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "migration-shipments-assets",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 0.0,
+        "delta_pass_rate": 0.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "scheduling-backfill-pageviews",
+      "all": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "case": "testing-taskflow-transforms",
+      "all": {
+        "baseline_pass_rate": 0.3333,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 0.6667
+      },
+      "excluding-flagged": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      },
+      "excluding-strong": {
+        "baseline_pass_rate": 0.0,
+        "skill_pass_rate": 1.0,
+        "delta_pass_rate": 1.0
+      }
+    }
+  ],
+  "conclusion_check": [
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "all": {
+        "delta": 0.4359,
+        "ci95": [
+          0.1795,
+          0.6667
+        ],
+        "n_cases": 13
+      },
+      "excluding-flagged": {
+        "delta": 0.4259,
+        "ci95": [
+          0.0926,
+          0.7778
+        ],
+        "n_cases": 9
+      },
+      "sign_same": true,
+      "significance_same": true,
+      "changed": false
+    },
+    {
+      "split": "dev",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "all": {
+        "delta": 0.3846,
+        "ci95": [
+          0.1538,
+          0.6154
+        ],
+        "n_cases": 13
+      },
+      "excluding-flagged": {
+        "delta": 0.2222,
+        "ci95": [
+          0.0555,
+          0.3889
+        ],
+        "n_cases": 6
+      },
+      "sign_same": true,
+      "significance_same": true,
+      "changed": false
+    },
+    {
+      "split": "dev",
+      "model": "pooled",
+      "all": {
+        "delta": 0.4103,
+        "ci95": [
+          0.2051,
+          0.6154
+        ],
+        "n_cases": 13
+      },
+      "excluding-flagged": {
+        "delta": 0.3444,
+        "ci95": [
+          0.1146,
+          0.6333
+        ],
+        "n_cases": 10
+      },
+      "sign_same": true,
+      "significance_same": true,
+      "changed": false
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "all": {
+        "delta": 0.0476,
+        "ci95": [
+          0.0,
+          0.1428
+        ],
+        "n_cases": 7
+      },
+      "excluding-flagged": {
+        "delta": 0.1667,
+        "ci95": [
+          0.0,
+          0.5
+        ],
+        "n_cases": 3
+      },
+      "sign_same": true,
+      "significance_same": true,
+      "changed": false
+    },
+    {
+      "split": "holdout",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "all": {
+        "delta": 0.4286,
+        "ci95": [
+          0.0476,
+          0.7619
+        ],
+        "n_cases": 7
+      },
+      "excluding-flagged": {
+        "delta": 0.3333,
+        "ci95": [
+          -0.1666,
+          0.8334
+        ],
+        "n_cases": 4
+      },
+      "sign_same": true,
+      "significance_same": false,
+      "changed": true
+    },
+    {
+      "split": "holdout",
+      "model": "pooled",
+      "all": {
+        "delta": 0.2381,
+        "ci95": [
+          0.0238,
+          0.4286
+        ],
+        "n_cases": 7
+      },
+      "excluding-flagged": {
+        "delta": 0.2619,
+        "ci95": [
+          -0.037,
+          0.5556
+        ],
+        "n_cases": 5
+      },
+      "sign_same": true,
+      "significance_same": false,
+      "changed": true
+    }
+  ]
+}

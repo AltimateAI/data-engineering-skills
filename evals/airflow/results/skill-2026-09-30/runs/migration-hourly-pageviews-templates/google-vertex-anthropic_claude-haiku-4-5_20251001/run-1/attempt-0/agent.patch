@@ -1,0 +1,60 @@
+diff --git a/dags/hourly_pageviews.py b/dags/hourly_pageviews.py
+index dbbc409..c7e2efb 100644
+--- a/dags/hourly_pageviews.py
++++ b/dags/hourly_pageviews.py
+@@ -17,8 +17,8 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow import DAG
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "pageviews.jsonl"
+@@ -72,7 +72,7 @@ def aggregate_hour(hour: str, prev_hour: str) -> None:
+ 
+ with DAG(
+     dag_id="hourly_pageviews",
+-    schedule_interval="0 * * * *",
++    schedule="0 * * * *",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -84,27 +84,27 @@ with DAG(
+         task_id="extract_hour",
+         python_callable=extract_hour,
+         op_kwargs={
+-            "start": "{{ execution_date }}",
+-            "end": "{{ next_execution_date }}",
+-            "hour": "{{ execution_date.strftime('%Y%m%dT%H') }}",
++            "start": "{{ logical_date }}",
++            "end": "{{ data_interval_end }}",
++            "hour": "{{ logical_date.strftime('%Y%m%dT%H') }}",
+         },
+     )
+     aggregate = PythonOperator(
+         task_id="aggregate_hour",
+         python_callable=aggregate_hour,
+         op_kwargs={
+-            "hour": "{{ execution_date.strftime('%Y%m%dT%H') }}",
+-            "prev_hour": "{{ prev_execution_date.strftime('%Y%m%dT%H') }}",
++            "hour": "{{ logical_date.strftime('%Y%m%dT%H') }}",
++            "prev_hour": "{{ macros.ds_add(logical_date, -1).strftime('%Y%m%dT%H') }}",
+         },
+     )
+     publish = BashOperator(
+         task_id="publish_hour",
+         bash_command=(
+             "mkdir -p {{ params.output }}/markers && "
+-            "echo \"hour={{ execution_date.strftime('%Y-%m-%dT%H:00') }} "
++            "echo \"hour={{ logical_date.strftime('%Y-%m-%dT%H:00') }} "
+             "staged={{ ti.xcom_pull(task_ids='extract_hour') }}\" "
+-            "> {{ params.output }}/markers/{{ ts_nodash }}.done && "
+-            "find {{ params.output }}/staging -name '{{ yesterday_ds_nodash }}T*.csv' -delete"
++            "> {{ params.output }}/markers/{{ logical_date.strftime('%Y%m%d%H%M%S') }}.done && "
++            "find {{ params.output }}/staging -name '{{ macros.ds_add(ds, -1).replace('-', '') }}T*.csv' -delete"
+         ),
+     )
+     extract >> aggregate >> publish

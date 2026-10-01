@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_imports.py, tests/test_late_shipments_logic.py, tests/test_shipments_daily_dependencies.py, tests/test_shipments_daily_end_to_end.py, tests/test_shipments_daily_schedule.py, tests/test_task_retries.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 15 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError]\nerators.python.PythonOperator:python.py:240 Done. Returned value was: <tmp>/eval-ws-dopaay16/ws/output/late_shipments/2026-03-03.csv\nINFO     airflow.models.taskinstance:taskinstance.py:349 ::group::Post task execution logs\nINFO     airflow.models.taskinstance:taskinstance.py:361 Marking task as SUCCESS. dag_id=shipments_daily, task_id=build_report, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160948\nINFO     airflow.models.dag:dag.py:4410 [DAG TEST] end task task_id=build_report map_index=-1\nINFO     airflow.models.dag:dag.py:4396 [DAG TEST] starting task_id=done map_index=-1\nINFO     airflow.models.dag:dag.py:4399 [DAG TEST] running task <TaskInstance: shipments_daily.done manual__2026-03-03T00:00:00+00:00 [scheduled]>\nINFO     airflow.task:taskinstance.py:3158 Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='done' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'\nINFO     airflow.models.taskinstance:taskinstance.py:740 ::endgroup::\nINFO     airflow.models.taskinstance:taskinstance.py:349 ::group::Post task execution logs\nINFO     airflow.models.taskinstance:taskinstance.py:361 Marking task as SUCCESS. dag_id=shipments_daily, task_id=done, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160948\nINFO     airflow.models.dag:dag.py:4410 [DAG TEST] end task task_id=done map_index=-1\nINFO     airflow.models.dagrun.DagRun:dagrun.py:854 Marking run <DagRun shipments_daily @ 2026-03-03 00:00:00+00:00: manual__2026-03-03T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> successful\nINFO     airflow.models.dagrun.DagRun:dagrun.py:905 DagRun Finished: dag_id=shipments_daily, execution_date=2026-03-03 00:00:00+00:00, run_id=manual__2026-03-03T00:00:00+00:00, run_start_date=2026-03-03 00:00:00+00:00, run_end_date=2026-09-30 16:09:48.770281+00:00, run_duration=18288588.770281, state=success, external_trigger=False, run_type=manual, data_interval_start=2026-02-27 07:30:00+00:00, data_interval_end=2026-03-02 07:30:00+00:00, dag_hash=None\n=========================== short test summary info ============================\nFAILED tests/test_shipments_daily_end_to_end.py::test_shipments_daily_end_to_end\n1 failed, 15 passed in 1.34s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 15 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: af3_import",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; carrier_rates_weekly imports PythonOperator from the Airflow-3 standard provider (absent in 2.11) -> failed: 13 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_imports::test_all_dags_import [AssertionError], tests.test_dag_imports::test_expected_dag_ids_present [AssertionError], tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: weekend_schedule",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; shipments_daily cron changed to 30 7 * * 0-4 (Sunday-Thursday) -> failed: 14 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError], tests.test_shipments_daily_schedule::test_shipments_daily_schedule_0730_utc_weekdays [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: undelivered_ignored",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; find_late_shipments skips undelivered shipments -> failed: 12 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_late_shipments_logic::test_late_shipments_undelivered_promised_before_as_of [AssertionError], tests.test_late_shipments_logic::test_late_shipments_sorted_by_days_late_desc_then_id [AssertionError], tests.test_late_shipments_logic::test_late_shipments_days_late_calculation [AssertionError], tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_dropped",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; shipments_daily default_args lose retries (tasks fall back to 0) -> failed: 14 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError], tests.test_task_retries::test_all_tasks_have_minimum_retries [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; build_report no longer runs after extract_shipments -> failed: 13 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_shipments_daily_dependencies::test_shipments_daily_report_depends_on_extract [AssertionError], tests.test_shipments_daily_dependencies::test_shipments_daily_task_order [AssertionError], tests.test_shipments_daily_end_to_end::test_shipments_daily_end_to_end [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 1.0
+}

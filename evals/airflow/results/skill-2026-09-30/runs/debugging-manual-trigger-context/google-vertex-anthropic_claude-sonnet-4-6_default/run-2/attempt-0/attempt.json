@@ -1,0 +1,45 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: dated run delivers the 2026-03-02 feed",
+  "primary_pass": false,
+  "primary_score": 0.8571428571428571,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 120.2,
+  "cost_usd": 1.441764,
+  "cost_reported_usd": 7.649848,
+  "tokens": {
+    "input": 1322372,
+    "output": 5480,
+    "reasoning": 0,
+    "cache_read": 1141747,
+    "cache_write": 180610,
+    "total": 2650209
+  },
+  "steps": 14,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "debugging-dbt-errors",
+      "origin": "global",
+      "status": "completed"
+    },
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 5,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cdcf633ffeE9E9ahpp6oXA4q.json"
+}

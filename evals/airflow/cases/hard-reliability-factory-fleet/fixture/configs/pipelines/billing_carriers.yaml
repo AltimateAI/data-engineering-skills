@@ -1,0 +1,18 @@
+name: billing_carriers
+team: billing
+tier: standard
+description: Carriers pipeline for billing
+schedule:
+  hour: 1
+  days: '*'
+steps:
+- name: extract
+  table: billing.raw_carriers_00
+- name: snapshot
+  table: billing.int_carriers_00
+  depends_on:
+  - extract
+- name: publish
+  table: billing.mart_carriers_00
+  depends_on:
+  - snapshot

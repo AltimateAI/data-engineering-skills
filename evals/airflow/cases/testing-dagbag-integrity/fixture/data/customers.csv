@@ -1,0 +1,5 @@
+customer_id,name,segment
+C-01,Northwind,enterprise
+C-02,Globex,smb
+C-03,Initech,smb
+C-04,Umbrella,enterprise

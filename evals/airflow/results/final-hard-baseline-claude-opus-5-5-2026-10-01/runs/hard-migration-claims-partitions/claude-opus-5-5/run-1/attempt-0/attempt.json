@@ -1,0 +1,170 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 3.073772,
+  "cost_reported_usd": 3.073772,
+  "wall_s": 1790.6,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-050445/hard-migration-claims-partitions-ai39u6j7/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 3.073772,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 140,
+    "output": 50165,
+    "reasoning": 30428,
+    "cache_read": 5719162,
+    "cache_write": 115760,
+    "total": 5885227
+  },
+  "steps": 70,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 3.073772,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 140,
+      "outputTokens": 50165,
+      "cacheReadInputTokens": 5719162,
+      "cacheCreationInputTokens": 115760,
+      "webSearchRequests": 0,
+      "costUSD": 3.0737724,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 30428,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 70,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [],
+    "kill_commands": [
+      {
+        "call": 39,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f \"des-evals/agent-airflow\" ; pkill -f \"drive.py\"; sleep 3; cd ../tmp/e2e && python3 - <<'EOF'\nimport pathlib\np = pathlib.Path(\"drive.py\"); s = p.read_text()\ns = s.replace('''    \"PYTHONWARNINGS\": \"ignore\",\n''', '''    \"PYTHONWARNINGS\": \"ignore\",\n    \"OBJC_DISABLE_INITIALIZE_FORK_SAFETY\": \"YE",
+        "output": "pkill: signalling pid 30209: Operation not permitted\npkill: signalling pid 55705: Operation not permitted\npkill: signalling pid 59630: Operation not permitted\npkill: signalling pid 87434: Operation no"
+      },
+      {
+        "call": 45,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd ../tmp/e2e; pkill -f \"drive.py v\"; sleep 1; P=$(lsof -t v2/home/airflow.db v3/home/airflow.db v2/home/logs v3/home/logs 2>/dev/null | sort -u); echo \"$P\"; for p in $P; do kill $p; done; sleep 5; lsof -t v2/home/airflow.db v3/home/airflow.db 2>/dev/null; curl -s -o /dev/null -w \"%{http_code}\\n\" lo",
+        "output": "Exit code 7\n\n000"
+      },
+      {
+        "call": 49,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd ../tmp/e2e; pkill -f \"drive.py v2\"; sleep 8; pgrep -f \"agent-airflow-2.11\" | head; V=~/.cache/des-evals/agent-airflow-2.11; export AIRFLOW_HOME=$PWD/v2/home AIRFLOW__CORE__DAGS_FOLDER=$PWD/v2/proj/dags AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/v2/proj/plugins OBJC_DISABLE_INITIALIZE_FORK",
+        "output": "95183\n95194\n95212\n95214\n97021\n97188\n97197\n97222\nTraceback (most recent call last):\n  File \"~/.cache/des-evals/agent-airflow-2.11/bin/airflow\", line 10, in <module>\n    sys.exit(main())"
+      },
+      {
+        "call": 59,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f \"drive.py v2\"; sleep 5; for p in $(pgrep -f \"agent-airflow-2.11\"); do kill -9 $p; done; cd ../tmp/e2e; mkdir -p v2exec; cat > v2exec/raw_executor.py <<'EOF'\n\"\"\"Test-harness executor: SequentialExecutor without the forking LocalTaskJob (hangs in this sandbox).\"\"\"\nfrom airflow.executors.seque",
+        "output": "[v2] airflow dags unpause denials_digest_daily\n[v2] airflow dags backfill -s 2026-03-01T03:00:00+00:00 -e 2026-03-01T03:00:00+00:00 provider_directory_daily\n[v2] airflow dags backfill -s 2026-03-02T03"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 67,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": null
+}

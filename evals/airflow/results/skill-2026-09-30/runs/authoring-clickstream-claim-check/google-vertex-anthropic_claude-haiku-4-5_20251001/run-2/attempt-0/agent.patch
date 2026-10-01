@@ -1,0 +1,147 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..9cc3bfc
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,141 @@
++"""Daily page-level statistics from clickstream events.
++
++Aggregates views, unique users, and average load time per page,
++filtered to remove bot traffic and anonymous users.
++"""
++
++from __future__ import annotations
++
++import csv
++import gzip
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    dag_id="clickstream_page_stats",
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["analytics"],
++)
++def clickstream_page_stats():
++    """Extract, transform, and load daily page-level analytics."""
++
++    @task
++    def extract(ds=None) -> str:
++        """Read clickstream export, drop bots and anonymous users.
++        
++        Returns path to extracted CSV.
++        """
++        input_path = PROJECT_ROOT / "data" / "clickstream" / f"{ds}.csv.gz"
++        output_path = PROJECT_ROOT / "output" / ".tmp" / f"extracted_{ds}.csv"
++        output_path.parent.mkdir(parents=True, exist_ok=True)
++
++        rows_processed = 0
++        rows_kept = 0
++
++        with gzip.open(input_path, "rt", newline="") as infile, output_path.open(
++            "w", newline=""
++        ) as outfile:
++            reader = csv.DictReader(infile)
++            writer = csv.DictWriter(
++                outfile,
++                fieldnames=reader.fieldnames,
++            )
++            writer.writeheader()
++
++            for row in reader:
++                rows_processed += 1
++                # Drop bot traffic (is_bot = 1) and anonymous hits (empty user_id)
++                if row["is_bot"] == "1" or not row["user_id"].strip():
++                    continue
++                writer.writerow(row)
++                rows_kept += 1
++
++        print(f"Extracted {rows_kept}/{rows_processed} rows for {ds}")
++        return str(output_path)
++
++    @task
++    def transform(extracted_path: str, ds=None) -> str:
++        """Compute per-page statistics: views, unique_users, avg_load_ms.
++        
++        Returns path to transformed CSV.
++        """
++        output_path = PROJECT_ROOT / "output" / ".tmp" / f"transformed_{ds}.csv"
++        output_path.parent.mkdir(parents=True, exist_ok=True)
++
++        page_stats: dict[str, dict] = {}
++
++        with open(extracted_path, newline="") as infile:
++            reader = csv.DictReader(infile)
++            for row in reader:
++                page = row["page"]
++                user_id = row["user_id"]
++                load_ms = float(row["load_ms"])
++
++                if page not in page_stats:
++                    page_stats[page] = {
++                        "views": 0,
++                        "users": set(),
++                        "load_times": [],
++                    }
++
++                page_stats[page]["views"] += 1
++                page_stats[page]["users"].add(user_id)
++                page_stats[page]["load_times"].append(load_ms)
++
++        # Write transformed results sorted by page
++        with output_path.open("w", newline="") as outfile:
++            writer = csv.DictWriter(
++                outfile,
++                fieldnames=["page", "views", "unique_users", "avg_load_ms"],
++            )
++            writer.writeheader()
++
++            for page in sorted(page_stats.keys()):
++                stats = page_stats[page]
++                avg_load = sum(stats["load_times"]) / len(stats["load_times"])
++                avg_load_rounded = round(avg_load, 1)
++
++                writer.writerow({
++                    "page": page,
++                    "views": stats["views"],
++                    "unique_users": len(stats["users"]),
++                    "avg_load_ms": avg_load_rounded,
++                })
++
++        print(f"Transformed {len(page_stats)} pages for {ds}")
++        return str(output_path)
++
++    @task
++    def load(transformed_path: str, ds=None) -> None:
++        """Write output CSV for the day, replacing any existing file."""
++        output_path = PROJECT_ROOT / "output" / "page_stats" / f"{ds}.csv"
++        output_path.parent.mkdir(parents=True, exist_ok=True)
++
++        with open(transformed_path, newline="") as infile, output_path.open(
++            "w", newline=""
++        ) as outfile:
++            reader = csv.DictReader(infile)
++            writer = csv.DictWriter(
++                outfile,
++                fieldnames=["page", "views", "unique_users", "avg_load_ms"],
++            )
++            writer.writeheader()
++            for row in reader:
++                writer.writerow(row)
++
++        print(f"Wrote output to {output_path}")
++
++    # Task dependencies
++    extracted = extract()
++    transformed = transform(extracted)
++    load(transformed)
++
++
++clickstream_page_stats()

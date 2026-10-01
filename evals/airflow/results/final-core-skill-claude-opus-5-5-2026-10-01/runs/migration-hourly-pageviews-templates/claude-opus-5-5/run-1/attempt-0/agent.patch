@@ -1,0 +1,125 @@
+diff --git a/dags/hourly_pageviews.py b/dags/hourly_pageviews.py
+index dbbc409..4a14d59 100644
+--- a/dags/hourly_pageviews.py
++++ b/dags/hourly_pageviews.py
+@@ -16,22 +16,41 @@ from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, CronDataIntervalTimetable
++from airflow.timetables.interval import (
++    CronDataIntervalTimetable as CoreCronDataIntervalTimetable,
++)
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "pageviews.jsonl"
+ OUTPUT = PROJECT_ROOT / "output"
+ STAGING = OUTPUT / "staging"
+ HOURLY = OUTPUT / "hourly"
++SCHEDULE = "0 * * * *"
+ 
+ 
+ def _parse(ts: str) -> datetime:
+     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+ 
+ 
+-def extract_hour(start: str, end: str, hour: str) -> int:
++def run_hour(dag_run) -> pendulum.DateTime:
++    """Start of the clock hour a run processes.
++
++    Scheduled runs process their data interval (the hour that just ended).
++    Manual triggers have no data interval on Airflow 3; they process the latest
++    closed hour before the trigger, as their data interval did on Airflow 2.
++    """
++    if dag_run.data_interval_start is not None:
++        return pendulum.instance(dag_run.data_interval_start)
++    interval = CoreCronDataIntervalTimetable(SCHEDULE, timezone="UTC").infer_manual_data_interval(
++        run_after=pendulum.instance(dag_run.run_after)
++    )
++    return interval.start
++
++
++def _extract_hour(start: str, end: str, hour: str) -> int:
+     """Stage the raw events with start <= ts < end."""
+     lo, hi = _parse(start), _parse(end)
+     STAGING.mkdir(parents=True, exist_ok=True)
+@@ -47,7 +66,7 @@ def extract_hour(start: str, end: str, hour: str) -> int:
+     return count
+ 
+ 
+-def aggregate_hour(hour: str, prev_hour: str) -> None:
++def _aggregate_hour(hour: str, prev_hour: str) -> None:
+     views: dict[str, int] = defaultdict(int)
+     sessions: dict[str, set[str]] = defaultdict(set)
+     with (STAGING / f"{hour}.csv").open(newline="") as fh:
+@@ -72,39 +91,41 @@ def aggregate_hour(hour: str, prev_hour: str) -> None:
+ 
+ with DAG(
+     dag_id="hourly_pageviews",
+-    schedule_interval="0 * * * *",
++    schedule=CronDataIntervalTimetable(SCHEDULE, timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+     default_args={"owner": "product-analytics", "retries": 2, "retry_delay": timedelta(minutes=2)},
+     params={"output": str(OUTPUT)},
++    user_defined_macros={"run_hour": run_hour},
+     tags=["analytics", "hourly"],
+ ) as dag:
+-    extract = PythonOperator(
++    extract_hour = PythonOperator(
+         task_id="extract_hour",
+-        python_callable=extract_hour,
++        python_callable=_extract_hour,
+         op_kwargs={
+-            "start": "{{ execution_date }}",
+-            "end": "{{ next_execution_date }}",
+-            "hour": "{{ execution_date.strftime('%Y%m%dT%H') }}",
++            "start": "{{ run_hour(dag_run).isoformat() }}",
++            "end": "{{ run_hour(dag_run).add(hours=1).isoformat() }}",
++            "hour": "{{ run_hour(dag_run).strftime('%Y%m%dT%H') }}",
+         },
+     )
+-    aggregate = PythonOperator(
++    aggregate_hour = PythonOperator(
+         task_id="aggregate_hour",
+-        python_callable=aggregate_hour,
++        python_callable=_aggregate_hour,
+         op_kwargs={
+-            "hour": "{{ execution_date.strftime('%Y%m%dT%H') }}",
+-            "prev_hour": "{{ prev_execution_date.strftime('%Y%m%dT%H') }}",
++            "hour": "{{ run_hour(dag_run).strftime('%Y%m%dT%H') }}",
++            "prev_hour": "{{ run_hour(dag_run).subtract(hours=1).strftime('%Y%m%dT%H') }}",
+         },
+     )
+-    publish = BashOperator(
++    publish_hour = BashOperator(
+         task_id="publish_hour",
+         bash_command=(
++            "{% set hour = run_hour(dag_run) %}"
+             "mkdir -p {{ params.output }}/markers && "
+-            "echo \"hour={{ execution_date.strftime('%Y-%m-%dT%H:00') }} "
++            "echo \"hour={{ hour.strftime('%Y-%m-%dT%H:00') }} "
+             "staged={{ ti.xcom_pull(task_ids='extract_hour') }}\" "
+-            "> {{ params.output }}/markers/{{ ts_nodash }}.done && "
+-            "find {{ params.output }}/staging -name '{{ yesterday_ds_nodash }}T*.csv' -delete"
++            "> {{ params.output }}/markers/{{ hour.strftime('%Y%m%dT%H%M%S') }}.done && "
++            "find {{ params.output }}/staging -name '{{ hour.subtract(days=1).strftime('%Y%m%d') }}T*.csv' -delete"
+         ),
+     )
+-    extract >> aggregate >> publish
++    extract_hour >> aggregate_hour >> publish_hour
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..c5d277a 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ pendulum==3.2.0

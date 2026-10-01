@@ -1,0 +1,242 @@
+diff --git a/DEPLOYMENT.md b/DEPLOYMENT.md
+new file mode 100644
+index 0000000..5180ff8
+--- /dev/null
++++ b/DEPLOYMENT.md
+@@ -0,0 +1,144 @@
++# Deployment Guide: vendor_shipments DAG
++
++## Summary
++A new Airflow DAG `vendor_shipments` has been created to:
++1. Wait for daily carrier shipment CSV files
++2. Load them into a DuckDB warehouse table
++3. Publish carrier reports
++
++## Files Created
++- `dags/vendor_shipments.py` - The main DAG definition
++
++## Deployment Steps
++
++### 1. Set the Airflow Variable
++Before deploying the DAG, configure the landing directory path for your environment:
++
++```bash
++# Development/Staging
++airflow variables set vendor_landing_dir /path/to/dev/shipments/landing
++
++# Production
++airflow variables set vendor_landing_dir /path/to/prod/shipments/landing
++```
++
++This variable will be different for each environment where the aggregator drops files.
++
++### 2. Deploy the DAG
++Copy the DAG file to your Airflow DAGs directory:
++
++```bash
++# The DAG is already at: dags/vendor_shipments.py
++# Airflow will auto-discover it on the next scan
++```
++
++### 3. Verify the DAG is Loaded
++```bash
++airflow dags list | grep vendor_shipments
++```
++
++You should see:
++```
++vendor_shipments | Load the daily vendor shipments file and publish the carrier report | 1 | 0 | 2026-09-01T00:00:00+00:00 | day | UTC
++```
++
++## Task Breakdown
++
++### wait_for_shipments_file (FileSensor)
++- **Purpose**: Polls for the day's CSV file in the landing directory
++- **Timeout**: 20 hours (from 6 AM until midnight)
++- **Check Frequency**: Every 60 seconds
++- **Failure**: Will fail if file not found within timeout, triggering on-call alert
++- **Worker Impact**: Minimal (poke mode polling)
++
++### load_vendor_shipments (@task)
++- **Purpose**: Load CSV into DuckDB warehouse
++- **Inputs**: CSV file path, run date
++- **Outputs**: Row count loaded
++- **Deduplication**: Deletes existing rows for the date before inserting
++- **Table**: `vendor_shipments` (auto-created with inferred schema)
++- **Schema**: All CSV columns + `ship_date` column
++
++### publish_shipments_report (BashOperator)
++- **Purpose**: Generate and publish the carrier report
++- **Script**: `scripts/publish_shipments_report.sh`
++- **Input**: Run date (passed as argument)
++- **Output**: `reports/shipments_YYYY-MM-DD.csv`
++
++## Running the DAG
++
++### Automatic Schedule
++The DAG runs automatically every day at **06:00 UTC**.
++
++### Manual Trigger (for past dates)
++To rerun a specific date (e.g., 2026-09-15):
++
++```bash
++# Via CLI
++airflow dags backfill vendor_shipments --start-date 2026-09-15 --end-date 2026-09-15
++
++# Or trigger via Web UI:
++# 1. Navigate to the DAG
++# 2. Click "Trigger DAG"
++# 3. Set the execution date
++# 4. Run
++```
++
++### Rerun Safety
++The DAG is fully idempotent:
++- If you rerun the same date, it deletes existing rows for that date before inserting
++- No duplicate data will be created
++- Safe to rerun any day since 2026-09-01
++
++## Monitoring
++
++### Expected Behavior
++1. **06:00 UTC**: wait_for_shipments_file task starts
++2. **Before 09:00 UTC** (usually): File arrives and sensor detects it
++3. **Immediately after**: load_vendor_shipments runs
++4. **Within seconds**: publish_shipments_report runs
++5. **Total time**: Usually completes within 30 minutes
++
++### What to Watch
++- Check the web UI under "vendor_shipments" DAG
++- Look for task status changes in the graph view
++- Verify the reports directory for `shipments_*.csv` output files
++
++### If Something Fails
++
++**File doesn't arrive by timeout:**
++- Check that `vendor_landing_dir` variable is set correctly
++- Verify the aggregator is running and dropping files
++- Confirm the filename format: `shipments_YYYY-MM-DD.csv`
++
++**Load task fails:**
++- Check warehouse connectivity to DuckDB
++- Verify the CSV file format hasn't changed
++- Manual retry is automatic (2 retries configured)
++
++**Publish task fails:**
++- Check that `scripts/publish_shipments_report.sh` is executable
++- Verify the `reports/` directory exists
++- Ensure Python dependencies are installed (`scripts/build_shipments_report.py` requirements)
++
++## Conventions Followed
++- Same patterns as existing `warehouse_orders` DAG
++- Uses Airflow SDK decorators (`@dag`, `@task`)
++- Default owner: logistics-analytics
++- Default retries: 2 with 5-minute delay between retries
++- UTC timezone throughout
++- No automatic backfilling on deploy (catchup=False)
++
++## Rollback
++To disable the DAG temporarily:
++```bash
++airflow dags pause vendor_shipments
++airflow dags unpause vendor_shipments
++```
++
++To remove the DAG entirely:
++```bash
++# Delete the file
++rm dags/vendor_shipments.py
++# Airflow will auto-discover the deletion on next scan
++```
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..16df06f
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,86 @@
++"""Load the daily vendor shipments file and publish the carrier report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.models import Variable
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["vendor", "shipments", "warehouse"],
++)
++def vendor_shipments():
++    """
++    Load the daily vendor shipments file from the landing directory into the warehouse.
++    
++    The CSV file is expected to be named shipments_YYYY-MM-DD.csv and arrive in the
++    directory specified by the Airflow Variable 'vendor_landing_dir'. If the file is
++    not present by end of day, the task will fail and alert on-call.
++    """
++
++    # Wait for the shipments file. Use a sensor that doesn't tie up a worker slot.
++    # The file usually arrives before 9am UTC. If not present by end of day (23:59),
++    # poke_interval and timeout will cause failure.
++    # Use Jinja templating to defer Variable.get() to runtime.
++    wait_for_shipments_file = FileSensor(
++        task_id="wait_for_shipments_file",
++        filepath="{{ var.value.vendor_landing_dir }}/shipments_{{ ds }}.csv",
++        poke_interval=60,  # Check every minute
++        timeout=72000,  # 20 hours, to cover from 6am to midnight UTC
++        mode="poke",  # Default mode; worker will poll
++    )
++
++    @task
++    def load_vendor_shipments(ds=None):
++        """Load the vendor shipments CSV into the warehouse, deduplicating on rerun."""
++        import duckdb
++
++        landing_dir = Variable.get("vendor_landing_dir")
++        shipments_file = Path(landing_dir) / f"shipments_{ds}.csv"
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            # Create table if it doesn't exist. Infer schema from CSV.
++            con.execute(
++                "CREATE TABLE IF NOT EXISTS vendor_shipments AS "
++                "SELECT *, CAST(? AS DATE) AS ship_date "
++                "FROM read_csv_auto(?) "
++                "WHERE FALSE",
++                [ds, str(shipments_file)],
++            )
++            # Delete any existing rows for this date to handle reruns.
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds])
++            # Insert today's rows with the ship_date column.
++            con.execute(
++                "INSERT INTO vendor_shipments "
++                "SELECT *, CAST(? AS DATE) AS ship_date "
++                "FROM read_csv_auto(?)",
++                [ds, str(shipments_file)],
++            )
++            row_count = con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            ).fetchone()[0]
++            return row_count
++
++    publish_shipments_report = BashOperator(
++        task_id="publish_shipments_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    wait_for_shipments_file >> load_vendor_shipments() >> publish_shipments_report
++
++
++vendor_shipments()

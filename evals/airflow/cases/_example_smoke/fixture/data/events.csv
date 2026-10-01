@@ -1,0 +1,11 @@
+event_id,event_date,event_type,user_id
+1,2026-02-28,click,u1
+2,2026-02-28,view,u2
+3,2026-03-01,click,u1
+4,2026-03-01,view,u3
+5,2026-03-01,click,u2
+6,2026-03-01,purchase,u1
+7,2026-03-02,view,u4
+8,2026-03-02,click,u2
+9,2026-03-01,view,u5
+10,2026-03-01,click,u4

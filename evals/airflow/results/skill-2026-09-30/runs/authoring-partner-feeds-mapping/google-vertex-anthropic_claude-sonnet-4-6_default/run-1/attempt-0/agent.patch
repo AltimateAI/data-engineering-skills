@@ -1,0 +1,214 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..1877f8d
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,208 @@
++"""Daily DAG that processes partner order-feed CSV files.
++
++Layout
++------
++  data/partner_drop/<YYYY-MM-DD>/<partner>.csv   (columns: order_id, amount)
++
++Output
++------
++  output/partner_feeds/<date>/<partner>.json  – per-file summary
++  output/partner_feeds/<date>/summary.json    – day-level rollup (always written)
++
++Period contract
++---------------
++  Scheduled run firing on day D  →  processes D  (CronTriggerTimetable, own-day)
++  Manual trigger (no logical_date on 3.x) →  same: day of run_after
++  Rerun / clear  →  same day as original (run_after is fixed at creation)
++  Backfill date D  →  processes D
++  params override  →  {"day": "YYYY-MM-DD"} forces a specific date
++
++Idempotency
++-----------
++  Every file output is written atomically (temp → rename).  Re-running the same
++  date overwrites the previous result and leaves the day in a consistent state.
++
++Zero-file days
++--------------
++  When no partner CSVs arrive, list_files returns [].  process_file.expand() is
++  skipped (0 mapped instances).  write_summary carries trigger_rule="none_failed"
++  so it still runs and writes summary.json with all zeros, as finance requires.
++  It re-reads the per-partner JSON files from disk, so it is decoupled from the
++  XCom fanout of process_file.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++import os
++import tempfile
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.sdk import CronTriggerTimetable, Param
++from airflow.utils.trigger_rule import TriggerRule
++
++# ── paths ──────────────────────────────────────────────────────────────────────
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_ROOT = PROJECT_ROOT / "data" / "partner_drop"
++OUT_ROOT = PROJECT_ROOT / "output" / "partner_feeds"
++
++
++# ── date helper (from dates-and-schedules.md) ─────────────────────────────────
++def _resolve_day(dag_run, params) -> str:
++    """Return the YYYY-MM-DD string this run should process."""
++    override = (params or {}).get("day")
++    if override:
++        return override
++
++    s = dag_run.data_interval_start
++    e = dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        # interval timetable: use the interval start date
++        return pendulum.instance(s).in_tz("UTC").to_date_string()
++
++    # trigger timetable / 3.x manual / asset: use run_after (or logical_date)
++    anchor = dag_run.logical_date or dag_run.run_after
++    # prev=lambda d: d  →  own day (not previous day)
++    return pendulum.instance(anchor).in_tz("UTC").start_of("day").to_date_string()
++
++
++# ── atomic write helper ───────────────────────────────────────────────────────
++def _atomic_write_json(path: Path, payload: dict) -> None:
++    """Write *payload* to *path* atomically (temp file → rename)."""
++    path.parent.mkdir(parents=True, exist_ok=True)
++    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
++    try:
++        with os.fdopen(fd, "w") as fh:
++            json.dump(payload, fh)
++        os.replace(tmp, path)
++    except Exception:
++        try:
++            os.unlink(tmp)
++        except OSError:
++            pass
++        raise
++
++
++# ── DAG ───────────────────────────────────────────────────────────────────────
++@dag(
++    dag_id="partner_feeds",
++    schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=4,
++    default_args={"retries": 2, "retry_delay": pendulum.duration(minutes=5)},
++    params={
++        "day": Param(
++            None,
++            type=["null", "string"],
++            format="date",
++            description="Override the processed date (YYYY-MM-DD). Leave blank for the scheduled day.",
++        )
++    },
++    tags=["partners", "finance"],
++)
++def partner_feeds():
++
++    # ── 1. discover files for the run's day ───────────────────────────────────
++    @task
++    def list_files(**context) -> list[str]:
++        """Return a list of absolute CSV paths for today's drop folder.
++
++        Returns an empty list when the folder does not exist (no files sent).
++        """
++        day = _resolve_day(context["dag_run"], context["params"])
++        drop_dir = DROP_ROOT / day
++        if not drop_dir.is_dir():
++            return []
++        files = sorted(str(p) for p in drop_dir.glob("*.csv"))
++        return files
++
++    # ── 2. process each file independently ───────────────────────────────────
++    @task(retries=2, retry_delay=pendulum.duration(minutes=5))
++    def process_file(csv_path: str, **context) -> str:
++        """Read one partner CSV; write <partner>.json; return the output path.
++
++        Fails (and retries) in isolation — other files are not affected.
++        Returns the path to the written JSON so write_summary can locate it.
++        """
++        path = Path(csv_path)
++        partner = path.stem          # filename without .csv
++        day = _resolve_day(context["dag_run"], context["params"])
++
++        rows = 0
++        total = 0.0
++        with open(path, newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                rows += 1
++                total += float(row["amount"])
++
++        total_rounded = round(total, 2)
++        payload = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": total_rounded,
++        }
++
++        out_path = OUT_ROOT / day / f"{partner}.json"
++        _atomic_write_json(out_path, payload)
++
++        # Return only the path (small string) — summary re-reads it from disk
++        return str(out_path)
++
++    # ── 3. write day-level summary (always, even on zero-file days) ───────────
++    @task(trigger_rule=TriggerRule.NONE_FAILED)
++    def write_summary(processed: list, **context) -> str:  # noqa: ARG001
++        """Aggregate per-partner JSON files into summary.json.
++
++        ``processed`` is received only to establish a dependency edge so this
++        task waits for all process_file instances to finish before reading
++        the on-disk outputs.  Its value is intentionally ignored.
++
++        Runs with trigger_rule=NONE_FAILED so it executes even when process_file
++        is skipped (0 mapped instances on a day with no partner files).
++        Finance always finds summary.json; it contains all-zeros on empty days.
++        """
++        day = _resolve_day(context["dag_run"], context["params"])
++        out_dir = OUT_ROOT / day
++
++        # Collect all partner JSON files already written for this day
++        partner_files = [
++            p for p in out_dir.glob("*.json")
++            if p.name != "summary.json"
++        ] if out_dir.is_dir() else []
++
++        file_count = 0
++        total_rows = 0
++        total_amount = 0.0
++        for pf in sorted(partner_files):
++            data = json.loads(pf.read_text())
++            file_count += 1
++            total_rows += data["rows"]
++            total_amount += data["total_amount"]
++
++        payload = {
++            "files": file_count,
++            "rows": total_rows,
++            "total_amount": round(total_amount, 2),
++        }
++
++        out_path = out_dir / "summary.json"
++        _atomic_write_json(out_path, payload)
++        return str(out_path)
++
++    # ── wiring ────────────────────────────────────────────────────────────────
++    files = list_files()
++    processed = process_file.expand(csv_path=files)
++    # write_summary must wait for all process_file instances to finish (or be
++    # skipped) before reading the on-disk outputs.  We pass `processed` to
++    # create the dependency edge while trigger_rule=NONE_FAILED ensures it
++    # still runs when the mapped group had 0 instances (zero-file days).
++    # write_summary ignores the argument — it reads JSON files from disk.
++    write_summary(processed)
++
++
++partner_feeds()

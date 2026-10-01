@@ -1,0 +1,149 @@
+diff --git a/README.md b/README.md
+index 7b2e3c5..6393349 100644
+--- a/README.md
++++ b/README.md
+@@ -2,8 +2,8 @@
+ 
+ | DAG | Schedule | What it does |
+ |---|---|---|
+-| `ingest_shipments` | hourly | Appends every carrier event received since the last load to `output/warehouse/shipments/batch_<interval end>.csv`, then updates the `shipments` dataset |
+-| `carrier_scorecard` | on `shipments` updates | Rebuilds `output/scorecard/carrier_scorecard.csv` from all batches and writes `output/scorecard/_READY` for the ops dashboard |
++| `ingest_shipments` | hourly | Appends every carrier event received since the last load to `output/warehouse/shipments/batch_<interval end>.csv`, then updates the `shipments` asset |
++| `carrier_scorecard` | on `shipments` asset updates | Rebuilds `output/scorecard/carrier_scorecard.csv` from all batches and writes `output/scorecard/_READY` for the ops dashboard |
+ 
+ `data/carrier_events.csv` stands in for the carrier API export (timestamps are
+ UTC). Every event must be loaded exactly once: the ops team reconciles batch
+diff --git a/dags/carrier_scorecard.py b/dags/carrier_scorecard.py
+index 2d4f784..03fb4e3 100644
+--- a/dags/carrier_scorecard.py
++++ b/dags/carrier_scorecard.py
+@@ -7,15 +7,14 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.datasets import Dataset
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, Asset
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+ SCORECARD_DIR = PROJECT_ROOT / "output" / "scorecard"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ 
+ 
+ def build_scorecard(ti, **_):
+@@ -61,8 +60,8 @@ with DAG(
+     mark_ready = BashOperator(
+         task_id="mark_ready",
+         bash_command=(
+-            "echo 'carriers={{ ti.xcom_pull(key=\"carriers\") }} "
+-            "shipments={{ ti.xcom_pull(key=\"shipments\") }}' "
++            "echo 'carriers={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"carriers\") }} "
++            "shipments={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"shipments\") }}' "
+             "> {{ params.scorecard_dir }}/_READY"
+         ),
+     )
+diff --git a/dags/ingest_shipments.py b/dags/ingest_shipments.py
+index d5050e6..3acbf2d 100644
+--- a/dags/ingest_shipments.py
++++ b/dags/ingest_shipments.py
+@@ -12,36 +12,36 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.datasets import Dataset
+-from airflow.decorators import dag, task
+-from airflow.models import XCom
+-from airflow.utils.session import provide_session
++from airflow.sdk import Asset, dag, task
++from airflow.timetables.interval import CronDataIntervalTimetable
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ SOURCE = PROJECT_ROOT / "data" / "carrier_events.csv"
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ FIELDS = ["event_id", "shipment_id", "carrier", "status", "promised_date", "updated_at"]
+ 
+ 
+-@provide_session
+-def previous_watermark(session=None) -> str | None:
+-    """High-water mark stored by the most recent load."""
+-    row = (
+-        session.query(XCom)
+-        .filter(
+-            XCom.dag_id == "ingest_shipments",
+-            XCom.task_id == "load_batch",
+-            XCom.key == "watermark",
+-        )
+-        .order_by(XCom.timestamp.desc())
+-        .first()
+-    )
+-    return row.value if row else None
++def previous_watermark(before_batch: str) -> str | None:
++    """Largest ``updated_at`` loaded by batches of earlier intervals.
++
++    Tasks can no longer query the metadata DB in Airflow 3, so the high-water
++    mark is read from the batch files themselves. Only batches strictly before
++    ``before_batch`` count, which makes retries and clears of any interval
++    reproduce that interval's batch instead of seeing their own (or later) output.
++    """
++    marks = []
++    for batch in BATCH_DIR.glob("batch_*.csv"):
++        if batch.name < before_batch:
++            with batch.open(newline="") as fh:
++                marks.extend(r["updated_at"] for r in csv.DictReader(fh))
++    return max(marks, default=None)
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    # Explicit interval timetable keeps Airflow 2's "@hourly" data intervals
++    # (Airflow 3 would otherwise default to point-in-time cron triggers).
++    schedule=CronDataIntervalTimetable("@hourly", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -50,8 +50,9 @@ def previous_watermark(session=None) -> str | None:
+ )
+ def ingest_shipments():
+     @task(outlets=[SHIPMENTS])
+-    def load_batch(data_interval_end=None, ti=None) -> int:
+-        watermark = previous_watermark()
++    def load_batch(data_interval_end=None) -> int:
++        out = BATCH_DIR / f"batch_{data_interval_end.strftime('%Y%m%dT%H%M')}.csv"
++        watermark = previous_watermark(out.name)
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with SOURCE.open(newline="") as fh:
+             rows = [
+@@ -59,13 +60,13 @@ def ingest_shipments():
+                 for r in csv.DictReader(fh)
+                 if r["updated_at"] <= upper and (watermark is None or r["updated_at"] > watermark)
+             ]
+-        out = BATCH_DIR / f"batch_{data_interval_end.strftime('%Y%m%dT%H%M')}.csv"
+         out.parent.mkdir(parents=True, exist_ok=True)
+-        with out.open("w", newline="") as fh:
++        tmp = out.with_suffix(".tmp")
++        with tmp.open("w", newline="") as fh:
+             writer = csv.DictWriter(fh, fieldnames=FIELDS)
+             writer.writeheader()
+             writer.writerows(rows)
+-        ti.xcom_push(key="watermark", value=max((r["updated_at"] for r in rows), default=watermark))
++        tmp.replace(out)
+         return len(rows)
+ 
+     load_batch()
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..5c62f9e 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard
+ pendulum==3.2.0

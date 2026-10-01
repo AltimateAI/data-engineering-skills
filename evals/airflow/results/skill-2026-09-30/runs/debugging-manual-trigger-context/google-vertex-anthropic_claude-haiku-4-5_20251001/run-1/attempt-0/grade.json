@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG partner_feed is present",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['partner_catalog_sync', 'partner_feed']"
+    },
+    {
+      "name": "task graph preserved (extract -> manifest -> deliver)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing=[] broken=[] deps=[['extract_orders', 'write_manifest'], ['write_manifest', 'deliver']]"
+    },
+    {
+      "name": "dags test with logical date 2026-03-02 succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "dated run delivers the 2026-03-02 feed",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "name": "manual run without a logical date succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "result={'state': 'failed', 'logical_date': None, 'run_after': '2026-03-03T00:30:00+00:00'} non-success tasks=['deliver']\n    return f(*inner_args, **inner_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/task_runner.py\", line 1414, in _prepare\n    ti.render_templates(context=context, jinja_env=jinja_env)\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/task_runner.py\", line 197, in wrapper\n    return f(*inner_args, **inner_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/task_runner.py\", line 432, in render_templates\n    self.task.render_template_fields(context, jinja_env)\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/bases/operator.py\", line 1652, in render_template_fields\n    self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/definitions/_internal/templater.py\", line 189, in _do_render_template_fields\n    rendered_content = self.render_template(value, context, jinja_env, seen_oids)\n                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/definitions/_internal/templater.py\", line 260, in render_template\n    return self._render(template, context)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/definitions/_internal/abstractoperator.py\", line 264, in _render\n    return super()._render(template, context, dag=dag)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/d\n...\nbleMapping[str, Any]\", context), native=False)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/definitions/context.py\", line 204, in render_template\n    return \"\".join(nodes)\n           ^^^^^^^^^^^^^^\n  File \"<template>\", line 21, in root\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/jinja2/runtime.py\", line 859, in _fail_with_undefined_error\n    raise self._undefined_exception(self._undefined_message)\njinja2.exceptions.UndefinedError: 'ds_nodash' is undefined\n2026-09-30T15:43:33.213136Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T15:43:33.214174Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T15:43:33.217642Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f2fc-415e-71a2-a1a2-fe4cd4bd662e loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f2fc-3ad7-7993-a957-461f2c55f781\n2026-09-30T15:43:33.220184Z [info     ] [DAG TEST] end task task_id=deliver map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T15:43:33.220780Z [info     ] Marking run <DagRun partner_feed @ None: manual__2026-03-03T00:30:00+00:00_LKwTBxTe, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T15:43:33.220976Z [info     ] DagRun Finished: dag_id=partner_feed, logical_date=None, run_id=manual__2026-03-03T00:30:00+00:00_LKwTBxTe, run_start_date=2026-03-04 09:00:00+00:00, run_end_date=2026-09-30 15:43:33.220810+00:00, run_duration=18168213.22081, state=failed, run_type=manual, data_interval_start=None, data_interval_end=None, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__EVAL_PROBE_RESULT__{\"state\": \"failed\", \"logical_date\": null, \"run_after\": \"2026-03-03T00:30:00+00:00\"}"
+    },
+    {
+      "name": "manual run delivers the feed for its trigger day (2026-03-03)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "problems=['outbox_feed', 'outbox_manifest']; expected 6 rows + manifest {'partition': '2026-03-03', 'row_count': 6}; got {\"feed\": [{\"order_id\": \"5024\", \"sku\": \"SKU-1002\", \"qty\": \"4\", \"amount\": \"192.72\"}, {\"order_id\": \"5025\", \"sku\": \"SKU-3300\", \"qty\": \"2\", \"amount\": \"57.88\"}, {\"order_id\": \"5026\", \"sku\": \"SKU-1002\", \"qty\": \"4\", \"amount\": \"127.63\"}, {\"order_id\": \"5029\", \"sku\": \"SKU-1002\", \"qty\": \"4\", \"amount\": \"52.93\"}, {\"order_id\": \"5030\", \"sku\": \"SKU-1002\", \"qty\": \"2\", \"amount\": \"19.23\"}, {\"order_id\": \"5031\", \"sku\": \"SKU-2040\", \"qty\": \"5\", \"amount\": \"116.89\"}], \"manifest\": {\"partition\": \"2026-03-03\", \"row_count\": 6}, \"outbox_feed\": \"missing acme_orders_20260303.csv\", \"outbox_manifest\": \"missing acme_orders_20260303.manifest.json\"}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.7142857142857143,
+  "secondary_score": 1.0
+}

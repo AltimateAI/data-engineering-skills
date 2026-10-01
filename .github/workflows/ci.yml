@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * *"   # nightly full grader self-test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Skill spec lint + JSON
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install lint deps
+        run: python -m pip install --quiet pyyaml pytest
+      - name: Validate JSON manifests
+        run: |
+          for f in .claude-plugin/marketplace.json registry.json; do
+            python -m json.tool "$f" > /dev/null && echo "ok $f"
+          done
+      - name: Skill spec tests
+        run: python -m pytest -q tests/skills/test_skill_spec.py
+
+  airflow-tests:
+    name: Airflow scripts, harness tests, grader self-test
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 45
+    env:
+      EVAL_ENV_ROOT: ${{ github.workspace }}/../des-evals
+      EVAL_WORK_ROOT: ${{ github.workspace }}/../des-evals-work
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: evals/harness/setup_envs.sh
+      # Same pinned envs as local evals: apache-airflow 3.3.2 and 2.11.2 with the
+      # official constraints files. uv's download cache makes this a fast re-link.
+      - name: Create Airflow envs
+        run: evals/harness/setup_envs.sh 3.3 2.11
+      - name: Airflow skill script tests + harness tests
+        # Env-dependent tests skip when a venv is missing; fail instead of skipping here.
+        run: |
+          test -x "$EVAL_ENV_ROOT/airflow-3.3/bin/python" && test -x "$EVAL_ENV_ROOT/airflow-2.11/bin/python"
+          "$EVAL_ENV_ROOT/airflow-3.3/bin/python" -m pytest -q -rs tests/skills/airflow tests/evals
+      # The full self-test takes ~3.5 CPU-hours (160 variants), so PRs run a fast
+      # subset covering both envs; the grader-self-test job below runs everything.
+      - name: Grader self-test, quick subset (no LLM)
+        run: |
+          "$EVAL_ENV_ROOT/airflow-3.3/bin/python" evals/harness/run_eval.py \
+            --cases evals/airflow/cases --self-test --split all --parallel 4 \
+            --case authoring-airflow2-inventory-snapshot \
+            --case authoring-daily-revenue-yesterday \
+            --case testing-airflow2-ci-suite
+
+  grader-self-test:
+    name: Full grader self-test (no LLM)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    needs: airflow-tests
+    timeout-minutes: 180
+    env:
+      EVAL_ENV_ROOT: ${{ github.workspace }}/../des-evals
+      EVAL_WORK_ROOT: ${{ github.workspace }}/../des-evals-work
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: evals/harness/setup_envs.sh
+      - name: Create Airflow envs
+        run: evals/harness/setup_envs.sh 3.3 2.11
+      - name: Grader self-test, all cases
+        run: |
+          "$EVAL_ENV_ROOT/airflow-3.3/bin/python" evals/harness/run_eval.py \
+            --cases evals/airflow/cases --self-test --split all --parallel 4

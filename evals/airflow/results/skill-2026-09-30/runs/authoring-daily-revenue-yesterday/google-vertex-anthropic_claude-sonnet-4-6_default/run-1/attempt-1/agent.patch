@@ -1,0 +1,135 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..72b11a9
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,129 @@
++"""Daily revenue per store, reporting on the previous calendar day (midnight-to-midnight UTC).
++
++Period contract
++---------------
++- Scheduled run at 03:00 UTC on day D  →  reports on D-1 (00:00 UTC .. 00:00 UTC of D)
++  e.g. run at 03:00 on 2026-09-29 writes output/daily_revenue/2026-09-28.csv
++- Rerun / clear of any run              →  same window as the original run (idempotent overwrite)
++- Backfill for any date since 2026-09-01 → same rule applied to the backfill tick
++
++The file is written atomically (temp-then-rename) so a partial run never leaves a corrupt CSV.
++Rerunning the same date always produces the same file (idempotent).
++"""
++
++from __future__ import annotations
++
++import csv
++import os
++import tempfile
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_FILE = PROJECT_ROOT / "data" / "orders.csv"
++
++# ---------------------------------------------------------------------------
++# Date helpers (verified against dates-and-schedules.md)
++# ---------------------------------------------------------------------------
++
++
++def prev_day(d: pendulum.DateTime) -> pendulum.DateTime:
++    """Return the start of the previous calendar day."""
++    return d.subtract(days=1)
++
++
++def run_window(dag_run) -> tuple[pendulum.DateTime, pendulum.DateTime]:
++    """Return [start, end) of the UTC calendar day this run processes.
++
++    Works for:
++    - Scheduled trigger-timetable runs (no interval → use run_after - 1 day)
++    - Manual triggers (logical_date may be None → fall back to run_after)
++    - Backfill runs (same as scheduled for that tick)
++    """
++    s = dag_run.data_interval_start
++    e = dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        # Interval timetable: the interval IS the processed period
++        return pendulum.instance(s).in_tz("UTC"), pendulum.instance(e).in_tz("UTC")
++    # Trigger timetable or manual run: compute previous calendar day from anchor
++    anchor = dag_run.logical_date or dag_run.run_after
++    start = prev_day(pendulum.instance(anchor).in_tz("UTC").start_of("day"))
++    return start, start.add(days=1)
++
++
++# ---------------------------------------------------------------------------
++# DAG definition
++# ---------------------------------------------------------------------------
++
++
++@dag(
++    dag_id="daily_revenue",
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,
++    tags=["finance", "revenue"],
++    doc_md=__doc__,
++)
++def daily_revenue():
++    @task
++    def compute_and_write(**context) -> str:
++        """Read orders.csv, aggregate revenue per store for the window, write CSV."""
++        import csv as _csv  # heavy-ish; keep inside task
++
++        dag_run = context["dag_run"]
++        start, end = run_window(dag_run)
++        report_date = start.to_date_string()  # YYYY-MM-DD label for the file
++
++        # --- read and filter orders ---
++        store_orders: dict[str, list[float]] = {}
++        with DATA_FILE.open(newline="") as fh:
++            reader = _csv.DictReader(fh)
++            for row in reader:
++                # order_ts is stored as "YYYY-MM-DD HH:MM:SS" (UTC)
++                ts = pendulum.parse(row["order_ts"], tz="UTC")
++                if start <= ts < end:
++                    sid = row["store_id"]
++                    amount = float(row["amount"])
++                    if sid not in store_orders:
++                        store_orders[sid] = []
++                    store_orders[sid].append(amount)
++
++        # --- build output rows sorted by store_id ---
++        rows = [
++            {
++                "store_id": sid,
++                "orders": len(amounts),
++                "revenue": round(sum(amounts), 2),
++            }
++            for sid, amounts in sorted(store_orders.items())
++        ]
++
++        # --- write atomically to output/daily_revenue/<YYYY-MM-DD>.csv ---
++        out_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out_file = out_dir / f"{report_date}.csv"
++
++        fd, tmp_path = tempfile.mkstemp(dir=out_dir, suffix=".tmp")
++        try:
++            with os.fdopen(fd, "w", newline="") as fh:
++                writer = _csv.DictWriter(fh, fieldnames=["store_id", "orders", "revenue"])
++                writer.writeheader()
++                writer.writerows(rows)
++            os.replace(tmp_path, out_file)  # atomic rename
++        except Exception:
++            try:
++                os.unlink(tmp_path)
++            except OSError:
++                pass
++            raise
++
++        return str(out_file)
++
++    compute_and_write()
++
++
++daily_revenue()

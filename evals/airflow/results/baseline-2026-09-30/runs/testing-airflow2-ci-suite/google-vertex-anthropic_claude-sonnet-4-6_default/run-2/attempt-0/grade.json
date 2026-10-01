@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_integrity.py, tests/test_late_shipment_logic.py, tests/test_shipments_daily_e2e.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 35 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 35 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: af3_import",
+      "kind": "primary",
+      "passed": true,
+      "detail": "carrier_rates_weekly imports PythonOperator from the Airflow-3 standard provider (absent in 2.11) -> failed: 34 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestDagImports::test_dag_file_loads_without_errors[carrier_rates_weekly.py] [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: weekend_schedule",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily cron changed to 30 7 * * 0-4 (Sunday-Thursday) -> failed: 31 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestShipmentsDailySchedule::test_schedule_is_weekdays_0730_utc [AssertionError], tests.test_dag_integrity.TestShipmentsDailySchedule::test_schedule_fires_on_monday [AssertionError], tests.test_dag_integrity.TestShipmentsDailySchedule::test_schedule_does_not_fire_on_saturday [AssertionError], tests.test_dag_integrity.TestShipmentsDailySchedule::test_schedule_does_not_fire_on_sunday [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: undelivered_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "find_late_shipments skips undelivered shipments -> failed: 26 passed, 9 failed, 0 errors, 0 skipped; behavioral failures: tests.test_late_shipment_logic.TestUndeliveredPastPromisedDate::test_undelivered_past_promised_is_late [AssertionError], tests.test_late_shipment_logic.TestUndeliveredPastPromisedDate::test_days_late_uses_run_date_when_undelivered [IndexError], tests.test_late_shipment_logic.TestSortOrder::test_sorted_worst_first_by_days_late [AssertionError], tests.test_late_shipment_logic.TestMixedCases::test_only_late_shipments_are_returned [AssertionError], tests.test_shipments_daily_e2e.TestShipmentsDailyE2E::test_exactly_four_late_shipments [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily default_args lose retries (tasks fall back to 0) -> failed: 34 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestRetryPolicy::test_all_tasks_have_at_least_two_retries [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "build_report no longer runs after extract_shipments -> failed: 33 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestShipmentsDailyDependencies::test_extract_is_upstream_of_report [AssertionError], tests.test_dag_integrity.TestShipmentsDailyDependencies::test_report_is_not_upstream_of_extract [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

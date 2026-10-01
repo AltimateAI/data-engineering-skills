@@ -1,0 +1,110 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..f799682
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,72 @@
++"""Load the daily vendor shipments file and publish the carrier report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.models import Variable
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    wait_for_file = FileSensor(
++        task_id="wait_for_file",
++        filepath="{{ var.value.vendor_landing_dir }}/shipments_{{ ds }}.csv",
++        poke_interval=300,  # Check every 5 minutes
++        timeout=64800,  # 18 hours (6am + 18h = midnight, so it fails if not there by end of day)
++        mode="reschedule",  # Don't hold a worker slot while waiting
++    )
++
++    @task
++    def load_shipments(ds=None):
++        import duckdb
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        
++        # Get the landing directory from Airflow Variable
++        landing_dir = Variable.get("vendor_landing_dir", default_var=str(PROJECT_ROOT / "data" / "incoming"))
++        shipments_file = Path(landing_dir) / f"shipments_{ds}.csv"
++        
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                "CREATE TABLE IF NOT EXISTS vendor_shipments ("
++                "shipment_id VARCHAR, carrier VARCHAR, destination VARCHAR, "
++                "weight_kg DOUBLE, shipped_at TIMESTAMP, ship_date DATE"
++                ")"
++            )
++            # Replace the day's rows so a rerun never duplicates them.
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds])
++            con.execute(
++                "INSERT INTO vendor_shipments "
++                "SELECT shipment_id, carrier, destination, weight_kg, shipped_at, CAST(? AS DATE) as ship_date "
++                "FROM read_csv_auto(?)",
++                [ds, str(shipments_file)],
++            )
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            ).fetchone()[0]
++
++    publish_report = BashOperator(
++        task_id="publish_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    # Orchestration: wait for file, load it, then publish the report
++    wait_for_file >> load_shipments() >> publish_report
++
++
++vendor_shipments()
+diff --git a/data/incoming/shipments_2026-09-30.csv b/data/incoming/shipments_2026-09-30.csv
+new file mode 100644
+index 0000000..82e9921
+--- /dev/null
++++ b/data/incoming/shipments_2026-09-30.csv
+@@ -0,0 +1,26 @@
++shipment_id,carrier,destination,weight_kg,shipped_at
++SHP-20260928-0000,DHL,Chicago,4.89,2026-09-28 04:36:00
++SHP-20260928-0001,USPS,Boston,3.94,2026-09-28 14:30:00
++SHP-20260928-0002,USPS,Denver,24.38,2026-09-28 00:57:00
++SHP-20260928-0003,USPS,Chicago,28.92,2026-09-28 00:44:00
++SHP-20260928-0004,DHL,Chicago,1.42,2026-09-28 07:37:00
++SHP-20260928-0005,DHL,Denver,27.52,2026-09-28 00:41:00
++SHP-20260928-0006,DHL,Seattle,9.02,2026-09-28 13:46:00
++SHP-20260928-0007,FedEx,Chicago,9.39,2026-09-28 14:31:00
++SHP-20260928-0008,USPS,Chicago,37.07,2026-09-28 07:48:00
++SHP-20260928-0009,DHL,Boston,25.25,2026-09-28 13:53:00
++SHP-20260928-0010,UPS,Austin,29.78,2026-09-28 23:55:00
++SHP-20260928-0011,USPS,Seattle,33.24,2026-09-28 23:45:00
++SHP-20260928-0012,UPS,Chicago,23.59,2026-09-28 21:12:00
++SHP-20260928-0013,USPS,Seattle,34.16,2026-09-28 15:54:00
++SHP-20260928-0014,USPS,Denver,26.66,2026-09-28 15:15:00
++SHP-20260928-0015,UPS,Austin,17.67,2026-09-28 11:35:00
++SHP-20260928-0016,FedEx,Seattle,33.63,2026-09-28 16:06:00
++SHP-20260928-0017,DHL,Denver,1.93,2026-09-28 11:31:00
++SHP-20260928-0018,USPS,Boston,6.91,2026-09-28 22:54:00
++SHP-20260928-0019,FedEx,Seattle,36.82,2026-09-28 07:00:00
++SHP-20260928-0020,USPS,Seattle,13.88,2026-09-28 17:14:00
++SHP-20260928-0021,USPS,Chicago,26.44,2026-09-28 18:22:00
++SHP-20260928-0022,DHL,Denver,31.39,2026-09-28 19:46:00
++SHP-20260928-0023,FedEx,Seattle,31.14,2026-09-28 23:32:00
++SHP-20260928-0024,DHL,Denver,34.83,2026-09-28 06:27:00

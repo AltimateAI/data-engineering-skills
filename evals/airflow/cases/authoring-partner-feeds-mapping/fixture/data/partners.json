@@ -1,0 +1,7 @@
+{
+  "acme": {"name": "Acme Retail", "region": "NA"},
+  "globex": {"name": "Globex Marketplace", "region": "EU"},
+  "hooli": {"name": "Hooli Shop", "region": "NA"},
+  "initech": {"name": "Initech Supplies", "region": "NA"},
+  "umbrella": {"name": "Umbrella Pharmacy", "region": "APAC"}
+}

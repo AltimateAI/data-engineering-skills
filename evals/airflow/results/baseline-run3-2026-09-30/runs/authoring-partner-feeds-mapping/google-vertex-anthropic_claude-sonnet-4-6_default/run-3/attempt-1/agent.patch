@@ -1,0 +1,121 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..51f1384
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,115 @@
++"""Daily ingestion of partner order files.
++
++For each run date the DAG:
++1. Discovers every <partner>.csv in data/partner_drop/<YYYY-MM-DD>/.
++2. Spawns one dynamically-mapped task per file so a broken file only
++   retries its own work.
++3. Writes output/partner_feeds/<date>/<partner>.json per file.
++4. Writes output/partner_feeds/<date>/summary.json once every file task
++   finishes (including the zero-file case).
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    dag_id="partner_feeds",
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["partners"],
++    doc_md=__doc__,
++)
++def partner_feeds():
++    # ------------------------------------------------------------------
++    # Step 1 – discover files for the logical date
++    # ------------------------------------------------------------------
++    @task
++    def discover_files(ds: str | None = None) -> list[dict]:
++        """Return one dict per CSV found; empty list when nothing arrived."""
++        drop_dir = PROJECT_ROOT / "data" / "partner_drop" / ds
++        if not drop_dir.exists():
++            return []
++        return [
++            {"partner": p.stem, "path": str(p)}
++            for p in sorted(drop_dir.glob("*.csv"))
++        ]
++
++    # ------------------------------------------------------------------
++    # Step 2 – process one partner file (dynamically mapped)
++    # ------------------------------------------------------------------
++    @task(retries=3, retry_delay=pendulum.duration(minutes=5))
++    def process_file(file_info: dict, ds: str | None = None) -> dict:
++        """Read a single partner CSV and write its JSON output."""
++        partner = file_info["partner"]
++        path = Path(file_info["path"])
++
++        rows = 0
++        total = Decimal("0")
++        with path.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                rows += 1
++                total += Decimal(row["amount"])
++
++        total_rounded = float(total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
++
++        payload = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": total_rounded,
++        }
++
++        out = PROJECT_ROOT / "output" / "partner_feeds" / ds / f"{partner}.json"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        out.write_text(json.dumps(payload, indent=2))
++        return payload
++
++    # ------------------------------------------------------------------
++    # Step 3 – write summary (trigger_rule=ALL_DONE so it runs even when
++    #           some file tasks fail, and also when file list is empty)
++    # ------------------------------------------------------------------
++    @task(trigger_rule="all_done")
++    def write_summary(results: list[dict], ds: str | None = None) -> None:
++        """Aggregate individual results into a summary JSON file."""
++        # results may contain None entries when upstream tasks failed
++        valid = [r for r in results if r is not None]
++
++        total_files = len(valid)
++        total_rows = sum(r["rows"] for r in valid)
++        total_amount = float(
++            sum(
++                (Decimal(str(r["total_amount"])) for r in valid),
++                Decimal("0"),
++            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
++        )
++
++        summary = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": total_amount,
++        }
++
++        out = PROJECT_ROOT / "output" / "partner_feeds" / ds / "summary.json"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        out.write_text(json.dumps(summary, indent=2))
++
++    # ------------------------------------------------------------------
++    # Wire up
++    # ------------------------------------------------------------------
++    files = discover_files()
++    processed = process_file.expand(file_info=files)
++    write_summary(processed)
++
++
++partner_feeds()

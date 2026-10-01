@@ -1,0 +1,387 @@
+{
+  "run_name": "baseline-run3-2026-09-30",
+  "arm": "baseline",
+  "models": [
+    "google-vertex-anthropic/claude-sonnet-4-6@default",
+    "google-vertex-anthropic/claude-haiku-4-5@20251001"
+  ],
+  "runs_per_case": 1,
+  "run_offset": 2,
+  "run_indices": [
+    3
+  ],
+  "split": "all",
+  "argv": [
+    "evals/harness/run_eval.py",
+    "--cases",
+    "evals/airflow/cases",
+    "--arm",
+    "baseline",
+    "--models",
+    "google-vertex-anthropic/claude-sonnet-4-6@default,google-vertex-anthropic/claude-haiku-4-5@20251001",
+    "--runs",
+    "1",
+    "--run-offset",
+    "2",
+    "--parallel",
+    "2",
+    "--split",
+    "all",
+    "--max-cost-usd",
+    "55",
+    "--out",
+    "evals/airflow/results/baseline-run3-2026-09-30"
+  ],
+  "started_at": "2026-09-30T15:24:19+00:00",
+  "altimate_code_version": "0.12.2",
+  "small_model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+  "envs": {
+    "2.11": {
+      "python": "3.12.8",
+      "airflow": "2.11.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.4.4",
+      "pandas": "2.1.4",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+    },
+    "3.3": {
+      "python": "3.12.8",
+      "airflow": "3.3.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.5.6",
+      "pandas": "3.0.5",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+    }
+  },
+  "cases": {
+    "authoring-airflow2-inventory-snapshot": {
+      "sha256": "ae584c8885a3231aefbda92cbd0e3a71defa32bb3b25c2ee3186fa850283ca0d",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "2.11"
+    },
+    "authoring-clickstream-claim-check": {
+      "sha256": "37a8ae627611237474b83cf5466d569d495cd0f9a685a1378c88484a6ab7e2fe",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "authoring-daily-revenue-yesterday": {
+      "sha256": "4642d8bf21aab04711921f58ecb6a41b1b4ecf154034c7c5530766fa8f3f75d3",
+      "area": "authoring",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "authoring-partner-feeds-mapping": {
+      "sha256": "d980d3caa6e3e9349e444bf1839b5e2b125e0b211599d1d9280b8e136daf8c46",
+      "area": "authoring",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "authoring-vendor-shipments-etl": {
+      "sha256": "a4b4ec3598fde2bdd0861c6ac07d869a4fb9c9cd4f7e11afc1c80d148807cb3f",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "debugging-manual-trigger-context": {
+      "sha256": "8338c7cee702b4f7e5fb5aeebb27e86a7e5e3480033c6262d992ca0dfb2e0012",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "debugging-nondeterministic-parse": {
+      "sha256": "4b3b2e785402e02d4e8ece4ac67ec8067cc7ebcb2f6592cc8f23cd8ac53b6ab0",
+      "area": "debugging",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "debugging-variable-at-parse": {
+      "sha256": "436770cb552cd4b75a7f97e40679e325aefe4cfd9ffe3b056e3e7edd3904b7a3",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "migration-hourly-pageviews-templates": {
+      "sha256": "eac1e05c242883e2ba514c9a40eada3ca3a3eea85964e1dc941f730c22f471a9",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "migration-inventory-context": {
+      "sha256": "7ceaba6f5bf122cc4ad72f52907a5ca590f2f8fd453510481ee4cd0bfeb2684e",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "migration-revenue-previous-day": {
+      "sha256": "fbe90a176c9b896b2ec0f3bbaa9c8fe31f30b71be896fd21107168867af51e4b",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "migration-shipments-assets": {
+      "sha256": "eb3b442aa66d7ef010f409e021cec3aab4f2ea405b3595e6a59702c2fb08f817",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "migration-weekly-catchup": {
+      "sha256": "33eb41343603e6636fbedb532f638c14d7344557b72de6453c7b4743b360ef65",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "scheduling-backfill-pageviews": {
+      "sha256": "21f1a5b92665ac392eee3645c12f5bec695a1bca968e69048e95da056f6a32fd",
+      "area": "scheduling",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "scheduling-idempotent-orders-load": {
+      "sha256": "d7be51f944fc210339eb4ba7af7cddc57a443a4ea1b5bbebaffe7050d55b8b50",
+      "area": "scheduling",
+      "split": "dev",
+      "airflow_version": "2.11"
+    },
+    "scheduling-weekday-ny-business-day": {
+      "sha256": "1b164415c1d78cbbcc41b74b4e8ad603477667f8021035b233d98d374acbbbe6",
+      "area": "scheduling",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "testing-airflow2-ci-suite": {
+      "sha256": "2698fd0e094085cfc1c6a5588a963ec1a24e51dc7df14374015034fcad59afd7",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "2.11"
+    },
+    "testing-custom-operator-conn": {
+      "sha256": "f535f838126249b962dc9b59d030b2e752a41690af0c33c299cc47afa016804e",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "testing-dagbag-integrity": {
+      "sha256": "6bd2af541d6dc7f995c0ac416636477645bd2c5e93e5eae4fe13facf98b32a65",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "testing-taskflow-transforms": {
+      "sha256": "75b2c5c1c8eebe683f8694e97144eaefcfc7fe7a2f413b0dd86e003ab4c7927d",
+      "area": "testing",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    }
+  },
+  "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+  "airflow_skills_dir": "<repo>/skills/airflow",
+  "airflow_skills_sha256": null,
+  "airflow_skills_dir_sha256": "e03e9d6dbfd25d119b2586f509d4fce86bcfd8d5b243fa25994516fb246b0a19",
+  "airflow_skill_names": [
+    "authoring-airflow-dags",
+    "migrating-to-airflow-3",
+    "testing-airflow-dags"
+  ],
+  "repo_skill_names": [
+    "optimizing-databricks-sql",
+    "creating-dbt-models",
+    "debugging-dbt-errors",
+    "developing-incremental-models",
+    "documenting-dbt-models",
+    "migrating-sql-to-dbt",
+    "refactoring-dbt-models",
+    "testing-dbt-models",
+    "finding-expensive-queries",
+    "optimizing-query-by-id",
+    "optimizing-query-text"
+  ],
+  "inventory": [
+    [
+      "altimate-code",
+      "project"
+    ],
+    [
+      "altimate-setup",
+      "builtin"
+    ],
+    [
+      "cost-report",
+      "builtin"
+    ],
+    [
+      "creating-dbt-models",
+      "project"
+    ],
+    [
+      "customize-opencode",
+      "project"
+    ],
+    [
+      "data-parity",
+      "builtin"
+    ],
+    [
+      "data-viz",
+      "builtin"
+    ],
+    [
+      "dbt-analyze",
+      "builtin"
+    ],
+    [
+      "dbt-develop",
+      "builtin"
+    ],
+    [
+      "dbt-docs",
+      "builtin"
+    ],
+    [
+      "dbt-pr-review",
+      "builtin"
+    ],
+    [
+      "dbt-schema-verify",
+      "builtin"
+    ],
+    [
+      "dbt-test",
+      "builtin"
+    ],
+    [
+      "dbt-troubleshoot",
+      "builtin"
+    ],
+    [
+      "dbt-unit-tests",
+      "builtin"
+    ],
+    [
+      "debugging-dbt-errors",
+      "project"
+    ],
+    [
+      "developing-incremental-models",
+      "project"
+    ],
+    [
+      "documenting-dbt-models",
+      "project"
+    ],
+    [
+      "finding-expensive-queries",
+      "project"
+    ],
+    [
+      "lineage-diff",
+      "builtin"
+    ],
+    [
+      "migrating-sql-to-dbt",
+      "project"
+    ],
+    [
+      "optimizing-databricks-sql",
+      "project"
+    ],
+    [
+      "optimizing-query-by-id",
+      "project"
+    ],
+    [
+      "optimizing-query-text",
+      "project"
+    ],
+    [
+      "pii-audit",
+      "builtin"
+    ],
+    [
+      "query-optimize",
+      "builtin"
+    ],
+    [
+      "refactoring-dbt-models",
+      "project"
+    ],
+    [
+      "schema-migration",
+      "builtin"
+    ],
+    [
+      "sql-review",
+      "builtin"
+    ],
+    [
+      "sql-translate",
+      "builtin"
+    ],
+    [
+      "teach",
+      "builtin"
+    ],
+    [
+      "testing-dbt-models",
+      "project"
+    ],
+    [
+      "train",
+      "builtin"
+    ],
+    [
+      "training-status",
+      "builtin"
+    ]
+  ],
+  "harness_sha256": "ca7c1715da06707fdf6ef45cc3206bb7d5c5c2f3882e815bc84234a3462d6257",
+  "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+  "host": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.8"
+  },
+  "budget": {
+    "cap_usd": 55.0,
+    "per_run_cap_usd": 5.0,
+    "spent_usd": 52.105,
+    "stopped_early": false,
+    "spent_usd_harness": 46.8305
+  },
+  "finished_at": "2026-09-30T16:23:23+00:00",
+  "status_counts": {
+    "cost_limit": 1,
+    "ok": 16,
+    "task_fail": 19,
+    "turn_limit": 4
+  },
+  "campaign_notes": {
+    "purpose": "baseline run 3 (runs 1-2 are in baseline-2026-09-30, whose run-3 rows are skipped_budget placeholders); merge both dirs with report.py",
+    "airflow_skills_frozen_sha256": {
+      "at_start": "e03e9d6dbfd25d119b2586f509d4fce86bcfd8d5b243fa25994516fb246b0a19",
+      "at_end": "e03e9d6dbfd25d119b2586f509d4fce86bcfd8d5b243fa25994516fb246b0a19"
+    },
+    "recovered_row": {
+      "run": "authoring-daily-revenue-yesterday/google-vertex-anthropic/claude-sonnet-4-6@default/3",
+      "why": "harness crashed in os.killpg (EPERM: process group already exited) when the per-run cost cap tripped at the poll where the agent finished; attempt completed offline from the surviving workspace with the same patch/grade/classify code (cost_capped=True); wall_s from event timestamps",
+      "original_row": "runs.jsonl.harness-exception",
+      "untracked_cost_usd": 5.274489,
+      "harness_fix": "run_eval.stop_process_group tolerates OSError from killpg (after this campaign started)"
+    },
+    "grader_parity": {
+      "cases_changed_since_first_baseline": [
+        "debugging-nondeterministic-parse",
+        "migration-revenue-previous-day",
+        "testing-airflow2-ci-suite",
+        "testing-custom-operator-conn",
+        "testing-dagbag-integrity",
+        "testing-taskflow-transforms"
+      ],
+      "runs_1_2_regraded": false,
+      "why": "run_eval.py/report.py have no stored-attempt regrade mode; runs 1-2 keep their original grades",
+      "offline_regrade_evidence": "an out-of-band regrade of the first baseline's migration/testing/debugging attempts (fixture + agent.patch, current graders) found no primary_pass flips; one primary_score changed (migration-revenue-previous-day sonnet run-1: 0.571 -> 0.857)"
+    }
+  }
+}

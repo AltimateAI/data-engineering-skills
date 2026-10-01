@@ -1,0 +1,72 @@
+diff --git a/dags/__pycache__/campaign_sync.cpython-312.pyc b/dags/__pycache__/campaign_sync.cpython-312.pyc
+new file mode 100644
+index 0000000000000000000000000000000000000000..39f421d75c1deec91c081a67b7301fe281288721
+Binary files differ (content omitted by sanitize.py)
+diff --git a/dags/__pycache__/weekly_campaign_report.cpython-312.pyc b/dags/__pycache__/weekly_campaign_report.cpython-312.pyc
+new file mode 100644
+index 0000000000000000000000000000000000000000..e9831b9faadf7ca76f5d3d6c75c8b10a7b85eb7a
+Binary files differ (content omitted by sanitize.py)
+diff --git a/dags/campaign_sync.py b/dags/campaign_sync.py
+index 4ae3318..d65e6a7 100644
+--- a/dags/campaign_sync.py
++++ b/dags/campaign_sync.py
+@@ -6,13 +6,13 @@ import shutil
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule="@hourly",
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["marketing"],
+diff --git a/dags/weekly_campaign_report.py b/dags/weekly_campaign_report.py
+index 150cb17..15f01e6 100644
+--- a/dags/weekly_campaign_report.py
++++ b/dags/weekly_campaign_report.py
+@@ -13,22 +13,33 @@ from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
++from airflow.sdk.definitions.deadline import DeadlineAlert, DagRunLogicalDateDeadline, SyncCallback
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "campaign_events.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
+ 
+-def notify_growth_oncall(dag, task_list, blocking_task_list, slas, blocking_tis):
+-    print(f"SLA missed for {task_list} in {dag.dag_id}")
++def notify_growth_oncall(context):
++    """Alert on-call analyst when the weekly report deadline is missed.
++    
++    Called when the DAG run does not complete within the deadline.
++    """
++    run = context["dag_run"]
++    print(f"Deadline missed for {run.dag_id} run {run.run_id}")
+ 
+ 
+ @dag(
+-    schedule_interval="0 6 * * 1",
++    schedule="0 6 * * 1",
+     start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),
+-    default_args={"owner": "growth-analytics", "retries": 1, "sla": timedelta(hours=3)},
+-    sla_miss_callback=notify_growth_oncall,
++    default_args={"owner": "growth-analytics", "retries": 1},
++    deadline=DeadlineAlert(
++        reference=DagRunLogicalDateDeadline(),
++        interval=timedelta(hours=3),
++        callback=SyncCallback(notify_growth_oncall),
++        name="complete_by_09_utc",
++    ),
+     max_active_runs=2,
+     tags=["marketing", "weekly"],
+ )

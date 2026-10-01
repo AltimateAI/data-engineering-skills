@@ -1,0 +1,23 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [],
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "tools": [
+    "bash",
+    "bash",
+    "bash"
+  ],
+  "returncode": 0,
+  "wall_s": 14.0,
+  "cost_usd": 0.175479,
+  "cost_reported_usd": 0.374148,
+  "steps": 3,
+  "termination": {
+    "why_model_stopped": "stop",
+    "why_harness_stopped": "none",
+    "done_reason": "none"
+  },
+  "errors": []
+}

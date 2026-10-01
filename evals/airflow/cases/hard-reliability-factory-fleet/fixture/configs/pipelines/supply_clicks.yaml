@@ -1,0 +1,32 @@
+name: supply_clicks
+team: supply
+tier: standard
+description: Clicks pipeline for supply
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: supply.raw_clicks_00
+- name: stage
+  table: supply.stg_clicks_00
+  depends_on:
+  - extract
+- name: enrich
+  table: supply.int_clicks_00
+  depends_on:
+  - stage
+  - extract
+- name: aggregate
+  table: supply.int_clicks_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: supply.int_clicks_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: supply.mart_clicks_00
+  depends_on:
+  - snapshot
+  - aggregate

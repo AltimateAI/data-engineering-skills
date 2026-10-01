@@ -1,0 +1,252 @@
+diff --git a/README.md b/README.md
+index b3a5332..46b8c07 100644
+--- a/README.md
++++ b/README.md
+@@ -8,6 +8,8 @@ Airflow 3.3 deployment that turns YAML pipeline configs into DAGs.
+   team on every deploy (owners, on-call, retry defaults, registered tables).
+   Do not edit it by hand.
+ - `pools.json`: Airflow pools; the deploy runs `airflow pools import pools.json`.
++  The `warehouse` pool (16 slots) caps the fleet at the 16 concurrent queries
++  the warehouse accepts; every fleet task takes one slot.
+ - `output/`: where the stand-in `run_step` records which steps ran.
+ 
+ Pipeline config fields: `name` (the dag_id), `team`, `tier` (`critical` or
+@@ -17,4 +19,20 @@ Pipeline config fields: `name` (the dag_id), `team`, `tier` (`critical` or
+ optional `owners` (added to the team's owners), optional `retries` (otherwise
+ the team default) and `steps` (`name`, `table`, `depends_on`).
+ 
++How the factory behaves:
++
++- `tier: critical` tasks get `priority_weight` 100, `tier: standard` tasks 1,
++  with `weight_rule: absolute`, so when the `warehouse` pool is full critical
++  pipelines are always queued first no matter how many steps a pipeline has.
++- The start minute is derived from the pipeline name (crc32 mod 60) when
++  `schedule.minute` is not set, so it is stable across parses and independent
++  of the other configs.
++- A config that fails to load or validate (bad YAML, unknown team or table,
++  bad tier, unknown `depends_on`, duplicate dag_id) is logged with its file
++  name and skipped; its DAG is absent until the config is fixed and no other
++  pipeline is affected. A broken `configs/registry.yaml` fails the whole file.
++- Workers parsing the file for a task build only that task's DAG.
++- Parsing reads the registry once; with libyaml-backed PyYAML the full fleet
++  parses in well under a second, without it in about 2-3 s.
++
+ Local run: `airflow dags test billing_carriers 2026-03-02`.
+diff --git a/dags/pipeline_factory.py b/dags/pipeline_factory.py
+index 96daadf..7da053e 100644
+--- a/dags/pipeline_factory.py
++++ b/dags/pipeline_factory.py
+@@ -4,23 +4,57 @@ Each config names its team (looked up in the platform registry for owners and
+ retry defaults), a schedule (hour and day-of-week; the start minute is spread
+ over the hour so the warehouse does not get every pipeline at :00) and a list
+ of steps. Every step becomes a task that runs `run_step`.
++
++Parsing rules this file follows (the dag processor re-parses it every few
++seconds and the import timeout is 30 s):
++
++* The registry is read once per parse, not once per config.
++* Every value that ends up in a DAG is derived only from that pipeline's config
++  and the registry, never from the clock, the process or the other configs, so
++  a parse produces byte-identical DAGs (no new DAG versions) and a change to
++  one config cannot alter another pipeline's DAG.
++* A config that fails to load or validate is logged with its file name and
++  skipped: its DAG is simply absent until the config is fixed, and the other
++  pipelines are unaffected.
++* When a worker parses this file to run a task it only builds the DAG that
++  task belongs to.
++* Every step runs in the `warehouse` pool (16 slots, see pools.json) with an
++  absolute priority taken from the pipeline's tier, so critical pipelines are
++  always queued ahead of standard ones regardless of how many steps either has.
+ """
+ 
+ from __future__ import annotations
+ 
+ import json
++import logging
++import zlib
+ from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import yaml
+ from airflow.providers.standard.operators.python import PythonOperator
+-from airflow.sdk import DAG
++from airflow.sdk import DAG, get_parsing_context
++
++log = logging.getLogger(__name__)
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ CONFIG_DIR = PROJECT_ROOT / "configs" / "pipelines"
+ REGISTRY = PROJECT_ROOT / "configs" / "registry.yaml"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
++# Every step is a warehouse query. The warehouse takes 16 concurrent queries for
++# the whole fleet, so every task takes one slot of this pool (pools.json).
++WAREHOUSE_POOL = "warehouse"
++
++# priority_weight per tier. Tasks use weight_rule="absolute" so these values are
++# compared as-is across the fleet: any critical task outranks any standard task
++# when the pool is full, however many steps each pipeline has.
++TIER_PRIORITY = {"critical": 100, "standard": 1}
++
++# libyaml's loader parses the half-megabyte registry ~7x faster than the pure
++# Python one; fall back when PyYAML was built without it.
++YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
++
+ 
+ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+     """Stand-in for the warehouse call: records which step ran for which logical date."""
+@@ -40,7 +74,7 @@ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+ 
+ def load_yaml(path: Path) -> dict:
+     with open(path) as fh:
+-        return yaml.load(fh, Loader=yaml.SafeLoader)
++        return yaml.load(fh, Loader=YAML_LOADER)
+ 
+ 
+ def check_table(registry: dict, table: str) -> None:
+@@ -50,25 +84,31 @@ def check_table(registry: dict, table: str) -> None:
+ 
+ def start_minute(name: str) -> int:
+     # Spread pipelines over the hour so they do not all hit the warehouse at :00.
+-    return hash(name) % 60
++    # crc32 is stable across processes; the built-in hash() is salted per
++    # interpreter, which would move the schedule on every parse.
++    return zlib.crc32(name.encode("utf-8")) % 60
+ 
+ 
+-def build_dag(path: Path) -> DAG:
+-    cfg = load_yaml(path)
+-    registry = load_yaml(REGISTRY)
++def build_dag(path: Path, cfg: dict, registry: dict) -> DAG:
++    name = cfg["name"]
+     team = registry["teams"][cfg["team"]]
++    tier = cfg.get("tier")
++    if tier not in TIER_PRIORITY:
++        raise ValueError(f"tier must be one of {sorted(TIER_PRIORITY)}, got {tier!r}")
+     sched = cfg["schedule"]
+-    minute = sched.get("minute", start_minute(cfg["name"]))
+-    owners = set(team["owners"]) | set(cfg.get("owners", []))
++    minute = sched.get("minute", start_minute(name))
++    # Team owners first, then the config's extra owners, without duplicates and
++    # in a fixed order (a set would serialise in a different order per parse).
++    owners = list(dict.fromkeys([*team["owners"], *cfg.get("owners", [])]))
+ 
+     dag = DAG(
+-        dag_id=cfg["name"],
++        dag_id=name,
+         description=cfg.get("description"),
+         schedule=f"{minute} {sched['hour']} * * {sched.get('days', '*')}",
+         start_date=datetime(2026, 1, 1),
+         catchup=False,
+         tags=[cfg["team"], "fleet"],
+-        doc_md=f"Generated from `{path.name}` on {datetime.now():%Y-%m-%d %H:%M}. "
++        doc_md=f"Generated from `{path.name}` (tier: {tier}). "
+                f"On-call: {team['oncall']} ({team['slack']}).",
+         default_args={
+             "owner": ",".join(owners),
+@@ -79,18 +119,91 @@ def build_dag(path: Path) -> DAG:
+     with dag:
+         tasks = {}
+         for step in cfg["steps"]:
++            if step["name"] in tasks:
++                raise ValueError(f"duplicate step {step['name']!r}")
+             check_table(registry, step["table"])
+             tasks[step["name"]] = PythonOperator(
+                 task_id=step["name"],
+                 python_callable=run_step,
+-                op_kwargs={"pipeline": cfg["name"], "step": step["name"], "table": step["table"]},
++                op_kwargs={"pipeline": name, "step": step["name"], "table": step["table"]},
++                pool=WAREHOUSE_POOL,
++                pool_slots=1,
++                priority_weight=TIER_PRIORITY[tier],
++                weight_rule="absolute",
+             )
+         for step in cfg["steps"]:
+             for upstream in step.get("depends_on", []):
++                if upstream not in tasks:
++                    raise ValueError(f"step {step['name']!r} depends on unknown step {upstream!r}")
+                 tasks[upstream] >> tasks[step["name"]]
+     return dag
+ 
+ 
+-for config_path in CONFIG_DIR.glob("*.yaml"):
+-    dag = build_dag(config_path)
+-    globals()[dag.dag_id] = dag
++def load_config(path: Path) -> dict:
++    cfg = load_yaml(path)
++    if not isinstance(cfg, dict) or not isinstance(cfg.get("name"), str):
++        raise ValueError("config must be a mapping with a string 'name'")
++    return cfg
++
++
++def select_configs(dag_id: str | None) -> list[tuple[Path, dict]]:
++    """Return (path, config) for the configs to build.
++
++    With no dag_id (the dag processor) that is every config that loads. When a
++    worker parses the file to run a task, Airflow tells us the dag_id and only
++    that pipeline's config is returned, so the other 139 DAGs are never built.
++    """
++    paths = sorted(CONFIG_DIR.glob("*.yaml"))
++    direct = None
++    if dag_id is not None:
++        # Configs are normally named after their pipeline; check that first.
++        direct = CONFIG_DIR / f"{dag_id}.yaml"
++        if direct in paths:
++            paths = [direct] + [p for p in paths if p != direct]
++    selected = []
++    for path in paths:
++        try:
++            cfg = load_config(path)
++        except Exception:
++            # In a worker only the requested pipeline's problems are relevant.
++            if dag_id is None or path == direct:
++                log.exception(
++                    "Pipeline config %s is broken; its DAG is skipped until the config is fixed",
++                    path,
++                )
++            continue
++        if dag_id is None or cfg["name"] == dag_id:
++            selected.append((path, cfg))
++            if dag_id is not None:
++                break
++    return selected
++
++
++def build_fleet(dag_id: str | None = None) -> dict[str, DAG]:
++    # A missing or unparseable registry is a deploy problem that no pipeline can
++    # be validated without, so let it fail the whole file loudly.
++    registry = load_yaml(REGISTRY)
++    dags: dict[str, DAG] = {}
++    sources: dict[str, Path] = {}
++    for path, cfg in select_configs(dag_id):
++        if cfg["name"] in dags:
++            log.error(
++                "Pipeline config %s is skipped: dag_id %r is already defined by %s",
++                path, cfg["name"], sources[cfg["name"]],
++            )
++            continue
++        try:
++            dag = build_dag(path, cfg, registry)
++        except Exception:
++            log.exception(
++                "Pipeline config %s is broken; its DAG is skipped until the config is fixed",
++                path,
++            )
++            continue
++        dags[dag.dag_id] = dag
++        sources[dag.dag_id] = path
++    return dags
++
++
++# Airflow only picks up DAG objects that are module globals.
++globals().update(build_fleet(get_parsing_context().dag_id))
+diff --git a/pools.json b/pools.json
+index bc85e99..c8561a2 100644
+--- a/pools.json
++++ b/pools.json
+@@ -1,3 +1,4 @@
+ {
+-  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false}
++  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false},
++  "warehouse": {"slots": 16, "description": "Warehouse query concurrency for the whole pipeline fleet (every fleet task takes one slot)", "include_deferred": false}
+ }

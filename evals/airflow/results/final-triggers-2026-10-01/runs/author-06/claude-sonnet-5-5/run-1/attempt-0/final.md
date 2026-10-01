@@ -1,0 +1,3 @@
+`load` in `dags/orders_pipeline.py` now returns `len(rows)`, and `notify` takes that count and prints `"{row_count} orders loaded"`. I didn't run the DAG or the tests, and `tests/test_dags.py` has no references to `orders_pipeline` or `notify`.
+
+The count is passed as the task's return value, so `load` is already upstream of `notify`. I replaced the explicit `>> notify()` with `notify(load(transform(extract())))`.

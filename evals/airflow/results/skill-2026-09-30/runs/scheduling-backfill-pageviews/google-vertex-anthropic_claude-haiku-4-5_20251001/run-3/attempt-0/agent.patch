@@ -1,0 +1,81 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..712605c 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,8 +1,13 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
++at about 01:00 UTC the next morning. This DAG aggregates each day's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++When paused and then unpaused:
++- If any day between Sept 1 and now is missing, Airflow will backfill it
++- Re-runs of the same day safely replace the previous data (DELETE + INSERT)
++- Single-writer DuckDB constraint is respected (one task per run)
+ """
+ 
+ from pathlib import Path
+@@ -15,20 +20,39 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
++# Data is available starting Sept 1, 2026
++DATA_START = pendulum.datetime(2026, 9, 1, tz="UTC")
++
+ 
+ @dag(
+     dag_id="pageviews_daily",
+     schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    start_date=DATA_START,
++    catchup=True,  # Enable backfill when paused then unpaused
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(ds: str) -> int:
++        """
++        Load a single day of page views.
++        
++        Args:
++            ds: Execution date (YYYY-MM-DD format, passed by Airflow)
++        
++        Returns:
++            Number of rows loaded for this day
++        """
++        day = ds
+         source = RAW_DIR / f"{day}.csv"
++        
++        if not source.exists():
++            raise FileNotFoundError(
++                f"No data file for {day} at {source}. "
++                f"Data is only available from {DATA_START.to_date_string()} onwards."
++            )
++        
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -43,7 +67,9 @@ def pageviews_daily():
+                 """
+             )
+             con.execute("BEGIN TRANSACTION")
++            # Delete any existing data for this day (safe for re-runs)
+             con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            # Load and aggregate the day's raw events
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+@@ -54,6 +80,7 @@ def pageviews_daily():
+                 [day],
+             )
+             con.execute("COMMIT")
++            # Return the count of pages loaded
+             return con.execute(
+                 "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
+             ).fetchone()[0]

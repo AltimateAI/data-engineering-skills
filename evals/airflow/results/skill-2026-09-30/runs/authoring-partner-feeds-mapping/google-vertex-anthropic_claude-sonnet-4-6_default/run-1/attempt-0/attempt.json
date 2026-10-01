@@ -1,0 +1,36 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "returncode": -15,
+  "wall_s": 230.4,
+  "cost_usd": 5.041298,
+  "cost_reported_usd": 10.630843,
+  "tokens": {
+    "input": 1652779,
+    "output": 8928,
+    "reasoning": 0,
+    "cache_read": 396074,
+    "cache_write": 1256686,
+    "total": 3314467
+  },
+  "steps": 18,
+  "termination": {},
+  "skill_invocations": [
+    {
+      "name": "authoring-airflow-dags",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "authoring-airflow-dags"
+  ],
+  "bash_commands": 12,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": null
+}

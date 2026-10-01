@@ -1,0 +1,19 @@
+name: logistics_queries
+team: logistics
+tier: standard
+description: Queries pipeline for logistics
+schedule:
+  hour: 3
+  days: 1-5
+retries: 4
+steps:
+- name: extract
+  table: logistics.raw_queries_00
+- name: enrich
+  table: logistics.int_queries_00
+  depends_on:
+  - extract
+- name: publish
+  table: logistics.mart_queries_00
+  depends_on:
+  - enrich

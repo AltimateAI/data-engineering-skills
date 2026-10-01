@@ -1,0 +1,831 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..3194c8d
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,72 @@
++"""Shared pytest fixtures for the orders_enrichment test suite.
++
++The DAG is imported by adding dags/ to sys.path and using each task's
++`.function` attribute (the raw Python callable that Airflow wraps).  No
++scheduler, webserver, or database is required.
++"""
++
++from __future__ import annotations
++
++import os
++import sys
++from pathlib import Path
++
++import pytest
++
++# ---------------------------------------------------------------------------
++# Bootstrap: make the DAG module importable and put Airflow in test mode so
++# it skips database connectivity checks on import.
++# ---------------------------------------------------------------------------
++os.environ.setdefault("AIRFLOW__CORE__UNIT_TEST_MODE", "True")
++os.environ.setdefault("AIRFLOW_HOME", str(Path(__file__).resolve().parents[1] / ".airflow_test"))
++
++REPO_ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = REPO_ROOT / "dags"
++DATA_DIR = REPO_ROOT / "data"
++
++if str(DAGS_DIR) not in sys.path:
++    sys.path.insert(0, str(DAGS_DIR))
++
++import orders_enrichment as _mod  # noqa: E402  (must come after sys.path patch)
++
++
++# ---------------------------------------------------------------------------
++# Re-export the raw callables so test files don't have to reach into _mod.
++# ---------------------------------------------------------------------------
++
++dedupe_orders = _mod.dedupe_orders.function
++convert_to_usd = _mod.convert_to_usd.function
++validate_totals = _mod.validate_totals.function
++load_enriched = _mod.load_enriched.function
++extract_orders = _mod.extract_orders.function
++load_fx_rates = _mod.load_fx_rates.function
++
++
++@pytest.fixture()
++def tmp_output_dir(tmp_path, monkeypatch):
++    """Redirect OUTPUT_DIR to a temporary directory for the duration of a test."""
++    out = tmp_path / "orders_enriched"
++    monkeypatch.setattr(_mod, "OUTPUT_DIR", out)
++    return out
++
++
++# ---------------------------------------------------------------------------
++# Tiny helper: build a minimal order row dict.
++# ---------------------------------------------------------------------------
++
++def make_order(
++    order_id: str = "O-001",
++    order_date: str = "2026-03-02",
++    updated_at: str = "2026-03-02T10:00:00",
++    customer_id: str = "C-1",
++    currency: str = "USD",
++    amount: str = "10.00",
++) -> dict:
++    return {
++        "order_id": order_id,
++        "order_date": order_date,
++        "updated_at": updated_at,
++        "customer_id": customer_id,
++        "currency": currency,
++        "amount": amount,
++    }
+diff --git a/tests/test_convert_to_usd.py b/tests/test_convert_to_usd.py
+new file mode 100644
+index 0000000..64573ec
+--- /dev/null
++++ b/tests/test_convert_to_usd.py
+@@ -0,0 +1,137 @@
++"""Tests for convert_to_usd: amount_usd = amount * usd_per_unit, rounded HALF_UP to cents."""
++
++from __future__ import annotations
++
++import pytest
++from decimal import Decimal
++
++from conftest import convert_to_usd, make_order
++
++
++# ---------------------------------------------------------------------------
++# Correct conversion maths
++# ---------------------------------------------------------------------------
++
++
++class TestConvertToUsd:
++    """Finance requirement: amount_usd = amount * that day's usd_per_unit,
++    rounded half-up to cents."""
++
++    # -- Basic cases --
++
++    def test_usd_order_rate_one(self):
++        """A USD order with rate=1 gives amount_usd == amount exactly."""
++        rows = [make_order("O-1", currency="USD", amount="15.00")]
++        result = convert_to_usd(rows, {"USD": "1"})
++        assert result[0]["amount_usd"] == "15.00"
++
++    def test_eur_conversion(self):
++        """EUR order: 20.00 * 1.0812 = 21.624 -> rounds HALF_UP to 21.62."""
++        rows = [make_order("O-1", currency="EUR", amount="20.00")]
++        result = convert_to_usd(rows, {"USD": "1", "EUR": "1.0812"})
++        assert Decimal(result[0]["amount_usd"]) == Decimal("21.62")
++
++    def test_gbp_conversion_rounds_half_up(self):
++        """GBP order: 40.50 * 1.2700 = 51.435 -> rounds HALF_UP to 51.44."""
++        rows = [make_order("O-1", currency="GBP", amount="40.50")]
++        result = convert_to_usd(rows, {"USD": "1", "GBP": "1.2700"})
++        assert Decimal(result[0]["amount_usd"]) == Decimal("51.44")
++
++    def test_small_eur_amount_rounds_half_up(self):
++        """EUR order: 0.35 * 1.0850 = 0.37975 -> rounds HALF_UP to 0.38."""
++        rows = [make_order("O-1", currency="EUR", amount="0.35")]
++        result = convert_to_usd(rows, {"USD": "1", "EUR": "1.0850"})
++        assert Decimal(result[0]["amount_usd"]) == Decimal("0.38")
++
++    # -- ROUND_HALF_UP vs ROUND_HALF_EVEN distinction --
++
++    def test_round_half_up_not_bankers_rounding(self):
++        """1.005 rounds HALF_UP to 1.01, not 1.00 (which ROUND_HALF_EVEN would give)."""
++        rows = [make_order("O-1", currency="USD", amount="1.005")]
++        result = convert_to_usd(rows, {"USD": "1"})
++        assert Decimal(result[0]["amount_usd"]) == Decimal("1.01")
++
++    def test_round_half_up_positive_halfway(self):
++        """2.345 * 1 rounds HALF_UP to 2.35."""
++        rows = [make_order("O-1", currency="USD", amount="2.345")]
++        result = convert_to_usd(rows, {"USD": "1"})
++        assert Decimal(result[0]["amount_usd"]) == Decimal("2.35")
++
++    def test_round_half_up_applied_after_multiplication(self):
++        """Rounding is applied to the product, not to the operands individually.
++        1.234 * 1.0850 = 1.338890 -> rounds to 1.34."""
++        rows = [make_order("O-1", currency="EUR", amount="1.234")]
++        result = convert_to_usd(rows, {"USD": "1", "EUR": "1.0850"})
++        expected = (Decimal("1.234") * Decimal("1.0850")).quantize(
++            Decimal("0.01"), rounding="ROUND_HALF_UP"
++        )
++        assert Decimal(result[0]["amount_usd"]) == expected
++
++    # -- Multiple rows --
++
++    def test_multiple_currencies_converted_independently(self):
++        """Each row uses its own currency's rate."""
++        rows = [
++            make_order("O-1", currency="USD", amount="9.99"),
++            make_order("O-2", currency="EUR", amount="120.00"),
++            make_order("O-3", currency="GBP", amount="40.50"),
++        ]
++        rates = {"USD": "1", "EUR": "1.0850", "GBP": "1.2700"}
++        result = convert_to_usd(rows, rates)
++
++        by_id = {r["order_id"]: r for r in result}
++        assert Decimal(by_id["O-1"]["amount_usd"]) == Decimal("9.99")
++        assert Decimal(by_id["O-2"]["amount_usd"]) == Decimal("130.20")
++        assert Decimal(by_id["O-3"]["amount_usd"]) == Decimal("51.44")
++
++    def test_original_fields_are_preserved(self):
++        """amount_usd is added; all original fields remain intact."""
++        row = make_order("O-1", currency="USD", amount="10.00", customer_id="C-5")
++        result = convert_to_usd([row], {"USD": "1"})
++        assert result[0]["order_id"] == "O-1"
++        assert result[0]["customer_id"] == "C-5"
++        assert result[0]["currency"] == "USD"
++        assert result[0]["amount"] == "10.00"
++        assert result[0]["amount_usd"] == "10.00"
++
++    def test_amount_usd_is_stored_as_string(self):
++        """amount_usd is serialised as a string (for CSV round-trip safety)."""
++        rows = [make_order("O-1", currency="USD", amount="5.00")]
++        result = convert_to_usd(rows, {"USD": "1"})
++        assert isinstance(result[0]["amount_usd"], str)
++
++    def test_empty_input_returns_empty_list(self):
++        result = convert_to_usd([], {"USD": "1"})
++        assert result == []
++
++    # ---------------------------------------------------------------------------
++    # Finance requirement: a currency with no FX rate for the day must FAIL the
++    # run — not be guessed, zeroed, or silently skipped.
++    # ---------------------------------------------------------------------------
++
++    def test_missing_fx_rate_raises_value_error(self):
++        """An order in a currency with no FX rate must raise ValueError."""
++        rows = [make_order("O-1", currency="JPY", amount="1000.00")]
++        with pytest.raises(ValueError, match="JPY"):
++            convert_to_usd(rows, {"USD": "1"})
++
++    def test_missing_fx_rate_error_names_the_order(self):
++        """The error message must identify the offending order_id."""
++        rows = [make_order("O-XYZ", currency="CHF", amount="50.00")]
++        with pytest.raises(ValueError, match="O-XYZ"):
++            convert_to_usd(rows, {"USD": "1"})
++
++    def test_missing_fx_rate_for_one_of_many_raises(self):
++        """Even one order with a missing rate must fail the entire call."""
++        rows = [
++            make_order("O-1", currency="USD", amount="10.00"),
++            make_order("O-2", currency="MXN", amount="200.00"),  # no MXN rate
++        ]
++        with pytest.raises(ValueError, match="MXN"):
++            convert_to_usd(rows, {"USD": "1"})
++
++    def test_usd_always_available_without_fx_file(self):
++        """USD rate=1 is built-in; a USD-only batch needs no extra rates dict entry."""
++        rows = [make_order("O-1", currency="USD", amount="42.00")]
++        result = convert_to_usd(rows, {"USD": "1"})
++        assert Decimal(result[0]["amount_usd"]) == Decimal("42.00")
+diff --git a/tests/test_dag_definition.py b/tests/test_dag_definition.py
+new file mode 100644
+index 0000000..b8eb3f3
+--- /dev/null
++++ b/tests/test_dag_definition.py
+@@ -0,0 +1,88 @@
++"""Tests for DAG-level properties: schedule, task wiring, and metadata."""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pytest
++
++os.environ.setdefault("AIRFLOW__CORE__UNIT_TEST_MODE", "True")
++os.environ.setdefault("AIRFLOW_HOME", str(Path(__file__).resolve().parents[1] / ".airflow_test"))
++
++from airflow.models import DagBag
++
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++
++
++@pytest.fixture(scope="module")
++def dag():
++    bag = DagBag(dag_folder=str(DAGS_DIR))
++    assert not bag.import_errors, f"DAG import errors: {bag.import_errors}"
++    return bag.dags["orders_enrichment"]
++
++
++class TestDagDefinition:
++    def test_dag_loads_without_errors(self):
++        bag = DagBag(dag_folder=str(DAGS_DIR))
++        assert "orders_enrichment" in bag.dags
++        assert not bag.import_errors
++
++    # -- Schedule --
++
++    def test_schedule_is_daily_0600_utc(self, dag):
++        """Finance requirement: runs once a day at 06:00 UTC."""
++        assert dag.schedule == "0 6 * * *"
++
++    # -- Safety flags --
++
++    def test_catchup_is_disabled(self, dag):
++        """catchup=False prevents unexpected historical backfills."""
++        assert dag.catchup is False
++
++    def test_max_active_runs_is_one(self, dag):
++        """max_active_runs=1 prevents concurrent runs from clobbering output."""
++        assert dag.max_active_runs == 1
++
++    # -- Task graph --
++
++    def test_all_expected_tasks_present(self, dag):
++        expected = {
++            "extract_orders",
++            "load_fx_rates",
++            "dedupe_orders",
++            "convert_to_usd",
++            "validate_totals",
++            "load_enriched",
++        }
++        assert {t.task_id for t in dag.tasks} == expected
++
++    def test_extract_feeds_dedupe(self, dag):
++        """extract_orders -> dedupe_orders."""
++        t = dag.get_task("extract_orders")
++        assert "dedupe_orders" in [d.task_id for d in t.downstream_list]
++
++    def test_dedupe_feeds_convert(self, dag):
++        """dedupe_orders -> convert_to_usd."""
++        t = dag.get_task("dedupe_orders")
++        assert "convert_to_usd" in [d.task_id for d in t.downstream_list]
++
++    def test_fx_feeds_convert(self, dag):
++        """load_fx_rates -> convert_to_usd."""
++        t = dag.get_task("load_fx_rates")
++        assert "convert_to_usd" in [d.task_id for d in t.downstream_list]
++
++    def test_convert_feeds_validate(self, dag):
++        """convert_to_usd -> validate_totals."""
++        t = dag.get_task("convert_to_usd")
++        assert "validate_totals" in [d.task_id for d in t.downstream_list]
++
++    def test_validate_feeds_load(self, dag):
++        """validate_totals -> load_enriched (ensures output gating in the DAG)."""
++        t = dag.get_task("validate_totals")
++        assert "load_enriched" in [d.task_id for d in t.downstream_list]
++
++    def test_load_enriched_is_terminal(self, dag):
++        """load_enriched has no downstream tasks."""
++        t = dag.get_task("load_enriched")
++        assert t.downstream_list == []
+diff --git a/tests/test_dedupe_orders.py b/tests/test_dedupe_orders.py
+new file mode 100644
+index 0000000..766621f
+--- /dev/null
++++ b/tests/test_dedupe_orders.py
+@@ -0,0 +1,124 @@
++"""Tests for dedupe_orders: keep only the latest version of each order."""
++
++from __future__ import annotations
++
++import pytest
++
++from conftest import dedupe_orders, make_order
++
++
++# ---------------------------------------------------------------------------
++# Core deduplication behaviour
++# ---------------------------------------------------------------------------
++
++
++class TestDedupeOrders:
++    """Finance requirement: when an order is exported more than once, only
++    its latest version (by updated_at) is kept."""
++
++    def test_duplicate_order_keeps_later_updated_at(self):
++        """The row with the later updated_at timestamp wins."""
++        rows = [
++            make_order("O-1", updated_at="2026-03-02T08:00:00", amount="100.00"),
++            make_order("O-1", updated_at="2026-03-02T11:47:00", amount="120.00"),
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 1
++        assert result[0]["updated_at"] == "2026-03-02T11:47:00"
++        assert result[0]["amount"] == "120.00"
++
++    def test_duplicate_order_discards_earlier_updated_at(self):
++        """The row with the earlier timestamp is discarded regardless of input order."""
++        rows = [
++            make_order("O-1", updated_at="2026-03-02T11:47:00", amount="120.00"),
++            make_order("O-1", updated_at="2026-03-02T08:00:00", amount="100.00"),
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 1
++        assert result[0]["amount"] == "120.00"
++
++    def test_three_versions_keeps_last(self):
++        """Of three exports of the same order the latest one is kept."""
++        rows = [
++            make_order("O-1", updated_at="2026-03-02T07:00:00", amount="50.00"),
++            make_order("O-1", updated_at="2026-03-02T09:00:00", amount="75.00"),
++            make_order("O-1", updated_at="2026-03-02T12:00:00", amount="99.00"),
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 1
++        assert result[0]["amount"] == "99.00"
++
++    def test_distinct_orders_all_preserved(self):
++        """Different order_ids are never merged."""
++        rows = [
++            make_order("O-1", updated_at="2026-03-02T10:00:00"),
++            make_order("O-2", updated_at="2026-03-02T10:00:00"),
++            make_order("O-3", updated_at="2026-03-02T10:00:00"),
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 3
++        assert [r["order_id"] for r in result] == ["O-1", "O-2", "O-3"]
++
++    def test_mix_of_unique_and_duplicate_orders(self):
++        """When some orders have duplicates and others don't, each is handled correctly."""
++        rows = [
++            make_order("O-1", updated_at="2026-03-02T08:05:00", amount="100.00"),
++            make_order("O-2", updated_at="2026-03-02T10:00:00"),
++            make_order("O-1", updated_at="2026-03-02T11:47:00", amount="120.00"),
++            make_order("O-3", updated_at="2026-03-02T12:00:00"),
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 3
++        o1 = next(r for r in result if r["order_id"] == "O-1")
++        assert o1["amount"] == "120.00"
++
++    # ---------------------------------------------------------------------------
++    # Output ordering
++    # ---------------------------------------------------------------------------
++
++    def test_output_is_sorted_by_order_id(self):
++        """Output rows are sorted ascending by order_id."""
++        rows = [
++            make_order("O-3", updated_at="2026-03-02T10:00:00"),
++            make_order("O-1", updated_at="2026-03-02T10:00:00"),
++            make_order("O-2", updated_at="2026-03-02T10:00:00"),
++        ]
++        result = dedupe_orders(rows)
++        assert [r["order_id"] for r in result] == ["O-1", "O-2", "O-3"]
++
++    def test_sorting_is_lexicographic_not_numeric(self):
++        """order_id strings are sorted lexicographically (as the code uses sorted())."""
++        rows = [
++            make_order("O-10", updated_at="2026-03-02T10:00:00"),
++            make_order("O-2",  updated_at="2026-03-02T10:00:00"),
++            make_order("O-1",  updated_at="2026-03-02T10:00:00"),
++        ]
++        result = dedupe_orders(rows)
++        # Lexicographic: "O-1" < "O-10" < "O-2"
++        assert [r["order_id"] for r in result] == ["O-1", "O-10", "O-2"]
++
++    # ---------------------------------------------------------------------------
++    # Edge cases
++    # ---------------------------------------------------------------------------
++
++    def test_empty_input_returns_empty_list(self):
++        assert dedupe_orders([]) == []
++
++    def test_single_row_returned_unchanged(self):
++        row = make_order("O-1")
++        result = dedupe_orders([row])
++        assert result == [row]
++
++    def test_same_updated_at_last_seen_wins(self):
++        """When two rows share identical updated_at, Python's dict update means
++        the last one processed (later in the list) wins — consistent behaviour."""
++        rows = [
++            make_order("O-1", updated_at="2026-03-02T10:00:00", amount="10.00"),
++            make_order("O-1", updated_at="2026-03-02T10:00:00", amount="20.00"),
++        ]
++        # Both share the same timestamp; the code keeps whichever is 'greater' by
++        # string comparison — they are equal so the first row stays (current is not None
++        # and row["updated_at"] > current["updated_at"] is False).
++        result = dedupe_orders(rows)
++        assert len(result) == 1
++        assert result[0]["amount"] == "10.00"
+diff --git a/tests/test_end_to_end.py b/tests/test_end_to_end.py
+new file mode 100644
+index 0000000..9a44c40
+--- /dev/null
++++ b/tests/test_end_to_end.py
+@@ -0,0 +1,205 @@
++"""End-to-end integration test using the real sample data in data/.
++
++Drives the full pipeline on the 2026-03-02 slice and asserts the exact
++values that Finance relies on.  No mocking — calls each task's raw
++callable in the same order as the DAG.
++"""
++
++from __future__ import annotations
++
++import csv
++from decimal import Decimal
++from pathlib import Path
++
++import pytest
++
++from conftest import (
++    dedupe_orders,
++    convert_to_usd,
++    validate_totals,
++    load_enriched,
++    extract_orders,
++    load_fx_rates,
++)
++
++# The pipeline date to exercise
++DS = "2026-03-02"
++
++# ── Expected values pre-computed from data/orders.csv + data/fx_rates.csv ──
++#
++# Rows for 2026-03-02 (raw):
++#   S-102  EUR 100.00  08:05     (superseded)
++#   S-103  GBP  40.50  08:30     ← winner (08:30 > 07:55)
++#   S-102  EUR 120.00  11:47     ← winner (11:47 > 08:05)
++#   S-104  USD   9.99  12:00
++#   S-103  GBP  38.00  07:55     (superseded)
++#   S-105  EUR   0.35  13:20
++#
++# FX rates for 2026-03-02: EUR=1.0850, GBP=1.2700, USD=1
++#
++#   S-102: 120.00 * 1.0850 = 130.200  → "130.20"
++#   S-103:  40.50 * 1.2700 =  51.435  → "51.44"  (HALF_UP)
++#   S-104:   9.99 * 1      =   9.990  → "9.99"
++#   S-105:   0.35 * 1.0850 =   0.3798 → "0.38"   (HALF_UP rounds 0.37975)
++
++EXPECTED = {
++    "S-102": {"customer_id": "C-7",  "currency": "EUR", "amount": "120.00", "amount_usd": "130.20"},
++    "S-103": {"customer_id": "C-9",  "currency": "GBP", "amount": "40.50",  "amount_usd": "51.44"},
++    "S-104": {"customer_id": "C-10", "currency": "USD", "amount": "9.99",   "amount_usd": "9.99"},
++    "S-105": {"customer_id": "C-8",  "currency": "EUR", "amount": "0.35",   "amount_usd": "0.38"},
++}
++
++
++@pytest.fixture(scope="module")
++def pipeline_result(tmp_path_factory):
++    """Run the full pipeline once, return (rows, output_path).
++
++    We patch OUTPUT_DIR directly on the module (and restore it afterwards)
++    rather than using monkeypatch, which is function-scoped and incompatible
++    with module-scoped fixtures.
++    """
++    import orders_enrichment as _mod
++
++    tmp = tmp_path_factory.mktemp("e2e_output")
++    original_output_dir = _mod.OUTPUT_DIR
++    _mod.OUTPUT_DIR = tmp
++    try:
++        raw = extract_orders(ds=DS)
++        deduped = dedupe_orders(raw)
++        rates = load_fx_rates(ds=DS)
++        enriched = convert_to_usd(deduped, rates)
++        validated = validate_totals(enriched)
++        path = load_enriched(validated, ds=DS)
++        return validated, Path(path)
++    finally:
++        _mod.OUTPUT_DIR = original_output_dir
++
++
++# ---------------------------------------------------------------------------
++# Deduplication against real data
++# ---------------------------------------------------------------------------
++
++
++class TestEndToEndDedupe:
++    def test_correct_number_of_orders_after_dedupe(self, pipeline_result):
++        """6 raw rows for 2026-03-02 collapse to 4 unique orders."""
++        rows, _ = pipeline_result
++        assert len(rows) == 4
++
++    def test_s102_latest_version_kept(self, pipeline_result):
++        """S-102 appears twice; the 11:47 version (EUR 120.00) must win."""
++        rows, _ = pipeline_result
++        row = next(r for r in rows if r["order_id"] == "S-102")
++        assert row["amount"] == "120.00"
++        assert row["updated_at"] == "2026-03-02T11:47:00"
++
++    def test_s103_latest_version_kept(self, pipeline_result):
++        """S-103 appears twice; the 08:30 version (GBP 40.50) must win over 07:55."""
++        rows, _ = pipeline_result
++        row = next(r for r in rows if r["order_id"] == "S-103")
++        assert row["amount"] == "40.50"
++        assert row["updated_at"] == "2026-03-02T08:30:00"
++
++    def test_orders_sorted_by_id(self, pipeline_result):
++        """Output rows are sorted ascending by order_id."""
++        rows, _ = pipeline_result
++        ids = [r["order_id"] for r in rows]
++        assert ids == sorted(ids)
++
++
++# ---------------------------------------------------------------------------
++# FX conversion against real data
++# ---------------------------------------------------------------------------
++
++
++class TestEndToEndFxConversion:
++    @pytest.mark.parametrize("order_id", EXPECTED.keys())
++    def test_amount_usd_correct(self, pipeline_result, order_id):
++        """Each order's amount_usd matches the pre-computed expected value."""
++        rows, _ = pipeline_result
++        row = next(r for r in rows if r["order_id"] == order_id)
++        assert row["amount_usd"] == EXPECTED[order_id]["amount_usd"], (
++            f"{order_id}: expected {EXPECTED[order_id]['amount_usd']}, got {row['amount_usd']}"
++        )
++
++    def test_s103_half_up_rounding(self, pipeline_result):
++        """S-103: 40.50 * 1.27 = 51.435 → HALF_UP must give 51.44, not 51.43."""
++        rows, _ = pipeline_result
++        row = next(r for r in rows if r["order_id"] == "S-103")
++        assert Decimal(row["amount_usd"]) == Decimal("51.44")
++
++
++# ---------------------------------------------------------------------------
++# CSV output
++# ---------------------------------------------------------------------------
++
++
++class TestEndToEndOutput:
++    def test_csv_file_exists(self, pipeline_result):
++        _, path = pipeline_result
++        assert path.exists()
++
++    def test_csv_filename_is_ds(self, pipeline_result):
++        _, path = pipeline_result
++        assert path.name == f"{DS}.csv"
++
++    def test_csv_has_correct_header(self, pipeline_result):
++        _, path = pipeline_result
++        with path.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            assert reader.fieldnames == ["order_id", "customer_id", "currency", "amount", "amount_usd"]
++
++    def test_csv_has_correct_row_count(self, pipeline_result):
++        _, path = pipeline_result
++        with path.open(newline="") as fh:
++            rows = list(csv.DictReader(fh))
++        assert len(rows) == 4
++
++    def test_csv_values_match_expected(self, pipeline_result):
++        """Each row in the CSV must match the expected computed values exactly."""
++        _, path = pipeline_result
++        with path.open(newline="") as fh:
++            written = {r["order_id"]: r for r in csv.DictReader(fh)}
++
++        for order_id, exp in EXPECTED.items():
++            assert order_id in written, f"{order_id} missing from output CSV"
++            row = written[order_id]
++            for field, val in exp.items():
++                assert row[field] == val, f"{order_id}.{field}: expected {val!r}, got {row[field]!r}"
++
++    def test_csv_contains_no_internal_columns(self, pipeline_result):
++        """order_date and updated_at must not leak into the finance output."""
++        _, path = pipeline_result
++        with path.open(newline="") as fh:
++            header = fh.readline()
++        assert "order_date" not in header
++        assert "updated_at" not in header
++
++
++# ---------------------------------------------------------------------------
++# Missing FX rate fails the run
++# ---------------------------------------------------------------------------
++
++
++class TestEndToEndMissingFx:
++    def test_order_with_no_fx_rate_raises(self, tmp_path, monkeypatch):
++        """Finance requirement: an order in a currency with no FX rate must fail
++        the run — no partial output must be written."""
++        import orders_enrichment as _mod
++
++        monkeypatch.setattr(_mod, "OUTPUT_DIR", tmp_path / "enriched")
++
++        # Inject an order in a currency not covered by the sample FX file
++        rows_with_unknown = [
++            {"order_id": "S-999", "order_date": DS, "updated_at": f"{DS}T10:00:00",
++             "customer_id": "C-99", "currency": "JPY", "amount": "5000.00"},
++        ]
++        rates = load_fx_rates(ds=DS)  # EUR + GBP + USD — no JPY
++
++        with pytest.raises(ValueError, match="JPY"):
++            enriched = convert_to_usd(rows_with_unknown, rates)
++            validated = validate_totals(enriched)
++            load_enriched(validated, ds=DS)
++
++        # No output file should have been created
++        assert not (tmp_path / "enriched" / f"{DS}.csv").exists()
+diff --git a/tests/test_validate_totals.py b/tests/test_validate_totals.py
+new file mode 100644
+index 0000000..3cf3b6e
+--- /dev/null
++++ b/tests/test_validate_totals.py
+@@ -0,0 +1,169 @@
++"""Tests for validate_totals: refuse bad orders and gate the write step."""
++
++from __future__ import annotations
++
++import csv
++from decimal import Decimal
++from pathlib import Path
++
++import pytest
++
++from conftest import validate_totals, load_enriched, make_order
++
++
++def _make_enriched(
++    order_id: str = "O-001",
++    customer_id: str = "C-1",
++    currency: str = "USD",
++    amount: str = "10.00",
++    amount_usd: str = "10.00",
++) -> dict:
++    row = make_order(order_id, customer_id=customer_id, currency=currency, amount=amount)
++    row["amount_usd"] = amount_usd
++    return row
++
++
++# ---------------------------------------------------------------------------
++# validate_totals: rows that should pass
++# ---------------------------------------------------------------------------
++
++
++class TestValidateTotalsAccepts:
++    def test_valid_order_passes(self):
++        rows = [_make_enriched()]
++        assert validate_totals(rows) == rows
++
++    def test_zero_usd_amount_is_allowed(self):
++        """Zero is not negative; it must pass."""
++        rows = [_make_enriched(amount_usd="0.00")]
++        result = validate_totals(rows)
++        assert len(result) == 1
++
++    def test_multiple_valid_orders_all_returned(self):
++        rows = [
++            _make_enriched("O-1", amount_usd="10.00"),
++            _make_enriched("O-2", amount_usd="0.01"),
++            _make_enriched("O-3", amount_usd="999.99"),
++        ]
++        result = validate_totals(rows)
++        assert len(result) == 3
++
++    def test_empty_input_passes(self):
++        assert validate_totals([]) == []
++
++    def test_returned_rows_are_unchanged(self):
++        """validate_totals must not mutate or drop fields from passing rows."""
++        row = _make_enriched(order_id="O-1", amount_usd="55.00")
++        original_keys = set(row.keys())
++        result = validate_totals([row])
++        assert set(result[0].keys()) == original_keys
++        assert result[0] == row
++
++
++# ---------------------------------------------------------------------------
++# validate_totals: rows that should raise
++# ---------------------------------------------------------------------------
++
++
++class TestValidateTotalsRejects:
++    def test_negative_usd_raises(self):
++        rows = [_make_enriched(amount_usd="-0.01")]
++        with pytest.raises(ValueError):
++            validate_totals(rows)
++
++    def test_negative_usd_names_the_order(self):
++        rows = [_make_enriched("O-BAD", amount_usd="-5.00")]
++        with pytest.raises(ValueError, match="O-BAD"):
++            validate_totals(rows)
++
++    def test_empty_customer_id_raises(self):
++        rows = [_make_enriched(customer_id="")]
++        with pytest.raises(ValueError):
++            validate_totals(rows)
++
++    def test_empty_customer_id_names_the_order(self):
++        rows = [_make_enriched("O-NOCUST", customer_id="")]
++        with pytest.raises(ValueError, match="O-NOCUST"):
++            validate_totals(rows)
++
++    def test_one_bad_among_many_fails_all(self):
++        """A single invalid order must fail the entire call — partial writes must not happen."""
++        rows = [
++            _make_enriched("O-1", amount_usd="10.00"),
++            _make_enriched("O-2", customer_id=""),  # bad
++            _make_enriched("O-3", amount_usd="5.00"),
++        ]
++        with pytest.raises(ValueError):
++            validate_totals(rows)
++
++    def test_both_invalid_conditions_listed(self):
++        """If multiple orders are bad, the error should mention all of them."""
++        rows = [
++            _make_enriched("BAD-1", customer_id=""),
++            _make_enriched("BAD-2", amount_usd="-1.00"),
++        ]
++        with pytest.raises(ValueError) as exc_info:
++            validate_totals(rows)
++        msg = str(exc_info.value)
++        assert "BAD-1" in msg
++        assert "BAD-2" in msg
++
++
++# ---------------------------------------------------------------------------
++# Finance requirement: nothing gets written to output/ unless
++# validate_totals has passed.
++# ---------------------------------------------------------------------------
++
++
++class TestOutputGating:
++    """validate_totals must gate load_enriched: if validation raises, no file
++    is written.  This mirrors the DAG's call chain:
++        load_enriched(validate_totals(enriched))
++    """
++
++    def test_no_file_written_when_validate_raises(self, tmp_output_dir):
++        """A bad batch must not produce an output CSV."""
++        bad_rows = [_make_enriched("O-BAD", amount_usd="-1.00")]
++
++        # Simulate the DAG call chain
++        with pytest.raises(ValueError):
++            validated = validate_totals(bad_rows)
++            load_enriched(validated, ds="2026-03-02")
++
++        # output/ directory should not even have been created, let alone have a file
++        out_file = tmp_output_dir / "2026-03-02.csv"
++        assert not out_file.exists()
++
++    def test_file_written_only_after_validate_passes(self, tmp_output_dir):
++        """A clean batch produces exactly one CSV in output/."""
++        good_rows = [_make_enriched("O-1", amount_usd="10.00")]
++
++        validated = validate_totals(good_rows)
++        load_enriched(validated, ds="2026-03-02")
++
++        out_file = tmp_output_dir / "2026-03-02.csv"
++        assert out_file.exists()
++
++    def test_output_file_has_correct_columns(self, tmp_output_dir):
++        """The CSV must contain exactly the five finance output columns."""
++        rows = [_make_enriched("O-1")]
++        validated = validate_totals(rows)
++        load_enriched(validated, ds="2026-03-02")
++
++        out_file = tmp_output_dir / "2026-03-02.csv"
++        with out_file.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            assert reader.fieldnames == ["order_id", "customer_id", "currency", "amount", "amount_usd"]
++
++    def test_output_file_excludes_internal_columns(self, tmp_output_dir):
++        """Columns like order_date and updated_at must NOT appear in the output CSV."""
++        row = make_order("O-1")
++        row["amount_usd"] = "10.00"
++        validated = validate_totals([row])
++        load_enriched(validated, ds="2026-03-02")
++
++        out_file = tmp_output_dir / "2026-03-02.csv"
++        with out_file.open(newline="") as fh:
++            header = fh.readline()
++        assert "order_date" not in header
++        assert "updated_at" not in header

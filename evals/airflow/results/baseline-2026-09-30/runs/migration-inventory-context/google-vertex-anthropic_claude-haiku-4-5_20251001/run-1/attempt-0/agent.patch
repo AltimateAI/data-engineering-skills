@@ -1,0 +1,32 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..a29e3da 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -74,7 +74,7 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
++    schedule=timedelta(days=1),
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+@@ -83,11 +83,9 @@ with DAG(
+     build = PythonOperator(
+         task_id="build_snapshot",
+         python_callable=build_snapshot,
+-        provide_context=True,
+     )
+     audit = PythonOperator(
+         task_id="audit_snapshot",
+         python_callable=audit_snapshot,
+-        provide_context=True,
+     )
+     build >> audit
+diff --git a/requirements.txt b/requirements.txt
+index cb9ccf0..b1dd561 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1 +1 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2

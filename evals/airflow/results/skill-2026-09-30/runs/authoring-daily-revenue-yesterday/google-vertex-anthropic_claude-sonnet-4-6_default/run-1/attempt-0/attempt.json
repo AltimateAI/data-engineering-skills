@@ -1,0 +1,42 @@
+{
+  "status": "infra_error",
+  "reason": "APIError: Too Many Requests: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"Quota exceeded for aiplatform.googleapis.com/global_online_prediction_input_tokens_per_minute_per_base_model with base model: anthropic-claude-sonnet-4-6. Please submit a quota increase request. https://cloud.google.com/vertex-ai/docs/generative-ai/quotas-genai.\",\n    \"status\": \"RESOURCE_EXHAUSTED\"\n  }\n}\n]",
+  "primary_pass": false,
+  "primary_score": null,
+  "secondary_score": null,
+  "returncode": 1,
+  "wall_s": 216.4,
+  "cost_usd": 3.779028,
+  "cost_reported_usd": 7.18155,
+  "tokens": {
+    "input": 1134189,
+    "output": 4547,
+    "reasoning": 0,
+    "cache_read": 157210,
+    "cache_write": 976964,
+    "total": 2272910
+  },
+  "steps": 14,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "error",
+    "done_reason": "none"
+  },
+  "skill_invocations": [
+    {
+      "name": "authoring-airflow-dags",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "authoring-airflow-dags"
+  ],
+  "bash_commands": 10,
+  "edited_files": 1,
+  "errors": [
+    "APIError: Too Many Requests: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"Quota exceeded for aiplatform.googleapis.com/global_online_prediction_input_tokens_per_minute_per_base_model with base model: anthropic-claude-sonnet-4-6. Please submit a quota increase request. https://cloud.google.com/vertex-ai/docs/generative-ai/quotas-genai.\",\n    \"status\": \"RESOURCE_EXHAUSTED\"\n  }\n}\n]"
+  ],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d1142a4ffeIW2CBsYsAf7Guc.json"
+}

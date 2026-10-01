@@ -1,0 +1,121 @@
+{
+  "checks": [
+    {
+      "name": "DAG files import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "every pipeline config yields its DAG",
+      "kind": "primary",
+      "passed": true,
+      "detail": "0 of 140 missing: []"
+    },
+    {
+      "name": "every parse serializes each DAG the same way",
+      "kind": "primary",
+      "passed": true,
+      "detail": "0 DAGs change between parses: []"
+    },
+    {
+      "name": "factory parses in <= 5.0s",
+      "kind": "primary",
+      "passed": true,
+      "detail": "parse seconds=[0.180011, 0.189941, 0.185022] (median 0.185022)"
+    },
+    {
+      "name": "each DAG keeps its config's tasks, dependencies, owners and retries",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "each DAG runs at its configured hour/days (and explicit minute)",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "start minutes stay spread over the hour",
+      "kind": "primary",
+      "passed": true,
+      "detail": "114 pipelines without an explicit minute use 57 distinct minutes (need >= 30); busiest minute has 5 (max 8)"
+    },
+    {
+      "name": "broken configs only take out their own DAG (others load unchanged, no partial DAGs)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing 0 DAGs []; changed hashes []; half-built broken DAGs loaded []; import errors {}"
+    },
+    {
+      "name": "each broken config is reported by file name in the parse output",
+      "kind": "primary",
+      "passed": true,
+      "detail": "not mentioned: []"
+    },
+    {
+      "name": "adding/removing a config leaves every other DAG unchanged",
+      "kind": "primary",
+      "passed": true,
+      "detail": "changed or missing: [] (0); new present=True; removed billing_attribution gone=True"
+    },
+    {
+      "name": "a worker parsing for one task builds only that task's DAG",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "pools.json defines pool 'warehouse' with 16 slots",
+      "kind": "primary",
+      "passed": true,
+      "detail": "pools after import: {'default_pool': 128, 'warehouse': 16}"
+    },
+    {
+      "name": "every fleet task runs in the warehouse pool",
+      "kind": "primary",
+      "passed": true,
+      "detail": "DAGs with other pools: []; missing DAGs: []"
+    },
+    {
+      "name": "critical tasks always outrank standard tasks (scheduler priority weight)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "lowest critical task weight (100, 'billing_chargebacks'); highest standard task weight (1, 'zz_big_standard') (with a 400-step standard pipeline and a 1-step critical pipeline added)"
+    },
+    {
+      "name": "airflow dags test billing_carriers runs every step once in order",
+      "kind": "primary",
+      "passed": true,
+      "detail": "3 steps"
+    },
+    {
+      "name": "airflow dags test billing_promotions runs every step once in order",
+      "kind": "primary",
+      "passed": true,
+      "detail": "7 steps"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

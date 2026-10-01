@@ -1,0 +1,28 @@
+name: risk_spend
+team: risk
+tier: standard
+description: Spend pipeline for risk
+schedule:
+  hour: 4
+  days: '*'
+retries: 4
+steps:
+- name: extract
+  table: risk.raw_spend_00
+- name: stage
+  table: risk.stg_spend_00
+  depends_on:
+  - extract
+- name: validate
+  table: risk.int_spend_00
+  depends_on:
+  - stage
+  - extract
+- name: enrich
+  table: risk.int_spend_00
+  depends_on:
+  - validate
+- name: publish
+  table: risk.mart_spend_00
+  depends_on:
+  - enrich

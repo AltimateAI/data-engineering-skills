@@ -1,0 +1,191 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..af6b2ba
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,26 @@
++import importlib.util
++import os
++from pathlib import Path
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = ROOT / "dags"
++
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    from airflow.models import DagBag
++
++    return DagBag(dag_folder=str(DAGS_DIR), include_examples=False)
++
++
++@pytest.fixture
++def shipments_module():
++    """A fresh import of dags/shipments_daily.py (safe to monkeypatch)."""
++    spec = importlib.util.spec_from_file_location("shipments_daily_under_test", DAGS_DIR / "shipments_daily.py")
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
+diff --git a/tests/test_dags.py b/tests/test_dags.py
+new file mode 100644
+index 0000000..0b77e23
+--- /dev/null
++++ b/tests/test_dags.py
+@@ -0,0 +1,63 @@
++from datetime import datetime, timedelta, timezone
++from pathlib import Path
++
++import pytest
++from croniter import croniter
++
++from conftest import DAGS_DIR
++
++DAG_FILES = sorted(p.name for p in DAGS_DIR.glob("*.py"))
++
++
++def test_dag_files_found():
++    assert DAG_FILES
++
++
++@pytest.mark.parametrize("filename", DAG_FILES)
++def test_dag_file_imports(dagbag, filename):
++    errors = {Path(k).name: v for k, v in dagbag.import_errors.items()}
++    assert filename not in errors, errors.get(filename)
++
++
++def test_no_import_errors(dagbag):
++    assert dagbag.import_errors == {}
++
++
++def test_every_dag_file_defines_a_dag(dagbag):
++    files_with_dags = {Path(d.fileloc).name for d in dagbag.dags.values()}
++    assert files_with_dags == set(DAG_FILES)
++
++
++def test_shipments_daily_schedule_is_0730_utc_weekdays(dagbag):
++    dag = dagbag.dags["shipments_daily"]
++    assert dag is not None
++    assert str(dag.timezone) == "UTC"
++    assert isinstance(dag.schedule_interval, str)
++
++    it = croniter(dag.schedule_interval, datetime(2026, 3, 1, tzinfo=timezone.utc))
++    end = datetime(2026, 3, 29, tzinfo=timezone.utc)  # four full weeks
++    fires = []
++    while (nxt := it.get_next(datetime)) < end:
++        fires.append(nxt)
++    assert all((f.hour, f.minute, f.second) == (7, 30, 0) for f in fires)
++    assert all(f.weekday() < 5 for f in fires)
++    start = datetime(2026, 3, 1, tzinfo=timezone.utc)
++    expected = {
++        (start + timedelta(days=i)).date() for i in range(28) if (start + timedelta(days=i)).weekday() < 5
++    }
++    assert {f.date() for f in fires} == expected  # every weekday fires exactly once
++
++
++def test_every_task_has_at_least_two_retries(dagbag):
++    tasks = [(dag.dag_id, t) for dag in dagbag.dags.values() for t in dag.tasks]
++    assert tasks
++    too_few = {f"{d}.{t.task_id}": t.retries for d, t in tasks if (t.retries or 0) < 2}
++    assert too_few == {}
++
++
++def test_report_runs_after_extract(dagbag):
++    dag = dagbag.dags["shipments_daily"]
++    report = dag.get_task("build_report")
++    extract = dag.get_task("extract_shipments")
++    assert extract.task_id in report.upstream_task_ids
++    assert report.task_id in {t.task_id for t in extract.get_flat_relatives(upstream=False)}
+diff --git a/tests/test_shipments_daily.py b/tests/test_shipments_daily.py
+new file mode 100644
+index 0000000..d693d58
+--- /dev/null
++++ b/tests/test_shipments_daily.py
+@@ -0,0 +1,84 @@
++import csv
++
++import pytest
++
++from conftest import ROOT
++
++AS_OF = "2026-03-03"
++
++
++def ship(sid, promised, delivered="", ship_date="2026-02-01"):
++    return {
++        "shipment_id": sid,
++        "ship_date": ship_date,
++        "carrier": "DHL",
++        "promised_date": promised,
++        "delivered_date": delivered,
++    }
++
++
++def late(module, rows, as_of=AS_OF):
++    return {r["shipment_id"]: r["days_late"] for r in module.find_late_shipments(rows, as_of)}
++
++
++@pytest.mark.parametrize(
++    "promised, delivered, expected",
++    [
++        ("2026-03-02", AS_OF, 1),  # delivered today, one day after promise
++        ("2026-02-24", AS_OF, 7),
++        (AS_OF, AS_OF, None),  # delivered on the promised date: on time
++        ("2026-03-04", AS_OF, None),  # delivered early
++        ("2026-02-24", "2026-03-02", None),  # late, but reported on its own delivery day
++        ("2026-02-24", "2026-03-04", None),  # delivered after the run date
++        ("2026-03-02", "", 1),  # open, promised before run date
++        ("2026-02-26", "", 5),
++        (AS_OF, "", None),  # open, promised today: not late yet
++        ("2026-03-04", "", None),  # open, promised in the future
++    ],
++)
++def test_late_rules(shipments_module, promised, delivered, expected):
++    result = late(shipments_module, [ship("S", promised, delivered)])
++    assert result == ({} if expected is None else {"S": expected})
++
++
++def test_late_results_sorted_worst_first_then_by_id(shipments_module):
++    rows = [ship("B", "2026-03-01"), ship("C", "2026-02-20"), ship("A", "2026-03-01")]
++    out = shipments_module.find_late_shipments(rows, AS_OF)
++    assert [r["shipment_id"] for r in out] == ["C", "A", "B"]
++
++
++def test_shipments_daily_end_to_end_on_sample_data(dagbag, shipments_module, monkeypatch, tmp_path):
++    """Run the DAG's tasks in dependency order on data/ for 2026-03-03.
++
++    Tasks are executed directly (XCom stubbed in memory) so no Airflow metadata
++    DB or scheduler is needed; output goes to tmp_path, not the repo.
++    """
++    monkeypatch.setattr(shipments_module, "DATA_DIR", ROOT / "data")
++    monkeypatch.setattr(shipments_module, "OUTPUT_DIR", tmp_path)
++
++    xcoms = {}
++
++    class StubTI:
++        def xcom_pull(self, task_ids):
++            return xcoms.get(task_ids)
++
++    dag = dagbag.dags["shipments_daily"]
++    for task in dag.topological_sort():
++        func = getattr(task, "python_callable", None)
++        if func is None:
++            continue
++        # resolve by name against the freshly imported (patched) module
++        func = getattr(shipments_module, func.__name__)
++        xcoms[task.task_id] = func(ds=AS_OF, ti=StubTI())
++
++    with (tmp_path / f"{AS_OF}.csv").open(newline="") as fh:
++        reader = csv.DictReader(fh)
++        assert reader.fieldnames == shipments_module.REPORT_COLUMNS
++        rows = list(reader)
++
++    assert [(r["shipment_id"], r["days_late"]) for r in rows] == [
++        ("SH-1009", "5"),
++        ("SH-1003", "3"),
++        ("SH-1007", "2"),
++        ("SH-1001", "1"),
++    ]

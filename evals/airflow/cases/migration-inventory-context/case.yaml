@@ -1,0 +1,25 @@
+id: migration-inventory-context
+area: migration
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  Can you upgrade the inventory_snapshot DAG in this repo to Airflow 3.3? Our
+  new cluster runs 3.3.2 and so does the venv here. The replenishment team's
+  alerting reads the snapshot CSVs and the audit JSON files, so those need to
+  keep coming out exactly as they do now.
+description: |
+  Airflow 2.11 -> 3.3 migration of a classic PythonOperator DAG. Pain point P7
+  (migration beyond ruff). Traps ruff AIR does not catch: python_callable
+  parameters named `execution_date` / `prev_ds` (in 3.3 they silently stay None:
+  one crashes, one silently blanks the day-over-day `change` column),
+  `get_current_context()["execution_date"]` (KeyError at runtime), and
+  `ti.xcom_pull(key=...)` without task_ids (returns None on 3.x, so the audit
+  record loses its counts). The schedule is `timedelta(days=1)`: Airflow 3
+  maps a bare timedelta to DeltaTriggerTimetable (not only cron strings
+  change), so a mechanical `schedule_interval` -> `schedule` rename silently
+  shifts every snapshot by one day; "@daily" does the same. Primary: imports on 3.3, task graph preserved, dags test
+  succeeds, two consecutive scheduled runs replayed in 3.3 write the same
+  snapshot CSVs and audit JSON as the original replayed in 2.11. Secondary:
+  verification commands, ruff AIR clean, no deprecation warnings.

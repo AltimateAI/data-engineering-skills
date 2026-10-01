@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_hook.py, tests/test_operator.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 27 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 27 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 11 passed, 16 failed, 0 errors, 0 skipped; behavioral failures: tests.test_hook.TestDatabasePath::test_returns_host_field [AssertionError], tests.test_hook.TestDatabasePath::test_raises_when_host_missing [None], tests.test_hook.TestGetConn::test_uses_correct_file [CatalogException], tests.test_operator.TestOnlyRequestedPartitionLoaded::test_only_matching_rows_in_table_after_load [CatalogException], tests.test_operator.TestOnlyRequestedPartitionLoaded::test_correct_row_content_is_loaded [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 13 passed, 14 failed, 0 errors, 0 skipped; behavioral failures: tests.test_hook.TestTargetSchema::test_returns_schema_field [AssertionError], tests.test_operator.TestOnlyRequestedPartitionLoaded::test_only_matching_rows_in_table_after_load [CatalogException], tests.test_operator.TestOnlyRequestedPartitionLoaded::test_correct_row_content_is_loaded [CatalogException], tests.test_operator.TestIdempotency::test_rerun_same_partition_row_count_unchanged [CatalogException], tests.test_operator.TestIdempotency::test_rerun_does_not_duplicate_rows_in_table [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 7 passed, 20 failed, 0 errors, 0 skipped; behavioral failures: tests.test_operator.TestExecuteReturnsRowCount::test_orders_partition_2026_03_01 [AirflowNotFoundException], tests.test_operator.TestExecuteReturnsRowCount::test_orders_partition_2026_03_02 [AirflowNotFoundException], tests.test_operator.TestExecuteReturnsRowCount::test_orders_partition_2026_03_03 [AirflowNotFoundException], tests.test_operator.TestExecuteReturnsRowCount::test_refunds_partition_2026_03_02 [AirflowNotFoundException], tests.test_operator.TestExecuteReturnsRowCount::test_refunds_partition_2026_03_03 [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 22 passed, 5 failed, 0 errors, 0 skipped; behavioral failures: tests.test_operator.TestIdempotency::test_rerun_same_partition_row_count_unchanged [AssertionError], tests.test_operator.TestIdempotency::test_rerun_does_not_duplicate_rows_in_table [AssertionError], tests.test_operator.TestIdempotency::test_rerun_returns_same_count_as_first_run [AssertionError], tests.test_operator.TestPartitionIsolation::test_rerun_partition_a_leaves_partition_b_intact [AssertionError], tests.test_operator.TestPartitionIsolation::test_rerun_total_count_is_sum_of_all_partitions [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator inserts every row of the CSV, not just partition_date -> failed: 20 passed, 7 failed, 0 errors, 0 skipped; behavioral failures: tests.test_operator.TestOnlyRequestedPartitionLoaded::test_only_matching_rows_in_table_after_load [AssertionError], tests.test_operator.TestIdempotency::test_rerun_does_not_duplicate_rows_in_table [AssertionError], tests.test_operator.TestPartitionIsolation::test_rerun_partition_a_leaves_partition_b_intact [AssertionError], tests.test_operator.TestPartitionIsolation::test_loading_multiple_partitions_accumulates_correctly [AssertionError], tests.test_operator.TestPartitionIsolation::test_rerun_does_not_bleed_into_adjacent_date [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

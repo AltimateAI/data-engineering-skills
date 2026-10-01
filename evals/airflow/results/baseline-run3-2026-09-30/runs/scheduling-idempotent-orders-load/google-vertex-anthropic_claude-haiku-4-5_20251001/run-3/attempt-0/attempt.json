@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: airflow dags test succeeds, scheduled runs load exactly their own day, re-running a day creates no duplicates and keeps the previous day, re-run repairs a partially written day",
+  "primary_pass": false,
+  "primary_score": 0.3333333333333333,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 82.2,
+  "cost_usd": 0.552569,
+  "cost_reported_usd": 1.797611,
+  "tokens": {
+    "input": 1245139,
+    "output": 6512,
+    "reasoning": 0,
+    "cache_read": 901209,
+    "cache_write": 343833,
+    "total": 2496693
+  },
+  "steps": 18,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 10,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0ced3e45ffe69XAsUxLmTSshh.json"
+}

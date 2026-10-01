@@ -1,0 +1,36 @@
+name: marketing_queries_v2
+team: marketing
+tier: standard
+description: Queries pipeline for marketing
+schedule:
+  hour: 0
+  days: '1'
+steps:
+- name: extract
+  table: marketing.raw_queries_00
+- name: stage
+  table: marketing.stg_queries_00
+  depends_on:
+  - extract
+- name: validate
+  table: marketing.int_queries_00
+  depends_on:
+  - stage
+- name: enrich
+  table: marketing.int_queries_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: marketing.int_queries_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: marketing.int_queries_00
+  depends_on:
+  - aggregate
+  - enrich
+- name: publish
+  table: marketing.mart_queries_00
+  depends_on:
+  - snapshot
+  - aggregate

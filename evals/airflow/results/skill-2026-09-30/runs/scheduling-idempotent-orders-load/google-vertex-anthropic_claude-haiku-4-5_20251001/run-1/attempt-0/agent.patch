@@ -1,0 +1,121 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..aff2f51 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,16 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads orders for a scheduled day into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
++scheduled day's non-cancelled orders into `orders` and then refreshes the
+ `daily_revenue` rollup that the finance dashboard reads.
++
++Scheduling & idempotency:
++- Each scheduled run loads the previous day (the interval that ended).
++- A rerun, clear or backfill of the same date reloads the same day.
++- Both load_orders and build_daily_revenue use DELETE + INSERT to ensure
++  the day ends up with exactly the right rows, even after a partial failure.
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+@@ -17,6 +22,16 @@ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ 
+ 
++def run_window(dag_run, tz="UTC"):
++    """Returns (start, end) — the [start, end) window this run processes.
++    
++    For a CronDataIntervalTimetable (the 2.x default with @daily),
++    data_interval_start is the period being processed.
++    """
++    start = pendulum.instance(dag_run.data_interval_start).in_tz(tz)
++    return start, start.add(days=1)
++
++
+ @dag(
+     dag_id="orders_daily_load",
+     schedule="@daily",
+@@ -27,10 +42,15 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(**context) -> str:
++        dag_run = context["dag_run"]
++        start, end = run_window(dag_run)
++        day = start.date()
++        
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
++        
++        # Create tables if they don't exist.
+         con.execute(
+             """
+             CREATE TABLE IF NOT EXISTS orders (
+@@ -42,6 +62,20 @@ def orders_daily_load():
+             )
+             """
+         )
++        con.execute(
++            """
++            CREATE TABLE IF NOT EXISTS daily_revenue (
++                order_date  DATE,
++                order_count INTEGER,
++                revenue_usd DECIMAL(14, 2)
++            )
++            """
++        )
++        
++        # Idempotent load: delete the day's rows and reload them.
++        # This ensures a rerun, clear or backfill always ends with the right data.
++        con.execute("BEGIN")
++        con.execute("DELETE FROM orders WHERE order_date = ?", [day])
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -56,20 +90,21 @@ def orders_daily_load():
+             """,
+             [day],
+         )
++        con.commit()
+         con.close()
++        
+         return day.isoformat()
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
+         con = duckdb.connect(str(WAREHOUSE))
++        
++        # Idempotent summary: delete the day's summary and rebuild it.
++        # This ensures the summary is always consistent with the orders table.
++        con.execute("BEGIN")
+         con.execute(
+-            """
+-            CREATE TABLE IF NOT EXISTS daily_revenue (
+-                order_date  DATE,
+-                order_count INTEGER,
+-                revenue_usd DECIMAL(14, 2)
+-            )
+-            """
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
+         )
+         con.execute(
+             """
+@@ -81,6 +116,7 @@ def orders_daily_load():
+             """,
+             [day],
+         )
++        con.commit()
+         con.close()
+ 
+     build_daily_revenue(load_orders())
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..9579ef3eab7537da98ad70c5c44f6d8e87d36f5c
+Binary files differ (content omitted by sanitize.py)

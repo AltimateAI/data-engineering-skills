@@ -1,0 +1,132 @@
+diff --git a/dags/carrier_scorecard.py b/dags/carrier_scorecard.py
+index 2d4f784..0eac527 100644
+--- a/dags/carrier_scorecard.py
++++ b/dags/carrier_scorecard.py
+@@ -1,4 +1,15 @@
+-"""Carrier on-time scorecard, rebuilt whenever a new shipments batch lands."""
++"""Carrier on-time scorecard, rebuilt whenever a new shipments batch lands.
++
++Airflow 3 migration notes
++--------------------------
++* ``Dataset`` renamed to ``Asset`` (``airflow.sdk.Asset``).
++* ``from airflow import DAG`` deprecated; use ``from airflow.sdk import DAG``.
++* ``BashOperator`` moved from ``airflow.operators.bash`` to
++  ``airflow.providers.standard.operators.bash``.
++* ``PythonOperator`` moved from ``airflow.operators.python`` to
++  ``airflow.providers.standard.operators.python``.
++* Schedule on an Asset (formerly Dataset) still uses ``schedule=[asset]``.
++"""
+ 
+ from __future__ import annotations
+ 
+@@ -7,15 +18,14 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.datasets import Dataset
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, Asset
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+ SCORECARD_DIR = PROJECT_ROOT / "output" / "scorecard"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ 
+ 
+ def build_scorecard(ti, **_):
+diff --git a/dags/ingest_shipments.py b/dags/ingest_shipments.py
+index d5050e6..097b648 100644
+--- a/dags/ingest_shipments.py
++++ b/dags/ingest_shipments.py
+@@ -3,7 +3,19 @@
+ Each run appends one batch file with every event that arrived since the
+ previous run's high-water mark (the largest ``updated_at`` it loaded, kept in
+ XCom) up to the end of the run's interval. Publishing the batch updates the
+-``shipments`` dataset, which triggers ``carrier_scorecard``.
++``shipments`` asset, which triggers ``carrier_scorecard``.
++
++Airflow 3 migration notes
++--------------------------
++* ``Dataset`` renamed to ``Asset`` (``airflow.sdk.Asset``).
++* ``schedule_interval`` removed; use ``schedule``.
++* ``from airflow.decorators import dag, task`` deprecated; use
++  ``from airflow.sdk import dag, task``.
++* XCom is no longer a SQLAlchemy ORM model in Airflow 3, so the old
++  ``@provide_session`` + ``session.query(XCom)`` pattern is gone.
++  The watermark is now retrieved via ``ti.xcom_pull`` with
++  ``include_prior_dates=True``, which is the supported API and correctly
++  returns the most recent value across all prior runs.
+ """
+ 
+ from __future__ import annotations
+@@ -12,36 +24,17 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.datasets import Dataset
+-from airflow.decorators import dag, task
+-from airflow.models import XCom
+-from airflow.utils.session import provide_session
++from airflow.sdk import Asset, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ SOURCE = PROJECT_ROOT / "data" / "carrier_events.csv"
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ FIELDS = ["event_id", "shipment_id", "carrier", "status", "promised_date", "updated_at"]
+ 
+ 
+-@provide_session
+-def previous_watermark(session=None) -> str | None:
+-    """High-water mark stored by the most recent load."""
+-    row = (
+-        session.query(XCom)
+-        .filter(
+-            XCom.dag_id == "ingest_shipments",
+-            XCom.task_id == "load_batch",
+-            XCom.key == "watermark",
+-        )
+-        .order_by(XCom.timestamp.desc())
+-        .first()
+-    )
+-    return row.value if row else None
+-
+-
+ @dag(
+-    schedule_interval="@hourly",
++    schedule="@hourly",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -51,7 +44,16 @@ def previous_watermark(session=None) -> str | None:
+ def ingest_shipments():
+     @task(outlets=[SHIPMENTS])
+     def load_batch(data_interval_end=None, ti=None) -> int:
+-        watermark = previous_watermark()
++        # Retrieve the high-water mark from the most recent successful run.
++        # include_prior_dates=True makes xcom_pull look back across all prior
++        # dag runs, not just the current one — equivalent to the old
++        # session.query(XCom).order_by(timestamp.desc()).first() pattern.
++        watermark = ti.xcom_pull(
++            task_ids="load_batch",
++            key="watermark",
++            include_prior_dates=True,
++        )
++
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with SOURCE.open(newline="") as fh:
+             rows = [
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..3a46a94 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,2 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
+ pendulum==3.2.0

@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_loading.py, tests/test_dag_policy.py, tests/test_dag_structure.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 6 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError]\nst have at least one tag for organization and discovery.\nE           assert (set() is not None and 0 > 0)\nE            +  where set() = <DAG: broken_no_tags>.tags\nE            +  and   0 = len(set())\nE            +    where set() = <DAG: broken_no_tags>.tags\n\ntests/test_dag_policy.py:15: AssertionError\n____________ TestDAGCatchupPolicy.test_all_dags_have_catchup_false _____________\n\nself = <tests.test_dag_policy.TestDAGCatchupPolicy object at 0x10f8a0770>\nall_dags = [<DAG: orders_ingest>, <DAG: broken_catchup>, <DAG: broken_no_tags>, <DAG: customer_snapshot>, <DAG: marketing_spend>]\n\n    def test_all_dags_have_catchup_false(self, all_dags: list[DAG]):\n        \"\"\"Every DAG must have catchup=False.\"\"\"\n        for dag in all_dags:\n>           assert dag.catchup is False, (\n                f\"DAG '{dag.dag_id}' has catchup=True. \"\n                \"All DAGs must have catchup=False to prevent unexpected backfill runs.\"\n            )\nE           AssertionError: DAG 'broken_catchup' has catchup=True. All DAGs must have catchup=False to prevent unexpected backfill runs.\nE           assert True is False\nE            +  where True = <DAG: broken_catchup>.catchup\n\ntests/test_dag_policy.py:36: AssertionError\n=============================== warnings summary ===============================\ntests/test_dag_loading.py::test_dagbag_loads_without_errors\ntests/test_dag_loading.py::test_all_dags_parse\n  <tmp>/eval-ws-rx9_s8a9/ws/dags/broken_catchup.py:3: UserWarning: The `airflow.operators.empty.EmptyOperator` attribute is deprecated. Please use `'airflow.providers.standard.operators.empty.EmptyOperator'`.\n    from airflow.operators.empty import EmptyOperator\n\ntests/test_dag_loading.py::test_dagbag_loads_without_errors\ntests/test_dag_loading.py::test_all_dags_parse\n  <tmp>/eval-ws-rx9_s8a9/ws/dags/broken_no_tags.py:3: UserWarning: The `airflow.operators.empty.EmptyOperator` attribute is deprecated. Please use `'airflow.providers.standard.operators.empty.EmptyOperator'`.\n    from airflow.operators.empty import EmptyOperator\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ============================\nFAILED tests/test_dag_policy.py::TestDAGTagPolicy::test_all_dags_have_tags - ...\nFAILED tests/test_dag_policy.py::TestDAGCatchupPolicy::test_all_dags_have_catchup_false\n2 failed, 6 passed, 4 warnings in 0.24s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 6 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: import_error",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; customer_snapshot imports the removed airflow.operators.dummy module -> failed: 5 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: dag_cycle",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; orders_ingest gains a publish_summary >> extract_orders edge (cycle) -> failed: 4 passed, 3 failed, 1 errors, 0 skipped; behavioral failures: tests.test_dag_loading::test_dagbag_loads_without_errors [None], tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError], tests.test_dag_structure.TestOrdersIngestStructure::test_orders_ingest_task_order [KeyError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; orders_ingest loads straight from extract; validate_orders is left dangling -> failed: 5 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError], tests.test_dag_structure.TestOrdersIngestStructure::test_orders_ingest_task_order [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_disabled",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; marketing_spend.fetch_spend overrides retries=0 at task level -> failed: 5 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError], tests.test_dag_policy.TestTaskRetryPolicy::test_all_tasks_have_min_retries [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: catchup_enabled",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; customer_snapshot sets catchup=True -> failed: 6 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy.TestDAGTagPolicy::test_all_dags_have_tags [AssertionError], tests.test_dag_policy.TestDAGCatchupPolicy::test_all_dags_have_catchup_false [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "tests/conftest.py:30 AIR311; tests/conftest.py:36 AIR311; tests/test_dag_policy.py:12 AIR311; tests/test_dag_policy.py:20 AIR311; tests/test_dag_policy.py:33 AIR311; tests/test_dag_policy.py:45 AIR311; tests/test_dag_policy.py:59 AIR311; tests/test_dag_structure.py:13 AIR311; tests/test_dag_structure.py:19 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/broken_catchup.py:3 DeprecatedImportWarning: The `airflow.operators.empty.EmptyOperator` attribute is deprecated. Please use `'airflow.providers.standard.operators.e; dags/broken_no_tags.py:3 DeprecatedImportWarning: The `airflow.operators.empty.EmptyOperator` attribute is deprecated. Please use `'airflow.providers.standard.operators.e"
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.5
+}

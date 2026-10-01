@@ -1,0 +1,34 @@
+name: support_clicks
+team: support
+tier: standard
+description: Clicks pipeline for support
+schedule:
+  hour: 6
+  days: '*'
+owners:
+- vik
+retries: 1
+steps:
+- name: extract
+  table: support.raw_clicks_00
+- name: stage
+  table: support.stg_clicks_00
+  depends_on:
+  - extract
+- name: validate
+  table: support.int_clicks_00
+  depends_on:
+  - stage
+- name: transform
+  table: support.int_clicks_00
+  depends_on:
+  - validate
+- name: enrich
+  table: support.int_clicks_00
+  depends_on:
+  - transform
+- name: publish
+  table: support.mart_clicks_00
+  depends_on:
+  - enrich
+  - transform

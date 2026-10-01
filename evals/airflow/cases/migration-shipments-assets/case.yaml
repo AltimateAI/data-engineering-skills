@@ -1,0 +1,29 @@
+id: migration-shipments-assets
+area: migration
+split: holdout
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  We need the logistics DAGs in this repo running on Airflow 3.3 (the local
+  venv is already 3.3.2, production switches over on Monday). Please do the
+  migration. Ops reconciles the shipment batches against carrier invoices, so
+  every event still has to be loaded exactly once, and the scorecard and its
+  _READY file have to keep coming out the same.
+description: |
+  Airflow 2.11 -> 3.3 migration of a producer/consumer project. Pain point P7
+  (migration beyond ruff: DB access, datasets, XCom semantics). The hourly
+  loader keeps its high-water mark in XCom but reads it back with a
+  `@provide_session` metadata-DB query (blocked for task code in Airflow 3;
+  ruff is silent). The obvious SDK replacement,
+  `ti.xcom_pull(..., include_prior_dates=True)`, returns a list on 3.x once
+  more than one prior value exists, so it only breaks on the third run.
+  `airflow.datasets.Dataset` no longer imports on 3.3 (ruff reports it only as
+  AIR311 "suggested update"), and the consumer's BashOperator template uses
+  `ti.xcom_pull(key=...)` without task_ids, which renders None on 3.x. Primary:
+  both DAGs import on 3.3, task graphs preserved, consumer still scheduled on
+  the producer's asset, dags test succeeds under the Airflow 3 worker DB block,
+  three consecutive hourly loads replayed in 3.3 write the same batches as the
+  original replayed in 2.11 (no duplicates or gaps), and the scorecard and
+  _READY marker match. Secondary: verification commands, ruff AIR clean, no
+  deprecation warnings.

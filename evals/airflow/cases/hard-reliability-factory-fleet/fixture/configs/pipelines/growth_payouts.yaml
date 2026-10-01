@@ -1,0 +1,23 @@
+name: growth_payouts
+team: growth
+tier: critical
+description: Payouts pipeline for growth
+schedule:
+  hour: 3
+  days: 1-5
+  minute: 30
+steps:
+- name: extract
+  table: growth.raw_payouts_00
+- name: stage
+  table: growth.stg_payouts_00
+  depends_on:
+  - extract
+- name: validate
+  table: growth.int_payouts_00
+  depends_on:
+  - stage
+- name: publish
+  table: growth.mart_payouts_00
+  depends_on:
+  - validate

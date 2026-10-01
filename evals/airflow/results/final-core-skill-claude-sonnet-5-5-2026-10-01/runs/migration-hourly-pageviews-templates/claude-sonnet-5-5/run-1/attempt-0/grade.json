@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAG imports cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['hourly_pageviews']"
+    },
+    {
+      "name": "hourly_pageviews keeps its tasks and dependencies",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['aggregate_hour', 'extract_hour', 'publish_hour'] deps=[['aggregate_hour', 'publish_hour'], ['extract_hour', 'aggregate_hour']]"
+    },
+    {
+      "name": "dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": "manual 2026-03-05T10:00:00+00:00: state=success interval=[None, None] failed=[]"
+    },
+    {
+      "name": "scheduled hourly runs succeed on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-03-05T10:00:00+00:00: state=success interval=[2026-03-05T09:00:00+00:00, 2026-03-05T10:00:00+00:00] failed=[]; 2026-03-05T11:00:00+00:00: state=success interval=[2026-03-05T10:00:00+00:00, 2026-03-05T11:00:00+00:00] failed=[]; 2026-03-06T00:00:00+00:00: state=success interval=[2026-03-05T23:00:00+00:00, 2026-03-06T00:00:00+00:00] failed=[]"
+    },
+    {
+      "name": "hourly rollups (previous clock hour, change vs hour before) match 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'hourly/20260305T09.csv': 'page,views,sessions,views_change\\n/,5,5,\\n/blog,9,9,\\n/checkout,10,10,\\n/docs,8,7,\\n/pricing,10,10,\\n/signup,11,11,', 'hourly/20260305T10.csv': 'page,views,sessions,views_change\\n/,9,9,4\\n/blog,8,7,-1\\n/checkout,12,11,2\\n/docs,4,4,-4\\n/pricing,9,8,-1\\n/signup,6,6,-5', 'hourly/20260305T23.csv': 'page,views,sessions,views_change\\n/,10,10,\\n/blog,6,6,\\n/checkout,11,10,\\n/docs,5,5,\\n/pricing,5,4,\\n/signup,7,7,'}\n got {'hourly/20260305T09.csv': 'page,views,sessions,views_change\\n/,5,5,\\n/blog,9,9,\\n/checkout,10,10,\\n/docs,8,7,\\n/pricing,10,10,\\n/signup,11,11,', 'hourly/20260305T10.csv': 'page,views,sessions,views_change\\n/,9,9,4\\n/blog,8,7,-1\\n/checkout,12,11,2\\n/docs,4,4,-4\\n/pricing,9,8,-1\\n/signup,6,6,-5', 'hourly/20260305T23.csv': 'page,views,sessions,views_change\\n/,10,10,\\n/blog,6,6,\\n/checkout,11,10,\\n/docs,5,5,\\n/pricing,5,4,\\n/signup,7,7,'}"
+    },
+    {
+      "name": "completion markers match 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'markers/20260305T090000.done': 'hour=2026-03-05T09:00 staged=53', 'markers/20260305T100000.done': 'hour=2026-03-05T10:00 staged=48', 'markers/20260305T230000.done': 'hour=2026-03-05T23:00 staged=44'}\n got {'markers/20260305T090000.done': 'hour=2026-03-05T09:00 staged=53', 'markers/20260305T100000.done': 'hour=2026-03-05T10:00 staged=48', 'markers/20260305T230000.done': 'hour=2026-03-05T23:00 staged=44'}"
+    },
+    {
+      "name": "staging cleanup keeps and deletes the same files as 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected files ['staging/20260305T08.csv', 'staging/20260305T09.csv', 'staging/20260305T10.csv', 'staging/20260305T23.csv']\n got ['staging/20260305T08.csv', 'staging/20260305T09.csv', 'staging/20260305T10.csv', 'staging/20260305T23.csv']"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bDagBag\\\\b', '\\\\bruff\\\\b.*\\\\bAIR\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

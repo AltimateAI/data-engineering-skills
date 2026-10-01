@@ -1,0 +1,36 @@
+id: testing-custom-operator-conn
+area: testing
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1800
+prompt: |
+  I wrote a custom hook and operator in dags/warehouse/ (DuckDBWarehouseHook and
+  CsvPartitionToDuckDBOperator) that our load DAGs use, and they have no tests at
+  all. Please add unit tests under tests/ that CI can run with plain `pytest tests/`.
+  CI has no Airflow connections configured and nothing else running, so the tests
+  have to supply the connection themselves. I want execute() exercised for real
+  against a temporary DuckDB file, not DuckDB mocked away.
+
+  The contract the DAGs rely on:
+  - the hook takes the DuckDB file path from the connection's host and the target
+    schema from the connection's schema field, and the operator uses whatever
+    duckdb_conn_id it is given
+  - only the rows for partition_date get loaded, and execute() returns how many
+    rows it loaded
+  - re-running the same partition replaces that partition's rows (no duplicates)
+    and leaves other dates alone
+
+  Please don't change the hook or operator code.
+description: |
+  Area: testing (Airflow 3.3). Unit-testing a custom operator and hook with a mocked
+  Airflow connection (AIRFLOW_CONN_* env var or a patched get_connection) and no
+  metadata DB, calling execute() directly. Primary checks: the suite passes on the
+  correct code and fails behaviourally on five hidden planted bugs: hook reads the
+  file path from extras (falls back to :memory:, so only a test that inspects the
+  file catches it), schema taken from extras, operator ignoring duckdb_conn_id, a
+  missing DELETE (duplicates on re-run) and a dropped partition filter (return value
+  still correct). Mutants: tests that depend on a connection created with
+  `airflow connections add` (fails in clean CI), tests that mock DuckDB entirely,
+  and a return-value-only smoke test.

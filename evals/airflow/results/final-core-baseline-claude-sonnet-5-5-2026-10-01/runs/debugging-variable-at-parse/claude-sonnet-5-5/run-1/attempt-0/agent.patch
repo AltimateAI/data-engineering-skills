@@ -1,0 +1,44 @@
+diff --git a/dags/warehouse_load.py b/dags/warehouse_load.py
+index 69902d5..50942be 100644
+--- a/dags/warehouse_load.py
++++ b/dags/warehouse_load.py
+@@ -18,13 +18,16 @@ from airflow.sdk import Variable, dag, task
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "orders.csv"
+ 
+-WAREHOUSE_DIR = Path(Variable.get("warehouse_path"))
+-WAREHOUSE_DB = WAREHOUSE_DIR / "warehouse.duckdb"
++
++def warehouse_dir() -> Path:
++    # Resolved at task run time: DAG files are parsed without access to
++    # Variables in Airflow 3, so this must not be called at module level.
++    return Path(Variable.get("warehouse_path"))
+ 
+ 
+ @dag(
+     dag_id="warehouse_load",
+-    schedule_interval="0 6 * * *",
++    schedule="0 6 * * *",
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     tags=["warehouse"],
+@@ -48,8 +51,8 @@ def warehouse_load():
+ 
+     @task
+     def load_warehouse(revenue: dict[str, float], ds=None) -> int:
+-        WAREHOUSE_DIR.mkdir(parents=True, exist_ok=True)
+-        with duckdb.connect(str(WAREHOUSE_DB)) as con:
++        warehouse_dir().mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(warehouse_dir() / "warehouse.duckdb")) as con:
+             con.execute(
+                 "create table if not exists daily_revenue "
+                 "(revenue_date date, region varchar, revenue decimal(12, 2))"
+@@ -63,7 +66,7 @@ def warehouse_load():
+ 
+     @task
+     def validate_load(expected_rows: int, ds=None) -> None:
+-        with duckdb.connect(str(WAREHOUSE_DB), read_only=True) as con:
++        with duckdb.connect(str(warehouse_dir() / "warehouse.duckdb"), read_only=True) as con:
+             (loaded,) = con.execute(
+                 "select count(*) from daily_revenue where revenue_date = ?", [ds]
+             ).fetchone()

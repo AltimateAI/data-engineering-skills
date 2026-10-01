@@ -1,0 +1,77 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..c09e13b 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,7 +8,7 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ from airflow.providers.standard.operators.bash import BashOperator
+@@ -21,6 +21,25 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def _resolve_feed_day(context: dict) -> str:
++    """Return the feed date string (YYYY-MM-DD) for this run.
++
++    Resolution order:
++    1. logical_date from context  — set for all scheduled runs and UI-triggered
++       runs that supply a logical date.
++    2. UTC wall-clock time at the moment extract_orders executes — used only
++       when a manual UI trigger supplies no logical date.  The date is returned
++       from the task and stored in XCom so that clearing and re-running the
++       same DagRun tomorrow still produces *this* day's feed, not tomorrow's.
++    """
++    logical_date = context.get("logical_date")
++    if logical_date is not None:
++        return logical_date.strftime("%Y-%m-%d")
++    # Manual trigger with no date: capture wall-clock UTC now (once, here) so
++    # the value is frozen in XCom for any future re-run of this DagRun.
++    return datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
++
++
+ @dag(
+     schedule="0 4 * * *",
+     start_date=datetime(2026, 1, 1),
+@@ -29,8 +48,8 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ )
+ def partner_feed():
+     @task
+-    def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++    def extract_orders(**context) -> dict:
++        day = _resolve_feed_day(context)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -43,11 +62,14 @@ def partner_feed():
+             writer = csv.DictWriter(fh, fieldnames=FEED_COLUMNS)
+             writer.writeheader()
+             writer.writerows(rows)
+-        return str(out)
++        # Return both the path and the resolved day so downstream tasks
++        # don't need to re-derive the date from context.
++        return {"feed_path": str(out), "day": day}
+ 
+     @task
+-    def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++    def write_manifest(extract_result: dict) -> str:
++        feed_path = extract_result["feed_path"]
++        day = extract_result["day"]
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -60,7 +82,7 @@ def partner_feed():
+         task_id="deliver",
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+-            " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
++            " && cp {{ ti.xcom_pull(task_ids='extract_orders')['feed_path'] }}"
+             " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+             " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"

@@ -1,0 +1,95 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..fa1d662
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,89 @@
++"""Daily revenue per store for the Finance reporting tool.
++
++Runs at 03:00 UTC every day.  The run that starts at 03:00 on day D reports
++on the *previous* calendar day (D-1, midnight-to-midnight UTC).  Late orders
++from stores trickle in until ~02:00 UTC, so waiting until 03:00 guarantees
++they are all present in data/orders.csv.
++
++Output: output/daily_revenue/<YYYY-MM-DD>.csv
++Columns: store_id, orders, revenue   (revenue rounded to 2 d.p., sorted by store_id)
++
++Re-running the same logical date overwrites the file idempotently.
++Catchup is enabled so every day since 2026-09-01 can be replayed.
++"""
++
++from __future__ import annotations
++
++import datetime
++from pathlib import Path
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task, get_current_context
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    dag_id="daily_revenue",
++    schedule="0 3 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def compute_and_publish() -> str:
++        context = get_current_context()
++
++        # logical_date == data_interval_start for a cron schedule.
++        # For a 03:00-UTC cron, the run at 03:00 on day D has
++        # data_interval_start = (D-1) 03:00 UTC, so .date() == D-1.
++        logical_date: pendulum.DateTime = context["logical_date"]
++        report_date: datetime.date = logical_date.date()
++
++        # Filter window: the full calendar day (UTC midnight-to-midnight).
++        day_start = pendulum.datetime(
++            report_date.year, report_date.month, report_date.day,
++            0, 0, 0, tz="UTC"
++        )
++        day_end = day_start.add(days=1)  # exclusive upper bound
++
++        # Load source data.
++        orders_path = PROJECT_ROOT / "data" / "orders.csv"
++        orders = pd.read_csv(orders_path, parse_dates=["order_ts"])
++
++        # Ensure order_ts is timezone-aware (UTC).
++        if orders["order_ts"].dt.tz is None:
++            orders["order_ts"] = orders["order_ts"].dt.tz_localize("UTC")
++        else:
++            orders["order_ts"] = orders["order_ts"].dt.tz_convert("UTC")
++
++        # Filter to the report day.
++        mask = (orders["order_ts"] >= day_start) & (orders["order_ts"] < day_end)
++        day_orders = orders.loc[mask]
++
++        # Aggregate per store.
++        summary = (
++            day_orders
++            .groupby("store_id", as_index=False)
++            .agg(
++                orders=("order_id", "count"),
++                revenue=("amount", "sum"),
++            )
++        )
++        summary["revenue"] = summary["revenue"].round(2)
++        summary = summary.sort_values("store_id").reset_index(drop=True)
++
++        # Write output (overwrite for idempotency).
++        out_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out_path = out_dir / f"{report_date}.csv"
++        summary[["store_id", "orders", "revenue"]].to_csv(out_path, index=False)
++
++        return str(out_path)
++
++    compute_and_publish()
++
++
++daily_revenue()

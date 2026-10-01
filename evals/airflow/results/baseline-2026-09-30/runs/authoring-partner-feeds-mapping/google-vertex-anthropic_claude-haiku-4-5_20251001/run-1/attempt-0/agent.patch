@@ -1,0 +1,133 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..3517cbe
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,127 @@
++"""Daily DAG for processing partner order files.
++
++Each partner's CSV file is processed as its own task instance, so failures
++in one partner's file don't block others (isolation via task-level retries).
++Output is written as JSON per partner, with a summary written for each date.
++"""
++
++from __future__ import annotations
++
++import json
++from pathlib import Path
++from decimal import Decimal
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 1 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["partners"],
++)
++def partner_feeds():
++    """Process daily partner order files and generate summary."""
++
++    @task
++    def discover_files(run_date: str) -> list[dict]:
++        """Discover all CSV files for the given date.
++        
++        Returns list of dicts with partner name and run_date for expansion.
++        Returns empty list if date folder doesn't exist.
++        """
++        date_folder = PROJECT_ROOT / "data" / "partner_drop" / run_date
++        if not date_folder.exists():
++            return []
++        
++        # Get all .csv files and return dicts with partner name and run_date
++        partners = sorted([f.stem for f in date_folder.glob("*.csv")])
++        return [{"partner": p, "run_date": run_date} for p in partners]
++
++    @task
++    def process_file(partner: str, run_date: str) -> dict:
++        """Process a single partner's CSV file.
++        
++        Each call to this task is a separate task instance, allowing
++        individual files to fail and retry without blocking others.
++        """
++        csv_path = PROJECT_ROOT / "data" / "partner_drop" / run_date / f"{partner}.csv"
++        
++        # Read CSV
++        df = pd.read_csv(csv_path)
++        row_count = len(df)
++        
++        # Sum amount with 2 decimal places (using Decimal for precision)
++        total = Decimal(0)
++        for amount in df["amount"]:
++            total += Decimal(str(amount))
++        
++        # Round to 2 decimal places
++        total_amount = round(float(total), 2)
++        
++        # Write output JSON
++        output_dir = PROJECT_ROOT / "output" / "partner_feeds" / run_date
++        output_dir.mkdir(parents=True, exist_ok=True)
++        output_path = output_dir / f"{partner}.json"
++        
++        output_data = {
++            "partner": partner,
++            "rows": row_count,
++            "total_amount": total_amount,
++        }
++        output_path.write_text(json.dumps(output_data))
++        
++        return {
++            "partner": partner,
++            "rows": row_count,
++            "total_amount": total_amount,
++        }
++
++    @task
++    def write_summary(partner_results: list[dict], run_date: str) -> str:
++        """Write summary JSON after all files are processed.
++        
++        Summary is written even if no files exist (all zeros).
++        """
++        output_dir = PROJECT_ROOT / "output" / "partner_feeds" / run_date
++        output_dir.mkdir(parents=True, exist_ok=True)
++        summary_path = output_dir / "summary.json"
++        
++        # Calculate totals
++        file_count = len(partner_results)
++        total_rows = sum(r["rows"] for r in partner_results)
++        total_amount = sum(r["total_amount"] for r in partner_results)
++        total_amount = round(total_amount, 2)
++        
++        summary_data = {
++            "files": file_count,
++            "rows": total_rows,
++            "total_amount": total_amount,
++        }
++        summary_path.write_text(json.dumps(summary_data))
++        
++        return str(summary_path)
++
++    # DAG flow
++    # Step 1: Discover files for this date
++    partners = discover_files(run_date="{{ ds }}")
++    
++    # Step 2: Process each partner file with dynamic task mapping
++    # process_file.expand() creates a separate task instance for each partner
++    # This ensures individual file failures only retry that specific task
++    # Note: only 'partner' is expanded (creates one task per partner).
++    # 'run_date' is passed as a constant to all task instances.
++    process_results = process_file.expand(
++        partner=partners,
++    ).set_kwargs(run_date="{{ ds }}")
++    
++    # Step 3: Write summary after all files are processed
++    write_summary(partner_results=process_results, run_date="{{ ds }}")
++
++
++# Instantiate the DAG
++partner_feeds()

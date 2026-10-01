@@ -1,0 +1,24 @@
+name: search_campaigns
+team: search
+tier: standard
+description: Campaigns pipeline for search
+schedule:
+  hour: 5
+  days: 1-5
+owners:
+- ivan
+steps:
+- name: extract
+  table: search.raw_campaigns_00
+- name: transform
+  table: search.int_campaigns_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: search.int_campaigns_00
+  depends_on:
+  - transform
+- name: publish
+  table: search.mart_campaigns_00
+  depends_on:
+  - snapshot

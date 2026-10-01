@@ -1,0 +1,130 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..fc89e90 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,25 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads the scheduled day's shop orders into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
+-`daily_revenue` rollup that the finance dashboard reads.
++non-cancelled orders for the run's scheduled day into `orders` and then
++refreshes the `daily_revenue` rollup that the finance dashboard reads.
++
++Idempotency guarantee
++---------------------
++Every task is keyed on the run's own *scheduled* day (``data_interval_start``
++under the CronDataIntervalTimetable that Airflow 2.x uses for ``@daily``).
++Both writes follow a DELETE-then-INSERT pattern inside one DuckDB transaction,
++so clearing a run, retrying after a failure, or backfilling any date is always
++safe:
++
++    • The target day ends up with exactly the right rows.
++    • Other days are never touched.
++
++Backfill example
++----------------
++    airflow dags backfill -s 2026-03-01 -e 2026-03-08 orders_daily_load
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+@@ -27,8 +41,21 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(**context) -> str:
++        """Load (or reload) the scheduled day's orders idempotently.
++
++        The day comes from ``data_interval_start``, which Airflow 2.x sets to
++        the *start* of the scheduled interval.  Under ``@daily`` (UTC) that is
++        midnight of the day being processed, e.g. 2026-03-04 00:00:00 UTC for
++        the run that fires at 2026-03-05 00:00:00.
++
++        Using ``data_interval_start`` — not ``datetime.now()`` — ensures that
++        re-running, clearing or backfilling any run always processes the day it
++        was *scheduled* for, never "today".
++        """
++        # data_interval_start is a pendulum DateTime on Airflow 2.x.
++        day = pendulum.instance(context["data_interval_start"]).in_tz("UTC").date()
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+@@ -42,6 +69,14 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # DELETE-then-INSERT in one transaction: idempotent regardless of how
++        # many times this run is attempted.  Only the target day is touched.
++        con.execute("BEGIN")
++        con.execute(
++            "DELETE FROM orders WHERE order_date = CAST(? AS DATE)",
++            [day.isoformat()],
++        )
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -51,16 +86,23 @@ def orders_daily_load():
+                    CAST(amount_usd AS DECIMAL(12, 2)),
+                    now()
+             FROM read_csv_auto('{SOURCE_CSV}')
+-            WHERE CAST(order_ts AS DATE) = ?
++            WHERE CAST(order_ts AS DATE) = CAST(? AS DATE)
+               AND status <> 'cancelled'
+             """,
+-            [day],
++            [day.isoformat()],
+         )
++        con.execute("COMMIT")
+         con.close()
+         return day.isoformat()
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
++        """Rebuild the daily_revenue rollup for ``day`` idempotently.
++
++        DELETE-then-INSERT in one transaction ensures a retry or backfill
++        always results in exactly one summary row for the day, never
++        a doubled total.
++        """
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+             """
+@@ -71,16 +113,25 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        con.execute("BEGIN")
++        con.execute(
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
+         con.execute(
+             """
+             INSERT INTO daily_revenue
+-            SELECT order_date, count(*), sum(amount_usd)
++            SELECT order_date,
++                   count(*),
++                   sum(amount_usd)
+             FROM orders
+             WHERE order_date = CAST(? AS DATE)
+             GROUP BY order_date
+             """,
+             [day],
+         )
++        con.execute("COMMIT")
+         con.close()
+ 
+     build_daily_revenue(load_orders())
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..3fb547d132e86c507b7c69eaff53a2bc40c21620
+Binary files differ (content omitted by sanitize.py)

@@ -1,0 +1,37 @@
+id: testing-taskflow-transforms
+area: testing
+split: holdout
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1800
+prompt: |
+  Finance got a wrong USD number from orders_enrichment last month and nobody caught
+  it until month-end close. The DAG has no tests. Can you write a pytest suite under
+  tests/ for it? CI runs `pytest tests/` in this venv (Airflow 3.3) with nothing else
+  running, no scheduler or webserver.
+
+  What finance relies on:
+  - when an order was exported more than once, only its latest version (by
+    updated_at) is kept
+  - amount_usd = amount * that day's usd_per_unit, rounded half-up to cents
+  - an order in a currency with no FX rate for the day has to fail the run, not get
+    guessed
+  - nothing gets written to output/ unless validate_totals has passed
+  - it runs once a day at 06:00 UTC
+
+  I'd like the transform logic tested directly and also one end-to-end check on the
+  sample data in data/. The suite has to pass on the current code; please don't
+  change the DAG.
+description: |
+  Area: testing (Airflow 3.3). Pain point P5 (agents write shallow or broken DAG
+  tests). TaskFlow functions must be tested through `.function` (calling the
+  decorated task returns an XComArg in 3.x), wiring checked on the parsed DAG, the
+  schedule checked without the removed `schedule_interval`, and an end-to-end run
+  without a scheduler (dag.test() or composing the functions). Primary checks: the
+  suite passes on the correct DAG and fails behaviourally on five hidden planted
+  bugs: dedupe keeps the first row instead of the latest, ROUND_DOWN instead of
+  half-up, unknown currency silently treated as USD, validate_totals no longer
+  upstream of load_enriched, and schedule changed to @daily. Mutants: tests that
+  call the @task objects directly, tests using dag.schedule_interval, and a
+  wiring/schedule-only suite that never exercises the transforms.

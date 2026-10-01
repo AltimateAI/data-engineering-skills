@@ -1,0 +1,10 @@
+[
+  "customers",
+  "orders",
+  "order_items",
+  "payments",
+  "refunds",
+  "shipments",
+  "products",
+  "inventory"
+]

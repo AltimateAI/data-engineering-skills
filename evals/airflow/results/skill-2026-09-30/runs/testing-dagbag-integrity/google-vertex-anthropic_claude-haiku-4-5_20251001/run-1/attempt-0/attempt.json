@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: suite catches hidden bug: missing_dependency",
+  "primary_pass": false,
+  "primary_score": 0.875,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 102.2,
+  "cost_usd": 0.62816,
+  "cost_reported_usd": 2.079864,
+  "tokens": {
+    "input": 1454382,
+    "output": 7304,
+    "reasoning": 0,
+    "cache_read": 1065798,
+    "cache_write": 385906,
+    "total": 2913390
+  },
+  "steps": 22,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "idle-done",
+    "done_reason": "idle_heuristic"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 6,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0ceb9c47ffevxO5CTwXDl0bc6.json"
+}

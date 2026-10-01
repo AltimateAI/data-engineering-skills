@@ -1,0 +1,18 @@
+name: growth_ledger
+team: growth
+tier: standard
+description: Ledger pipeline for growth
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: growth.raw_ledger_00
+- name: snapshot
+  table: growth.int_ledger_00
+  depends_on:
+  - extract
+- name: publish
+  table: growth.mart_ledger_00
+  depends_on:
+  - snapshot

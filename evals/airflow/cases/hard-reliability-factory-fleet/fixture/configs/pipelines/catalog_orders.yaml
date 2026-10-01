@@ -1,0 +1,31 @@
+name: catalog_orders
+team: catalog
+tier: standard
+description: Orders pipeline for catalog
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: catalog.raw_orders_00
+- name: validate
+  table: catalog.int_orders_00
+  depends_on:
+  - extract
+- name: transform
+  table: catalog.int_orders_00
+  depends_on:
+  - validate
+- name: enrich
+  table: catalog.int_orders_00
+  depends_on:
+  - transform
+  - validate
+- name: aggregate
+  table: catalog.int_orders_00
+  depends_on:
+  - enrich
+- name: publish
+  table: catalog.mart_orders_00
+  depends_on:
+  - aggregate

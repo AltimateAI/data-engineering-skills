@@ -1,0 +1,2 @@
+# pure snapshot suite: drop the reference tests
+tests/test_dag_integrity.py

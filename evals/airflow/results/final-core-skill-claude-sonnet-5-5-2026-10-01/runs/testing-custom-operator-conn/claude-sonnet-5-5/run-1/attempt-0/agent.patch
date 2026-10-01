@@ -1,0 +1,193 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..186800b
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,15 @@
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config on first import, so set everything before importing it.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))
+diff --git a/tests/test_warehouse.py b/tests/test_warehouse.py
+new file mode 100644
+index 0000000..007ae59
+--- /dev/null
++++ b/tests/test_warehouse.py
+@@ -0,0 +1,166 @@
++"""Tests for DuckDBWarehouseHook and CsvPartitionToDuckDBOperator.
++
++The connection is supplied through an AIRFLOW_CONN_* env var (CI has none), under an id
++that is not the hook's or the DAG's default, and execute() runs against a real temp DuckDB file.
++"""
++
++import json
++
++import duckdb
++import pytest
++from warehouse.hooks import DuckDBWarehouseHook
++from warehouse.operators import CsvPartitionToDuckDBOperator
++
++CONN_ID = "test_wh"
++
++
++@pytest.fixture(autouse=True)
++def _no_default_conns(monkeypatch):
++    for name in ("AIRFLOW_CONN_DUCKDB_WAREHOUSE", "AIRFLOW_CONN_WAREHOUSE"):
++        monkeypatch.delenv(name, raising=False)
++
++
++@pytest.fixture
++def set_conn(monkeypatch):
++    def _set(conn_id=CONN_ID, **fields):
++        monkeypatch.setenv(
++            f"AIRFLOW_CONN_{conn_id.upper()}", json.dumps({"conn_type": "duckdb", **fields})
++        )
++
++    return _set
++
++
++@pytest.fixture
++def db_path(tmp_path, set_conn):
++    path = tmp_path / "wh.duckdb"
++    set_conn(host=str(path), schema="raw")
++    return path
++
++
++def write_csv(path, rows):
++    path.write_text("id,day,val\n" + "".join(f"{i},{d},{v}\n" for i, d, v in rows))
++    return str(path)
++
++
++def make_op(csv, conn_id=CONN_ID, date="2026-03-02", table="t", **kw):
++    return CsvPartitionToDuckDBOperator(
++        task_id="load",
++        csv_path=csv,
++        table=table,
++        partition_column="day",
++        partition_date=date,
++        duckdb_conn_id=conn_id,
++        **kw,
++    )
++
++
++def query(path, sql):
++    con = duckdb.connect(str(path), read_only=True)
++    try:
++        return con.execute(sql).fetchall()
++    finally:
++        con.close()
++
++
++# ---- hook ----
++
++def test_hook_reads_path_and_schema_from_connection(db_path):
++    hook = DuckDBWarehouseHook(duckdb_conn_id=CONN_ID)
++    assert hook.database_path == str(db_path)
++    assert hook.target_schema == "raw"
++
++
++def test_hook_schema_defaults_to_main(tmp_path, set_conn):
++    set_conn(host=str(tmp_path / "x.duckdb"))
++    assert DuckDBWarehouseHook(duckdb_conn_id=CONN_ID).target_schema == "main"
++
++
++def test_hook_requires_host(set_conn):
++    set_conn(schema="raw")
++    with pytest.raises(ValueError, match="no host"):
++        DuckDBWarehouseHook(duckdb_conn_id=CONN_ID).database_path
++
++
++def test_hook_get_conn_opens_the_configured_file(db_path):
++    con = DuckDBWarehouseHook(duckdb_conn_id=CONN_ID).get_conn()
++    try:
++        con.execute("CREATE TABLE marker AS SELECT 1 AS x")
++    finally:
++        con.close()
++    assert query(db_path, "SELECT x FROM marker") == [(1,)]
++
++
++def test_hook_read_only_extra(tmp_path, set_conn):
++    path = tmp_path / "ro.duckdb"
++    duckdb.connect(str(path)).close()
++    set_conn(host=str(path), extra={"read_only": True})
++    con = DuckDBWarehouseHook(duckdb_conn_id=CONN_ID).get_conn()
++    try:
++        with pytest.raises(duckdb.Error):
++            con.execute("CREATE TABLE nope (x INT)")
++    finally:
++        con.close()
++
++
++# ---- operator ----
++
++ROWS = [
++    ("a", "2026-03-01", "1"),
++    ("b", "2026-03-02", "2"),
++    ("c", "2026-03-02", "3"),
++    ("d", "2026-03-03", "4"),
++]
++
++
++def test_loads_only_partition_rows_and_returns_count(tmp_path, db_path):
++    csv = write_csv(tmp_path / "in.csv", ROWS)
++    assert make_op(csv).execute({}) == 2
++    assert query(db_path, "SELECT id, day, val FROM raw.t ORDER BY id") == [
++        ("b", "2026-03-02", "2"),
++        ("c", "2026-03-02", "3"),
++    ]
++
++
++def test_writes_to_connection_schema(tmp_path, db_path):
++    make_op(write_csv(tmp_path / "in.csv", ROWS)).execute({})
++    assert query(db_path, "SELECT table_schema FROM information_schema.tables WHERE table_name = 't'") == [("raw",)]
++
++
++def test_uses_given_conn_id(tmp_path, set_conn):
++    other = tmp_path / "other.duckdb"
++    set_conn("other_wh", host=str(other), schema="s2")
++    make_op(write_csv(tmp_path / "in.csv", ROWS), conn_id="other_wh").execute({})
++    assert query(other, "SELECT count(*) FROM s2.t") == [(2,)]
++
++
++def test_partition_with_no_rows_returns_zero(tmp_path, db_path):
++    csv = write_csv(tmp_path / "in.csv", ROWS)
++    assert make_op(csv, date="2030-01-01").execute({}) == 0
++    assert query(db_path, "SELECT count(*) FROM raw.t") == [(0,)]
++
++
++def test_rerun_replaces_partition_without_duplicates(tmp_path, db_path):
++    csv = write_csv(tmp_path / "in.csv", ROWS)
++    make_op(csv).execute({})
++    assert make_op(csv).execute({}) == 2
++    assert query(db_path, "SELECT id FROM raw.t ORDER BY id") == [("b",), ("c",)]
++
++
++def test_rerun_leaves_other_dates_alone_and_replaces_changed_rows(tmp_path, db_path):
++    csv = write_csv(tmp_path / "in.csv", ROWS)
++    make_op(csv, date="2026-03-01").execute({})
++    make_op(csv, date="2026-03-02").execute({})
++    # the export changes: day 03-02 now has one different row
++    csv = write_csv(tmp_path / "in.csv", [ROWS[0], ("z", "2026-03-02", "9"), ROWS[3]])
++    assert make_op(csv, date="2026-03-02").execute({}) == 1
++    assert query(db_path, "SELECT id, day FROM raw.t ORDER BY id") == [
++        ("a", "2026-03-01"),
++        ("z", "2026-03-02"),
++    ]
++
++
++def test_partition_value_is_not_interpolated_as_sql(tmp_path, db_path):
++    csv = write_csv(tmp_path / "in.csv", ROWS)
++    make_op(csv).execute({})
++    assert make_op(csv, date="2026-03-02' OR '1'='1").execute({}) == 0
++    assert query(db_path, "SELECT count(*) FROM raw.t") == [(2,)]

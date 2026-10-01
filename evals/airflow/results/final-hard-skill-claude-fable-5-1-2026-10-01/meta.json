@@ -1,0 +1,325 @@
+{
+  "run_name": "final-hard-skill-claude-fable-5-1-2026-10-01",
+  "arm": "skill",
+  "runner": "claude-code",
+  "models": [
+    "claude-fable-5-1"
+  ],
+  "runs_per_case": 2,
+  "run_offset": 0,
+  "run_indices": [
+    1,
+    2
+  ],
+  "split": "all",
+  "argv": [
+    "evals/harness/run_eval.py",
+    "--runner",
+    "claude-code",
+    "--cases",
+    "evals/airflow/cases",
+    "--arm",
+    "skill",
+    "--models",
+    "claude-fable-5-1",
+    "--runs",
+    "2",
+    "--parallel",
+    "4",
+    "--split",
+    "all",
+    "--case",
+    "hard-deferrable-sensor-retry-budget",
+    "--case",
+    "hard-migration-claims-partitions",
+    "--case",
+    "hard-migration-meter-rollups",
+    "--case",
+    "hard-reliability-factory-fleet",
+    "--case",
+    "hard-migration-ledger-close",
+    "--case",
+    "hard-deferrable-debug-partition-sensor",
+    "--max-cost-usd",
+    "2000",
+    "--out",
+    "evals/airflow/results/final-hard-skill-claude-fable-5-1-2026-10-01",
+    "--resume"
+  ],
+  "started_at": "2026-10-01T17:24:49+00:00",
+  "altimate_code_version": null,
+  "small_model": null,
+  "envs": {
+    "3.3": {
+      "python": "3.12.8",
+      "airflow": "3.3.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.5.6",
+      "pandas": "3.0.5",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+    }
+  },
+  "agent_envs": {
+    "3.3": {
+      "python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+      "pristine_fingerprint": "37708e57b705c213647354ac1550dbe5183c6b507ba975df571bffdea7e20f86"
+    }
+  },
+  "isolation": {
+    "sandbox": true,
+    "per_attempt_tmpdir": true,
+    "per_attempt_xdg_data": true,
+    "pip_require_virtualenv": true,
+    "signals_same_sandbox_only": true,
+    "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+    "claude_env": {
+      "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+      "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+      "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+      "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+      "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+      "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "DISABLE_UPDATES": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_BUG_COMMAND": "1",
+      "DISABLE_FEEDBACK_COMMAND": "1"
+    },
+    "strict_mcp_config": true,
+    "ancestor_memory_files_disabled": [
+      "~/AGENTS.md",
+      "~/.claude/CLAUDE.md"
+    ],
+    "contamination_suspect_runs": 3,
+    "kill_command_runs": 4,
+    "killed_attempts": 0,
+    "agent_env_restores": {
+      "3.3": 0
+    }
+  },
+  "cost_correction": {
+    "claude-fable-5-1": false
+  },
+  "cases": {
+    "hard-deferrable-debug-partition-sensor": {
+      "sha256": "60c9a191d29ea7f8387fef7f38437273f93f29c69575bd660de59fbf2c04ac57",
+      "area": "debugging",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 3600,
+      "max_turns": 80
+    },
+    "hard-deferrable-sensor-retry-budget": {
+      "sha256": "3694e3656252add8bca628e06b6441564576f3d89ba83c38f0b3b1f59533a770",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 3600,
+      "max_turns": 80
+    },
+    "hard-migration-claims-partitions": {
+      "sha256": "805a73f0e7b95c33982dabe100783a9871bf94eb1069a7425b01b9ddb08c48ef",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 3600,
+      "max_turns": 80
+    },
+    "hard-migration-ledger-close": {
+      "sha256": "f9e66654b5b197bda3b37bd78f42aaa2e64494191c7ca9b8da40ed2c59f8e91a",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 3600,
+      "max_turns": 80
+    },
+    "hard-migration-meter-rollups": {
+      "sha256": "2abd3893ff836e6833b2dd3d9dd65a69b2ff0224e794ba3678fcee5672322cc3",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 3600,
+      "max_turns": 80
+    },
+    "hard-reliability-factory-fleet": {
+      "sha256": "294930bc28c3eb23510032b749c19f1551b6f8ce0d9fdf0d35fc4ef1ed3a2894",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 3600,
+      "max_turns": 80
+    }
+  },
+  "staged_skills_sha256": "45fa68a50442686473230d5f88f3825d3652a30ed9c04372429216257627d553",
+  "airflow_skills_dir": "<repo>/skills/airflow",
+  "airflow_skills_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+  "airflow_skills_dir_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+  "airflow_skill_names": [
+    "authoring-airflow-dags",
+    "migrating-to-airflow-3",
+    "testing-airflow-dags"
+  ],
+  "repo_skill_names": [
+    "altimate-code",
+    "optimizing-databricks-sql",
+    "creating-dbt-models",
+    "debugging-dbt-errors",
+    "developing-incremental-models",
+    "documenting-dbt-models",
+    "migrating-sql-to-dbt",
+    "refactoring-dbt-models",
+    "testing-dbt-models",
+    "finding-expensive-queries",
+    "optimizing-query-by-id",
+    "optimizing-query-text"
+  ],
+  "inventory": [
+    [
+      "altimate-code",
+      "User"
+    ],
+    [
+      "authoring-airflow-dags",
+      "User"
+    ],
+    [
+      "claude-api",
+      "Built-in"
+    ],
+    [
+      "code-review",
+      "Built-in"
+    ],
+    [
+      "creating-dbt-models",
+      "User"
+    ],
+    [
+      "dataviz",
+      "Built-in"
+    ],
+    [
+      "debugging-dbt-errors",
+      "User"
+    ],
+    [
+      "developing-incremental-models",
+      "User"
+    ],
+    [
+      "documenting-dbt-models",
+      "User"
+    ],
+    [
+      "fewer-permission-prompts",
+      "Built-in"
+    ],
+    [
+      "finding-expensive-queries",
+      "User"
+    ],
+    [
+      "init",
+      "Built-in"
+    ],
+    [
+      "keybindings-help",
+      "Built-in"
+    ],
+    [
+      "loop",
+      "Built-in"
+    ],
+    [
+      "migrating-sql-to-dbt",
+      "User"
+    ],
+    [
+      "migrating-to-airflow-3",
+      "User"
+    ],
+    [
+      "optimizing-databricks-sql",
+      "User"
+    ],
+    [
+      "optimizing-query-by-id",
+      "User"
+    ],
+    [
+      "optimizing-query-text",
+      "User"
+    ],
+    [
+      "plugin-authoring",
+      "Built-in"
+    ],
+    [
+      "refactoring-dbt-models",
+      "User"
+    ],
+    [
+      "run",
+      "Built-in"
+    ],
+    [
+      "schedule",
+      "Built-in"
+    ],
+    [
+      "security-review",
+      "Built-in"
+    ],
+    [
+      "simplify",
+      "Built-in"
+    ],
+    [
+      "testing-airflow-dags",
+      "User"
+    ],
+    [
+      "testing-dbt-models",
+      "User"
+    ],
+    [
+      "update-config",
+      "Built-in"
+    ]
+  ],
+  "harness_sha256": "c0b66e003e8a4368652fa0bafbe0d9041192c42074782ec606f6f1bff74c868b",
+  "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+  "host": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.8"
+  },
+  "budget": {
+    "cap_usd": 2000.0,
+    "per_run_cap_usd": {
+      "claude-fable-5-1": 30.0
+    },
+    "spent_usd": 58.2413,
+    "stopped_early": false
+  },
+  "claude_code_version": "2.1.287",
+  "billing": "subscription (Claude Code OAuth); cost_usd = cost_usd_equivalent = API-equivalent total_cost_usd reported by Claude Code",
+  "resumed_at": [
+    "2026-10-01T17:43:56+00:00",
+    "2026-10-01T18:15:31+00:00"
+  ],
+  "resume": {
+    "kept_runs": 6,
+    "rerun_runs": 0
+  },
+  "finished_at": "2026-10-01T18:39:01+00:00",
+  "status_counts": {
+    "ok": 12
+  },
+  "usage_limit": {
+    "stopped": false,
+    "paused_s": 0.0,
+    "events": []
+  }
+}

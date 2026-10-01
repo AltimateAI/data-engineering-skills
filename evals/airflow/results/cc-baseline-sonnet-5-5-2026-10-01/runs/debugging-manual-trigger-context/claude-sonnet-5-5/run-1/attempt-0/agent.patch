@@ -1,0 +1,66 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..dd052a8 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,7 +8,7 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ from airflow.providers.standard.operators.bash import BashOperator
+@@ -21,16 +21,30 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def feed_day(dag_run) -> str:
++    """Day (YYYY-MM-DD, UTC) of the feed a run produces.
++
++    Scheduled runs and runs triggered with a logical date use the logical date.
++    Manual runs triggered without one have logical_date=None (and no ds/
++    logical_date in the task context), so fall back to run_after, the moment
++    the run was triggered. It is stored on the run, so clearing and re-running
++    later yields the same day.
++    """
++    moment = dag_run.logical_date or dag_run.run_after
++    return moment.astimezone(timezone.utc).strftime("%Y-%m-%d")
++
++
+ @dag(
+     schedule="0 4 * * *",
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
++    user_defined_macros={"feed_day": feed_day},
+     tags=["partner", "acme"],
+ )
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        day = feed_day(context["dag_run"])
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -47,7 +61,7 @@ def partner_feed():
+ 
+     @task
+     def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++        day = feed_day(context["dag_run"])
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -61,9 +75,9 @@ def partner_feed():
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+             " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " {{ params.outbox }}/acme_orders_{{ feed_day(dag_run).replace('-', '') }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ feed_day(dag_run).replace('-', '') }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )

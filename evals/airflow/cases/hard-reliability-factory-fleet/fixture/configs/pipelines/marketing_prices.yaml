@@ -1,0 +1,33 @@
+name: marketing_prices
+team: marketing
+tier: critical
+description: Prices pipeline for marketing
+schedule:
+  hour: 2
+  days: 1-5
+  minute: 45
+retries: 1
+steps:
+- name: extract
+  table: marketing.raw_prices_00
+- name: stage
+  table: marketing.stg_prices_00
+  depends_on:
+  - extract
+- name: validate
+  table: marketing.int_prices_00
+  depends_on:
+  - stage
+  - extract
+- name: enrich
+  table: marketing.int_prices_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: marketing.int_prices_00
+  depends_on:
+  - enrich
+- name: publish
+  table: marketing.mart_prices_00
+  depends_on:
+  - aggregate

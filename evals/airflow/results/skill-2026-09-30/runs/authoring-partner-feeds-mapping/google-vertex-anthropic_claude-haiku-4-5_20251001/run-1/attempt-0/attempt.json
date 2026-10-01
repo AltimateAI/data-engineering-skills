@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: summary is correct, including the day with no files",
+  "primary_pass": false,
+  "primary_score": 0.8888888888888888,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 174.3,
+  "cost_usd": 1.636673,
+  "cost_reported_usd": 3.422042,
+  "tokens": {
+    "input": 1785503,
+    "output": 16286,
+    "reasoning": 0,
+    "cache_read": 588350,
+    "cache_write": 1197019,
+    "total": 3587158
+  },
+  "steps": 26,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 13,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d0e18aaffejr3b7TS13rw5oF.json"
+}

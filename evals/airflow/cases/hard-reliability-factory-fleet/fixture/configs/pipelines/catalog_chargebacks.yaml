@@ -1,0 +1,33 @@
+name: catalog_chargebacks
+team: catalog
+tier: standard
+description: Chargebacks pipeline for catalog
+schedule:
+  hour: 0
+  days: '*'
+owners:
+- dara
+- yusuf
+steps:
+- name: extract
+  table: catalog.raw_chargebacks_00
+- name: stage
+  table: catalog.stg_chargebacks_00
+  depends_on:
+  - extract
+- name: transform
+  table: catalog.int_chargebacks_00
+  depends_on:
+  - stage
+- name: enrich
+  table: catalog.int_chargebacks_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: catalog.int_chargebacks_00
+  depends_on:
+  - enrich
+- name: publish
+  table: catalog.mart_chargebacks_00
+  depends_on:
+  - snapshot

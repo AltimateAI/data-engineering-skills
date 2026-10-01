@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dags.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 12 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 12 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: af3_import",
+      "kind": "primary",
+      "passed": true,
+      "detail": "carrier_rates_weekly imports PythonOperator from the Airflow-3 standard provider (absent in 2.11) -> failed: 10 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dags::test_no_import_errors [AssertionError], tests.test_dags::test_expected_dags_load [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: weekend_schedule",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily cron changed to 30 7 * * 0-4 (Sunday-Thursday) -> failed: 11 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dags::test_shipments_daily_runs_0730_utc_weekdays [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: undelivered_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "find_late_shipments skips undelivered shipments -> failed: 9 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dags::test_undelivered_past_promise_is_late_with_days_to_run_date [AssertionError], tests.test_dags::test_result_keeps_row_fields_and_orders_worst_first [AssertionError], tests.test_dags::test_shipments_daily_end_to_end_on_sample_data [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "shipments_daily default_args lose retries (tasks fall back to 0) -> failed: 11 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dags::test_every_task_has_at_least_two_retries [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "build_report no longer runs after extract_shipments -> failed: 11 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dags::test_report_built_only_after_extract [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

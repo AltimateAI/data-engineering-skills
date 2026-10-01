@@ -1,0 +1,37 @@
+name: logistics_suppliers_daily
+team: logistics
+tier: standard
+description: Suppliers pipeline for logistics
+schedule:
+  hour: 5
+  days: '*'
+owners:
+- dara
+- omar
+steps:
+- name: extract
+  table: logistics.raw_suppliers_00
+- name: stage
+  table: logistics.stg_suppliers_00
+  depends_on:
+  - extract
+- name: validate
+  table: logistics.int_suppliers_00
+  depends_on:
+  - stage
+- name: enrich
+  table: logistics.int_suppliers_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: logistics.int_suppliers_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: logistics.int_suppliers_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: logistics.mart_suppliers_00
+  depends_on:
+  - snapshot

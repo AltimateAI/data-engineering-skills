@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['lake_ingest', 'orders_diff']"
+    },
+    {
+      "name": "sensor still defers and returns the published files",
+      "kind": "primary",
+      "passed": true,
+      "detail": "deferred=True\n{\"tis\": [[\"wait\", \"success\", 1], [\"collect\", \"success\", 1]], \"outputs\": {\"wait_2026-09-29\": [\"s3://lake/orders/2026-09-29/part-0.parquet\", \"s3://lake/orders/2026-09-29/part-1.parquet\"]}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 0.515, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"success\", \"files\": [\"s3://lake/orders/2026-09-29/part-0.parquet\", \"s3://lake/orders/2026-09-29/part-1.parquet\"]}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"collect\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"collect\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "trigger never blocks the event loop (catalog API answers in 0.5 s)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "10 trigger runs; stalls >= 0.35s: []"
+    },
+    {
+      "name": "a timed-out sensor fails for good (no retries)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"tis\": [[\"wait\", \"failed\", 1], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"restart\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 10.026, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.FAILED\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "triggerer restart does not extend the sensor timeout",
+      "kind": "primary",
+      "passed": true,
+      "detail": "restart happened=True; first try ended 10.05s after deferring (timeout=10.0s, want 8.5-17.0s)\n{\"tis\": [[\"wait\", \"failed\", 1], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"restart\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 10.026, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.FAILED\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "soft_fail sensor is skipped when it times out",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"tis\": [[\"wait\", \"skipped\", 1], [\"collect\", \"skipped\", 0]], \"outputs\": {}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 5.98, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SKIPPED\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "API errors fail the sensor instead of letting the load run",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"tis\": [[\"wait\", \"failed\", 2], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 0.514, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"error\", \"message\": \"GET http://127.0.0.1:50848/v1/tables/orders/partitions/2026-09-29 -> HTTP 503\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"trigger_event\", \"waited_s\": 0.507, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 2, \"payload\": {\"status\": \"error\", \"message\": \"GET http://127.0.0.1:50848/v1/tables/orders/partitions/2026-09-29 -> HTTP 503\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.FAILED\", \"task_id\": \"wait\", \"try_number\": 2}]}"
+    },
+    {
+      "name": "timeout is one budget per DAG run: a retry after an outage does not restart it",
+      "kind": "primary",
+      "passed": true,
+      "detail": "sensor ran from first try start to final failure in 16.3s over 3 tries (timeout=16.0s, want 14.5-21.5s)\n{\"tis\": [[\"wait\", \"failed\", 3], [\"staging\", \"success\", 1], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"staging\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"staging\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 3.538, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"error\", \"message\": \"GET http://127.0.0.1:50844/v1/tables/orders/partitions/2026-09-29 -> HTTP 503\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"trigger_event\", \"waited_s\": 0.515, \"stalls\": [], \"task_id\": \"wait\", \"try_number\": 2, \"payload\": {\"status\": \"error\", \"message\": \"GET http://127.0.0.1:50844/v1/tables/orders/partitions/2026-09-29 -> HTTP 503\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait\", \"try_number\": 3}]}"
+    },
+    {
+      "name": "sensors for two partitions of one table each get their own files",
+      "kind": "primary",
+      "passed": true,
+      "detail": "want={'today_2026-09-29': ['s3://lake/orders/2026-09-29/part-0.parquet', 's3://lake/orders/2026-09-29/part-1.parquet'], 'yesterday_2026-09-29': ['s3://lake/orders/2026-09-28/part-0.parquet', 's3://lake/orders/2026-09-28/part-1.parquet']}\n{\"tis\": [[\"wait_today\", \"success\", 1], [\"wait_yesterday\", \"success\", 1], [\"collect_today\", \"success\", 1], [\"collect_yesterday\", \"success\", 1]], \"outputs\": {\"today_2026-09-29\": [\"s3://lake/orders/2026-09-29/part-0.parquet\", \"s3://lake/orders/2026-09-29/part-1.parquet\"], \"yesterday_2026-09-29\": [\"s3://lake/orders/2026-09-28/part-0.parquet\", \"s3://lake/orders/2026-09-28/part-1.parquet\"]}, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait_today\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait_today\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 0.517, \"stalls\": [], \"task_id\": \"wait_today\", \"try_number\": 1, \"payload\": {\"status\": \"success\", \"files\": [\"s3://lake/orders/2026-09-29/part-0.parquet\", \"s3://lake/orders/2026-09-29/part-1.parquet\"]}}, {\"kind\": \"worker_run\", \"task_id\": \"wait_today\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"wait_today\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"wait_yesterday\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": null, \"task_id\": \"wait_yesterday\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 0.516, \"stalls\": [], \"task_id\": \"wait_yesterday\", \"try_number\": 1, \"payload\": {\"status\": \"success\", \"files\": [\"s3://lake/orders/2026-09-28/part-0.parquet\", \"s3://lake/orders/2026-09-28/part-1.parquet\"]}}, {\"kind\": \"worker_run\", \"task_id\": \"wait_yesterday\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"wait_yesterday\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"collect_today\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"collect_today\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"collect_yesterday\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"collect_yesterday\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

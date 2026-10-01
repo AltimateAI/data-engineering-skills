@@ -1,0 +1,3 @@
+# Eval fixtures and grader data are byte-exact inputs; never normalise line endings.
+evals/airflow/cases/** -text
+evals/airflow/triggers/fixtures/** -text

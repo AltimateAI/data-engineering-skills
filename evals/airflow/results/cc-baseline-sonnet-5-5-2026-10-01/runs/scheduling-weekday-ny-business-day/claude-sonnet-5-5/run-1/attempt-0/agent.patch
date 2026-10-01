@@ -1,0 +1,59 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..169b3ae 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -1,4 +1,6 @@
+-"""Daily FX P&L report for the trading desks.
++"""FX P&L report for the trading desks.
++
++Runs at 06:00 New York time on weekdays and reports the previous business day.
+ 
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+@@ -11,12 +13,22 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
++NY_TZ = "America/New_York"
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
+ 
++def previous_business_day(run_time: pendulum.DateTime) -> str:
++    """Previous Mon-Fri New York calendar day before ``run_time`` (bank holidays ignored)."""
++    day = run_time.in_timezone(NY_TZ).subtract(days=1)
++    while day.weekday() >= 5:  # Saturday=5, Sunday=6
++        day = day.subtract(days=1)
++    return day.format("YYYY-MM-DD")
++
++
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+     totals: dict[str, list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
+@@ -41,16 +53,19 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    # 06:00 New York time, Monday-Friday (DST-aware).
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY_TZ),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY_TZ),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(**context) -> str:
++        # Report the business day before the run, e.g. Monday's run covers Friday.
++        run_time = context["logical_date"] or context["run_after"]
++        return str(write_pnl_report(previous_business_day(run_time)))
+ 
+     build_report()
+ 

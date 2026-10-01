@@ -1,0 +1,3 @@
+{
+  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false}
+}

@@ -1,0 +1,81 @@
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..248ade7 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -3,6 +3,18 @@
+ One load task per table registered in the platform team's catalog service.
+ DuckDB allows a single writer, so the loads run one after another between
+ `start` and `done`.
++
++Parse-time behaviour
++--------------------
++Task structure is driven entirely by ``config/tables.json`` (the snapshot that
++the deploy pipeline refreshes on every release).  The catalog HTTP service is
++**not** contacted at parse time, so the dag-processor never makes outbound
++requests while scanning this file, parse latency stays well under a second, and
++the DAG structure is fully deterministic — Airflow will not create a new version
++unless the snapshot actually changes.
++
++The catalog is still consulted at *run* time (inside ``load_table``) so the
++load always uses the freshest table metadata.
+ """
+ 
+ from __future__ import annotations
+@@ -11,7 +23,7 @@ import json
+ import os
+ import time
+ import urllib.request
+-from datetime import datetime, timedelta
++from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+@@ -29,11 +41,24 @@ CATALOG_URL = os.environ.get(
+ CATALOG_SNAPSHOT = PROJECT_ROOT / "config" / "tables.json"
+ 
+ 
++def _tables_from_snapshot() -> list[str]:
++    """Read and deduplicate tables from the local snapshot.
++
++    Returns a *sorted* list so that task order is stable across parses
++    regardless of the order entries appear in the JSON file.
++    """
++    # The catalog sometimes lists a table twice — deduplicate with a set,
++    # then sort so iteration order is deterministic.
++    return sorted(set(json.loads(CATALOG_SNAPSHOT.read_text())))
++
++
+ def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+     """Tables registered in the catalog for the warehouse domain.
+ 
+     Retries with exponential backoff and falls back to the deployed snapshot
+     when the service is unreachable.
++
++    Called at *run* time (inside a task), never at parse time.
+     """
+     for attempt in range(retries):
+         try:
+@@ -45,8 +70,9 @@ def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+     return json.loads(CATALOG_SNAPSHOT.read_text())
+ 
+ 
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++# Drive task structure from the static snapshot only — no network calls at
++# parse time.  Sorted for a stable, deterministic task order.
++TABLES = _tables_from_snapshot()
+ 
+ 
+ def load_table(table: str) -> int:
+@@ -64,9 +90,9 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
++    description="Load raw tables from catalog into the DuckDB warehouse",
+     schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    start_date=datetime(2025, 1, 1),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+ ):

@@ -1,0 +1,40 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: load tasks follow the deployed catalog snapshot (config/tables.json)",
+  "primary_pass": false,
+  "primary_score": 0.9,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 128.3,
+  "cost_usd": 0.55542,
+  "cost_reported_usd": 2.091007,
+  "tokens": {
+    "input": 1535698,
+    "output": 8264,
+    "reasoning": 0,
+    "cache_read": 1222169,
+    "cache_write": 313418,
+    "total": 3079549
+  },
+  "steps": 22,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 11,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cade351ffeT3lr8fToo2RJeu.json"
+}

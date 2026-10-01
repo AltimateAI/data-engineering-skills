@@ -1,0 +1,126 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..bcb578d
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,120 @@
++"""Daily DAG that processes partner order-feed CSV files.
++
++Layout
++------
++  data/partner_drop/<YYYY-MM-DD>/<partner>.csv   (columns: order_id, amount)
++
++For each file it writes:
++  output/partner_feeds/<date>/<partner>.json
++  {"partner": ..., "rows": <int>, "total_amount": <float, 2 dp>}
++
++After all per-partner tasks it writes (even on days with zero files):
++  output/partner_feeds/<date>/summary.json
++  {"files": <int>, "rows": <int>, "total_amount": <float, 2 dp>}
++
++A broken file only fails (and retries) its own task instance; all other
++partners keep running.  Re-runs are safe: output files are overwritten.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.task.trigger_rule import TriggerRule
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    dag_id="partner_feeds",
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["partners"],
++    default_args={"retries": 3},
++)
++def partner_feeds():
++    """Process per-partner CSV drops and write per-file + summary JSON."""
++
++    # ------------------------------------------------------------------
++    # 1. Discover which partners sent files for this logical date.
++    #    Returns a list of {"partner": <name>, "ds": <date>} dicts so
++    #    expand_kwargs() can fan them out without touching context vars.
++    # ------------------------------------------------------------------
++    @task
++    def list_partners(ds: str = None) -> list[dict]:
++        drop_dir = PROJECT_ROOT / "data" / "partner_drop" / ds
++        if not drop_dir.exists():
++            return []
++        return [
++            {"partner": p.stem, "ds": ds}
++            for p in sorted(drop_dir.glob("*.csv"))
++        ]
++
++    # ------------------------------------------------------------------
++    # 2. Process one partner file.  Called once per mapped value.
++    #    Returns a dict so the summary task can aggregate without re-reading.
++    # ------------------------------------------------------------------
++    @task
++    def process_partner(partner: str, ds: str) -> dict:
++        csv_path = PROJECT_ROOT / "data" / "partner_drop" / ds / f"{partner}.csv"
++
++        rows = 0
++        total_amount = 0.0
++        with csv_path.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                rows += 1
++                total_amount += float(row["amount"])
++
++        result = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": round(total_amount, 2),
++        }
++
++        out_path = PROJECT_ROOT / "output" / "partner_feeds" / ds / f"{partner}.json"
++        out_path.parent.mkdir(parents=True, exist_ok=True)
++        out_path.write_text(json.dumps(result))
++
++        return result
++
++    # ------------------------------------------------------------------
++    # 3. Write the daily summary.
++    #    trigger_rule=ALL_DONE ensures this runs even if some partner tasks
++    #    failed, and even when there are zero partners (empty list → zero
++    #    mapped instances → downstream still fires).
++    # ------------------------------------------------------------------
++    @task(trigger_rule=TriggerRule.ALL_DONE)
++    def write_summary(partner_results: list[dict], ds: str = None) -> None:
++        # partner_results contains one dict per successfully processed partner;
++        # failed mapped instances contribute None, so we filter those out.
++        valid = [r for r in (partner_results or []) if r is not None]
++
++        summary = {
++            "files": len(valid),
++            "rows": sum(r["rows"] for r in valid),
++            "total_amount": round(sum(r["total_amount"] for r in valid), 2),
++        }
++
++        out_path = PROJECT_ROOT / "output" / "partner_feeds" / ds / "summary.json"
++        out_path.parent.mkdir(parents=True, exist_ok=True)
++        out_path.write_text(json.dumps(summary))
++
++    # ------------------------------------------------------------------
++    # Wire tasks together
++    # ------------------------------------------------------------------
++    partners = list_partners()
++
++    # expand_kwargs() creates one task instance per {"partner": ..., "ds": ...}
++    # dict — full isolation: a broken file only fails its own instance.
++    per_partner = process_partner.expand_kwargs(partners)
++
++    write_summary(partner_results=per_partner)
++
++
++partner_feeds()

@@ -1,0 +1,39 @@
+name: finance_tickets
+team: finance
+tier: critical
+description: Tickets pipeline for finance
+schedule:
+  hour: 2
+  days: '*'
+  minute: 30
+owners:
+- vik
+retries: 4
+steps:
+- name: extract
+  table: finance.raw_tickets_00
+- name: stage
+  table: finance.stg_tickets_00
+  depends_on:
+  - extract
+- name: validate
+  table: finance.int_tickets_00
+  depends_on:
+  - stage
+- name: transform
+  table: finance.int_tickets_00
+  depends_on:
+  - validate
+- name: enrich
+  table: finance.int_tickets_00
+  depends_on:
+  - transform
+  - validate
+- name: snapshot
+  table: finance.int_tickets_00
+  depends_on:
+  - enrich
+- name: publish
+  table: finance.mart_tickets_00
+  depends_on:
+  - snapshot

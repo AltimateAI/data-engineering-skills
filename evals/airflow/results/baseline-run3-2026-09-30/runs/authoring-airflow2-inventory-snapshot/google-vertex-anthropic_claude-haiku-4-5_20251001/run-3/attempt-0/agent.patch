@@ -1,0 +1,107 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+new file mode 100644
+index 0000000..05373d4
+--- /dev/null
++++ b/dags/inventory_snapshot.py
+@@ -0,0 +1,101 @@
++"""Daily inventory snapshot per warehouse and SKU.
++
++Convention for this repo: every daily DAG writes one file per logical date
++(`{{ ds }}`) under output/<dag_id>/, so a rerun simply overwrites that day.
++"""
++
++from __future__ import annotations
++
++import csv
++from collections import defaultdict
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.decorators import dag, task
++from airflow.operators.empty import EmptyOperator
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data"
++OUTPUT_DIR = PROJECT_ROOT / "output"
++
++
++@dag(
++    dag_id="inventory_snapshot",
++    schedule="30 2 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "supply-chain-analytics", "retries": 1, "retry_delay": timedelta(minutes=10)},
++    tags=["inventory"],
++)
++def inventory_snapshot():
++    start = EmptyOperator(task_id="start")
++
++    @task
++    def snapshot(ds=None) -> str:
++        """Calculate end-of-day stock on hand per warehouse and SKU."""
++        # Load reorder points into memory for later use
++        reorder_points: dict[str, float] = {}
++        with (DATA_DIR / "reorder_points.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                reorder_points[row["sku"]] = float(row["reorder_point"])
++
++        # Calculate cumulative on_hand for each warehouse-sku combination up to and including ds
++        on_hand: dict[tuple[str, str], float] = defaultdict(float)
++        with (DATA_DIR / "inventory_movements.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                if row["movement_date"] <= ds:
++                    key = (row["warehouse_id"], row["sku"])
++                    on_hand[key] += float(row["qty_change"])
++
++        # Write inventory_snapshot output
++        snapshot_dir = OUTPUT_DIR / "inventory_snapshot"
++        snapshot_dir.mkdir(parents=True, exist_ok=True)
++        snapshot_file = snapshot_dir / f"{ds}.csv"
++
++        with snapshot_file.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["warehouse_id", "sku", "on_hand"])
++            for (warehouse_id, sku) in sorted(on_hand.keys()):
++                writer.writerow([warehouse_id, sku, on_hand[(warehouse_id, sku)]])
++
++        return str(snapshot_file)
++
++    @task
++    def low_stock(ds=None, snapshot_file: str = None) -> str:
++        """Identify SKUs below reorder point."""
++        # Load reorder points
++        reorder_points: dict[str, float] = {}
++        with (DATA_DIR / "reorder_points.csv").open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                reorder_points[row["sku"]] = float(row["reorder_point"])
++
++        # Read snapshot and filter for low stock
++        low_stock_rows = []
++        with open(snapshot_file, newline="") as fh:
++            for row in csv.DictReader(fh):
++                warehouse_id = row["warehouse_id"]
++                sku = row["sku"]
++                on_hand = float(row["on_hand"])
++                reorder_point = reorder_points[sku]
++
++                if on_hand < reorder_point:
++                    low_stock_rows.append((warehouse_id, sku, on_hand, reorder_point))
++
++        # Write low_stock output
++        low_stock_dir = OUTPUT_DIR / "low_stock"
++        low_stock_dir.mkdir(parents=True, exist_ok=True)
++        low_stock_file = low_stock_dir / f"{ds}.csv"
++
++        with low_stock_file.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["warehouse_id", "sku", "on_hand", "reorder_point"])
++            for warehouse_id, sku, on_hand, reorder_point in sorted(low_stock_rows):
++                writer.writerow([warehouse_id, sku, on_hand, reorder_point])
++
++        return str(low_stock_file)
++
++    start >> snapshot() >> low_stock()
++
++
++inventory_snapshot()

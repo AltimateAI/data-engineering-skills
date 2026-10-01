@@ -1,0 +1,117 @@
+diff --git a/.gitignore b/.gitignore
+index fd6aad7..08e78d2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,3 @@
+ output/
+ __pycache__/
++staging/
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..bb97240
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,103 @@
++"""Daily page-level stats (views, unique users, avg load time) from the clickstream export."""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronDataIntervalTimetable, dag, get_current_context, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++SOURCE_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "staging" / "clickstream_page_stats"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++def run_day() -> str:
++    """The UTC day this run processes (YYYY-MM-DD).
++
++    With the data-interval timetable the run for day D fires once D is over and its
++    logical_date is D (also for backfills and `dags test D`). Manual runs without a
++    logical date fall back to the day the run was created.
++    """
++    dag_run = get_current_context()["dag_run"]
++    moment = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(moment).in_tz("UTC").to_date_string()
++
++
++def _atomic_copy(con, query: str, target: Path, fmt: str) -> None:
++    """Write the query result to target via a temp file + rename, so reruns replace it."""
++    target.parent.mkdir(parents=True, exist_ok=True)
++    tmp = target.with_name(f".{target.name}.{os.getpid()}.tmp")
++    try:
++        con.execute(f"COPY ({query}) TO '{tmp}' ({fmt})")
++        tmp.replace(target)
++    finally:
++        tmp.unlink(missing_ok=True)
++
++
++@dag(
++    schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=4,
++    tags=["web-analytics"],
++)
++def clickstream_page_stats():
++    # Tasks pass file paths (claim check), never rows: the export is expected to
++    # reach ~1M events/day, which does not belong in XCom.
++
++    @task
++    def extract() -> str:
++        import duckdb
++
++        day = run_day()
++        source = SOURCE_DIR / f"{day}.csv.gz"
++        if not source.exists():
++            raise FileNotFoundError(f"no clickstream export for {day}: {source}")
++        target = STAGING_DIR / day / "events.parquet"
++        con = duckdb.connect()
++        query = f"""
++            SELECT user_id, page, load_ms
++            FROM read_csv('{source}', header = true, all_varchar = true)
++            WHERE coalesce(is_bot, '') <> '1' AND coalesce(trim(user_id), '') <> ''
++        """
++        _atomic_copy(con, query, target, "FORMAT parquet")
++        return str(target)
++
++    @task
++    def transform(events_path: str) -> str:
++        import duckdb
++
++        target = Path(events_path).with_name("page_stats.parquet")
++        con = duckdb.connect()
++        query = f"""
++            SELECT page,
++                   count(*) AS views,
++                   count(DISTINCT user_id) AS unique_users,
++                   round(avg(try_cast(load_ms AS DOUBLE)), 1) AS avg_load_ms
++            FROM read_parquet('{events_path}')
++            GROUP BY page
++        """
++        _atomic_copy(con, query, target, "FORMAT parquet")
++        return str(target)
++
++    @task
++    def load(stats_path: str) -> str:
++        import duckdb
++
++        target = OUTPUT_DIR / f"{run_day()}.csv"
++        con = duckdb.connect()
++        query = f"""
++            SELECT page, views, unique_users, avg_load_ms
++            FROM read_parquet('{stats_path}')
++            ORDER BY page
++        """
++        _atomic_copy(con, query, target, "FORMAT csv, HEADER")
++        return str(target)
++
++    load(transform(extract()))
++
++
++clickstream_page_stats()

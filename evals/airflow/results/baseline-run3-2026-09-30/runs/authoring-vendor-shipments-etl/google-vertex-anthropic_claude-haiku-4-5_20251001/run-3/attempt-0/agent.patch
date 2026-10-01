@@ -1,0 +1,94 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..afd6024
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,88 @@
++"""Load daily vendor shipments from carrier aggregator into the warehouse."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.models import Variable
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "vendor", "warehouse"],
++)
++def vendor_shipments():
++    @task
++    def get_file_path(ds=None):
++        landing_dir = Variable.get("vendor_landing_dir")
++        return f"{landing_dir}/shipments_{ds}.csv"
++
++    # Wait for the file without tying up a worker slot.
++    # Uses deferrable mode: frees the slot while waiting, then reclaims it when the file arrives.
++    wait_for_file = FileSensor(
++        task_id="wait_for_file",
++        filepath="{{ task_instance.xcom_pull(task_ids='get_file_path') }}",
++        deferrable=True,  # Don't tie up a worker slot; use task deferring
++        poke_interval=300,  # Check every 5 minutes
++    )
++
++    @task
++    def load_vendor_shipments(file_path, ds=None):
++        import duckdb
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            # Create the vendor_shipments table if it doesn't exist.
++            # Infer schema from the CSV and add a ship_date column.
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS vendor_shipments AS
++                SELECT *, CAST(? AS DATE) as ship_date
++                FROM read_csv_auto(?)
++                WHERE CAST(? AS DATE) = CAST(? AS DATE)
++                LIMIT 0
++                """,
++                [ds, file_path, ds, ds],
++            )
++
++            # Delete this day's rows to prevent duplicates on rerun.
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds])
++
++            # Load the file, adding the ship_date column.
++            con.execute(
++                """
++                INSERT INTO vendor_shipments
++                SELECT *, CAST(? AS DATE) as ship_date
++                FROM read_csv_auto(?)
++                """,
++                [ds, file_path],
++            )
++
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            ).fetchone()[0]
++
++    publish_report = BashOperator(
++        task_id="publish_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    file_path = get_file_path()
++    wait_for_file.set_upstream(file_path)
++    load_count = load_vendor_shipments(file_path)
++    load_count.set_upstream(wait_for_file)
++    publish_report.set_upstream(load_count)
++
++
++vendor_shipments()

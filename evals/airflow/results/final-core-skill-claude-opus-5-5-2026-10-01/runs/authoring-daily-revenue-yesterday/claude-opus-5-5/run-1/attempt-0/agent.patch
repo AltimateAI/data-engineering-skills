@@ -1,0 +1,81 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..dbfff10
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,75 @@
++"""Daily revenue per store for finance.
++
++Runs every day at 03:00 UTC (late orders arrive until about 02:00 UTC) and reports on the
++previous calendar day, midnight to midnight UTC: the run firing on 2026-09-29 03:00 UTC writes
++output/daily_revenue/2026-09-28.csv. Reruns and backfills of a run report on the same day; a
++manual trigger reports on the day before the trigger time, or on params["day"] if given.
++"""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronTriggerTimetable, Param, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++TZ = "UTC"
++
++
++def report_window(dag_run, params=None):
++    """[start, end) of the UTC calendar day this run reports on."""
++    day = (params or {}).get("day")
++    if day:
++        start = pendulum.parse(day, tz=TZ).start_of("day")
++    else:
++        anchor = dag_run.logical_date or dag_run.run_after  # 3.x manual runs have no logical date
++        start = pendulum.instance(anchor).in_tz(TZ).start_of("day").subtract(days=1)
++    return start, start.add(days=1)
++
++
++@dag(
++    schedule=CronTriggerTimetable("0 3 * * *", timezone=TZ),
++    start_date=pendulum.datetime(2026, 9, 1, tz=TZ),
++    catchup=False,
++    max_active_runs=1,
++    params={"day": Param(None, type=["null", "string"], format="date")},
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def build_report(**context) -> str:
++        import pandas as pd
++
++        start, end = report_window(context["dag_run"], context["params"])
++        orders = pd.read_csv(
++            PROJECT_ROOT / "data" / "orders.csv",
++            dtype={"order_id": str, "store_id": str, "amount": str},
++        )
++        orders["order_ts"] = pd.to_datetime(orders["order_ts"], utc=True)
++        orders["amount"] = pd.to_numeric(orders["amount"])
++        lo = pd.Timestamp(start.naive(), tz="UTC")
++        hi = pd.Timestamp(end.naive(), tz="UTC")
++        day_orders = orders[(orders["order_ts"] >= lo) & (orders["order_ts"] < hi)]
++
++        report = (
++            day_orders.groupby("store_id", sort=True)
++            .agg(orders=("order_id", "count"), revenue=("amount", "sum"))
++            .reset_index()
++            .sort_values("store_id")
++        )
++        report["revenue"] = report["revenue"].round(2)
++
++        out_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out = out_dir / f"{start.to_date_string()}.csv"
++        tmp = out.with_suffix(".csv.tmp")
++        report.to_csv(tmp, index=False, columns=["store_id", "orders", "revenue"], float_format="%.2f")
++        os.replace(tmp, out)
++        return str(out)
++
++    build_report()
++
++
++daily_revenue()

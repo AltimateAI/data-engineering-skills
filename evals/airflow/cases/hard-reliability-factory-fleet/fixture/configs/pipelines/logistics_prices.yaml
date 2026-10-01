@@ -1,0 +1,30 @@
+name: logistics_prices
+team: logistics
+tier: critical
+description: Prices pipeline for logistics
+schedule:
+  hour: 2
+  days: '1'
+owners:
+- tara
+- ana
+steps:
+- name: extract
+  table: logistics.raw_prices_00
+- name: stage
+  table: logistics.stg_prices_00
+  depends_on:
+  - extract
+- name: validate
+  table: logistics.int_prices_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: logistics.int_prices_00
+  depends_on:
+  - validate
+- name: publish
+  table: logistics.mart_prices_00
+  depends_on:
+  - transform

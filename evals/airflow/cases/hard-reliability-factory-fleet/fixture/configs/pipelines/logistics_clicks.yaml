@@ -1,0 +1,36 @@
+name: logistics_clicks
+team: logistics
+tier: standard
+description: Clicks pipeline for logistics
+schedule:
+  hour: 3
+  days: 1-5
+  minute: 30
+steps:
+- name: extract
+  table: logistics.raw_clicks_00
+- name: stage
+  table: logistics.stg_clicks_00
+  depends_on:
+  - extract
+- name: validate
+  table: logistics.int_clicks_00
+  depends_on:
+  - stage
+- name: transform
+  table: logistics.int_clicks_00
+  depends_on:
+  - validate
+  - stage
+- name: enrich
+  table: logistics.int_clicks_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: logistics.int_clicks_00
+  depends_on:
+  - enrich
+- name: publish
+  table: logistics.mart_clicks_00
+  depends_on:
+  - aggregate

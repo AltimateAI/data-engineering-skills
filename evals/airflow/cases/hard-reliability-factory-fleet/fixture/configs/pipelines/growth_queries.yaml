@@ -1,0 +1,23 @@
+name: growth_queries
+team: growth
+tier: critical
+description: Queries pipeline for growth
+schedule:
+  hour: 0
+  days: '*'
+steps:
+- name: extract
+  table: growth.raw_queries_00
+- name: stage
+  table: growth.stg_queries_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: growth.int_queries_00
+  depends_on:
+  - stage
+- name: publish
+  table: growth.mart_queries_00
+  depends_on:
+  - snapshot
+  - stage

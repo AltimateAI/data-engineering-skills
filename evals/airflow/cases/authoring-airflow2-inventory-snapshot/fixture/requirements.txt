@@ -1,0 +1,6 @@
+# Production runs on our managed Airflow environment (Airflow 2.11.2, Python 3.12).
+# Install with the official constraints file:
+#   pip install -r requirements.txt \
+#     --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.11.2/constraints-3.12.txt
+apache-airflow==2.11.2
+pandas==2.1.4

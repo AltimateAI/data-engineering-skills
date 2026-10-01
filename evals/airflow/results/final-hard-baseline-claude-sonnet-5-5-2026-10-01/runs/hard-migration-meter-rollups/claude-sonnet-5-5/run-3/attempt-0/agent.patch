@@ -1,0 +1,428 @@
+diff --git a/README.md b/README.md
+index e53ddea..4028396 100644
+--- a/README.md
++++ b/README.md
+@@ -13,6 +13,14 @@ Finance's invoice dropbox comes from the `[metering] invoice_dropbox` option
+ | `billing_daily` | 02:30 | Bills the previous day (latest rollup wins for an hour) into `output/billing/<day>.csv`, then publishes it to the dropbox as `INV-<yyyymmdd>.csv` |
+ | `meter_registry_daily` | daily | Exports the registry snapshot of the previous day to `output/registry/<day>.json` (`registry_version` Variable, default `2026.1`) |
+ 
++## Airflow 3 notes
++
++Runs on Airflow 3.3 (`requirements.txt`). Schedules are pinned to `CronDataIntervalTimetable`
++(`meter_lib/timing.py`) so every run keeps its Airflow 2 data interval and logical date; plain
++manual triggers carry neither in Airflow 3, so the tasks derive them from the trigger time
++exactly as Airflow 2 did. `usage_rollup` rebuilds its window from the interval each regional
++load records in its asset event. `tariffs_daily` sets `catchup=True` explicitly (the Airflow 2 default).
++
+ ## Ops runbook (manual runs)
+ 
+ On-call starts these from the ops box with the plain CLI trigger, no logical
+diff --git a/dags/billing_daily.py b/dags/billing_daily.py
+index 432fae4..0ae324b 100644
+--- a/dags/billing_daily.py
++++ b/dags/billing_daily.py
+@@ -13,18 +13,19 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import dag, get_current_context, task
+ 
+ from meter_lib.assets import LAKE, PROJECT_ROOT
+ from meter_lib.tariffs import tariff_band
++from meter_lib.timing import DAILY_0230, data_interval
+ 
+ ROLLUP_DIR = PROJECT_ROOT / "output" / "rollup"
+ BILLING_DIR = PROJECT_ROOT / "output" / "billing"
+ 
+ 
+ @dag(
+-    schedule_interval="30 2 * * *",
++    schedule=DAILY_0230,
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -34,8 +35,10 @@ BILLING_DIR = PROJECT_ROOT / "output" / "billing"
+ )
+ def billing_daily():
+     @task
+-    def bill(data_interval_start=None) -> str:
+-        day = data_interval_start.strftime("%Y-%m-%d")
++    def bill() -> str:
++        # manual runs have no data interval: bill the latest closed day, as on Airflow 2
++        start, _ = data_interval(get_current_context(), DAILY_0230)
++        day = start.strftime("%Y-%m-%d")
+         rates = {}
+         with (LAKE / "tariffs" / f"{day}.csv").open() as fh:
+             for line in fh:
+diff --git a/dags/meter_registry.py b/dags/meter_registry.py
+index 1efce66..aef9d0e 100644
+--- a/dags/meter_registry.py
++++ b/dags/meter_registry.py
+@@ -5,32 +5,33 @@ from __future__ import annotations
+ import json
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.models import Variable
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, Variable
+ 
+ from meter_lib.assets import PROJECT_ROOT, REGIONS
++from meter_lib.timing import DAILY, logical_date
+ 
+ REGISTRY_DIR = PROJECT_ROOT / "output" / "registry"
+ 
+ 
+ def export_registry(**context):
+-    version = Variable.get("registry_version", default_var="2026.1")
++    version = Variable.get("registry_version", default="2026.1")
++    when = logical_date(context)
+     snapshot = {
+-        "as_of": context["execution_date"].isoformat(),
++        "as_of": when.isoformat(),
+         "regions": REGIONS,
+         "registry_version": version,
+     }
+     REGISTRY_DIR.mkdir(parents=True, exist_ok=True)
+-    (REGISTRY_DIR / f"{context['ds']}.json").write_text(json.dumps(snapshot, indent=2) + "\n")
++    (REGISTRY_DIR / f"{when.strftime('%Y-%m-%d')}.json").write_text(json.dumps(snapshot, indent=2) + "\n")
+ 
+ 
+ with DAG(
+     dag_id="meter_registry_daily",
+-    schedule_interval="@daily",
++    schedule=DAILY,
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "metering"},
+     tags=["metering", "portal"],
+ ) as dag:
+-    PythonOperator(task_id="export_registry", python_callable=export_registry, provide_context=True)
++    PythonOperator(task_id="export_registry", python_callable=export_registry)
+diff --git a/dags/regional_readings.py b/dags/regional_readings.py
+index 4d8d306..6ed9de4 100644
+--- a/dags/regional_readings.py
++++ b/dags/regional_readings.py
+@@ -8,15 +8,16 @@ region's dataset, which feeds ``usage_rollup``.
+ from __future__ import annotations
+ 
+ import pendulum
+-from airflow import DAG
++from airflow.sdk import DAG
+ 
+ from meter_lib.assets import READINGS, REGIONS
+ from meter_lib.operators import CsvSliceOperator
++from meter_lib.timing import HOURLY
+ 
+ for region in REGIONS:
+     with DAG(
+         dag_id=f"readings_{region}_hourly",
+-        schedule_interval="@hourly",
++        schedule=HOURLY,
+         start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+         catchup=False,
+         max_active_runs=1,
+diff --git a/dags/scripts/publish_invoices.sh b/dags/scripts/publish_invoices.sh
+index 3567016..a354146 100644
+--- a/dags/scripts/publish_invoices.sh
++++ b/dags/scripts/publish_invoices.sh
+@@ -2,7 +2,7 @@
+ # Publishes the billing file of the day billed by this run to the finance dropbox.
+ set -euo pipefail
+ day="{{ ti.xcom_pull(task_ids='bill') }}"
+-dropbox="{{ conf.get('metering', 'invoice_dropbox') }}"
++dropbox="{{ macros.meter.invoice_dropbox() }}"
+ mkdir -p "$dropbox"
+ cp "$PROJECT_ROOT/output/billing/${day}.csv" "$dropbox/{{ macros.meter.invoice_batch(ti.xcom_pull(task_ids='bill')) }}.csv"
+ echo "published invoices for ${day}"
+diff --git a/dags/scripts/sync_tariffs.sh b/dags/scripts/sync_tariffs.sh
+index 6fef086..402c34d 100644
+--- a/dags/scripts/sync_tariffs.sh
++++ b/dags/scripts/sync_tariffs.sh
+@@ -1,9 +1,9 @@
+ #!/usr/bin/env bash
+-# Day-ahead prices: the sync for {{ ds }} also refreshes {{ tomorrow_ds }}.
++# Day-ahead prices: the sync for $SYNC_DAY also refreshes $SYNC_NEXT_DAY.
+ set -euo pipefail
+ dest="$PROJECT_ROOT/output/lake/tariffs"
+ mkdir -p "$dest"
+-for day in {{ ds }} {{ tomorrow_ds }}; do
++for day in "$SYNC_DAY" "$SYNC_NEXT_DAY"; do
+   grep "^${day}," "$PROJECT_ROOT/data/tariffs.csv" > "$dest/${day}.csv"
+ done
+-echo "synced tariffs for {{ ds }} and {{ tomorrow_ds }}"
++echo "synced tariffs for $SYNC_DAY and $SYNC_NEXT_DAY"
+diff --git a/dags/tariffs_daily.py b/dags/tariffs_daily.py
+index 654ecae..b07bdeb 100644
+--- a/dags/tariffs_daily.py
++++ b/dags/tariffs_daily.py
+@@ -5,15 +5,18 @@ from __future__ import annotations
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import DAG
++
++from meter_lib.timing import DAILY_0100
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ with DAG(
+     dag_id="tariffs_daily",
+-    schedule_interval="0 1 * * *",
++    schedule=DAILY_0100,
+     start_date=pendulum.datetime(2026, 3, 3, tz="UTC"),
++    catchup=True,  # Airflow 2 default; Airflow 3 defaults to False
+     max_active_runs=1,
+     template_searchpath=[str(Path(__file__).parent / "scripts")],
+     default_args={"owner": "metering", "retries": 1},
+@@ -22,6 +25,10 @@ with DAG(
+     BashOperator(
+         task_id="sync_tariffs",
+         bash_command="sync_tariffs.sh",
+-        env={"PROJECT_ROOT": str(PROJECT_ROOT)},
++        env={
++            "PROJECT_ROOT": str(PROJECT_ROOT),
++            "SYNC_DAY": "{{ macros.meter.sync_day(dag_run) }}",
++            "SYNC_NEXT_DAY": "{{ macros.meter.sync_day(dag_run, 1) }}",
++        },
+         append_env=True,
+     )
+diff --git a/dags/usage_rollup.py b/dags/usage_rollup.py
+index c398c6b..5f89b05 100644
+--- a/dags/usage_rollup.py
++++ b/dags/usage_rollup.py
+@@ -14,9 +14,10 @@ import json
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, get_current_context, task
+ 
+ from meter_lib.assets import LAKE, PROJECT_ROOT, READINGS, REGIONS
++from meter_lib.timing import run_after
+ 
+ ROLLUP_DIR = PROJECT_ROOT / "output" / "rollup"
+ 
+@@ -31,8 +32,19 @@ ROLLUP_DIR = PROJECT_ROOT / "output" / "rollup"
+ )
+ def usage_rollup():
+     @task
+-    def rollup(data_interval_start=None, data_interval_end=None, triggering_dataset_events=None) -> str:
+-        start, end = data_interval_start, data_interval_end
++    def rollup(triggering_asset_events=None) -> str:
++        # Airflow 3 asset-triggered runs have no data interval: rebuild the Airflow 2 one
++        # (earliest start .. latest end of the loads that triggered the run) from the events.
++        events = {region: list(triggering_asset_events.get(READINGS[region], [])) for region in REGIONS}
++        bounds = [
++            (pendulum.parse(e.extra["interval_start"]), pendulum.parse(e.extra["interval_end"]))
++            for region_events in events.values()
++            for e in region_events
++        ]
++        if bounds:
++            start, end = min(b[0] for b in bounds), max(b[1] for b in bounds)
++        else:  # manual run: empty window at the trigger time, as on Airflow 2
++            start = end = run_after(get_current_context())
+         usage: dict[tuple[str, str], float] = defaultdict(float)
+         hours = set()
+         for region in REGIONS:
+@@ -54,8 +66,7 @@ def usage_rollup():
+                 writer.writerow([meter, hour, f"{kwh:.1f}"])
+ 
+         delivered = {
+-            region: sum(event.extra.get("rows", 0) for event in triggering_dataset_events.get(READINGS[region].uri, []))
+-            for region in REGIONS
++            region: sum(event.extra.get("rows", 0) for event in events[region]) for region in REGIONS
+         }
+         manifest = {"hours": sorted(hours), "rows_delivered": delivered}
+         (ROLLUP_DIR / f"{name}.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+diff --git a/plugins/meter_lib/assets.py b/plugins/meter_lib/assets.py
+index 4660d32..f7ac403 100644
+--- a/plugins/meter_lib/assets.py
++++ b/plugins/meter_lib/assets.py
+@@ -1,14 +1,14 @@
+-"""Datasets and paths shared by the metering DAGs."""
++"""Assets and paths shared by the metering DAGs."""
+ 
+ from __future__ import annotations
+ 
+ import json
+ from pathlib import Path
+ 
+-from airflow.datasets import Dataset
++from airflow.sdk import Asset
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ LAKE = PROJECT_ROOT / "output" / "lake"
+ REGIONS: list[str] = json.loads((PROJECT_ROOT / "config" / "regions.json").read_text())["regions"]
+ 
+-READINGS = {region: Dataset(f"lake://metering/readings/{region}") for region in REGIONS}
++READINGS = {region: Asset(name=f"readings_{region}", uri=f"lake://metering/readings/{region}") for region in REGIONS}
+diff --git a/plugins/meter_lib/operators.py b/plugins/meter_lib/operators.py
+index 6a97a3e..dfd0c8f 100644
+--- a/plugins/meter_lib/operators.py
++++ b/plugins/meter_lib/operators.py
+@@ -6,7 +6,9 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.models import BaseOperator
++from airflow.sdk import BaseOperator
++
++from meter_lib.timing import HOURLY, data_interval
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ 
+@@ -14,8 +16,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ class CsvSliceOperator(BaseOperator):
+     """Copy the rows of ``source`` whose ``ts_column`` (UTC) falls in [start, end) to ``target``.
+ 
+-    Paths are relative to the project root. Each outlet dataset gets an event
+-    whose ``extra`` records how many rows were landed.
++    Paths are relative to the project root. Each outlet asset gets an event
++    whose ``extra`` records how many rows were landed and the interval they cover
++    (Airflow 3 asset-triggered runs have no data interval of their own).
+     """
+ 
+     template_fields = ("source", "target", "start", "end")
+@@ -39,7 +42,10 @@ class CsvSliceOperator(BaseOperator):
+         self.end = end
+ 
+     def execute(self, context):
+-        lo, hi = pendulum.parse(self.start), pendulum.parse(self.end)
++        if self.start and self.end:
++            lo, hi = pendulum.parse(self.start), pendulum.parse(self.end)
++        else:  # manual run without a logical date: no data interval in the template context
++            lo, hi = data_interval(context, HOURLY)
+         with (PROJECT_ROOT / self.source).open(newline="") as fh:
+             reader = csv.DictReader(fh)
+             fields = reader.fieldnames
+@@ -50,7 +56,11 @@ class CsvSliceOperator(BaseOperator):
+             writer = csv.DictWriter(fh, fieldnames=fields)
+             writer.writeheader()
+             writer.writerows(rows)
+-        for dataset in self.outlets:
+-            context["outlet_events"][dataset.uri].extra = {"rows": len(rows)}
++        for asset in self.outlets:
++            context["outlet_events"][asset].extra = {
++                "rows": len(rows),
++                "interval_start": lo.isoformat(),
++                "interval_end": hi.isoformat(),
++            }
+         self.log.info("Landed %d rows from %s into %s", len(rows), self.source, self.target)
+         return len(rows)
+diff --git a/plugins/meter_lib/tariffs.py b/plugins/meter_lib/tariffs.py
+index d32a0a7..f91ca19 100644
+--- a/plugins/meter_lib/tariffs.py
++++ b/plugins/meter_lib/tariffs.py
+@@ -2,6 +2,8 @@
+ 
+ from __future__ import annotations
+ 
++from datetime import timedelta, timezone
++
+ PEAK_HOURS = range(16, 21)  # 16:00-20:59 UTC
+ 
+ 
+@@ -10,6 +12,23 @@ def tariff_band(hour: int) -> str:
+     return "peak" if int(hour) in PEAK_HOURS else "offpeak"
+ 
+ 
++def sync_day(dag_run, offset_days: int = 0) -> str:
++    """Day (YYYY-MM-DD) a tariff sync run is for, ``offset_days`` later.
++
++    The run's logical date, as on Airflow 2; a manual run without one (Airflow 3
++    default) is stamped with its trigger time there, so use that.
++    """
++    stamp = dag_run.logical_date or dag_run.run_after
++    return (stamp.astimezone(timezone.utc) + timedelta(days=offset_days)).strftime("%Y-%m-%d")
++
++
++def invoice_dropbox() -> str:
++    """Finance's invoice dropbox, ``[metering] invoice_dropbox`` (``conf`` is not in the Airflow 3 template context)."""
++    from airflow.sdk import conf
++
++    return conf.get("metering", "invoice_dropbox")
++
++
+ def invoice_batch(day: str) -> str:
+     """Invoice batch id finance expects for a billing day (YYYY-MM-DD)."""
+     return "INV-" + str(day).replace("-", "")
+diff --git a/plugins/meter_lib/timing.py b/plugins/meter_lib/timing.py
+new file mode 100644
+index 0000000..fb9104c
+--- /dev/null
++++ b/plugins/meter_lib/timing.py
+@@ -0,0 +1,41 @@
++"""Schedules and run-time helpers that keep Airflow 2 timing semantics.
++
++Airflow 3 schedules cron strings with ``CronTriggerTimetable`` (run at the tick,
++no data interval) and gives manual / asset-triggered runs no logical date or data
++interval. The metering DAGs were written against Airflow 2 semantics (a run covers
++the interval that just closed, manual runs are stamped with the trigger time), so
++the schedules are pinned to ``CronDataIntervalTimetable`` and these helpers
++recover the Airflow 2 values when the context has none.
++"""
++
++from __future__ import annotations
++
++import pendulum
++from airflow.timetables.interval import CronDataIntervalTimetable
++
++HOURLY = CronDataIntervalTimetable("0 * * * *", timezone="UTC")
++DAILY = CronDataIntervalTimetable("0 0 * * *", timezone="UTC")
++DAILY_0100 = CronDataIntervalTimetable("0 1 * * *", timezone="UTC")
++DAILY_0230 = CronDataIntervalTimetable("30 2 * * *", timezone="UTC")
++
++
++def run_after(context) -> pendulum.DateTime:
++    return pendulum.instance(context["dag_run"].run_after).in_timezone("UTC")
++
++
++def logical_date(context) -> pendulum.DateTime:
++    """Airflow 2 ``logical_date``: the trigger time for a manual run without one."""
++    value = context["dag_run"].logical_date
++    return pendulum.instance(value).in_timezone("UTC") if value else run_after(context)
++
++
++def data_interval(context, timetable) -> tuple[pendulum.DateTime, pendulum.DateTime]:
++    """Airflow 2 data interval: for a manual run without one, the last interval closed by the trigger time."""
++    dag_run = context["dag_run"]
++    if dag_run.data_interval_start is not None and dag_run.data_interval_end is not None:
++        return (
++            pendulum.instance(dag_run.data_interval_start).in_timezone("UTC"),
++            pendulum.instance(dag_run.data_interval_end).in_timezone("UTC"),
++        )
++    interval = timetable.infer_manual_data_interval(run_after=run_after(context))
++    return interval.start, interval.end
+diff --git a/plugins/meter_plugin.py b/plugins/meter_plugin.py
+index f6e9a78..f7000b7 100644
+--- a/plugins/meter_plugin.py
++++ b/plugins/meter_plugin.py
+@@ -2,9 +2,9 @@
+ 
+ from airflow.plugins_manager import AirflowPlugin
+ 
+-from meter_lib.tariffs import invoice_batch, tariff_band
++from meter_lib.tariffs import invoice_batch, invoice_dropbox, sync_day, tariff_band
+ 
+ 
+ class MeterPlugin(AirflowPlugin):
+     name = "meter"
+-    macros = [invoice_batch, tariff_band]
++    macros = [invoice_batch, invoice_dropbox, sync_day, tariff_band]
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..c5d277a 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ pendulum==3.2.0

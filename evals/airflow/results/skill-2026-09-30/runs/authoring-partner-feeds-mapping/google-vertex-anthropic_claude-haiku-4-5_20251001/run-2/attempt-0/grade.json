@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG partner_feeds exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['partner_feeds', 'partner_registry_export']"
+    },
+    {
+      "name": "task set is independent of files present at parse time",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"fixture data\": [\"get_date\", \"list_files_for_date\", \"process_file\", \"write_summary\"], \"no partner_drop dir\": [\"get_date\", \"list_files_for_date\", \"process_file\", \"write_summary\"], \"extra files\": [\"get_date\", \"list_files_for_date\", \"process_file\", \"write_summary\"]}"
+    },
+    {
+      "name": "uses dynamic task mapping",
+      "kind": "primary",
+      "passed": true,
+      "detail": "mapped tasks: ['process_file']"
+    },
+    {
+      "name": "airflow dags test succeeds for 0, 1 and N files",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "one mapped task instance per file (0/1/N)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'2026-09-01': 0, '2026-09-02': 1, '2026-09-03': 4}; expanded instances per mapped task: {'2026-09-01': {}, '2026-09-02': {}, '2026-09-03': {}}"
+    },
+    {
+      "name": "per-partner result files are correct",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-02: summary expected {'files': 1, 'rows': 6, 'total_amount': 1951.56} got None; partner files expected {'globex': {'partner': 'globex', 'rows': 6, 'total_amount': 1951.56}} got {'globex': None} | 2026-09-03: summary expected {'files': 4, 'rows': 30, 'total_amount': 7988.86} got None; partner files expected {'acme': {'partner': 'acme', 'rows': 6, 'total_amount': 1967.32}, 'hooli': {'partner': 'hooli', 'rows': 7, 'total_amount': 1871.9}, 'initech': {'partner': 'initech', 'rows': 8, 'total_amount': 2172.87}, 'wayne': {'partner': 'wayne', 'rows': 9, 'total_amount': 1976.77}} got {'acme': None, 'hooli': None, 'initech': None, 'wayne': None}"
+    },
+    {
+      "name": "summary is correct, including the day with no files",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-01: summary expected {'files': 0, 'rows': 0, 'total_amount': 0} got None | 2026-09-02: summary expected {'files': 1, 'rows': 6, 'total_amount': 1951.56} got None; partner files expected {'globex': {'partner': 'globex', 'rows': 6, 'total_amount': 1951.56}} got {'globex': None} | 2026-09-03: summary expected {'files': 4, 'rows': 30, 'total_amount': 7988.86} got None; partner files expected {'acme': {'partner': 'acme', 'rows': 6, 'total_amount': 1967.32}, 'hooli': {'partner': 'hooli', 'rows': 7, 'total_amount': 1871.9}, 'initech': {'partner': 'initech', 'rows': 8, 'total_amount': 2172.87}, 'wayne': {'partner': 'wayne', 'rows': 9, 'total_amount': 1976.77}} got {'acme': None, 'hooli': None, 'initech': None, 'wayne': None}"
+    },
+    {
+      "name": "rerun of a day reproduces the same outputs",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-03: summary expected {'files': 4, 'rows': 30, 'total_amount': 7988.86} got None; partner files expected {'acme': {'partner': 'acme', 'rows': 6, 'total_amount': 1967.32}, 'hooli': {'partner': 'hooli', 'rows': 7, 'total_amount': 1871.9}, 'initech': {'partner': 'initech', 'rows': 8, 'total_amount': 2172.87}, 'wayne': {'partner': 'wayne', 'rows': 9, 'total_amount': 1976.77}} got {'acme': None, 'hooli': None, 'initech': None, 'wayne': None}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.5555555555555556,
+  "secondary_score": 1.0
+}

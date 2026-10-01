@@ -1,0 +1,23 @@
+name: payments_products
+team: payments
+tier: standard
+description: Products pipeline for payments
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: payments.raw_products_00
+- name: enrich
+  table: payments.int_products_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: payments.int_products_00
+  depends_on:
+  - enrich
+  - extract
+- name: publish
+  table: payments.mart_products_00
+  depends_on:
+  - aggregate

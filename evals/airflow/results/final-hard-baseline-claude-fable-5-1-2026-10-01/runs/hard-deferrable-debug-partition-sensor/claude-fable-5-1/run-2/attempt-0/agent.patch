@@ -1,0 +1,62 @@
+diff --git a/dags/lake/hooks.py b/dags/lake/hooks.py
+index 4d1973f..fe293ae 100644
+--- a/dags/lake/hooks.py
++++ b/dags/lake/hooks.py
+@@ -7,6 +7,9 @@ GET /v1/tables/<table>/partitions/<partition>
+ 
+ from __future__ import annotations
+ 
++from collections.abc import Callable
++
++import httpx
+ import requests
+ from airflow.sdk import BaseHook
+ 
+@@ -34,21 +37,42 @@ class LakeCatalogHook(BaseHook):
+         url = f"{conn.schema or 'http'}://{conn.host}{port}/v1/tables/{table}/partitions/{partition}"
+         return url, {"Authorization": f"Bearer {conn.password}"}
+ 
++    @staticmethod
++    def _parse(url: str, status_code: int, read_json: Callable[[], object]) -> dict:
++        """Turn a response into the partition dict, raising ``LakeApiError`` for anything else."""
++        if status_code != 200:
++            raise LakeApiError(f"GET {url} -> HTTP {status_code}")
++        try:
++            info = read_json()
++        except ValueError as exc:
++            raise LakeApiError(f"GET {url} -> HTTP 200 with invalid JSON: {exc}") from exc
++        if not isinstance(info, dict) or "state" not in info:
++            raise LakeApiError(f"GET {url} -> HTTP 200 with unexpected body: {info!r}")
++        return info
++
+     def _fetch(self, url: str, headers: dict[str, str]) -> dict:
+         try:
+             resp = requests.get(url, headers=headers, timeout=self.request_timeout)
+         except requests.RequestException as exc:
+             raise LakeApiError(f"GET {url} failed: {exc!r}") from exc
+-        if resp.status_code != 200:
+-            raise LakeApiError(f"GET {url} -> HTTP {resp.status_code}")
+-        return resp.json()
++        return self._parse(url, resp.status_code, resp.json)
++
++    async def _afetch(self, url: str, headers: dict[str, str]) -> dict:
++        # A real async client: the triggerer runs every trigger on one event loop, so a blocking
++        # ``requests`` call here stalls every other deferred task for the duration of the call.
++        try:
++            async with httpx.AsyncClient(timeout=self.request_timeout) as client:
++                resp = await client.get(url, headers=headers)
++        except httpx.HTTPError as exc:
++            raise LakeApiError(f"GET {url} failed: {exc!r}") from exc
++        return self._parse(url, resp.status_code, resp.json)
+ 
+     def get_partition(self, table: str, partition: str) -> dict:
+         url, headers = self._url_and_headers(self.get_connection(self.lake_conn_id), table, partition)
+         return self._fetch(url, headers)
+ 
+     async def aget_partition(self, table: str, partition: str) -> dict:
+-        """Async variant for triggers."""
++        """Async variant for triggers; never blocks the event loop."""
+         conn = await self.aget_connection(self.lake_conn_id)
+         url, headers = self._url_and_headers(conn, table, partition)
+-        return self._fetch(url, headers)
++        return await self._afetch(url, headers)

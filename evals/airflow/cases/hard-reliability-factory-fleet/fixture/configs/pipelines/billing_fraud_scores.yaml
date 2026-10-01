@@ -1,0 +1,33 @@
+name: billing_fraud_scores
+team: billing
+tier: standard
+description: Fraud Scores pipeline for billing
+schedule:
+  hour: 1
+  days: '1'
+  minute: 15
+steps:
+- name: extract
+  table: billing.raw_fraud_scores_00
+- name: stage
+  table: billing.stg_fraud_scores_00
+  depends_on:
+  - extract
+- name: validate
+  table: billing.int_fraud_scores_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: billing.int_fraud_scores_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: billing.int_fraud_scores_00
+  depends_on:
+  - transform
+- name: publish
+  table: billing.mart_fraud_scores_00
+  depends_on:
+  - aggregate
+  - transform

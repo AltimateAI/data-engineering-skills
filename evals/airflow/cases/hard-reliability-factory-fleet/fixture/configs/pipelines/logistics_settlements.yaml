@@ -1,0 +1,23 @@
+name: logistics_settlements
+team: logistics
+tier: standard
+description: Settlements pipeline for logistics
+schedule:
+  hour: 0
+  days: '*'
+  minute: 30
+steps:
+- name: extract
+  table: logistics.raw_settlements_00
+- name: aggregate
+  table: logistics.int_settlements_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: logistics.int_settlements_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: logistics.mart_settlements_00
+  depends_on:
+  - snapshot

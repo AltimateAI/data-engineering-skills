@@ -1,0 +1,655 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..909ee0f
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,85 @@
++"""
++Shared fixtures for the warehouse hook/operator test suite.
++
++CI note
++-------
++These tests require no Airflow metadata database and no pre-configured
++Airflow connections.  The connection is injected via the Airflow SDK's
++``_preset_connections`` ContextVar, which is the hook the SDK itself
++provides for exactly this use-case (see ``_get_connection`` in
++``airflow.sdk.execution_time.context``).
++
++The ``ExecutorSafeguard.test_mode = True`` line disables the guard that
++prevents ``execute()`` from being called outside of a real TaskRunner,
++which is intentional for unit / integration tests.
++"""
++
++from __future__ import annotations
++
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++import duckdb
++import pytest
++
++# Make the DAGs package importable without an Airflow metastore.
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++if str(DAGS_DIR) not in sys.path:
++    sys.path.insert(0, str(DAGS_DIR))
++
++DATA_DIR = Path(__file__).resolve().parents[1] / "data"
++ORDERS_CSV = str(DATA_DIR / "orders.csv")
++REFUNDS_CSV = str(DATA_DIR / "refunds.csv")
++
++# Allow operator.execute() to be invoked directly in tests.
++from airflow.sdk.bases.operator import ExecutorSafeguard  # noqa: E402
++
++ExecutorSafeguard.test_mode = True
++
++
++def _make_connection(db_path: str, schema: str = "raw", conn_id: str = "warehouse"):
++    """Return an Airflow Connection pointing at *db_path*."""
++    from airflow.sdk import Connection
++
++    return Connection(
++        conn_id=conn_id,
++        conn_type="duckdb",
++        host=db_path,
++        schema=schema,
++    )
++
++
++@pytest.fixture()
++def tmp_db(tmp_path):
++    """
++    Yield the path to a fresh, empty DuckDB file inside a pytest tmp_path.
++
++    Using ``tmp_path`` (not ``tempfile.mktemp``) ensures the file is cleaned
++    up even if a test fails, and guarantees the path does not collide across
++    parallel test runs.
++    """
++    db_path = str(tmp_path / "warehouse.duckdb")
++    # Create the file via duckdb so it is a valid DuckDB database from the start.
++    con = duckdb.connect(db_path)
++    con.close()
++    yield db_path
++
++
++@pytest.fixture()
++def preset_conn(tmp_db):
++    """
++    Inject a warehouse connection into the Airflow SDK's ContextVar and
++    yield ``(conn_id, db_path)``.  The ContextVar token is reset after each
++    test so that connections do not leak between tests.
++    """
++    from airflow.sdk.execution_time.context import _preset_connections
++
++    conn_id = "warehouse"
++    conn = _make_connection(tmp_db, schema="raw", conn_id=conn_id)
++    token = _preset_connections.set({conn_id: conn})
++    try:
++        yield conn_id, tmp_db
++    finally:
++        _preset_connections.reset(token)
+diff --git a/tests/test_hook.py b/tests/test_hook.py
+new file mode 100644
+index 0000000..abde646
+--- /dev/null
++++ b/tests/test_hook.py
+@@ -0,0 +1,149 @@
++"""
++Unit tests for DuckDBWarehouseHook.
++
++These tests exercise the hook in isolation: they verify that the hook
++reads ``host`` and ``schema`` from the Airflow connection correctly and
++that ``get_conn()`` returns a live DuckDB connection.
++
++No Airflow metadata database is required.  Connections are supplied via
++the ``preset_conn`` fixture defined in conftest.py.
++"""
++
++from __future__ import annotations
++
++import duckdb
++import pytest
++
++from airflow.sdk import Connection
++from airflow.sdk.execution_time.context import _preset_connections
++from warehouse.hooks import DuckDBWarehouseHook
++
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++
++def _inject(conn: Connection):
++    """Set *conn* as the only preset connection and return the token."""
++    return _preset_connections.set({conn.conn_id: conn})
++
++
++# ---------------------------------------------------------------------------
++# database_path property
++# ---------------------------------------------------------------------------
++
++
++class TestDatabasePath:
++    def test_returns_host_field(self, tmp_db):
++        conn = Connection(
++            conn_id="wh", conn_type="duckdb", host=tmp_db, schema="raw"
++        )
++        token = _inject(conn)
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="wh")
++            assert hook.database_path == tmp_db
++        finally:
++            _preset_connections.reset(token)
++
++    def test_raises_when_host_missing(self, tmp_db):
++        """A connection with no host should raise a descriptive ValueError."""
++        conn = Connection(
++            conn_id="wh_nohost", conn_type="duckdb", host=None, schema="raw"
++        )
++        token = _inject(conn)
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="wh_nohost")
++            with pytest.raises(ValueError, match="no host"):
++                _ = hook.database_path
++        finally:
++            _preset_connections.reset(token)
++
++
++# ---------------------------------------------------------------------------
++# target_schema property
++# ---------------------------------------------------------------------------
++
++
++class TestTargetSchema:
++    def test_returns_schema_field(self, tmp_db):
++        conn = Connection(
++            conn_id="wh", conn_type="duckdb", host=tmp_db, schema="analytics"
++        )
++        token = _inject(conn)
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="wh")
++            assert hook.target_schema == "analytics"
++        finally:
++            _preset_connections.reset(token)
++
++    def test_defaults_to_main_when_schema_absent(self, tmp_db):
++        """schema=None on the connection should fall back to 'main'."""
++        conn = Connection(
++            conn_id="wh_noschema", conn_type="duckdb", host=tmp_db, schema=None
++        )
++        token = _inject(conn)
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="wh_noschema")
++            assert hook.target_schema == "main"
++        finally:
++            _preset_connections.reset(token)
++
++
++# ---------------------------------------------------------------------------
++# get_conn()
++# ---------------------------------------------------------------------------
++
++
++class TestGetConn:
++    def test_returns_live_duckdb_connection(self, preset_conn):
++        """get_conn() must return a usable DuckDB connection object."""
++        conn_id, db_path = preset_conn
++        hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++        con = hook.get_conn()
++        try:
++            result = con.execute("SELECT 42 AS answer").fetchone()
++            assert result == (42,)
++        finally:
++            con.close()
++
++    def test_uses_correct_file(self, preset_conn):
++        """The connection returned by get_conn() must point to the configured file."""
++        conn_id, db_path = preset_conn
++        hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++        con = hook.get_conn()
++        try:
++            # Write a sentinel value and verify it can be read back from the
++            # same path via an independent connection.
++            con.execute("CREATE TABLE _sentinel (x INTEGER)")
++            con.execute("INSERT INTO _sentinel VALUES (99)")
++            con.close()
++
++            verify_con = duckdb.connect(db_path)
++            row = verify_con.execute("SELECT x FROM _sentinel").fetchone()
++            verify_con.close()
++            assert row == (99,)
++        except Exception:
++            con.close()
++            raise
++
++    def test_uses_conn_id_supplied_to_constructor(self, tmp_db):
++        """The hook must use the duckdb_conn_id passed at construction time."""
++        conn_a = Connection(
++            conn_id="wh_a", conn_type="duckdb", host=tmp_db, schema="raw"
++        )
++        # conn_b points to a non-existent path so get_conn() would fail if used.
++        conn_b = Connection(
++            conn_id="wh_b", conn_type="duckdb", host="/nonexistent/path.duckdb", schema="raw"
++        )
++        token = _preset_connections.set({"wh_a": conn_a, "wh_b": conn_b})
++        try:
++            hook = DuckDBWarehouseHook(duckdb_conn_id="wh_a")
++            con = hook.get_conn()
++            try:
++                result = con.execute("SELECT 1").fetchone()
++                assert result == (1,)
++            finally:
++                con.close()
++        finally:
++            _preset_connections.reset(token)
+diff --git a/tests/test_operator.py b/tests/test_operator.py
+new file mode 100644
+index 0000000..9444afb
+--- /dev/null
++++ b/tests/test_operator.py
+@@ -0,0 +1,403 @@
++"""
++Integration tests for CsvPartitionToDuckDBOperator.
++
++Every test runs ``execute()`` for real against a temporary DuckDB file so
++that the full SQL path (CREATE TABLE, DELETE, INSERT, SELECT COUNT) is
++exercised.  DuckDB is NOT mocked.
++
++Connection injection
++--------------------
++Connections are supplied via the ``preset_conn`` fixture (conftest.py),
++which sets the Airflow SDK's ``_preset_connections`` ContextVar.  No
++Airflow metadata database or environment variables are needed.
++
++What is tested
++--------------
++1. execute() returns the correct row count.
++2. Only the rows matching partition_date are loaded.
++3. Re-running the same partition replaces that partition's rows (idempotent,
++   no duplicates).
++4. A re-run does not touch rows belonging to other partitions.
++5. The target schema comes from the connection's schema field.
++6. The operator uses whichever duckdb_conn_id it is given.
++7. Loading two independent tables into the same database works correctly.
++"""
++
++from __future__ import annotations
++
++import duckdb
++import pytest
++
++from airflow.sdk import Connection
++from airflow.sdk.execution_time.context import _preset_connections
++from warehouse.operators import CsvPartitionToDuckDBOperator
++
++from conftest import ORDERS_CSV, REFUNDS_CSV
++
++
++# ---------------------------------------------------------------------------
++# Internal helpers
++# ---------------------------------------------------------------------------
++
++
++def _make_op(
++    csv_path: str,
++    table: str,
++    partition_column: str,
++    partition_date: str,
++    duckdb_conn_id: str = "warehouse",
++    task_id: str | None = None,
++) -> CsvPartitionToDuckDBOperator:
++    return CsvPartitionToDuckDBOperator(
++        task_id=task_id or f"load_{table}_{partition_date}",
++        csv_path=csv_path,
++        table=table,
++        partition_column=partition_column,
++        partition_date=partition_date,
++        duckdb_conn_id=duckdb_conn_id,
++    )
++
++
++def _count(db_path: str, schema: str, table: str, where_col: str, where_val: str) -> int:
++    """Return the row count for a single partition directly from the DuckDB file."""
++    con = duckdb.connect(db_path, read_only=True)
++    try:
++        return con.execute(
++            f'SELECT count(*) FROM "{schema}"."{table}" WHERE "{where_col}" = ?',
++            [where_val],
++        ).fetchone()[0]
++    finally:
++        con.close()
++
++
++def _total(db_path: str, schema: str, table: str) -> int:
++    """Return the total row count for a table directly from the DuckDB file."""
++    con = duckdb.connect(db_path, read_only=True)
++    try:
++        return con.execute(f'SELECT count(*) FROM "{schema}"."{table}"').fetchone()[0]
++    finally:
++        con.close()
++
++
++# ---------------------------------------------------------------------------
++# Basic execute() behaviour
++# ---------------------------------------------------------------------------
++
++
++class TestExecuteReturnsRowCount:
++    """execute() must return the number of rows loaded for the given partition."""
++
++    def test_orders_partition_2026_03_01(self, preset_conn):
++        """2026-03-01 has 2 orders in the CSV."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-01", conn_id)
++        assert op.execute(context={}) == 2
++
++    def test_orders_partition_2026_03_02(self, preset_conn):
++        """2026-03-02 has 3 orders in the CSV."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id)
++        assert op.execute(context={}) == 3
++
++    def test_orders_partition_2026_03_03(self, preset_conn):
++        """2026-03-03 has 1 order in the CSV."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-03", conn_id)
++        assert op.execute(context={}) == 1
++
++    def test_refunds_partition_2026_03_02(self, preset_conn):
++        """2026-03-02 has 1 refund in the CSV."""
++        conn_id, db_path = preset_conn
++        op = _make_op(REFUNDS_CSV, "refunds", "refund_date", "2026-03-02", conn_id)
++        assert op.execute(context={}) == 1
++
++    def test_refunds_partition_2026_03_03(self, preset_conn):
++        """2026-03-03 has 1 refund in the CSV."""
++        conn_id, db_path = preset_conn
++        op = _make_op(REFUNDS_CSV, "refunds", "refund_date", "2026-03-03", conn_id)
++        assert op.execute(context={}) == 1
++
++    def test_nonexistent_partition_returns_zero(self, preset_conn):
++        """A date with no matching rows in the CSV should load 0 rows."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-01-01", conn_id)
++        assert op.execute(context={}) == 0
++
++
++# ---------------------------------------------------------------------------
++# Only the requested partition is loaded
++# ---------------------------------------------------------------------------
++
++
++class TestOnlyRequestedPartitionLoaded:
++    """execute() must not bring in rows from other partitions."""
++
++    def test_only_matching_rows_in_table_after_load(self, preset_conn):
++        """
++        After loading a single partition, the table must contain only that
++        partition's rows — no rows from adjacent dates.
++        """
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-01", conn_id)
++        loaded = op.execute(context={})
++
++        assert loaded == 2
++        assert _total(db_path, "raw", "orders") == 2
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-01") == 2
++
++        # Dates not requested must be absent.
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-02") == 0
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-03") == 0
++
++    def test_correct_row_content_is_loaded(self, preset_conn):
++        """The loaded rows must be the actual rows from the CSV for that date."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id)
++        op.execute(context={})
++
++        con = duckdb.connect(db_path, read_only=True)
++        try:
++            rows = con.execute(
++                'SELECT order_id FROM "raw"."orders" WHERE order_date = ? ORDER BY order_id',
++                ["2026-03-02"],
++            ).fetchall()
++        finally:
++            con.close()
++
++        order_ids = [r[0] for r in rows]
++        assert order_ids == ["O-2003", "O-2004", "O-2005"]
++
++
++# ---------------------------------------------------------------------------
++# Idempotency — re-running the same partition
++# ---------------------------------------------------------------------------
++
++
++class TestIdempotency:
++    """Re-running execute() for the same partition must not create duplicates."""
++
++    def test_rerun_same_partition_row_count_unchanged(self, preset_conn):
++        """Row count must be the same after two consecutive loads of the same date."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id)
++        first = op.execute(context={})
++        second = op.execute(context={})
++
++        assert first == 3
++        assert second == 3
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-02") == 3
++
++    def test_rerun_does_not_duplicate_rows_in_table(self, preset_conn):
++        """Total table count must be the same before and after a re-run."""
++        conn_id, db_path = preset_conn
++        op = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-01", conn_id)
++        op.execute(context={})
++        before = _total(db_path, "raw", "orders")
++
++        op.execute(context={})  # second run
++        after = _total(db_path, "raw", "orders")
++
++        assert before == after == 2
++
++    def test_rerun_returns_same_count_as_first_run(self, preset_conn):
++        """execute() return value must be stable across re-runs."""
++        conn_id, db_path = preset_conn
++        op = _make_op(REFUNDS_CSV, "refunds", "refund_date", "2026-03-02", conn_id)
++        counts = [op.execute(context={}) for _ in range(3)]
++        assert counts == [1, 1, 1]
++
++
++# ---------------------------------------------------------------------------
++# Partition isolation — re-run must not touch other dates
++# ---------------------------------------------------------------------------
++
++
++class TestPartitionIsolation:
++    """Re-running one partition must leave other partitions untouched."""
++
++    def test_rerun_partition_a_leaves_partition_b_intact(self, preset_conn):
++        """
++        Load partition 2026-03-02, then load 2026-03-01, then re-run
++        2026-03-02.  Partition 2026-03-01 must still have 2 rows afterward.
++        """
++        conn_id, db_path = preset_conn
++        op_02 = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id)
++        op_01 = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-01", conn_id)
++
++        op_02.execute(context={})
++        op_01.execute(context={})
++        op_02.execute(context={})  # re-run
++
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-01") == 2
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-02") == 3
++
++    def test_loading_multiple_partitions_accumulates_correctly(self, preset_conn):
++        """Loading all three partitions must yield the full 6-row orders table."""
++        conn_id, db_path = preset_conn
++        for date in ("2026-03-01", "2026-03-02", "2026-03-03"):
++            op = _make_op(ORDERS_CSV, "orders", "order_date", date, conn_id)
++            op.execute(context={})
++
++        assert _total(db_path, "raw", "orders") == 6
++
++    def test_rerun_does_not_bleed_into_adjacent_date(self, preset_conn):
++        """
++        After loading 2026-03-03 and re-running 2026-03-02, the 2026-03-03
++        count must remain at 1.
++        """
++        conn_id, db_path = preset_conn
++        op_03 = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-03", conn_id)
++        op_02 = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id)
++
++        op_03.execute(context={})
++        op_02.execute(context={})
++        op_02.execute(context={})  # re-run the earlier date
++
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-03") == 1
++
++    def test_rerun_total_count_is_sum_of_all_partitions(self, preset_conn):
++        """
++        After loading every partition once and then re-running one, the total
++        count must equal the CSV row count (no duplicates, no deletions).
++        """
++        conn_id, db_path = preset_conn
++        for date in ("2026-03-01", "2026-03-02", "2026-03-03"):
++            _make_op(ORDERS_CSV, "orders", "order_date", date, conn_id).execute(context={})
++
++        # Re-run the middle partition
++        _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id).execute(context={})
++
++        assert _total(db_path, "raw", "orders") == 6  # 2 + 3 + 1
++
++
++# ---------------------------------------------------------------------------
++# Connection contract — schema and conn_id wiring
++# ---------------------------------------------------------------------------
++
++
++class TestConnectionContract:
++    """The hook must read host and schema from the configured connection."""
++
++    def test_data_written_to_schema_from_connection(self, tmp_db):
++        """
++        The operator must write to the schema declared on the connection,
++        not a hard-coded one.
++        """
++        conn = Connection(
++            conn_id="wh_custom_schema",
++            conn_type="duckdb",
++            host=tmp_db,
++            schema="staging",
++        )
++        token = _preset_connections.set({"wh_custom_schema": conn})
++        try:
++            op = _make_op(
++                ORDERS_CSV, "orders", "order_date", "2026-03-01", "wh_custom_schema"
++            )
++            loaded = op.execute(context={})
++
++            assert loaded == 2
++            # Verify the table is in the 'staging' schema, not 'raw' or 'main'.
++            assert _count(tmp_db, "staging", "orders", "order_date", "2026-03-01") == 2
++        finally:
++            _preset_connections.reset(token)
++
++    def test_operator_uses_supplied_duckdb_conn_id(self, tmp_db):
++        """
++        The operator must use the conn_id it was constructed with, not the
++        default.  Two connections pointing at different schemas are set up;
++        only one should receive the data.
++        """
++        conn_a = Connection(
++            conn_id="wh_a", conn_type="duckdb", host=tmp_db, schema="schema_a"
++        )
++        # wh_b points at the same file but a different schema.
++        conn_b = Connection(
++            conn_id="wh_b", conn_type="duckdb", host=tmp_db, schema="schema_b"
++        )
++        token = _preset_connections.set({"wh_a": conn_a, "wh_b": conn_b})
++        try:
++            op = _make_op(
++                ORDERS_CSV, "orders", "order_date", "2026-03-01",
++                duckdb_conn_id="wh_a",
++            )
++            op.execute(context={})
++
++            # Data must be in schema_a.
++            assert _count(tmp_db, "schema_a", "orders", "order_date", "2026-03-01") == 2
++
++            # schema_b must not have an orders table yet.
++            con = duckdb.connect(tmp_db, read_only=True)
++            try:
++                tables = con.execute(
++                    "SELECT table_name FROM information_schema.tables "
++                    "WHERE table_schema = 'schema_b'"
++                ).fetchall()
++            finally:
++                con.close()
++            assert tables == []
++        finally:
++            _preset_connections.reset(token)
++
++    def test_host_field_determines_duckdb_file(self, tmp_path):
++        """
++        Two connections with the same conn_id but different hosts (across two
++        separate tests) write to independent files — confirming that the host
++        field, not a cached path, is used each time.
++        """
++        db_a = str(tmp_path / "a.duckdb")
++        db_b = str(tmp_path / "b.duckdb")
++
++        for db_path in (db_a, db_b):
++            con = duckdb.connect(db_path)
++            con.close()
++
++        conn_a = Connection(conn_id="wh", conn_type="duckdb", host=db_a, schema="raw")
++        token = _preset_connections.set({"wh": conn_a})
++        try:
++            _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-01", "wh").execute(context={})
++        finally:
++            _preset_connections.reset(token)
++
++        conn_b = Connection(conn_id="wh", conn_type="duckdb", host=db_b, schema="raw")
++        token = _preset_connections.set({"wh": conn_b})
++        try:
++            _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", "wh").execute(context={})
++        finally:
++            _preset_connections.reset(token)
++
++        # db_a should have only 2026-03-01 rows.
++        assert _count(db_a, "raw", "orders", "order_date", "2026-03-01") == 2
++        assert _count(db_a, "raw", "orders", "order_date", "2026-03-02") == 0
++
++        # db_b should have only 2026-03-02 rows.
++        assert _count(db_b, "raw", "orders", "order_date", "2026-03-02") == 3
++        assert _count(db_b, "raw", "orders", "order_date", "2026-03-01") == 0
++
++
++# ---------------------------------------------------------------------------
++# Multiple tables in the same database
++# ---------------------------------------------------------------------------
++
++
++class TestMultipleTablesInSameDatabase:
++    """The operator should work for different tables sharing one DuckDB file."""
++
++    def test_orders_and_refunds_coexist(self, preset_conn):
++        conn_id, db_path = preset_conn
++        _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id).execute(context={})
++        _make_op(REFUNDS_CSV, "refunds", "refund_date", "2026-03-02", conn_id).execute(context={})
++
++        assert _count(db_path, "raw", "orders", "order_date", "2026-03-02") == 3
++        assert _count(db_path, "raw", "refunds", "refund_date", "2026-03-02") == 1
++
++    def test_rerun_orders_does_not_affect_refunds(self, preset_conn):
++        conn_id, db_path = preset_conn
++        op_orders = _make_op(ORDERS_CSV, "orders", "order_date", "2026-03-02", conn_id)
++        op_refunds = _make_op(REFUNDS_CSV, "refunds", "refund_date", "2026-03-02", conn_id)
++
++        op_orders.execute(context={})
++        op_refunds.execute(context={})
++        op_orders.execute(context={})  # re-run orders
++
++        assert _count(db_path, "raw", "refunds", "refund_date", "2026-03-02") == 1

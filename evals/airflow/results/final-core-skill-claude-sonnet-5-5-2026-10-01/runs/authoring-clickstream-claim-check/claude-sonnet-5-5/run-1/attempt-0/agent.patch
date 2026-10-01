@@ -1,0 +1,113 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..f8a35bc
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,107 @@
++"""Daily page-level stats (views, unique users, avg load time) from the web clickstream export."""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++STAGING = PROJECT_ROOT / "output" / "_staging" / "clickstream_page_stats"
++
++
++def run_day() -> str:
++    """The run's own day (UTC, matching the export files) as YYYY-MM-DD.
++
++    Manual runs on Airflow 3 have no logical_date, so fall back to run_after.
++    """
++    dag_run = get_current_context()["dag_run"]
++    ts = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(ts).in_tz("UTC").to_date_string()
++
++
++def _replace_atomically(tmp: Path, final: Path) -> None:
++    os.replace(tmp, final)
++
++
++@dag(
++    schedule="30 4 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=4,
++    tags=["web-analytics"],
++)
++def clickstream_page_stats():
++    @task
++    def extract() -> str:
++        """Drop bots and anonymous hits; stage the rest as parquet. Returns the staged path."""
++        import duckdb
++
++        day = run_day()
++        src = PROJECT_ROOT / "data" / "clickstream" / f"{day}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(f"No clickstream export for {day}: {src}")
++        out = STAGING / day / "events.parquet"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".tmp")
++        duckdb.sql(
++            f"""
++            COPY (
++                SELECT user_id, page, load_ms
++                FROM read_csv('{src}', header = true, all_varchar = true)
++                WHERE is_bot <> '1' AND coalesce(trim(user_id), '') <> ''
++            ) TO '{tmp}' (FORMAT parquet)
++            """
++        )
++        _replace_atomically(tmp, out)
++        return str(out)
++
++    @task
++    def transform(events_path: str) -> str:
++        """Per-page aggregates, staged as parquet. Returns the staged path."""
++        import duckdb
++
++        out = Path(events_path).with_name("page_stats.parquet")
++        tmp = out.with_suffix(".tmp")
++        duckdb.sql(
++            f"""
++            COPY (
++                SELECT page,
++                       count(*) AS views,
++                       count(DISTINCT user_id) AS unique_users,
++                       round(avg(try_cast(load_ms AS DOUBLE)), 1) AS avg_load_ms
++                FROM read_parquet('{events_path}')
++                GROUP BY page
++            ) TO '{tmp}' (FORMAT parquet)
++            """
++        )
++        _replace_atomically(tmp, out)
++        return str(out)
++
++    @task
++    def load(stats_path: str) -> str:
++        """Write the day's CSV, replacing any previous file for that day."""
++        import duckdb
++
++        day = run_day()
++        out = PROJECT_ROOT / "output" / "page_stats" / f"{day}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".csv.tmp")
++        duckdb.sql(
++            f"""
++            COPY (
++                SELECT page, views, unique_users, avg_load_ms
++                FROM read_parquet('{stats_path}')
++                ORDER BY page
++            ) TO '{tmp}' (FORMAT csv, HEADER)
++            """
++        )
++        _replace_atomically(tmp, out)
++        return str(out)
++
++    load(transform(extract()))
++
++
++clickstream_page_stats()

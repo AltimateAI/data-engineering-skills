@@ -1,0 +1,124 @@
+diff --git a/README.md b/README.md
+index 43ab5aa..4213f93 100644
+--- a/README.md
++++ b/README.md
+@@ -15,3 +15,7 @@ week since then. The dashboard expects a report for every week.
+ 
+ The weekly report must be finished by 09:00 UTC on Monday (3h after it
+ starts); `notify_growth_oncall` pages the on-call analyst when it is late.
++
++On Airflow 3 this is a Deadline Alert rather than an SLA. The callback lives in
++`plugins/marketing_alerts.py` and runs on the **triggerer**, so the plugins folder
++must be deployed there. Catch-up runs from a season re-run do not page.
+diff --git a/dags/campaign_sync.py b/dags/campaign_sync.py
+index 4ae3318..d65e6a7 100644
+--- a/dags/campaign_sync.py
++++ b/dags/campaign_sync.py
+@@ -6,13 +6,13 @@ import shutil
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule="@hourly",
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["marketing"],
+diff --git a/dags/weekly_campaign_report.py b/dags/weekly_campaign_report.py
+index 150cb17..c2c1749 100644
+--- a/dags/weekly_campaign_report.py
++++ b/dags/weekly_campaign_report.py
+@@ -13,28 +13,42 @@ from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import (
++    AsyncCallback,
++    CronDataIntervalTimetable,
++    DeadlineAlert,
++    DeadlineReference,
++    dag,
++    task,
++)
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "campaign_events.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
+ 
+-def notify_growth_oncall(dag, task_list, blocking_task_list, slas, blocking_tis):
+-    print(f"SLA missed for {task_list} in {dag.dag_id}")
+-
+-
+ @dag(
+-    schedule_interval="0 6 * * 1",
++    # Interval timetable keeps Airflow 2 semantics: the run at Monday 06:00 covers the
++    # previous Mon-Sun week (Airflow 3's default cron timetable has zero-length intervals).
++    schedule=CronDataIntervalTimetable("0 6 * * 1", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),
+-    default_args={"owner": "growth-analytics", "retries": 1, "sla": timedelta(hours=3)},
+-    sla_miss_callback=notify_growth_oncall,
++    # Airflow 3 defaults catchup to False; season re-runs need one run per week since start_date.
++    catchup=True,
++    default_args={"owner": "growth-analytics", "retries": 1},
++    # Replaces the 3h SLA: logical date is the week start, so +7d3h is Monday 09:00 UTC.
++    deadline=DeadlineAlert(
++        reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
++        interval=timedelta(days=7, hours=3),
++        callback=AsyncCallback("marketing_alerts.notify_growth_oncall"),
++    ),
+     max_active_runs=2,
+     tags=["marketing", "weekly"],
+ )
+ def weekly_campaign_report():
+     @task
+-    def summarize_week(ds=None, next_ds=None) -> dict:
++    def summarize_week(data_interval_start=None, data_interval_end=None) -> dict:
++        ds = data_interval_start.strftime("%Y-%m-%d")
++        next_ds = data_interval_end.strftime("%Y-%m-%d")
+         totals: dict[str, list[float]] = defaultdict(lambda: [0.0, 0])
+         with EVENTS.open(newline="") as fh:
+             for row in csv.DictReader(fh):
+diff --git a/plugins/marketing_alerts.py b/plugins/marketing_alerts.py
+new file mode 100644
+index 0000000..b14de1f
+--- /dev/null
++++ b/plugins/marketing_alerts.py
+@@ -0,0 +1,22 @@
++"""Alert callbacks for the marketing DAGs.
++
++Lives in the plugins folder (not dags/) because deadline callbacks are imported by
++dotted path on the triggerer, which only has the plugins folder on ``sys.path``.
++"""
++
++from __future__ import annotations
++
++from datetime import datetime, timedelta
++
++
++async def notify_growth_oncall(context, **kwargs):
++    """Deadline-miss callback: page the on-call analyst when the Monday report is late."""
++    dag_run = context["dag_run"]
++    due = datetime.fromisoformat(dag_run["data_interval_end"])
++    queued_at = dag_run.get("queued_at")
++    # Season re-runs create runs for weeks that are long past their deadline; only the
++    # current Monday's report should page.
++    if queued_at and datetime.fromisoformat(queued_at) - due >= timedelta(days=7):
++        print(f"Skipping page for catch-up run {dag_run['dag_run_id']} of {dag_run['dag_id']}")
++        return
++    print(f"Deadline missed for {dag_run['dag_run_id']} in {dag_run['dag_id']}")
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..3a46a94 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,2 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
+ pendulum==3.2.0

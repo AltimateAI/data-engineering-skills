@@ -1,0 +1,95 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..b6edde8 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,19 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads the scheduled day's shop orders into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
++scheduled day's non-cancelled orders into `orders` and then refreshes the
+ `daily_revenue` rollup that the finance dashboard reads.
++
++Idempotency guarantee
++---------------------
++Each run targets exactly the DAG's *logical date* (data_interval_start), which
++is the day being processed regardless of when the task actually executes.
++Before inserting, all rows for that day are deleted from both `orders` and
++`daily_revenue`, so re-runs, retries, and backfills are always safe: the day
++ends up with exactly the correct rows even if a previous attempt died halfway
++through, and other days are left untouched.
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+@@ -21,14 +29,19 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+     dag_id="orders_daily_load",
+     schedule="@daily",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+-    catchup=False,
++    catchup=True,  # allow backfills
+     default_args={"owner": "data-eng"},
+     tags=["shop", "warehouse"],
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(data_interval_start=None) -> str:
++        """Delete-then-insert for the scheduled logical date (idempotent)."""
++        # Use the DAG's logical date, not wall-clock "yesterday".
++        # data_interval_start is the start of the interval being processed
++        # (e.g. 2026-03-10 00:00 UTC for the run scheduled on 2026-03-10).
++        day = data_interval_start.date()
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+@@ -42,6 +55,14 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # Delete any rows already loaded for this day so re-runs are safe.
++        con.execute(
++            "DELETE FROM orders WHERE order_date = CAST(? AS DATE)",
++            [day.isoformat()],
++        )
++
++        # Insert the scheduled day's non-cancelled orders.
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -54,13 +75,14 @@ def orders_daily_load():
+             WHERE CAST(order_ts AS DATE) = ?
+               AND status <> 'cancelled'
+             """,
+-            [day],
++            [day.isoformat()],
+         )
+         con.close()
+         return day.isoformat()
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
++        """Rebuild the daily_revenue rollup for the given day (idempotent)."""
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+             """
+@@ -71,6 +93,13 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # Delete the existing rollup row for this day before re-aggregating.
++        con.execute(
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
++
+         con.execute(
+             """
+             INSERT INTO daily_revenue

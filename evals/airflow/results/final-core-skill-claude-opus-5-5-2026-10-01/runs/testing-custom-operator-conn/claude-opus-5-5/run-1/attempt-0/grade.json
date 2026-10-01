@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_warehouse.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 11 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 11 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 1 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse::test_hook_reads_path_from_host_and_schema_from_schema [AssertionError], tests.test_warehouse::test_hook_get_conn_opens_the_file_from_host [AssertionError], tests.test_warehouse::test_hook_without_host_raises [None], tests.test_warehouse::test_hook_read_only_extra_opens_read_only [CatalogException], tests.test_warehouse::test_hook_uses_the_conn_id_it_is_given [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 4 passed, 7 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse::test_hook_reads_path_from_host_and_schema_from_schema [AssertionError], tests.test_warehouse::test_hook_uses_the_conn_id_it_is_given [AssertionError], tests.test_warehouse::test_execute_loads_only_the_partition_date [CatalogException], tests.test_warehouse::test_execute_writes_into_the_connection_schema [CatalogException], tests.test_warehouse::test_execute_date_with_no_rows_loads_nothing [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 6 passed, 5 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse::test_execute_loads_only_the_partition_date [AirflowNotFoundException], tests.test_warehouse::test_execute_writes_into_the_connection_schema [AirflowNotFoundException], tests.test_warehouse::test_execute_date_with_no_rows_loads_nothing [AirflowNotFoundException], tests.test_warehouse::test_rerun_replaces_partition_and_leaves_other_dates_alone [AirflowNotFoundException], tests.test_warehouse::test_operator_uses_the_conn_id_it_is_given [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 10 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse::test_rerun_replaces_partition_and_leaves_other_dates_alone [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator inserts every row of the CSV, not just partition_date -> failed: 6 passed, 5 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse::test_execute_loads_only_the_partition_date [AssertionError], tests.test_warehouse::test_execute_writes_into_the_connection_schema [AssertionError], tests.test_warehouse::test_execute_date_with_no_rows_loads_nothing [AssertionError], tests.test_warehouse::test_rerun_replaces_partition_and_leaves_other_dates_alone [AssertionError], tests.test_warehouse::test_operator_uses_the_conn_id_it_is_given [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,56 @@
+diff --git a/dags/warehouse_load.py b/dags/warehouse_load.py
+index 69902d5..e318104 100644
+--- a/dags/warehouse_load.py
++++ b/dags/warehouse_load.py
+@@ -9,23 +9,20 @@ from __future__ import annotations
+ 
+ import csv
+ from collections import defaultdict
+-from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+-from airflow.sdk import Variable, dag, task
++import pendulum
++from airflow.sdk import CronDataIntervalTimetable, Variable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "orders.csv"
+ 
+-WAREHOUSE_DIR = Path(Variable.get("warehouse_path"))
+-WAREHOUSE_DB = WAREHOUSE_DIR / "warehouse.duckdb"
+-
+ 
+ @dag(
+     dag_id="warehouse_load",
+-    schedule_interval="0 6 * * *",
+-    start_date=datetime(2026, 1, 1),
++    schedule=CronDataIntervalTimetable("0 6 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["warehouse"],
+ )
+@@ -48,8 +45,10 @@ def warehouse_load():
+ 
+     @task
+     def load_warehouse(revenue: dict[str, float], ds=None) -> int:
+-        WAREHOUSE_DIR.mkdir(parents=True, exist_ok=True)
+-        with duckdb.connect(str(WAREHOUSE_DB)) as con:
++        warehouse_dir = Path(Variable.get("warehouse_path"))
++        warehouse_db = warehouse_dir / "warehouse.duckdb"
++        warehouse_dir.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(warehouse_db)) as con:
+             con.execute(
+                 "create table if not exists daily_revenue "
+                 "(revenue_date date, region varchar, revenue decimal(12, 2))"
+@@ -63,7 +62,9 @@ def warehouse_load():
+ 
+     @task
+     def validate_load(expected_rows: int, ds=None) -> None:
+-        with duckdb.connect(str(WAREHOUSE_DB), read_only=True) as con:
++        warehouse_dir = Path(Variable.get("warehouse_path"))
++        warehouse_db = warehouse_dir / "warehouse.duckdb"
++        with duckdb.connect(str(warehouse_db), read_only=True) as con:
+             (loaded,) = con.execute(
+                 "select count(*) from daily_revenue where revenue_date = ?", [ds]
+             ).fetchone()

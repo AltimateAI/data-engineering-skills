@@ -1,0 +1,31 @@
+name: billing_forecast
+team: billing
+tier: standard
+description: Forecast pipeline for billing
+schedule:
+  hour: 2
+  days: 1-5
+steps:
+- name: extract
+  table: billing.raw_forecast_00
+- name: validate
+  table: billing.int_forecast_00
+  depends_on:
+  - extract
+- name: transform
+  table: billing.int_forecast_00
+  depends_on:
+  - validate
+- name: enrich
+  table: billing.int_forecast_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: billing.int_forecast_00
+  depends_on:
+  - enrich
+- name: publish
+  table: billing.mart_forecast_00
+  depends_on:
+  - aggregate
+  - enrich

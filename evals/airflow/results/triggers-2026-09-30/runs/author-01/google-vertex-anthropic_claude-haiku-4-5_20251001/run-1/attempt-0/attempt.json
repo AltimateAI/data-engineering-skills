@@ -1,0 +1,32 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [
+    "authoring-airflow-dags"
+  ],
+  "skill_invocations": [
+    {
+      "name": "authoring-airflow-dags",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "tools": [
+    "skill",
+    "bash",
+    "bash",
+    "read"
+  ],
+  "returncode": 1,
+  "wall_s": 22.1,
+  "cost_usd": 0.189726,
+  "cost_reported_usd": 0.471309,
+  "steps": 4,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "errors": []
+}

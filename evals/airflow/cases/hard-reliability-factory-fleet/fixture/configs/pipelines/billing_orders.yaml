@@ -1,0 +1,33 @@
+name: billing_orders
+team: billing
+tier: standard
+description: Orders pipeline for billing
+schedule:
+  hour: 1
+  days: 1-5
+steps:
+- name: extract
+  table: billing.raw_orders_00
+- name: transform
+  table: billing.int_orders_00
+  depends_on:
+  - extract
+- name: enrich
+  table: billing.int_orders_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: billing.int_orders_00
+  depends_on:
+  - enrich
+  - transform
+- name: snapshot
+  table: billing.int_orders_00
+  depends_on:
+  - aggregate
+  - enrich
+- name: publish
+  table: billing.mart_orders_00
+  depends_on:
+  - snapshot
+  - aggregate

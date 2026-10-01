@@ -1,0 +1,25 @@
+name: risk_spend_eu
+team: risk
+tier: standard
+description: Spend pipeline for risk
+schedule:
+  hour: 0
+  days: '*'
+owners:
+- uma
+steps:
+- name: extract
+  table: risk.raw_spend_00
+- name: transform
+  table: risk.int_spend_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: risk.int_spend_00
+  depends_on:
+  - transform
+  - extract
+- name: publish
+  table: risk.mart_spend_00
+  depends_on:
+  - snapshot

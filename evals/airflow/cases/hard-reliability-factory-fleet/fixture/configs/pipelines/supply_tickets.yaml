@@ -1,0 +1,35 @@
+name: supply_tickets
+team: supply
+tier: critical
+description: Tickets pipeline for supply
+schedule:
+  hour: 4
+  days: '*'
+owners:
+- fatima
+- uma
+steps:
+- name: extract
+  table: supply.raw_tickets_00
+- name: validate
+  table: supply.int_tickets_00
+  depends_on:
+  - extract
+- name: transform
+  table: supply.int_tickets_00
+  depends_on:
+  - validate
+  - extract
+- name: enrich
+  table: supply.int_tickets_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: supply.int_tickets_00
+  depends_on:
+  - enrich
+- name: publish
+  table: supply.mart_tickets_00
+  depends_on:
+  - aggregate
+  - enrich

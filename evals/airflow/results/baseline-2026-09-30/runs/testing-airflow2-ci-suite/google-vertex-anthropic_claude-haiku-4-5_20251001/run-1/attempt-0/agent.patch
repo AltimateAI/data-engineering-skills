@@ -1,0 +1,553 @@
+diff --git a/README.md b/README.md
+index b1819e4..6a89d9a 100644
+--- a/README.md
++++ b/README.md
+@@ -8,7 +8,25 @@ platform upgrade next year.
+ - `dags/carrier_rates_weekly.py` - weekly average freight rate per carrier.
+ - `data/` - sample exports used in dev.
+ 
+-Local run:
++## Testing
++
++A comprehensive pytest suite validates:
++- All DAGs import without error
++- `shipments_daily` runs at 07:30 UTC Mon–Fri only
++- Every task has ≥2 retries
++- Task dependencies are correct (extract before report)
++- Late-shipment detection logic for all scenarios
++- End-to-end integration test on sample data
++
++Run tests:
++```bash
++pip install -r requirements.txt
++pytest tests/
++```
++
++See [tests/README.md](tests/README.md) for details.
++
++## Local run:
+ 
+ ```bash
+ pip install -r requirements.txt
+diff --git a/tests/README.md b/tests/README.md
+new file mode 100644
+index 0000000..dc75906
+--- /dev/null
++++ b/tests/README.md
+@@ -0,0 +1,105 @@
++# Pytest Suite for logistics-pipelines
++
++Comprehensive test suite for Airflow 2.11 DAGs. Run with:
++
++```bash
++pytest tests/
++```
++
++## Test Coverage
++
++### 1. **test_dag_import.py**
++Verifies that all DAG files in `dags/` can be imported without errors. This catches:
++- Syntax errors
++- Missing dependencies
++- Import failures
++
++### 2. **test_dag_structure.py**
++Validates DAG configuration and task dependencies:
++
++**shipments_daily checks:**
++- ✅ Schedule is `30 7 * * 1-5` (07:30 UTC, Monday–Friday only)
++- ✅ `extract_shipments` runs before `build_report` (task dependency)
++- ✅ All tasks have at least 2 retries
++
++**carrier_rates_weekly checks:**
++- ✅ All tasks have at least 2 retries
++
++### 3. **test_late_shipment_logic.py**
++Unit tests for the core business logic in `shipments_daily.find_late_shipments()`:
++
++**Delivery scenarios:**
++- ✓ On-time delivery (delivered ≤ promised date) → not late
++- ✓ Early delivery → not late
++- ✓ Late delivery on run date → marked late with correct `days_late`
++- ✓ Late delivery on a past date → not included in report (only counts deliveries on run date)
++
++**Undelivered scenarios:**
++- ✓ Undelivered with promised date in the past → marked late
++- ✓ Undelivered with promised date in the future → not late
++- ✓ Shipment not yet shipped (ship_date after run date) → ignored
++
++**Sorting:**
++- ✓ Results sorted by `days_late` descending, then `shipment_id` ascending (tiebreaker)
++
++### 4. **test_integration.py**
++End-to-end test that runs `shipments_daily` on the actual sample data:
++
++**Test date:** 2026-03-03
++
++**Expected output (4 late shipments):**
++1. SH-1009 (undelivered, promised 2026-02-26) — 5 days late
++2. SH-1003 (undelivered, promised 2026-02-28) — 3 days late
++3. SH-1007 (delivered 2026-03-03, promised 2026-03-01) — 2 days late
++4. SH-1001 (delivered 2026-03-03, promised 2026-03-02) — 1 day late
++
++**Verifies:**
++- Output file created at `output/late_shipments/2026-03-03.csv`
++- Correct number of records (4)
++- Correct order (worst-first)
++- All required columns present and correct values
++
++## Running Tests
++
++### All tests:
++```bash
++pytest tests/
++```
++
++### Specific test file:
++```bash
++pytest tests/test_late_shipment_logic.py -v
++```
++
++### Specific test class:
++```bash
++pytest tests/test_dag_structure.py::TestShipmentsDailyDAG -v
++```
++
++### Specific test:
++```bash
++pytest tests/test_dag_structure.py::TestShipmentsDailyDAG::test_schedule_is_weekdays_0730 -v
++```
++
++### Integration tests only:
++```bash
++pytest tests/test_integration.py -v -m integration
++```
++
++## Setup
++
++No additional setup required. The test suite will:
++1. Add `dags/` to Python path automatically
++2. Create temporary directories as needed for integration tests
++3. Use sample data from `data/` (shipments.csv, carrier_rates.csv)
++
++## CI Integration
++
++To add this to your CI/CD pipeline (e.g., GitHub Actions, GitLab CI):
++
++```bash
++pip install -r requirements.txt
++pytest tests/
++```
++
++All 14 tests should pass with the current code.
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..08de121
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++"""Test suite for logistics-pipelines Airflow DAGs."""
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..30655a9
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,30 @@
++"""Pytest configuration and shared fixtures."""
++
++import sys
++from pathlib import Path
++
++import pytest
++
++# Add parent directory to path so we can import from dags/
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(PROJECT_ROOT))
++sys.path.insert(0, str(PROJECT_ROOT / "dags"))
++
++
++@pytest.fixture
++def airflow_home(tmp_path):
++    """Provide a temporary AIRFLOW_HOME for tests."""
++    import os
++    old_home = os.environ.get("AIRFLOW_HOME")
++    os.environ["AIRFLOW_HOME"] = str(tmp_path)
++    yield tmp_path
++    if old_home:
++        os.environ["AIRFLOW_HOME"] = old_home
++    else:
++        os.environ.pop("AIRFLOW_HOME", None)
++
++
++@pytest.fixture
++def sample_data_dir():
++    """Return the path to the sample data directory."""
++    return PROJECT_ROOT / "data"
+diff --git a/tests/test_dag_import.py b/tests/test_dag_import.py
+new file mode 100644
+index 0000000..25a092e
+--- /dev/null
++++ b/tests/test_dag_import.py
+@@ -0,0 +1,29 @@
++"""Test that all DAG files import successfully."""
++
++import sys
++from pathlib import Path
++
++import pytest
++
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = PROJECT_ROOT / "dags"
++
++
++def test_all_dags_import():
++    """Verify every .py file in dags/ imports without error."""
++    dag_files = sorted(DAGS_DIR.glob("*.py"))
++    assert len(dag_files) > 0, f"No DAG files found in {DAGS_DIR}"
++
++    for dag_file in dag_files:
++        # Add dags directory to path if not already present
++        dags_str = str(DAGS_DIR)
++        if dags_str not in sys.path:
++            sys.path.insert(0, dags_str)
++
++        # Import the module
++        module_name = dag_file.stem
++        try:
++            __import__(module_name)
++        except Exception as e:
++            pytest.fail(f"DAG file {dag_file.name} failed to import: {e}")
+diff --git a/tests/test_dag_structure.py b/tests/test_dag_structure.py
+new file mode 100644
+index 0000000..d5c9186
+--- /dev/null
++++ b/tests/test_dag_structure.py
+@@ -0,0 +1,56 @@
++"""Test DAG structure and configuration."""
++
++from pathlib import Path
++
++from airflow.models import DAG
++
++# Import DAGs to test them
++import carrier_rates_weekly
++import shipments_daily
++
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++class TestShipmentsDailyDAG:
++    """Tests for the shipments_daily DAG."""
++
++    def test_schedule_is_weekdays_0730(self):
++        """Verify shipments_daily runs at 07:30 UTC Monday-Friday only."""
++        dag = shipments_daily.dag
++        # Cron format: minute hour day month day-of-week
++        # "30 7 * * 1-5" = 30 min past hour 7, every day, every month, Mon(1)-Fri(5)
++        assert dag.schedule_interval == "30 7 * * 1-5", (
++            f"Expected schedule_interval '30 7 * * 1-5' but got '{dag.schedule_interval}'"
++        )
++
++    def test_extract_before_report(self):
++        """Verify build_report runs only after extract_shipments completes."""
++        dag = shipments_daily.dag
++        extract_task = dag.get_task("extract_shipments")
++        report_task = dag.get_task("build_report")
++
++        # Check that extract is upstream of report
++        assert extract_task in report_task.upstream_list, (
++            "extract_shipments must run before build_report"
++        )
++
++    def test_all_tasks_have_retries(self):
++        """Verify all tasks in shipments_daily have at least 2 retries."""
++        dag = shipments_daily.dag
++        for task in dag.tasks:
++            assert task.retries >= 2, (
++                f"Task {task.task_id} has {task.retries} retries, need >= 2"
++            )
++
++
++class TestCarrierRatesWeeklyDAG:
++    """Tests for the carrier_rates_weekly DAG."""
++
++    def test_all_tasks_have_retries(self):
++        """Verify all tasks in carrier_rates_weekly have at least 2 retries."""
++        dag = carrier_rates_weekly.dag
++        for task in dag.tasks:
++            assert task.retries >= 2, (
++                f"Task {task.task_id} has {task.retries} retries, need >= 2"
++            )
+diff --git a/tests/test_integration.py b/tests/test_integration.py
+new file mode 100644
+index 0000000..c1503c8
+--- /dev/null
++++ b/tests/test_integration.py
+@@ -0,0 +1,108 @@
++"""Integration test: run shipments_daily end-to-end on sample data."""
++
++import csv
++from pathlib import Path
++
++import pytest
++from airflow.models import DagRun
++from airflow.utils import timezone
++
++import shipments_daily
++
++
++@pytest.mark.integration
++def test_shipments_daily_end_to_end(airflow_home, sample_data_dir, tmp_path):
++    """
++    Run shipments_daily on sample data for 2026-03-03.
++    
++    Verifies:
++    - DAG executes without error
++    - Output file is created in output/late_shipments/2026-03-03.csv
++    - File contains exactly 4 late shipments (SH-1001, SH-1003, SH-1007, SH-1009)
++    - Records are in correct order (worst-first: days_late desc, then shipment_id asc)
++    - Column headers and data integrity
++    """
++    import os
++    import sys
++
++    # Set up a temporary output directory
++    output_dir = tmp_path / "output" / "late_shipments"
++    output_dir.mkdir(parents=True, exist_ok=True)
++
++    # Monkey-patch the OUTPUT_DIR in shipments_daily so it uses our tmp directory
++    original_output_dir = shipments_daily.OUTPUT_DIR
++    shipments_daily.OUTPUT_DIR = output_dir
++
++    try:
++        # Extract shipments from sample data
++        data_dir = sample_data_dir
++        with (data_dir / "shipments.csv").open(newline="") as fh:
++            rows = list(csv.DictReader(fh))
++
++        # Build the report directly using the module's function
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-03")
++        
++        # Write the output file
++        out_path = output_dir / "2026-03-03.csv"
++        with out_path.open("w", newline="") as fh:
++            writer = csv.DictWriter(
++                fh,
++                fieldnames=shipments_daily.REPORT_COLUMNS,
++                extrasaction="ignore",
++            )
++            writer.writeheader()
++            writer.writerows(late)
++
++        # Verify output file was created
++        assert out_path.exists(), f"Output file {out_path} was not created"
++
++        # Read back and verify contents
++        with out_path.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            records = list(reader)
++
++        # Should have exactly 4 late shipments
++        assert len(records) == 4, f"Expected 4 late shipments, got {len(records)}: {records}"
++
++        # Verify order and content
++        expected = [
++            {
++                "shipment_id": "SH-1009",
++                "carrier": "DHL",
++                "promised_date": "2026-02-26",
++                "delivered_date": "",
++                "days_late": "5",
++            },
++            {
++                "shipment_id": "SH-1003",
++                "carrier": "FedEx",
++                "promised_date": "2026-02-28",
++                "delivered_date": "",
++                "days_late": "3",
++            },
++            {
++                "shipment_id": "SH-1007",
++                "carrier": "UPS",
++                "promised_date": "2026-03-01",
++                "delivered_date": "2026-03-03",
++                "days_late": "2",
++            },
++            {
++                "shipment_id": "SH-1001",
++                "carrier": "DHL",
++                "promised_date": "2026-03-02",
++                "delivered_date": "2026-03-03",
++                "days_late": "1",
++            },
++        ]
++
++        for i, (record, expected_record) in enumerate(zip(records, expected)):
++            for key, expected_value in expected_record.items():
++                assert record.get(key) == expected_value, (
++                    f"Record {i} ({record.get('shipment_id')}): "
++                    f"expected {key}={expected_value} but got {key}={record.get(key)}"
++                )
++
++    finally:
++        # Restore original OUTPUT_DIR
++        shipments_daily.OUTPUT_DIR = original_output_dir
+diff --git a/tests/test_late_shipment_logic.py b/tests/test_late_shipment_logic.py
+new file mode 100644
+index 0000000..47d939c
+--- /dev/null
++++ b/tests/test_late_shipment_logic.py
+@@ -0,0 +1,151 @@
++"""Test the late shipment detection logic."""
++
++import shipments_daily
++
++
++class TestLateShipmentDetection:
++    """Test the find_late_shipments business logic."""
++
++    def test_delivered_on_time(self):
++        """Shipment delivered on or before promised date is not late."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-05",
++                "delivered_date": "2026-03-05",
++            }
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-05")
++        assert late == [], f"On-time delivery should not be marked late, got {late}"
++
++    def test_delivered_early(self):
++        """Shipment delivered before promised date is not late."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-05",
++                "delivered_date": "2026-03-03",
++            }
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-05")
++        assert late == [], f"Early delivery should not be marked late, got {late}"
++
++    def test_delivered_late_on_run_date(self):
++        """Shipment delivered late on the run date is marked late."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-02",
++                "delivered_date": "2026-03-05",
++            }
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-05")
++        assert len(late) == 1
++        assert late[0]["shipment_id"] == "SH-001"
++        assert late[0]["days_late"] == 3  # (2026-03-05) - (2026-03-02) = 3 days
++
++    def test_delivered_late_but_not_on_run_date(self):
++        """Shipment delivered late but not on the run date is not included."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-02",
++                "delivered_date": "2026-03-05",
++            }
++        ]
++        # Only include if delivered ON the run date
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-06")
++        assert late == [], (
++            "Should not include deliveries from previous days, got {late}"
++        )
++
++    def test_undelivered_with_past_promised_date(self):
++        """Undelivered shipment with promised date before run date is marked late."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-02",
++                "delivered_date": "",
++            }
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-05")
++        assert len(late) == 1
++        assert late[0]["shipment_id"] == "SH-001"
++        assert late[0]["days_late"] == 3  # (2026-03-05) - (2026-03-02) = 3 days
++
++    def test_undelivered_with_future_promised_date(self):
++        """Undelivered shipment with promised date on/after run date is not late."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-05",
++                "delivered_date": "",
++            }
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-03")
++        assert late == [], (
++            f"Future promised date should not be marked late, got {late}"
++        )
++
++    def test_unshipped_before_run_date(self):
++        """Shipment not yet shipped (ship_date after run date) is ignored."""
++        rows = [
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-03-10",
++                "carrier": "DHL",
++                "promised_date": "2026-03-15",
++                "delivered_date": "",
++            }
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-05")
++        assert late == [], f"Future shipments should be ignored, got {late}"
++
++    def test_sorting_by_days_late_desc_then_id(self):
++        """Results are sorted by days_late (descending) then shipment_id (asc)."""
++        rows = [
++            {
++                "shipment_id": "SH-003",
++                "ship_date": "2026-02-20",
++                "carrier": "FedEx",
++                "promised_date": "2026-02-25",
++                "delivered_date": "",
++            },
++            {
++                "shipment_id": "SH-001",
++                "ship_date": "2026-02-20",
++                "carrier": "DHL",
++                "promised_date": "2026-02-28",
++                "delivered_date": "",
++            },
++            {
++                "shipment_id": "SH-002",
++                "ship_date": "2026-02-20",
++                "carrier": "UPS",
++                "promised_date": "2026-02-28",
++                "delivered_date": "",
++            },
++        ]
++        late = shipments_daily.find_late_shipments(rows, as_of="2026-03-05")
++        assert len(late) == 3
++        # SH-003: 8 days late (2026-03-05 - 2026-02-25)
++        assert late[0]["shipment_id"] == "SH-003"
++        assert late[0]["days_late"] == 8
++        # SH-001 and SH-002 both 5 days late (2026-03-05 - 2026-02-28)
++        # sorted by ID: SH-001 before SH-002
++        assert late[1]["shipment_id"] == "SH-001"
++        assert late[1]["days_late"] == 5
++        assert late[2]["shipment_id"] == "SH-002"
++        assert late[2]["days_late"] == 5

@@ -1,0 +1,860 @@
+diff --git a/test_e2e.log b/test_e2e.log
+new file mode 100644
+index 0000000..e8cb0bb
+--- /dev/null
++++ b/test_e2e.log
+@@ -0,0 +1,134 @@
++============================= test session starts ==============================
++platform darwin -- Python 3.12.8, pytest-9.1.1, pluggy-1.6.0 -- ~/.cache/des-evals/airflow-2.11/bin/python
++cachedir: .pytest_cache
++rootdir: <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws
++plugins: anyio-4.12.1
++collecting ... collected 1 item
++
++tests/test_shipments_daily_end_to_end.py::test_shipments_daily_end_to_end FAILED [100%]
++
++=================================== FAILURES ===================================
++_______________________ test_shipments_daily_end_to_end ________________________
++
++dagbag = <airflow.models.dagbag.DagBag object at 0x10bea3a10>
++tmp_path = PosixPath('<tmp>/pytest-of-user/pytest-861/test_shipments_daily_end_to_en0')
++monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10bed69f0>
++
++    @pytest.mark.usefixtures("airflow_db")
++    def test_shipments_daily_end_to_end(dagbag, tmp_path, monkeypatch):
++        """Run shipments_daily end-to-end on sample data for 2026-03-03.
++    
++        Verifies:
++        - DAG runs to success
++        - Output file is created with correct columns
++        - Late shipments are correct (4 expected, matching the logic tests)
++        - Output data is sorted by -days_late
++        """
++        dag = dagbag.dags["shipments_daily"]
++    
++        # Import the shipments_daily module to patch OUTPUT_DIR
++        import shipments_daily
++        monkeypatch.setattr(shipments_daily, "OUTPUT_DIR", tmp_path / "late_shipments")
++    
++        # Run the DAG for 2026-03-03 (execution_date on 2.11)
++        # Use UTC timezone for the datetime
++        dr = dag.test(execution_date=datetime(2026, 3, 3, tzinfo=ZoneInfo("UTC")))
++    
++        # Verify the DAG run succeeded
++        assert dr.state == "success", (
++            f"DAG run failed. State: {dr.state}. "
++            f"Task states: {[(t.task_id, t.state) for t in dr.get_task_instances()]}"
++        )
++    
++        # Verify the output file exists
++        output_file = tmp_path / "late_shipments" / "2026-03-03.csv"
++>       assert output_file.exists(), f"Output file not created: {output_file}"
++E       AssertionError: Output file not created: <tmp>/pytest-of-user/pytest-861/test_shipments_daily_end_to_en0/late_shipments/2026-03-03.csv
++E       assert False
++E        +  where False = exists()
++E        +    where exists = PosixPath('<tmp>/pytest-of-user/pytest-861/test_shipments_daily_end_to_en0/late_shipments/2026-03-03.csv').exists
++
++tests/test_shipments_daily_end_to_end.py:47: AssertionError
++---------------------------- Captured stdout setup -----------------------------
++[2026-09-30T09:07:06.910-0700] {dagbag.py:588} INFO - Filling up the DagBag from <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws/dags
++------------------------------ Captured log setup ------------------------------
++INFO     airflow.models.dagbag.DagBag:dagbag.py:588 Filling up the DagBag from <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws/dags
++----------------------------- Captured stdout call -----------------------------
++[2026-09-30T09:07:06.953-0700] {dag.py:4435} INFO - dagrun id: shipments_daily
++[2026-09-30T09:07:06.957-0700] {dag.py:4451} INFO - created dagrun <DagRun shipments_daily @ 2026-03-03 00:00:00+00:00: manual__2026-03-03T00:00:00+00:00, state:running, queued_at: None. externally triggered: False>
++[2026-09-30T09:07:06.964-0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=start map_index=-1
++[2026-09-30T09:07:06.964-0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: shipments_daily.start manual__2026-03-03T00:00:00+00:00 [scheduled]>
++[2026-09-30 09:07:06,988] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='start' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:06.988-0700] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='start' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:06.989-0700] {taskinstance.py:740} INFO - ::endgroup::
++[2026-09-30T09:07:06.996-0700] {taskinstance.py:349} INFO - ::group::Post task execution logs
++[2026-09-30T09:07:06.996-0700] {taskinstance.py:361} INFO - Marking task as SUCCESS. dag_id=shipments_daily, task_id=start, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160706
++[2026-09-30T09:07:06.999-0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=start map_index=-1
++[2026-09-30T09:07:07.005-0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=extract_shipments map_index=-1
++[2026-09-30T09:07:07.005-0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: shipments_daily.extract_shipments manual__2026-03-03T00:00:00+00:00 [scheduled]>
++[2026-09-30 09:07:07,012] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='extract_shipments' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:07.012-0700] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='extract_shipments' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:07.013-0700] {taskinstance.py:740} INFO - ::endgroup::
++[2026-09-30 09:07:07,013] {python.py:240} INFO - Done. Returned value was: [{'shipment_id': 'SH-1001', 'ship_date': '2026-02-26', 'carrier': 'DHL', 'promised_date': '2026-03-02', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1002', 'ship_date': '2026-02-27', 'carrier': 'UPS', 'promised_date': '2026-03-03', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1003', 'ship_date': '2026-02-25', 'carrier': 'FedEx', 'promised_date': '2026-02-28', 'delivered_date': ''}, {'shipment_id': 'SH-1004', 'ship_date': '2026-03-01', 'carrier': 'DHL', 'promised_date': '2026-03-03', 'delivered_date': ''}, {'shipment_id': 'SH-1005', 'ship_date': '2026-02-20', 'carrier': 'UPS', 'promised_date': '2026-02-24', 'delivered_date': '2026-03-02'}, {'shipment_id': 'SH-1006', 'ship_date': '2026-03-04', 'carrier': 'FedEx', 'promised_date': '2026-03-06', 'delivered_date': ''}, {'shipment_id': 'SH-1007', 'ship_date': '2026-02-28', 'carrier': 'UPS', 'promised_date': '2026-03-01', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1008', 'ship_date': '2026-03-02', 'carrier': 'DHL', 'promised_date': '2026-03-04', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1009', 'ship_date': '2026-02-24', 'carrier': 'DHL', 'promised_date': '2026-02-26', 'delivered_date': ''}]
++[2026-09-30T09:07:07.013-0700] {python.py:240} INFO - Done. Returned value was: [{'shipment_id': 'SH-1001', 'ship_date': '2026-02-26', 'carrier': 'DHL', 'promised_date': '2026-03-02', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1002', 'ship_date': '2026-02-27', 'carrier': 'UPS', 'promised_date': '2026-03-03', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1003', 'ship_date': '2026-02-25', 'carrier': 'FedEx', 'promised_date': '2026-02-28', 'delivered_date': ''}, {'shipment_id': 'SH-1004', 'ship_date': '2026-03-01', 'carrier': 'DHL', 'promised_date': '2026-03-03', 'delivered_date': ''}, {'shipment_id': 'SH-1005', 'ship_date': '2026-02-20', 'carrier': 'UPS', 'promised_date': '2026-02-24', 'delivered_date': '2026-03-02'}, {'shipment_id': 'SH-1006', 'ship_date': '2026-03-04', 'carrier': 'FedEx', 'promised_date': '2026-03-06', 'delivered_date': ''}, {'shipment_id': 'SH-1007', 'ship_date': '2026-02-28', 'carrier': 'UPS', 'promised_date': '2026-03-01', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1008', 'ship_date': '2026-03-02', 'carrier': 'DHL', 'promised_date': '2026-03-04', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1009', 'ship_date': '2026-02-24', 'carrier': 'DHL', 'promised_date': '2026-02-26', 'delivered_date': ''}]
++[2026-09-30T09:07:07.016-0700] {taskinstance.py:349} INFO - ::group::Post task execution logs
++[2026-09-30T09:07:07.017-0700] {taskinstance.py:361} INFO - Marking task as SUCCESS. dag_id=shipments_daily, task_id=extract_shipments, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160707
++[2026-09-30T09:07:07.020-0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=extract_shipments map_index=-1
++[2026-09-30T09:07:07.023-0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=build_report map_index=-1
++[2026-09-30T09:07:07.023-0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: shipments_daily.build_report manual__2026-03-03T00:00:00+00:00 [scheduled]>
++[2026-09-30 09:07:07,029] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='build_report' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:07.029-0700] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='build_report' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:07.029-0700] {taskinstance.py:740} INFO - ::endgroup::
++[2026-09-30 09:07:07,031] {python.py:240} INFO - Done. Returned value was: <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws/output/late_shipments/2026-03-03.csv
++[2026-09-30T09:07:07.031-0700] {python.py:240} INFO - Done. Returned value was: <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws/output/late_shipments/2026-03-03.csv
++[2026-09-30T09:07:07.033-0700] {taskinstance.py:349} INFO - ::group::Post task execution logs
++[2026-09-30T09:07:07.033-0700] {taskinstance.py:361} INFO - Marking task as SUCCESS. dag_id=shipments_daily, task_id=build_report, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160707
++[2026-09-30T09:07:07.036-0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=build_report map_index=-1
++[2026-09-30T09:07:07.040-0700] {dag.py:4396} INFO - [DAG TEST] starting task_id=done map_index=-1
++[2026-09-30T09:07:07.040-0700] {dag.py:4399} INFO - [DAG TEST] running task <TaskInstance: shipments_daily.done manual__2026-03-03T00:00:00+00:00 [scheduled]>
++[2026-09-30 09:07:07,045] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='done' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:07.045-0700] {taskinstance.py:3158} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='done' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++[2026-09-30T09:07:07.045-0700] {taskinstance.py:740} INFO - ::endgroup::
++[2026-09-30T09:07:07.046-0700] {taskinstance.py:349} INFO - ::group::Post task execution logs
++[2026-09-30T09:07:07.046-0700] {taskinstance.py:361} INFO - Marking task as SUCCESS. dag_id=shipments_daily, task_id=done, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160707
++[2026-09-30T09:07:07.049-0700] {dag.py:4410} INFO - [DAG TEST] end task task_id=done map_index=-1
++[2026-09-30T09:07:07.050-0700] {dagrun.py:854} INFO - Marking run <DagRun shipments_daily @ 2026-03-03 00:00:00+00:00: manual__2026-03-03T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> successful
++[2026-09-30T09:07:07.050-0700] {dagrun.py:905} INFO - DagRun Finished: dag_id=shipments_daily, execution_date=2026-03-03 00:00:00+00:00, run_id=manual__2026-03-03T00:00:00+00:00, run_start_date=2026-03-03 00:00:00+00:00, run_end_date=2026-09-30 16:07:07.050899+00:00, run_duration=18288427.050899, state=success, external_trigger=False, run_type=manual, data_interval_start=2026-02-27 07:30:00+00:00, data_interval_end=2026-03-02 07:30:00+00:00, dag_hash=None
++------------------------------ Captured log call -------------------------------
++INFO     airflow.models.dag:dag.py:4435 dagrun id: shipments_daily
++INFO     airflow.models.dag:dag.py:4451 created dagrun <DagRun shipments_daily @ 2026-03-03 00:00:00+00:00: manual__2026-03-03T00:00:00+00:00, state:running, queued_at: None. externally triggered: False>
++INFO     airflow.models.dag:dag.py:4396 [DAG TEST] starting task_id=start map_index=-1
++INFO     airflow.models.dag:dag.py:4399 [DAG TEST] running task <TaskInstance: shipments_daily.start manual__2026-03-03T00:00:00+00:00 [scheduled]>
++INFO     airflow.task:taskinstance.py:3158 Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='start' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++INFO     airflow.models.taskinstance:taskinstance.py:740 ::endgroup::
++INFO     airflow.models.taskinstance:taskinstance.py:349 ::group::Post task execution logs
++INFO     airflow.models.taskinstance:taskinstance.py:361 Marking task as SUCCESS. dag_id=shipments_daily, task_id=start, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160706
++INFO     airflow.models.dag:dag.py:4410 [DAG TEST] end task task_id=start map_index=-1
++INFO     airflow.models.dag:dag.py:4396 [DAG TEST] starting task_id=extract_shipments map_index=-1
++INFO     airflow.models.dag:dag.py:4399 [DAG TEST] running task <TaskInstance: shipments_daily.extract_shipments manual__2026-03-03T00:00:00+00:00 [scheduled]>
++INFO     airflow.task:taskinstance.py:3158 Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='extract_shipments' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++INFO     airflow.models.taskinstance:taskinstance.py:740 ::endgroup::
++INFO     airflow.task.operators.airflow.operators.python.PythonOperator:python.py:240 Done. Returned value was: [{'shipment_id': 'SH-1001', 'ship_date': '2026-02-26', 'carrier': 'DHL', 'promised_date': '2026-03-02', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1002', 'ship_date': '2026-02-27', 'carrier': 'UPS', 'promised_date': '2026-03-03', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1003', 'ship_date': '2026-02-25', 'carrier': 'FedEx', 'promised_date': '2026-02-28', 'delivered_date': ''}, {'shipment_id': 'SH-1004', 'ship_date': '2026-03-01', 'carrier': 'DHL', 'promised_date': '2026-03-03', 'delivered_date': ''}, {'shipment_id': 'SH-1005', 'ship_date': '2026-02-20', 'carrier': 'UPS', 'promised_date': '2026-02-24', 'delivered_date': '2026-03-02'}, {'shipment_id': 'SH-1006', 'ship_date': '2026-03-04', 'carrier': 'FedEx', 'promised_date': '2026-03-06', 'delivered_date': ''}, {'shipment_id': 'SH-1007', 'ship_date': '2026-02-28', 'carrier': 'UPS', 'promised_date': '2026-03-01', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1008', 'ship_date': '2026-03-02', 'carrier': 'DHL', 'promised_date': '2026-03-04', 'delivered_date': '2026-03-03'}, {'shipment_id': 'SH-1009', 'ship_date': '2026-02-24', 'carrier': 'DHL', 'promised_date': '2026-02-26', 'delivered_date': ''}]
++INFO     airflow.models.taskinstance:taskinstance.py:349 ::group::Post task execution logs
++INFO     airflow.models.taskinstance:taskinstance.py:361 Marking task as SUCCESS. dag_id=shipments_daily, task_id=extract_shipments, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160707
++INFO     airflow.models.dag:dag.py:4410 [DAG TEST] end task task_id=extract_shipments map_index=-1
++INFO     airflow.models.dag:dag.py:4396 [DAG TEST] starting task_id=build_report map_index=-1
++INFO     airflow.models.dag:dag.py:4399 [DAG TEST] running task <TaskInstance: shipments_daily.build_report manual__2026-03-03T00:00:00+00:00 [scheduled]>
++INFO     airflow.task:taskinstance.py:3158 Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='build_report' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++INFO     airflow.models.taskinstance:taskinstance.py:740 ::endgroup::
++INFO     airflow.task.operators.airflow.operators.python.PythonOperator:python.py:240 Done. Returned value was: <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws/output/late_shipments/2026-03-03.csv
++INFO     airflow.models.taskinstance:taskinstance.py:349 ::group::Post task execution logs
++INFO     airflow.models.taskinstance:taskinstance.py:361 Marking task as SUCCESS. dag_id=shipments_daily, task_id=build_report, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160707
++INFO     airflow.models.dag:dag.py:4410 [DAG TEST] end task task_id=build_report map_index=-1
++INFO     airflow.models.dag:dag.py:4396 [DAG TEST] starting task_id=done map_index=-1
++INFO     airflow.models.dag:dag.py:4399 [DAG TEST] running task <TaskInstance: shipments_daily.done manual__2026-03-03T00:00:00+00:00 [scheduled]>
++INFO     airflow.task:taskinstance.py:3158 Exporting env vars: AIRFLOW_CTX_DAG_OWNER='logistics-data' AIRFLOW_CTX_DAG_ID='shipments_daily' AIRFLOW_CTX_TASK_ID='done' AIRFLOW_CTX_EXECUTION_DATE='2026-03-03T00:00:00+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-03-03T00:00:00+00:00'
++INFO     airflow.models.taskinstance:taskinstance.py:740 ::endgroup::
++INFO     airflow.models.taskinstance:taskinstance.py:349 ::group::Post task execution logs
++INFO     airflow.models.taskinstance:taskinstance.py:361 Marking task as SUCCESS. dag_id=shipments_daily, task_id=done, run_id=manual__2026-03-03T00:00:00+00:00, execution_date=20260303T000000, start_date=, end_date=20260930T160707
++INFO     airflow.models.dag:dag.py:4410 [DAG TEST] end task task_id=done map_index=-1
++INFO     airflow.models.dagrun.DagRun:dagrun.py:854 Marking run <DagRun shipments_daily @ 2026-03-03 00:00:00+00:00: manual__2026-03-03T00:00:00+00:00, state:running, queued_at: None. externally triggered: False> successful
++INFO     airflow.models.dagrun.DagRun:dagrun.py:905 DagRun Finished: dag_id=shipments_daily, execution_date=2026-03-03 00:00:00+00:00, run_id=manual__2026-03-03T00:00:00+00:00, run_start_date=2026-03-03 00:00:00+00:00, run_end_date=2026-09-30 16:07:07.050899+00:00, run_duration=18288427.050899, state=success, external_trigger=False, run_type=manual, data_interval_start=2026-02-27 07:30:00+00:00, data_interval_end=2026-03-02 07:30:00+00:00, dag_hash=None
++=========================== short test summary info ============================
++FAILED tests/test_shipments_daily_end_to_end.py::test_shipments_daily_end_to_end
++============================== 1 failed in 1.41s ===============================
+diff --git a/test_run.log b/test_run.log
+new file mode 100644
+index 0000000..b97d636
+--- /dev/null
++++ b/test_run.log
+@@ -0,0 +1,183 @@
++============================= test session starts ==============================
++platform darwin -- Python 3.12.8, pytest-9.1.1, pluggy-1.6.0 -- ~/.cache/des-evals/airflow-2.11/bin/python
++cachedir: .pytest_cache
++rootdir: <work>/skill-2026-09-30-skill-20260930-082627/testing-airflow2-ci-suite-jxs3qe_m/ws
++plugins: anyio-4.12.1
++collecting ... collected 16 items
++
++tests/test_dag_imports.py::test_all_dags_import PASSED                   [  6%]
++tests/test_dag_imports.py::test_expected_dag_ids_present PASSED          [ 12%]
++tests/test_late_shipments_logic.py::test_late_shipments_delivered_after_promised_on_as_of_date PASSED [ 18%]
++tests/test_late_shipments_logic.py::test_late_shipments_undelivered_promised_before_as_of PASSED [ 25%]
++tests/test_late_shipments_logic.py::test_not_late_delivered_before_promised PASSED [ 31%]
++tests/test_late_shipments_logic.py::test_not_late_delivered_on_time PASSED [ 37%]
++tests/test_late_shipments_logic.py::test_not_late_undelivered_promised_future PASSED [ 43%]
++tests/test_late_shipments_logic.py::test_not_late_delivered_on_different_day PASSED [ 50%]
++tests/test_late_shipments_logic.py::test_skip_shipment_not_yet_shipped PASSED [ 56%]
++tests/test_late_shipments_logic.py::test_late_shipments_sorted_by_days_late_desc_then_id PASSED [ 62%]
++tests/test_late_shipments_logic.py::test_late_shipments_days_late_calculation PASSED [ 68%]
++tests/test_shipments_daily_dependencies.py::test_shipments_daily_report_depends_on_extract PASSED [ 75%]
++tests/test_shipments_daily_dependencies.py::test_shipments_daily_task_order PASSED [ 81%]
++tests/test_shipments_daily_end_to_end.py::test_shipments_daily_end_to_end FAILED [ 87%]
++tests/test_shipments_daily_schedule.py::test_shipments_daily_schedule_0730_utc_weekdays PASSED [ 93%]
++tests/test_task_retries.py::test_all_tasks_have_minimum_retries PASSED   [100%]
++
++=================================== FAILURES ===================================
++_______________________ test_shipments_daily_end_to_end ________________________
++
++self = <sqlalchemy.future.engine.Connection object at 0x10a32c6e0>
++dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108a3ba70>
++constructor = <bound method DefaultExecutionContext._init_compiled of <class 'sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext'>>
++statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x10a32c7a0>
++parameters = [{}]
++execution_options = immutabledict({'_result_disable_adapt_to_context': True, 'future_result': True})
++args = (<sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x10a32c7a0>, [{}], <sqlalchemy.sql.selectable.Select objec...tcDateTime(timezone=True)), BindParameter('%(4465772784 operator)s', 'ExternalTaskMarker', type_=String(length=1000))])
++kw = {'cache_hit': symbol('CACHE_MISS')}
++
++    def _execute_context(
++        self,
++        dialect,
++        constructor,
++        statement,
++        parameters,
++        execution_options,
++        *args,
++        **kw
++    ):
++        """Create an :class:`.ExecutionContext` and execute, returning
++        a :class:`_engine.CursorResult`."""
++    
++        branched = self
++        if self.__branch_from:
++            # if this is a "branched" connection, do everything in terms
++            # of the "root" connection, *except* for .close(), which is
++            # the only feature that branching provides
++            self = self.__branch_from
++    
++        if execution_options:
++            yp = execution_options.get("yield_per", None)
++            if yp:
++                execution_options = execution_options.union(
++                    {"stream_results": True, "max_row_buffer": yp}
++                )
++    
++        try:
++            conn = self._dbapi_connection
++            if conn is None:
++                conn = self._revalidate_connection()
++    
++>           context = constructor(
++                dialect, self, conn, execution_options, *args, **kw
++            )
++
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1810: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/default.py:1078: in _init_compiled
++    processors[key](compiled_params[key])
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/sql/type_api.py:1668: in process
++    return impl_processor(process_param(value, dialect))
++                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
++
++self = UtcDateTime(), value = datetime.datetime(2026, 3, 3, 0, 0)
++dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108a3ba70>
++
++    def process_bind_param(self, value, dialect):
++        if not isinstance(value, datetime.datetime):
++            if value is None:
++                return None
++            raise TypeError(f"expected datetime.datetime, not {value!r}")
++        elif value.tzinfo is None:
++>           raise ValueError("naive datetime is disallowed")
++E           ValueError: naive datetime is disallowed
++
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/utils/sqlalchemy.py:73: ValueError
++
++The above exception was the direct cause of the following exception:
++
++dagbag = <airflow.models.dagbag.DagBag object at 0x10a2906b0>
++tmp_path = PosixPath('<tmp>/pytest-of-user/pytest-854/test_shipments_daily_end_to_en0')
++monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a2e44d0>
++
++    @pytest.mark.usefixtures("airflow_db")
++    def test_shipments_daily_end_to_end(dagbag, tmp_path, monkeypatch):
++        """Run shipments_daily end-to-end on sample data for 2026-03-03.
++    
++        Verifies:
++        - DAG runs to success
++        - Output file is created with correct columns
++        - Late shipments are correct (4 expected, matching the logic tests)
++        - Output data is sorted by -days_late
++        """
++        dag = dagbag.dags["shipments_daily"]
++    
++        # Import the shipments_daily module to patch OUTPUT_DIR
++        import shipments_daily
++        monkeypatch.setattr(shipments_daily, "OUTPUT_DIR", tmp_path / "late_shipments")
++    
++        # Run the DAG for 2026-03-03 (execution_date on 2.11)
++>       dr = dag.test(execution_date=datetime(2026, 3, 3))
++             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++
++tests/test_shipments_daily_end_to_end.py:35: 
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/utils/session.py:97: in wrapper
++    return func(*args, session=session, **kwargs)
++           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/models/dag.py:3015: in test
++    self.clear(
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/utils/session.py:94: in wrapper
++    return func(*args, **kwargs)
++           ^^^^^^^^^^^^^^^^^^^^^
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/models/dag.py:2467: in clear
++    tis = self._get_task_instances(
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/models/dag.py:2055: in _get_task_instances
++    external_tasks = session.scalars(query.where(TI.operator == ExternalTaskMarker.__name__))
++                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/orm/session.py:1778: in scalars
++    return self.execute(
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/orm/session.py:1717: in execute
++    result = conn._execute_20(statement, params or {}, execution_options)
++             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1710: in _execute_20
++    return meth(self, args_10style, kwargs_10style, execution_options)
++           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/sql/elements.py:334: in _execute_on_connection
++    return connection._execute_clauseelement(
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1577: in _execute_clauseelement
++    ret = self._execute_context(
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1816: in _execute_context
++    self._handle_dbapi_exception(
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/base.py:2134: in _handle_dbapi_exception
++    util.raise_(
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/util/compat.py:211: in raise_
++    raise exception
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/base.py:1810: in _execute_context
++    context = constructor(
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/engine/default.py:1078: in _init_compiled
++    processors[key](compiled_params[key])
++../../../../airflow-2.11/lib/python3.12/site-packages/sqlalchemy/sql/type_api.py:1668: in process
++    return impl_processor(process_param(value, dialect))
++                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
++
++self = UtcDateTime(), value = datetime.datetime(2026, 3, 3, 0, 0)
++dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x108a3ba70>
++
++    def process_bind_param(self, value, dialect):
++        if not isinstance(value, datetime.datetime):
++            if value is None:
++                return None
++            raise TypeError(f"expected datetime.datetime, not {value!r}")
++        elif value.tzinfo is None:
++>           raise ValueError("naive datetime is disallowed")
++E           sqlalchemy.exc.StatementError: (builtins.ValueError) naive datetime is disallowed
++E           [SQL: SELECT task_instance.task_display_name, task_instance.task_id, task_instance.dag_id, task_instance.run_id, task_instance.map_index, task_instance.start_date, task_instance.end_date, task_instance.duration, task_instance.state, task_instance.try_number, task_instance.max_tries, task_instance.hostname, task_instance.unixname, task_instance.job_id, task_instance.pool, task_instance.pool_slots, task_instance.queue, task_instance.priority_weight, task_instance.operator, task_instance.custom_operator_name, task_instance.queued_dttm, task_instance.queued_by_job_id, task_instance.pid, task_instance.executor, task_instance.executor_config, task_instance.updated_at, task_instance.rendered_map_index, task_instance.external_executor_id, task_instance.trigger_id, task_instance.trigger_timeout, task_instance.next_method, task_instance.next_kwargs, dag_run_1.state AS state_1, dag_run_1.id, dag_run_1.dag_id AS dag_id_1, dag_run_1.queued_at, dag_run_1.execution_date, dag_run_1.start_date AS start_date_1, dag_run_1.end_date AS end_date_1, dag_run_1.run_id AS run_id_1, dag_run_1.creating_job_id, dag_run_1.external_trigger, dag_run_1.run_type, dag_run_1.conf, dag_run_1.data_interval_start, dag_run_1.data_interval_end, dag_run_1.last_scheduling_decision, dag_run_1.dag_hash, dag_run_1.log_template_id, dag_run_1.updated_at AS updated_at_1, dag_run_1.clear_number 
++E           FROM task_instance JOIN dag_run ON dag_run.dag_id = task_instance.dag_id AND dag_run.run_id = task_instance.run_id JOIN dag_run AS dag_run_1 ON dag_run_1.dag_id = task_instance.dag_id AND dag_run_1.run_id = task_instance.run_id 
++E           WHERE task_instance.dag_id = ? AND task_instance.task_id IN (__[POSTCOMPILE_task_id_1]) AND dag_run.execution_date >= ? AND dag_run.execution_date <= ? AND task_instance.operator = ?]
++E           [parameters: [{}]]
++
++../../../../airflow-2.11/lib/python3.12/site-packages/airflow/utils/sqlalchemy.py:73: StatementError
++=========================== short test summary info ============================
++FAILED tests/test_shipments_daily_end_to_end.py::test_shipments_daily_end_to_end
++========================= 1 failed, 15 passed in 1.63s =========================
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..fa0f199
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,73 @@
++"""Fixtures and configuration for Airflow DAG tests."""
++
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = (
++    f"sqlite:///{_TMP / 'airflow.db'}"
++)
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    """Load all DAGs from the dags/ folder."""
++    from airflow.models.dagbag import DagBag
++
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrate the throwaway metadata DB. Only dag.test() tests need it."""
++    subprocess.run(
++        [sys.executable, "-m", "airflow", "db", "migrate"],
++        check=True,
++        capture_output=True,
++    )
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    """Generate the next n scheduled run times for a DAG.
++
++    Args:
++        dag: The DAG to generate runs for
++        after: An aware datetime to start from
++        n: Number of runs to generate
++
++    Returns:
++        List of aware datetimes when the scheduler would trigger a run (run_after times).
++    """
++    from airflow.timetables.base import TimeRestriction
++
++    def _runs(dag, after, n):
++        tt = dag.timetable
++        restriction = TimeRestriction(
++            earliest=after, latest=None, catchup=True
++        )
++        last, runs = None, []
++        for _ in range(n):
++            info = tt.next_dagrun_info(
++                last_automated_data_interval=last, restriction=restriction
++            )
++            if info is None:
++                break
++            runs.append(info.run_after)
++            last = info.data_interval
++        return runs
++
++    return _runs
+diff --git a/tests/test_dag_imports.py b/tests/test_dag_imports.py
+new file mode 100644
+index 0000000..9f4f584
+--- /dev/null
++++ b/tests/test_dag_imports.py
+@@ -0,0 +1,18 @@
++"""Test that all DAGs in dags/ import without errors."""
++
++
++def test_all_dags_import(dagbag):
++    """Verify every DAG file imports and no import errors occurred."""
++    assert dagbag.import_errors == {}, f"DAG import errors: {dagbag.import_errors}"
++
++
++def test_expected_dag_ids_present(dagbag):
++    """Verify expected DAGs are present after successful import."""
++    expected_dag_ids = {"shipments_daily", "carrier_rates_weekly"}
++    actual_dag_ids = set(dagbag.dags.keys())
++    assert actual_dag_ids == expected_dag_ids, (
++        f"DAG mismatch. Expected: {expected_dag_ids}, "
++        f"Got: {actual_dag_ids}, "
++        f"Missing: {expected_dag_ids - actual_dag_ids}, "
++        f"Extra: {actual_dag_ids - expected_dag_ids}"
++    )
+diff --git a/tests/test_late_shipments_logic.py b/tests/test_late_shipments_logic.py
+new file mode 100644
+index 0000000..ae27f11
+--- /dev/null
++++ b/tests/test_late_shipments_logic.py
+@@ -0,0 +1,193 @@
++"""Test late-shipments business logic in shipments_daily."""
++
++import sys
++from pathlib import Path
++
++# Import the shipments_daily module to get the find_late_shipments function
++DAG_DIR = Path(__file__).resolve().parents[1] / "dags"
++sys.path.insert(0, str(DAG_DIR))
++
++from shipments_daily import find_late_shipments
++
++
++def test_late_shipments_delivered_after_promised_on_as_of_date():
++    """A shipment delivered on as_of after its promised date is late."""
++    rows = [
++        {
++            "shipment_id": "SH-1001",
++            "ship_date": "2026-02-26",
++            "carrier": "DHL",
++            "promised_date": "2026-03-02",
++            "delivered_date": "2026-03-03",
++        }
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 1
++    assert late[0]["shipment_id"] == "SH-1001"
++    assert late[0]["days_late"] == 1  # 2026-03-03 - 2026-03-02
++
++
++def test_late_shipments_undelivered_promised_before_as_of():
++    """An undelivered shipment with promised_date < as_of is late."""
++    rows = [
++        {
++            "shipment_id": "SH-1003",
++            "ship_date": "2026-02-25",
++            "carrier": "FedEx",
++            "promised_date": "2026-02-28",
++            "delivered_date": "",
++        }
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 1
++    assert late[0]["shipment_id"] == "SH-1003"
++    assert late[0]["days_late"] == 3  # 2026-03-03 - 2026-02-28
++
++
++def test_not_late_delivered_before_promised():
++    """A shipment delivered before promised is not late."""
++    rows = [
++        {
++            "shipment_id": "SH-1008",
++            "ship_date": "2026-03-02",
++            "carrier": "DHL",
++            "promised_date": "2026-03-04",
++            "delivered_date": "2026-03-03",
++        }
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 0
++
++
++def test_not_late_delivered_on_time():
++    """A shipment delivered on or before promised is not late."""
++    rows = [
++        {
++            "shipment_id": "SH-1002",
++            "ship_date": "2026-02-27",
++            "carrier": "UPS",
++            "promised_date": "2026-03-03",
++            "delivered_date": "2026-03-03",
++        }
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 0
++
++
++def test_not_late_undelivered_promised_future():
++    """An undelivered shipment with promised_date >= as_of is not late."""
++    rows = [
++        {
++            "shipment_id": "SH-1004",
++            "ship_date": "2026-03-01",
++            "carrier": "DHL",
++            "promised_date": "2026-03-03",
++            "delivered_date": "",
++        }
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 0
++
++
++def test_not_late_delivered_on_different_day():
++    """A shipment delivered on a day other than as_of is not late (even if late)."""
++    rows = [
++        {
++            "shipment_id": "SH-1005",
++            "ship_date": "2026-02-20",
++            "carrier": "UPS",
++            "promised_date": "2026-02-24",
++            "delivered_date": "2026-03-02",
++        }
++    ]
++    # Check on 2026-03-03 (delivered on 2026-03-02, not as_of)
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 0
++
++
++def test_skip_shipment_not_yet_shipped():
++    """A shipment with ship_date > as_of is skipped."""
++    rows = [
++        {
++            "shipment_id": "SH-1006",
++            "ship_date": "2026-03-04",
++            "carrier": "FedEx",
++            "promised_date": "2026-03-06",
++            "delivered_date": "",
++        }
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    assert len(late) == 0
++
++
++def test_late_shipments_sorted_by_days_late_desc_then_id():
++    """Late shipments are sorted by days_late (descending), then shipment_id."""
++    rows = [
++        {
++            "shipment_id": "SH-1009",
++            "ship_date": "2026-02-24",
++            "carrier": "DHL",
++            "promised_date": "2026-02-26",
++            "delivered_date": "",
++        },
++        {
++            "shipment_id": "SH-1003",
++            "ship_date": "2026-02-25",
++            "carrier": "FedEx",
++            "promised_date": "2026-02-28",
++            "delivered_date": "",
++        },
++        {
++            "shipment_id": "SH-1007",
++            "ship_date": "2026-02-28",
++            "carrier": "UPS",
++            "promised_date": "2026-03-01",
++            "delivered_date": "2026-03-03",
++        },
++        {
++            "shipment_id": "SH-1001",
++            "ship_date": "2026-02-26",
++            "carrier": "DHL",
++            "promised_date": "2026-03-02",
++            "delivered_date": "2026-03-03",
++        },
++    ]
++    late = find_late_shipments(rows, as_of="2026-03-03")
++    
++    # Should have all 4 as late
++    assert len(late) == 4
++    
++    # Check order: sorted by -days_late, then id
++    assert [r["shipment_id"] for r in late] == [
++        "SH-1009",  # 5 days
++        "SH-1003",  # 3 days
++        "SH-1007",  # 2 days
++        "SH-1001",  # 1 day
++    ]
++
++
++def test_late_shipments_days_late_calculation():
++    """days_late is calculated as (delivered or as_of) - promised_date."""
++    rows = [
++        {
++            "shipment_id": "SH-A",
++            "ship_date": "2026-01-01",
++            "carrier": "DHL",
++            "promised_date": "2026-01-05",
++            "delivered_date": "2026-01-10",
++        },
++        {
++            "shipment_id": "SH-B",
++            "ship_date": "2026-01-01",
++            "carrier": "UPS",
++            "promised_date": "2026-01-05",
++            "delivered_date": "",
++        },
++    ]
++    late = find_late_shipments(rows, as_of="2026-01-10")
++    
++    assert len(late) == 2
++    # SH-A delivered on 2026-01-10, promised 2026-01-05 -> 5 days
++    # SH-B undelivered, promised 2026-01-05, as_of 2026-01-10 -> 5 days
++    assert late[0]["days_late"] == 5
++    assert late[1]["days_late"] == 5
+diff --git a/tests/test_shipments_daily_dependencies.py b/tests/test_shipments_daily_dependencies.py
+new file mode 100644
+index 0000000..8031d48
+--- /dev/null
++++ b/tests/test_shipments_daily_dependencies.py
+@@ -0,0 +1,54 @@
++"""Test shipments_daily DAG task dependencies."""
++
++
++def test_shipments_daily_report_depends_on_extract(dagbag):
++    """Verify build_report task depends on extract_shipments (extract must run first)."""
++    dag = dagbag.dags["shipments_daily"]
++    report_task = dag.get_task("build_report")
++    
++    # build_report should depend on extract_shipments
++    upstream_task_ids = report_task.upstream_list
++    upstream_ids = {t.task_id for t in upstream_task_ids}
++    
++    assert "extract_shipments" in upstream_ids, (
++        f"build_report should depend on extract_shipments, "
++        f"but upstream tasks are: {upstream_ids}"
++    )
++
++
++def test_shipments_daily_task_order(dagbag):
++    """Verify the full task order: start >> extract_shipments >> build_report >> done."""
++    dag = dagbag.dags["shipments_daily"]
++    
++    # Verify each task's dependencies explicitly
++    start = dag.get_task("start")
++    extract = dag.get_task("extract_shipments")
++    report = dag.get_task("build_report")
++    done = dag.get_task("done")
++    
++    # start should have no upstream tasks
++    assert len(start.upstream_list) == 0, (
++        f"start should have no dependencies, but has: "
++        f"{[t.task_id for t in start.upstream_list]}"
++    )
++    
++    # extract should depend only on start
++    extract_upstream = {t.task_id for t in extract.upstream_list}
++    assert extract_upstream == {"start"}, (
++        f"extract_shipments should depend only on start, "
++        f"but depends on: {extract_upstream}"
++    )
++    
++    # report should depend only on extract
++    report_upstream = {t.task_id for t in report.upstream_list}
++    assert report_upstream == {"extract_shipments"}, (
++        f"build_report should depend only on extract_shipments, "
++        f"but depends on: {report_upstream}"
++    )
++    
++    # done should depend only on report
++    done_upstream = {t.task_id for t in done.upstream_list}
++    assert done_upstream == {"build_report"}, (
++        f"done should depend only on build_report, "
++        f"but depends on: {done_upstream}"
++    )
+diff --git a/tests/test_shipments_daily_end_to_end.py b/tests/test_shipments_daily_end_to_end.py
+new file mode 100644
+index 0000000..819fef3
+--- /dev/null
++++ b/tests/test_shipments_daily_end_to_end.py
+@@ -0,0 +1,104 @@
++"""End-to-end test of shipments_daily DAG on sample data."""
++
++import csv
++import shutil
++import sys
++from datetime import datetime
++from pathlib import Path
++from zoneinfo import ZoneInfo
++
++import pytest
++
++# DAG_DIR will be set in the test
++DAG_DIR = Path(__file__).resolve().parents[1] / "dags"
++
++
++@pytest.mark.usefixtures("airflow_db")
++def test_shipments_daily_end_to_end(tmp_path, monkeypatch):
++    """Run shipments_daily end-to-end on sample data for 2026-03-03.
++    
++    Verifies:
++    - DAG runs to success
++    - Output file is created with correct columns
++    - Late shipments are correct (4 expected, matching the logic tests)
++    - Output data is sorted by -days_late
++    """
++    from airflow.models.dagbag import DagBag
++    
++    # Add dags to path
++    if str(DAG_DIR) not in sys.path:
++        sys.path.insert(0, str(DAG_DIR))
++    
++    # Patch the environment variable/module constant directly in sys.modules
++    # BEFORE DagBag loads the file
++    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "late_shipments"))
++    
++    # Now load the DAG fresh — DagBag will read the file and execute it
++    # Use a fresh DagBag that doesn't use the session fixture's cache
++    dagbag = DagBag(dag_folder=str(DAG_DIR))
++    dag = dagbag.dags["shipments_daily"]
++    
++    # After DAG is loaded, import to get REPORT_COLUMNS
++    import shipments_daily
++    REPORT_COLUMNS = shipments_daily.REPORT_COLUMNS
++    
++    # Run the DAG for 2026-03-03 (execution_date on 2.11)
++    # Use UTC timezone for the datetime
++    dr = dag.test(execution_date=datetime(2026, 3, 3, tzinfo=ZoneInfo("UTC")))
++    
++    # Verify the DAG run succeeded
++    assert dr.state == "success", (
++        f"DAG run failed. State: {dr.state}. "
++        f"Task states: {[(t.task_id, t.state) for t in dr.get_task_instances()]}"
++    )
++    
++    # Verify the output file exists
++    output_file = tmp_path / "late_shipments" / "2026-03-03.csv"
++    assert output_file.exists(), f"Output file not created: {output_file}"
++    
++    # Read and verify the CSV
++    with output_file.open(newline="") as fh:
++        reader = csv.DictReader(fh)
++        rows = list(reader)
++    
++    # Should have 4 late shipments on 2026-03-03
++    assert len(rows) == 4, (
++        f"Expected 4 late shipments, got {len(rows)}: "
++        f"{[r['shipment_id'] for r in rows]}"
++    )
++    
++    # Verify column headers match REPORT_COLUMNS
++    actual_columns = set(rows[0].keys()) if rows else set()
++    expected_columns = set(REPORT_COLUMNS)
++    assert actual_columns == expected_columns, (
++        f"Column mismatch. Expected: {expected_columns}, Got: {actual_columns}"
++    )
++    
++    # Verify the shipment IDs and order
++    shipment_ids = [r["shipment_id"] for r in rows]
++    assert shipment_ids == ["SH-1009", "SH-1003", "SH-1007", "SH-1001"], (
++        f"Unexpected shipment order or IDs: {shipment_ids}. "
++        f"Expected: ['SH-1009', 'SH-1003', 'SH-1007', 'SH-1001']"
++    )
++    
++    # Verify days_late values are correct and in descending order
++    days_late_values = [int(r["days_late"]) for r in rows]
++    assert days_late_values == [5, 3, 2, 1], (
++        f"Unexpected days_late values: {days_late_values}. "
++        f"Expected: [5, 3, 2, 1]"
++    )
++    
++    # Spot-check a few specific rows
++    row_0 = rows[0]
++    assert row_0["shipment_id"] == "SH-1009"
++    assert row_0["carrier"] == "DHL"
++    assert row_0["promised_date"] == "2026-02-26"
++    assert row_0["delivered_date"] == ""
++    assert row_0["days_late"] == "5"
++    
++    row_3 = rows[3]
++    assert row_3["shipment_id"] == "SH-1001"
++    assert row_3["carrier"] == "DHL"
++    assert row_3["promised_date"] == "2026-03-02"
++    assert row_3["delivered_date"] == "2026-03-03"
++    assert row_3["days_late"] == "1"
+diff --git a/tests/test_shipments_daily_schedule.py b/tests/test_shipments_daily_schedule.py
+new file mode 100644
+index 0000000..cbf831a
+--- /dev/null
++++ b/tests/test_shipments_daily_schedule.py
+@@ -0,0 +1,29 @@
++"""Test shipments_daily DAG schedule: 07:30 UTC, Monday-Friday only."""
++
++from datetime import datetime, timezone
++
++
++def test_shipments_daily_schedule_0730_utc_weekdays(dagbag, upcoming_runs):
++    """Verify shipments_daily runs at 07:30 UTC on weekdays (Mon-Fri) only."""
++    dag = dagbag.dags["shipments_daily"]
++    
++    # Generate the next 10 runs starting from 2026-01-01
++    runs = upcoming_runs(dag, datetime(2026, 1, 1, tzinfo=timezone.utc), 10)
++    
++    # Should have 10 runs (all should fall on weekdays)
++    assert len(runs) == 10, f"Expected 10 runs, got {len(runs)}"
++    
++    # All runs should be on weekdays (Monday=0, ..., Friday=4)
++    weekdays = {r.weekday() for r in runs}
++    assert weekdays == {0, 1, 2, 3, 4}, (
++        f"Expected runs only on Mon-Fri (weekdays 0-4), "
++        f"but got weekdays: {weekdays}"
++    )
++    
++    # All runs should be at exactly 07:30 UTC
++    for run in runs:
++        assert run.hour == 7, f"Expected hour=7, got {run.hour} for {run}"
++        assert run.minute == 30, f"Expected minute=30, got {run.minute} for {run}"
++        assert run.utcoffset().total_seconds() == 0, (
++            f"Expected UTC (offset=0), got offset={run.utcoffset()} for {run}"
++        )
+diff --git a/tests/test_task_retries.py b/tests/test_task_retries.py
+new file mode 100644
+index 0000000..d949a66
+--- /dev/null
++++ b/tests/test_task_retries.py
+@@ -0,0 +1,18 @@
++"""Test that every task in every DAG has at least 2 retries."""
++
++
++def test_all_tasks_have_minimum_retries(dagbag):
++    """Verify every task in every DAG has retries >= 2."""
++    failures = []
++    for dag_id, dag in dagbag.dags.items():
++        for task in dag.tasks:
++            if task.retries < 2:
++                failures.append(
++                    f"  DAG '{dag_id}', task '{task.task_id}': "
++                    f"retries={task.retries} (need >= 2)"
++                )
++
++    assert not failures, (
++        "Some tasks do not have minimum 2 retries:\n"
++        + "\n".join(failures)
++    )

@@ -1,0 +1,161 @@
+{
+  "status": "turn_limit",
+  "reason": "max turns reached",
+  "primary_pass": false,
+  "primary_score": 0.8888888888888888,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 3.752377,
+  "cost_reported_usd": 3.752377,
+  "wall_s": 1511.3,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-062054/hard-migration-meter-rollups-9y0t9yxl/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 1,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 3.752377,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 160,
+    "output": 56296,
+    "reasoning": 30382,
+    "cache_read": 7717167,
+    "cache_write": 135298,
+    "total": 7908921
+  },
+  "steps": 81,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 3.752377,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 160,
+      "outputTokens": 56296,
+      "cacheReadInputTokens": 7717167,
+      "cacheCreationInputTokens": 135298,
+      "webSearchRequests": 0,
+      "costUSD": 3.7523774000000016,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 30382,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 81,
+  "result_subtype": "error_max_turns",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 38,
+        "tool": "bash",
+        "path": "<tmp>/mig.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 38,
+        "tool": "bash",
+        "path": "<tmp>/mig.log",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 66,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "L=$PWD/../tmp; pkill -f \"airflow standalone\"; sleep 8; pkill -f \"airflow (scheduler|api-server|dag-processor|triggerer)\"; sleep 3; pgrep -fl airflow | head -3; export AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/plugins AIRFLOW__METERING__INVOICE_DROPBOX=$L/dropbox AIRFLOW__API__PORT=18080 AIRFLOW__CORE__EXEC",
+        "output": "pkill: signalling pid 30209: Operation not permitted\npkill: signalling pid 93775: Operation not permitted\npkill: signalling pid 94512: Operation not permitted\npkill: signalling pid 94514: Operation no"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "budget-exhausted",
+    "why_model_stopped": "tool_use",
+    "done_reason": "error_max_turns"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 77,
+  "edited_files": 1,
+  "errors": [
+    "error_max_turns: Reached maximum number of turns (80)"
+  ],
+  "trace_path": null
+}

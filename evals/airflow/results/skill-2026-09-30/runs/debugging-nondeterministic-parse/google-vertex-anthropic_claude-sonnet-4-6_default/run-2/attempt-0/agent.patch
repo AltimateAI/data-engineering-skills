@@ -1,0 +1,39 @@
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..4c99a30 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -11,7 +11,7 @@ import json
+ import os
+ import time
+ import urllib.request
+-from datetime import datetime, timedelta
++from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+@@ -45,8 +45,11 @@ def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+     return json.loads(CATALOG_SNAPSHOT.read_text())
+ 
+ 
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++# Read the static snapshot at parse time: no network call, stable ordering.
++# The snapshot is refreshed by the deploy pipeline on every release.
++# De-duplicate and sort so the task list is identical on every parse (prevents
++# spurious new DAG versions from set() non-determinism or snapshot duplicates).
++TABLES: list[str] = sorted(set(json.loads(CATALOG_SNAPSHOT.read_text())))
+ 
+ 
+ def load_table(table: str) -> int:
+@@ -64,9 +67,9 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
++    description=f"Load {len(TABLES)} raw tables from the catalog snapshot",
+     schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    start_date=datetime(2026, 1, 1),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+ ):

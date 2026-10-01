@@ -1,0 +1,23 @@
+name: payments_spend
+team: payments
+tier: standard
+description: Spend pipeline for payments
+schedule:
+  hour: 1
+  days: '*'
+retries: 1
+steps:
+- name: extract
+  table: payments.raw_spend_00
+- name: transform
+  table: payments.int_spend_00
+  depends_on:
+  - extract
+- name: enrich
+  table: payments.int_spend_00
+  depends_on:
+  - transform
+- name: publish
+  table: payments.mart_spend_00
+  depends_on:
+  - enrich

@@ -1,0 +1,184 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 1.449262,
+  "cost_reported_usd": 1.449262,
+  "wall_s": 2073.2,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-022921/hard-migration-meter-rollups-ljff24l1/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 6.0,
+  "cost_list_price_usd": 1.449262,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 112,
+    "output": 35642,
+    "reasoning": 14651,
+    "cache_read": 3715530,
+    "cache_write": 87378,
+    "total": 3838662
+  },
+  "steps": 56,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 1.449262,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 112,
+      "outputTokens": 35642,
+      "cacheReadInputTokens": 3715530,
+      "cacheCreationInputTokens": 87378,
+      "webSearchRequests": 0,
+      "costUSD": 1.4492619999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 14651,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 56,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": true,
+    "hits": [
+      {
+        "call": 13,
+        "tool": "bash",
+        "path": "<tmp>/meter_dropbox",
+        "root": "shared-temp"
+      }
+    ],
+    "denied_hits": [
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/af_home",
+        "root": "shared-temp"
+      },
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/meter_dropbox",
+        "root": "shared-temp"
+      },
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/af_home",
+        "root": "shared-temp"
+      },
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/meter_dropbox",
+        "root": "shared-temp"
+      },
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/af_home",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 18,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f \"airflow\" ; sleep 3; ps aux | grep -c \"[a]irflow\"; lsof -i :8793 -i :8080 2>/dev/null | head",
+        "output": "pkill: signalling pid 22570: Operation not permitted\npkill: signalling pid 22601: Operation not permitted\npkill: signalling pid 28919: Operation not permitted\npkill: signalling pid 28924: Operation no"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": true,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 55,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

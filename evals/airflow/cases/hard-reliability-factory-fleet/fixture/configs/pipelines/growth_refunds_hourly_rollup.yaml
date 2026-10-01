@@ -1,0 +1,38 @@
+name: growth_refunds_hourly_rollup
+team: growth
+tier: standard
+description: Refunds pipeline for growth
+schedule:
+  hour: 0
+  days: 1-5
+retries: 1
+steps:
+- name: extract
+  table: growth.raw_refunds_00
+- name: stage
+  table: growth.stg_refunds_00
+  depends_on:
+  - extract
+- name: validate
+  table: growth.int_refunds_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: growth.int_refunds_00
+  depends_on:
+  - validate
+- name: enrich
+  table: growth.int_refunds_00
+  depends_on:
+  - transform
+  - validate
+- name: snapshot
+  table: growth.int_refunds_00
+  depends_on:
+  - enrich
+  - transform
+- name: publish
+  table: growth.mart_refunds_00
+  depends_on:
+  - snapshot

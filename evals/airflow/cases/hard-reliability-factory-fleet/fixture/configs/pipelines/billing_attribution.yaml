@@ -1,0 +1,32 @@
+name: billing_attribution
+team: billing
+tier: standard
+description: Attribution pipeline for billing
+schedule:
+  hour: 4
+  days: '1'
+retries: 0
+steps:
+- name: extract
+  table: billing.raw_attribution_00
+- name: stage
+  table: billing.stg_attribution_00
+  depends_on:
+  - extract
+- name: validate
+  table: billing.int_attribution_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: billing.int_attribution_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: billing.int_attribution_00
+  depends_on:
+  - transform
+- name: publish
+  table: billing.mart_attribution_00
+  depends_on:
+  - aggregate

@@ -1,0 +1,444 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/test_dags.py b/tests/test_dags.py
+new file mode 100644
+index 0000000..2a9fb5a
+--- /dev/null
++++ b/tests/test_dags.py
+@@ -0,0 +1,435 @@
++"""pytest suite for the Airflow 2.11 DAG repository.
++
++Covers:
++- All DAG files in dags/ import cleanly (no syntax / import errors).
++- shipments_daily schedule: weekdays only, 07:30 UTC.
++- Every task in every DAG has at least 2 retries.
++- shipments_daily task order: extract_shipments must precede build_report.
++- Late-shipment business logic (unit tests for find_late_shipments).
++- End-to-end run of shipments_daily on the sample data for 2026-03-03.
++
++No scheduler, webserver, or real database is started; tasks are driven
++directly through their Python callables.
++"""
++
++from __future__ import annotations
++
++import csv
++import sys
++import tempfile
++from pathlib import Path
++from unittest.mock import MagicMock
++
++import pytest
++from croniter import croniter
++
++# ---------------------------------------------------------------------------
++# Make dags/ importable so we can import helpers directly.
++# ---------------------------------------------------------------------------
++REPO_ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = REPO_ROOT / "dags"
++sys.path.insert(0, str(DAGS_DIR))
++
++from airflow.models import DagBag  # noqa: E402 – must come after sys.path tweak
++
++
++# ---------------------------------------------------------------------------
++# Shared fixture: load every DAG exactly once per test session.
++# ---------------------------------------------------------------------------
++@pytest.fixture(scope="session")
++def dagbag() -> DagBag:
++    """Return a DagBag loaded from the repo's dags/ directory."""
++    bag = DagBag(dag_folder=str(DAGS_DIR), include_examples=False)
++    return bag
++
++
++# ===========================================================================
++# 1. DAG import health – every file in dags/ must load without errors.
++# ===========================================================================
++class TestDagImports:
++    def test_no_import_errors(self, dagbag: DagBag) -> None:
++        """DagBag.import_errors must be empty for all files in dags/."""
++        errors = dagbag.import_errors
++        assert errors == {}, (
++            "The following DAG files have import errors:\n"
++            + "\n".join(f"  {path}: {msg}" for path, msg in errors.items())
++        )
++
++    def test_all_dag_files_loaded(self, dagbag: DagBag) -> None:
++        """Every .py file found in dags/ should appear in the DagBag."""
++        dag_files = [p.name for p in DAGS_DIR.glob("*.py") if not p.name.startswith("_")]
++        # If a file failed to import it would show up in import_errors (covered
++        # above), but we also want to be sure the files are actually present.
++        assert len(dag_files) > 0, "Expected at least one DAG file in dags/"
++
++
++# ===========================================================================
++# 2. shipments_daily schedule: 07:30 UTC, Monday-Friday only.
++# ===========================================================================
++class TestShipmentsDailySchedule:
++    CRON_EXPR = "30 7 * * 1-5"
++
++    @pytest.fixture(autouse=True)
++    def _dag(self, dagbag: DagBag) -> None:
++        self.dag = dagbag.dags["shipments_daily"]
++
++    def test_schedule_cron_string(self) -> None:
++        """DAG schedule must equal '30 7 * * 1-5'."""
++        assert self.dag.schedule_interval == self.CRON_EXPR, (
++            f"Expected schedule '30 7 * * 1-5', got '{self.dag.schedule_interval}'"
++        )
++
++    def test_runs_only_on_weekdays(self) -> None:
++        """The cron expression must never fire on Saturday (5) or Sunday (6)."""
++        from datetime import datetime
++
++        cron = croniter(self.CRON_EXPR, datetime(2026, 1, 1))
++        for _ in range(100):
++            run_time = cron.get_next(datetime)
++            assert run_time.weekday() < 5, (
++                f"Schedule fired on a weekend: {run_time} (weekday={run_time.weekday()})"
++            )
++
++    def test_fires_at_0730_utc(self) -> None:
++        """Every scheduled run must be at 07:30 UTC."""
++        from datetime import datetime
++
++        cron = croniter(self.CRON_EXPR, datetime(2026, 1, 1))
++        for _ in range(100):
++            run_time = cron.get_next(datetime)
++            assert (run_time.hour, run_time.minute) == (7, 30), (
++                f"Expected 07:30, got {run_time.hour:02d}:{run_time.minute:02d} on {run_time}"
++            )
++
++
++# ===========================================================================
++# 3. Every task in every DAG must have at least 2 retries.
++# ===========================================================================
++class TestRetries:
++    def test_all_tasks_have_minimum_retries(self, dagbag: DagBag) -> None:
++        """Each task across every DAG must configure retries >= 2."""
++        failures: list[str] = []
++        for dag_id, dag in dagbag.dags.items():
++            for task in dag.tasks:
++                retries = task.retries
++                if retries is None or retries < 2:
++                    failures.append(
++                        f"DAG '{dag_id}' / task '{task.task_id}': retries={retries}"
++                    )
++        assert failures == [], (
++            "The following tasks have fewer than 2 retries:\n"
++            + "\n".join(f"  {f}" for f in failures)
++        )
++
++
++# ===========================================================================
++# 4. shipments_daily task ordering: extract before report.
++# ===========================================================================
++class TestShipmentsDailyOrdering:
++    @pytest.fixture(autouse=True)
++    def _dag(self, dagbag: DagBag) -> None:
++        self.dag = dagbag.dags["shipments_daily"]
++
++    def test_extract_is_upstream_of_build_report(self) -> None:
++        """build_report must have extract_shipments in its upstream set."""
++        build_report_task = self.dag.get_task("build_report")
++        upstream_ids = {t.task_id for t in build_report_task.upstream_list}
++        assert "extract_shipments" in upstream_ids, (
++            f"'extract_shipments' is not upstream of 'build_report'. "
++            f"Actual upstream: {upstream_ids}"
++        )
++
++    def test_build_report_not_upstream_of_extract(self) -> None:
++        """extract_shipments must NOT depend on build_report (no cycle / reversal)."""
++        extract_task = self.dag.get_task("extract_shipments")
++        upstream_ids = {t.task_id for t in extract_task.upstream_list}
++        assert "build_report" not in upstream_ids, (
++            "'build_report' should not be upstream of 'extract_shipments'"
++        )
++
++
++# ===========================================================================
++# 5. Late-shipment business logic (unit tests).
++# ===========================================================================
++class TestFindLateShipments:
++    """Unit-test the find_late_shipments() helper directly."""
++
++    @pytest.fixture(autouse=True)
++    def _import(self) -> None:
++        from shipments_daily import find_late_shipments  # type: ignore[import]
++
++        self.find_late = find_late_shipments
++
++    # -----------------------------------------------------------------------
++    # 5a. Delivered on as_of after promised date → late
++    # -----------------------------------------------------------------------
++    def test_delivered_today_after_promised_is_late(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X1",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-02",
++                "delivered_date": "2026-03-03",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert len(result) == 1
++        assert result[0]["shipment_id"] == "X1"
++        assert result[0]["days_late"] == 1
++
++    # -----------------------------------------------------------------------
++    # 5b. Delivered on as_of exactly on promised date → NOT late
++    # -----------------------------------------------------------------------
++    def test_delivered_today_on_promised_not_late(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X2",
++                "ship_date": "2026-03-01",
++                "carrier": "UPS",
++                "promised_date": "2026-03-03",
++                "delivered_date": "2026-03-03",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert result == []
++
++    # -----------------------------------------------------------------------
++    # 5c. Delivered before as_of (regardless of promised date) → NOT counted
++    #     (only shipments delivered exactly on as_of are evaluated for lateness)
++    # -----------------------------------------------------------------------
++    def test_delivered_before_today_not_counted(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X3",
++                "ship_date": "2026-02-20",
++                "carrier": "UPS",
++                "promised_date": "2026-02-24",
++                "delivered_date": "2026-03-02",  # delivered yesterday, not today
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert result == []
++
++    # -----------------------------------------------------------------------
++    # 5d. Still undelivered, promised before as_of → late
++    # -----------------------------------------------------------------------
++    def test_undelivered_promised_before_today_is_late(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X4",
++                "ship_date": "2026-02-25",
++                "carrier": "FedEx",
++                "promised_date": "2026-02-28",
++                "delivered_date": "",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert len(result) == 1
++        assert result[0]["shipment_id"] == "X4"
++        assert result[0]["days_late"] == 3  # 2026-02-28 → 2026-03-03
++
++    # -----------------------------------------------------------------------
++    # 5e. Still undelivered, promised == as_of → NOT late (>= guard)
++    # -----------------------------------------------------------------------
++    def test_undelivered_promised_equals_today_not_late(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X5",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-03",
++                "delivered_date": "",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert result == []
++
++    # -----------------------------------------------------------------------
++    # 5f. Still undelivered, promised after as_of → NOT late
++    # -----------------------------------------------------------------------
++    def test_undelivered_promised_after_today_not_late(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X6",
++                "ship_date": "2026-03-02",
++                "carrier": "FedEx",
++                "promised_date": "2026-03-05",
++                "delivered_date": "",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert result == []
++
++    # -----------------------------------------------------------------------
++    # 5g. Shipment whose ship_date is after as_of is excluded entirely
++    # -----------------------------------------------------------------------
++    def test_future_shipment_excluded(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X7",
++                "ship_date": "2026-03-04",  # in the future
++                "carrier": "FedEx",
++                "promised_date": "2026-03-06",
++                "delivered_date": "",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert result == []
++
++    # -----------------------------------------------------------------------
++    # 5h. days_late uses delivery date (not as_of) for delivered shipments
++    # -----------------------------------------------------------------------
++    def test_days_late_uses_delivery_date_for_delivered(self) -> None:
++        rows = [
++            {
++                "shipment_id": "X8",
++                "ship_date": "2026-02-28",
++                "carrier": "UPS",
++                "promised_date": "2026-03-01",
++                "delivered_date": "2026-03-03",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert len(result) == 1
++        # days_late = delivered_date - promised_date = 2026-03-03 - 2026-03-01 = 2
++        assert result[0]["days_late"] == 2
++
++    # -----------------------------------------------------------------------
++    # 5i. Sorting: worst first (highest days_late), tie-break by shipment_id
++    # -----------------------------------------------------------------------
++    def test_result_sorted_worst_first(self) -> None:
++        rows = [
++            {
++                "shipment_id": "A1",
++                "ship_date": "2026-02-25",
++                "carrier": "DHL",
++                "promised_date": "2026-02-28",
++                "delivered_date": "",
++            },
++            {
++                "shipment_id": "A2",
++                "ship_date": "2026-02-26",
++                "carrier": "DHL",
++                "promised_date": "2026-03-02",
++                "delivered_date": "2026-03-03",
++            },
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert len(result) == 2
++        assert result[0]["shipment_id"] == "A1"  # 3 days late
++        assert result[1]["shipment_id"] == "A2"  # 1 day late
++
++    # -----------------------------------------------------------------------
++    # 5j. Empty input → empty output
++    # -----------------------------------------------------------------------
++    def test_empty_input(self) -> None:
++        assert self.find_late([], as_of="2026-03-03") == []
++
++    # -----------------------------------------------------------------------
++    # 5k. No late shipments → empty output
++    # -----------------------------------------------------------------------
++    def test_no_late_shipments(self) -> None:
++        rows = [
++            {
++                "shipment_id": "Z1",
++                "ship_date": "2026-03-01",
++                "carrier": "DHL",
++                "promised_date": "2026-03-03",
++                "delivered_date": "2026-03-03",
++            }
++        ]
++        result = self.find_late(rows, as_of="2026-03-03")
++        assert result == []
++
++
++# ===========================================================================
++# 6. End-to-end run of shipments_daily for 2026-03-03 on sample data.
++# ===========================================================================
++class TestShipmentsDailyEndToEnd:
++    """Drive extract_shipments and build_report directly, without a scheduler.
++
++    Expected late shipments for 2026-03-03 (from data/shipments.csv):
++
++    SH-1001  DHL    promised 2026-03-02  delivered 2026-03-03  days_late=1
++    SH-1003  FedEx  promised 2026-02-28  undelivered           days_late=3
++    SH-1007  UPS    promised 2026-03-01  delivered 2026-03-03  days_late=2
++    SH-1009  DHL    promised 2026-02-26  undelivered           days_late=5
++
++    Sorted by (-days_late, shipment_id):  SH-1009, SH-1003, SH-1007, SH-1001
++    """
++
++    RUN_DATE = "2026-03-03"
++
++    EXPECTED = [
++        {
++            "shipment_id": "SH-1009",
++            "carrier": "DHL",
++            "promised_date": "2026-02-26",
++            "delivered_date": "",
++            "days_late": "5",
++        },
++        {
++            "shipment_id": "SH-1003",
++            "carrier": "FedEx",
++            "promised_date": "2026-02-28",
++            "delivered_date": "",
++            "days_late": "3",
++        },
++        {
++            "shipment_id": "SH-1007",
++            "carrier": "UPS",
++            "promised_date": "2026-03-01",
++            "delivered_date": "2026-03-03",
++            "days_late": "2",
++        },
++        {
++            "shipment_id": "SH-1001",
++            "carrier": "DHL",
++            "promised_date": "2026-03-02",
++            "delivered_date": "2026-03-03",
++            "days_late": "1",
++        },
++    ]
++
++    def test_end_to_end(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
++        """Run extract then build_report; assert the CSV matches expectations."""
++        import shipments_daily as sd  # type: ignore[import]
++
++        # Redirect OUTPUT_DIR to a temp directory so we don't pollute the repo.
++        output_dir = tmp_path / "late_shipments"
++        monkeypatch.setattr(sd, "OUTPUT_DIR", output_dir)
++
++        # --- Step 1: extract ---
++        rows = sd.extract_shipments()
++        assert isinstance(rows, list)
++        assert len(rows) > 0, "extract_shipments() returned no rows"
++
++        # --- Step 2: build_report (mock only the xcom_pull part) ---
++        mock_ti = MagicMock()
++        mock_ti.xcom_pull.return_value = rows
++
++        out_path = sd.build_report(ds=self.RUN_DATE, ti=mock_ti)
++
++        # --- Verify the output CSV ---
++        assert Path(out_path).exists(), f"Output file not created: {out_path}"
++
++        with open(out_path, newline="") as fh:
++            actual = list(csv.DictReader(fh))
++
++        # Check row count
++        assert len(actual) == len(self.EXPECTED), (
++            f"Expected {len(self.EXPECTED)} late shipments, got {len(actual)}.\n"
++            f"Actual rows: {actual}"
++        )
++
++        # Check each row (shipment_id, carrier, promised_date, delivered_date, days_late)
++        for i, (exp, got) in enumerate(zip(self.EXPECTED, actual)):
++            for col in ("shipment_id", "carrier", "promised_date", "delivered_date"):
++                assert got[col] == exp[col], (
++                    f"Row {i}: column '{col}': expected {exp[col]!r}, got {got[col]!r}"
++                )
++            assert int(got["days_late"]) == int(exp["days_late"]), (
++                f"Row {i} ({got['shipment_id']}): "
++                f"days_late expected {exp['days_late']}, got {got['days_late']}"
++            )

@@ -1,0 +1,185 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 10.505214,
+  "cost_reported_usd": 10.505214,
+  "wall_s": 1883.9,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-090141/hard-deferrable-sensor-retry-budget-sixyj74z/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 30.0,
+  "cost_list_price_usd": 10.505214,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 1538,
+    "output": 103990,
+    "reasoning": 63563,
+    "cache_read": 5609338,
+    "cache_write": 194400,
+    "total": 5909266
+  },
+  "steps": 49,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 10.505214,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 1538,
+      "outputTokens": 103990,
+      "cacheReadInputTokens": 5609338,
+      "cacheCreationInputTokens": 194400,
+      "webSearchRequests": 0,
+      "costUSD": 10.5052145,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 63563,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 49,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-fable-5-1",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 33,
+        "tool": "bash",
+        "path": "<tmp>/pm-e2e",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 34,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f manifest_stub.py 2>/dev/null; sleep 0.5; WS=\"<work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-090141/hard-deferrable-sensor-retry-budget-sixyj74z/ws\"; E2E=\"$(dirname \"$AIRFLOW_HOME\")/pm-e2e\"; rm -rf \"$E2E\"; mkdir -p \"$E2E/dags\" \"$E2E/",
+        "output": "stub a port 52957\nstub b port 52958\nstub c port 52959\nstub d port 52960\nstub e port 52961\nmigrate exit 0 : 2026-10-01T16:19:26.622354Z [info     ] Database migration done!       [airflow.cli.commands."
+      },
+      {
+        "call": 36,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "E2E=\"$(dirname \"$AIRFLOW_HOME\")/pm-e2e\"; source \"$E2E/env.sh\"\nfor i in $(seq 1 60); do [ -s \"$E2E/stubs/d.jsonl\" ] && break; sleep 1; done\necho \"stub d first request at $(head -1 \"$E2E/stubs/d.jsonl\" | python -c 'import sys,json,datetime; print(datetime.datetime.fromtimestamp(json.load(sys.stdin)[\"t",
+        "output": "head: <work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-090141/hard-deferrable-sensor-retry-budget-sixyj74z/pm-e2e/stubs/d.jsonl: No such file o"
+      },
+      {
+        "call": 38,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "E2E=\"$(dirname \"$AIRFLOW_HOME\")/pm-e2e\"; source \"$E2E/env.sh\"\nairflow dags unpause e2e_manifest -o plain 2>/dev/null | tail -2; echo \"unpaused at $(date -u +%T)\"\nfor i in $(seq 1 120); do [ -s \"$E2E/stubs/d.jsonl\" ] && break; sleep 1; done\n[ -s \"$E2E/stubs/d.jsonl\" ] || { echo \"stub d still has no r",
+        "output": "dag_id        is_paused\ne2e_manifest  True\nunpaused at 16:22:54\nstub d still has no requests\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/opt/homebrew/Cellar/pyth"
+      },
+      {
+        "call": 40,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "E2E=\"$(dirname \"$AIRFLOW_HOME\")/pm-e2e\"; source \"$E2E/env.sh\"\nsed -i '' 's/PartnerManifestSensor(task_id=\"\\([a-z_]*\\)\", partner=\"\\([a-z]*\\)\",/PartnerManifestSensor(task_id=\"\\1\", partner=\"\\2\", ds=\"2026-09-30\",/' \"$E2E/dags/e2e_manifest.py\"; grep -c 'ds=\"2026-09-30\"' \"$E2E/dags/e2e_manifest.py\"\nfor i ",
+        "output": "6\nre-parsed after ~4s\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework/Versions/3.12/lib/python3.12"
+      },
+      {
+        "call": 46,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "E2E=\"$(dirname \"$AIRFLOW_HOME\")/pm-e2e\"\necho \"AIRFLOW_HOME before cleanup:\"; ls -A \"$AIRFLOW_HOME\"\nfor pf in \"$E2E/standalone.pid\" \"$E2E/triggerer3.pid\" \"$E2E\"/stubs/*.pid; do [ -f \"$pf\" ] || continue; P=$(cat \"$pf\"); pkill -TERM -P \"$P\" 2>/dev/null; kill -TERM \"$P\" 2>/dev/null; done\nsleep 5\nfor pf ",
+        "output": "AIRFLOW_HOME before cleanup:\nairflow.cfg\nairflow.db\nairflow.db-shm\nairflow.db-wal\nlogs\n(eval):6: operation not permitted: ps\nremaining e2e processes from this run: 0\n33622 /opt/homebrew/Cellar/python@"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 48,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

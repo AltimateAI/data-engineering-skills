@@ -1,0 +1,91 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..c8e587a
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,85 @@
++"""Wait for the day's carrier file, load it into the warehouse and publish the carrier report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import Param, Variable, dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++# The run fires at 06:00 UTC and processes its own day; the file must arrive by the end of that day.
++END_OF_DAY_SECONDS = 18 * 60 * 60
++
++
++def landing_file(day: str) -> Path:
++    return Path(Variable.get("vendor_landing_dir")) / f"shipments_{day}.csv"
++
++
++@dag(
++    schedule=CronTriggerTimetable("0 6 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=1,
++    params={"day": Param(None, type=["null", "string"], format="date")},
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    @task
++    def resolve_day(dag_run=None, params=None):
++        # Scheduled, backfill and manual runs (no logical date on 3.x) all resolve to the run's own UTC day;
++        # a `day` param overrides it to reprocess a specific date.
++        if params.get("day"):
++            return pendulum.parse(params["day"]).to_date_string()
++        anchor = dag_run.logical_date or dag_run.run_after
++        return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++    # Reschedule mode frees the worker slot between pokes; fail if the file isn't there by end of day.
++    @task.sensor(poke_interval=600, timeout=END_OF_DAY_SECONDS, mode="reschedule")
++    def wait_for_file(day: str):
++        return landing_file(day).exists()
++
++    @task
++    def load_shipments(day: str):
++        import duckdb
++
++        path = str(landing_file(day))
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute("BEGIN")
++            con.execute(
++                "CREATE TABLE IF NOT EXISTS vendor_shipments AS "
++                "SELECT *, CAST(? AS DATE) AS ship_date FROM read_csv_auto(?) WHERE false",
++                [day, path],
++            )
++            # Replace the day's rows so a rerun never duplicates them.
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [day])
++            con.execute(
++                "INSERT INTO vendor_shipments BY NAME "
++                "SELECT *, CAST(? AS DATE) AS ship_date FROM read_csv_auto(?)",
++                [day, path],
++            )
++            con.execute("COMMIT")
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [day]
++            ).fetchone()[0]
++
++    day = resolve_day()
++    publish_report = BashOperator(
++        task_id="publish_report",
++        bash_command=(
++            f"bash {PROJECT_ROOT}/scripts/publish_shipments_report.sh "
++            "{{ ti.xcom_pull(task_ids='resolve_day') }}"
++        ),
++    )
++
++    wait_for_file(day) >> load_shipments(day) >> publish_report
++
++
++vendor_shipments()

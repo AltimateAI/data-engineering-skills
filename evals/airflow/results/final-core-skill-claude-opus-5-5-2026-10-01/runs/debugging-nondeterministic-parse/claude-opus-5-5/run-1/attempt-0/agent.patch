@@ -1,0 +1,95 @@
+diff --git a/README.md b/README.md
+index a3b31a4..d2d5cb4 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,8 @@ Airflow 3.3 DAGs that load the nightly raw extracts (`data/raw/*.csv`) into the
+ DuckDB warehouse (`warehouse/warehouse.duckdb`).
+ 
+ - `dags/warehouse_ingest.py`: one `load_<table>` task per table registered in
+-  the platform team's catalog service (`CATALOG_URL`).
++  the platform team's catalog service, read from the `config/tables.json`
++  snapshot (the DAG never calls the service at parse time).
+ - `config/tables.json`: copy of the catalog that the deploy pipeline refreshes
+   on every release.
+ 
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..bb4f0f2 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -3,50 +3,41 @@
+ One load task per table registered in the platform team's catalog service.
+ DuckDB allows a single writer, so the loads run one after another between
+ `start` and `done`.
++
++The table list comes from `config/tables.json`, the catalog snapshot the deploy
++pipeline refreshes on every release. The DAG processor re-parses this file every
++few seconds, so it must not call the catalog service or read the clock: either
++would make every parse slow and produce a new DAG version.
+ """
+ 
+ from __future__ import annotations
+ 
+ import json
+-import os
+-import time
+-import urllib.request
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
++import pendulum
+ from airflow.providers.standard.operators.empty import EmptyOperator
+ from airflow.providers.standard.operators.python import PythonOperator
+-from airflow.sdk import DAG, chain
++from airflow.sdk import DAG, CronTriggerTimetable, chain
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_ROOT / "data" / "raw"
+ WAREHOUSE_DB = PROJECT_ROOT / "warehouse" / "warehouse.duckdb"
+-CATALOG_URL = os.environ.get(
+-    "CATALOG_URL", "http://localhost:8765/api/v1/tables?domain=warehouse"
+-)
+ # Copy of the catalog response, refreshed by the deploy pipeline on every release.
+ CATALOG_SNAPSHOT = PROJECT_ROOT / "config" / "tables.json"
+ 
+ 
+-def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+-    """Tables registered in the catalog for the warehouse domain.
++def list_tables() -> list[str]:
++    """Tables in the deployed catalog snapshot, de-duplicated, in file order.
+ 
+-    Retries with exponential backoff and falls back to the deployed snapshot
+-    when the service is unreachable.
++    The catalog sometimes lists a table twice. dict.fromkeys drops the repeats
++    but, unlike set(), keeps the same order in every parse process.
+     """
+-    for attempt in range(retries):
+-        try:
+-            with urllib.request.urlopen(CATALOG_URL, timeout=5) as resp:
+-                return [t["name"] for t in json.load(resp)["tables"]]
+-        except OSError:
+-            if attempt < retries - 1:
+-                time.sleep(backoff_s * 2**attempt)
+-    return json.loads(CATALOG_SNAPSHOT.read_text())
++    return list(dict.fromkeys(json.loads(CATALOG_SNAPSHOT.read_text())))
+ 
+ 
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++TABLES = list_tables()
+ 
+ 
+ def load_table(table: str) -> int:
+@@ -64,9 +55,9 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
+-    schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    description=f"Load {len(TABLES)} raw tables from the catalog snapshot",
++    schedule=CronTriggerTimetable("30 1 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+ ):

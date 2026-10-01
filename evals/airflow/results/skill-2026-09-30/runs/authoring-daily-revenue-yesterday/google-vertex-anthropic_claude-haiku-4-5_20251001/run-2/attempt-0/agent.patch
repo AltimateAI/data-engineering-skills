@@ -1,0 +1,114 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..47775a9
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,108 @@
++"""Daily revenue report per store for Finance, run at 03:00 UTC for previous day."""
++
++from __future__ import annotations
++
++import csv
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronTriggerTimetable, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++def prev_day(d):
++    """Return the day before d (in the run's timezone)."""
++    return d.subtract(days=1)
++
++
++def run_window(dag_run, params=None, tz="UTC", prev=prev_day):
++    """
++    Compute [start, end) of the period this run processes.
++    
++    On 3.x with CronTriggerTimetable:
++    - For scheduled runs: logical_date is the cron fire time (e.g., 03:00 UTC)
++    - For manual/test runs: logical_date is the specified time
++    
++    We use logical_date and apply prev= to get the previous day.
++    
++    If a `day` param is provided (e.g. for manual reprocess), use that instead.
++    """
++    day = (params or {}).get("day")
++    if day:
++        # Explicit reprocess: use the provided day
++        start = pendulum.parse(day, tz=tz)
++        return start, start.add(days=1)
++    
++    # Use logical_date (the scheduled/logical start time of the run)
++    anchor = dag_run.logical_date
++    start = prev(pendulum.instance(anchor).in_tz(tz).start_of("day"))
++    return start, start.add(days=1)
++
++
++@dag(
++    dag_id="daily_revenue",
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["finance", "daily"],
++    params={"day": None},  # optional: "2026-09-28" to reprocess a specific day
++)
++def daily_revenue():
++    @task
++    def compute_revenue(**context):
++        """Read orders for the processing day, compute revenue by store."""
++        dag_run = context["dag_run"]
++        params = context.get("params", {})
++        
++        start, end = run_window(dag_run, params, tz="UTC")
++        
++        # Load orders from data/orders.csv
++        orders_file = PROJECT_ROOT / "data" / "orders.csv"
++        
++        # Store -> (count, total_revenue)
++        store_stats = {}
++        
++        with open(orders_file, "r") as f:
++            reader = csv.DictReader(f)
++            for row in reader:
++                order_ts_str = row["order_ts"]
++                # Parse as UTC
++                order_ts = pendulum.parse(order_ts_str, tz="UTC")
++                
++                # Include if start <= order_ts < end
++                if start <= order_ts < end:
++                    store_id = row["store_id"]
++                    amount = float(row["amount"])
++                    
++                    if store_id not in store_stats:
++                        store_stats[store_id] = [0, 0.0]  # [count, revenue]
++                    
++                    store_stats[store_id][0] += 1
++                    store_stats[store_id][1] += amount
++        
++        # Write output file: output/daily_revenue/<YYYY-MM-DD>.csv
++        output_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        output_dir.mkdir(parents=True, exist_ok=True)
++        
++        # File named after the day being reported (start date)
++        day_str = start.to_date_string()  # YYYY-MM-DD
++        output_file = output_dir / f"{day_str}.csv"
++        
++        # Write CSV with store_id, orders, revenue (sorted by store_id)
++        with open(output_file, "w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerow(["store_id", "orders", "revenue"])
++            
++            for store_id in sorted(store_stats.keys()):
++                count, total = store_stats[store_id]
++                # Round revenue to 2 decimals
++                revenue_rounded = round(total, 2)
++                writer.writerow([store_id, count, revenue_rounded])
++        
++        return str(output_file)
++    
++    compute_revenue()
++
++
++daily_revenue()

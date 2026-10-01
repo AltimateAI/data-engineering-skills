@@ -1,0 +1,515 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..ffe3487
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,32 @@
++"""Shared pytest configuration for all tests.
++
++Sets Airflow environment variables before any airflow import so the core
++reads a fresh throwaway SQLite database and does not touch the developer's
++metadata DB or existing AIRFLOW_HOME.
++"""
++
++from __future__ import annotations
++
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++# Repo layout constants – resolve once so tests import correctly.
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# ── Airflow bootstrap ──────────────────────────────────────────────────────────
++# All env vars must be set BEFORE the first airflow import.
++_TMP_HOME = Path(tempfile.mkdtemp(prefix="airflow-test-home-"))
++os.environ["AIRFLOW_HOME"] = str(_TMP_HOME)
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = (
++    f"sqlite:///{_TMP_HOME / 'airflow.db'}"
++)
++
++# Put dags/ on sys.path so tests can import warehouse.hooks / warehouse.operators
++# directly (same as how the DAG file resolves them in Airflow's runtime).
++if str(DAGS) not in sys.path:
++    sys.path.insert(0, str(DAGS))
+diff --git a/tests/test_warehouse_hook_and_operator.py b/tests/test_warehouse_hook_and_operator.py
+new file mode 100644
+index 0000000..a9eb25d
+--- /dev/null
++++ b/tests/test_warehouse_hook_and_operator.py
+@@ -0,0 +1,471 @@
++"""Unit tests for DuckDBWarehouseHook and CsvPartitionToDuckDBOperator.
++
++Rules under test (from the DAG contract):
++  R1  Hook reads the DuckDB file path from connection.host
++  R2  Hook reads the target schema from connection.schema
++        (falls back to "main" when schema is absent)
++  R3  Operator uses the duckdb_conn_id it was given, not its own default
++  R4  execute() loads only the rows whose partition_column == partition_date
++  R5  execute() returns the count of rows it loaded
++  R6  Re-running the same partition replaces those rows (idempotent – no
++        duplicates)
++  R7  Re-running the same partition leaves other dates' rows untouched
++
++Connections are supplied via AIRFLOW_CONN_<CONN_ID> env vars (JSON format) so
++no Airflow metadata DB and no `airflow connections add` are required.
++"""
++
++from __future__ import annotations
++
++import csv
++import io
++import json
++import textwrap
++
++import duckdb
++import pytest
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++def _write_csv(path, rows: list[dict]) -> None:
++    """Write *rows* (list of dicts) as a CSV file at *path*."""
++    with path.open("w", newline="") as fh:
++        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
++        writer.writeheader()
++        writer.writerows(rows)
++
++
++def _read_table(db_path, schema: str, table: str) -> list[dict]:
++    """Open *db_path* and return all rows from *schema*.*table* as dicts."""
++    con = duckdb.connect(str(db_path))
++    try:
++        rows = con.execute(f'SELECT * FROM "{schema}"."{table}"').fetchall()
++        cols = [d[0] for d in con.description]
++    finally:
++        con.close()
++    return [dict(zip(cols, row)) for row in rows]
++
++
++# ---------------------------------------------------------------------------
++# Sample data
++# ---------------------------------------------------------------------------
++
++#  Five rows across three dates so we can distinguish "only target date" from
++#  "only adjacent dates" easily.
++ORDERS = [
++    {"order_id": "O-1", "order_date": "2026-03-01", "amount": "10.00"},
++    {"order_id": "O-2", "order_date": "2026-03-01", "amount": "20.00"},
++    {"order_id": "O-3", "order_date": "2026-03-02", "amount": "30.00"},
++    {"order_id": "O-4", "order_date": "2026-03-02", "amount": "40.00"},
++    {"order_id": "O-5", "order_date": "2026-03-03", "amount": "50.00"},
++]
++
++TARGET_DATE = "2026-03-02"   # two rows belong here (O-3, O-4)
++OTHER_DATE_A = "2026-03-01"  # two rows
++OTHER_DATE_B = "2026-03-03"  # one row
++
++
++# ---------------------------------------------------------------------------
++# Fixtures
++# ---------------------------------------------------------------------------
++
++@pytest.fixture()
++def csv_path(tmp_path):
++    """Write the sample orders CSV and return its Path."""
++    p = tmp_path / "orders.csv"
++    _write_csv(p, ORDERS)
++    return p
++
++
++@pytest.fixture()
++def db_path(tmp_path):
++    """Return a path inside tmp_path for the DuckDB file (does not create it)."""
++    return tmp_path / "warehouse.duckdb"
++
++
++def _conn_env(db_path, schema: str = "raw", conn_id: str = "test_wh") -> dict:
++    """Return the env-var dict that supplies the Airflow connection."""
++    return {
++        f"AIRFLOW_CONN_{conn_id.upper()}": json.dumps(
++            {
++                "conn_type": "generic",
++                "host": str(db_path),
++                "schema": schema,
++            }
++        )
++    }
++
++
++# ---------------------------------------------------------------------------
++# R1 + R2  Hook reads host → file path, schema → schema name
++# ---------------------------------------------------------------------------
++
++class TestDuckDBWarehouseHook:
++    """Tests for DuckDBWarehouseHook alone, exercised directly."""
++
++    def test_database_path_comes_from_connection_host(self, db_path, monkeypatch):
++        """R1 – hook.database_path equals the host field of the connection."""
++        for key, val in _conn_env(db_path, conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_wh")
++        assert hook.database_path == str(db_path)
++
++    def test_target_schema_comes_from_connection_schema(self, db_path, monkeypatch):
++        """R2 – hook.target_schema equals the schema field of the connection."""
++        for key, val in _conn_env(db_path, schema="staging", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_wh")
++        assert hook.target_schema == "staging"
++
++    def test_target_schema_defaults_to_main_when_schema_absent(
++        self, db_path, monkeypatch
++    ):
++        """R2 – when the connection has no schema, hook.target_schema is 'main'."""
++        conn_json = json.dumps(
++            {"conn_type": "generic", "host": str(db_path), "schema": ""}
++        )
++        monkeypatch.setenv("AIRFLOW_CONN_TEST_WH", conn_json)
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_wh")
++        assert hook.target_schema == "main"
++
++    def test_get_conn_opens_the_file_at_database_path(self, db_path, monkeypatch):
++        """R1 – get_conn() creates and opens the DuckDB file at the host path."""
++        for key, val in _conn_env(db_path, conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_wh")
++        con = hook.get_conn()
++        try:
++            con.execute("SELECT 42").fetchone()  # proves the connection works
++        finally:
++            con.close()
++        # The DuckDB file must now exist at the path the hook was told.
++        assert db_path.exists()
++
++
++# ---------------------------------------------------------------------------
++# R3  Operator uses the duckdb_conn_id it was given
++# ---------------------------------------------------------------------------
++
++class TestOperatorUsesGivenConnId:
++    """R3 – The operator must look up exactly the conn_id it was constructed with.
++
++    We use a conn_id that is NOT the operator's default_conn_name so an operator
++    that ignores its duckdb_conn_id and falls back to the default would produce a
++    connection-not-found error.
++    """
++
++    def test_operator_uses_given_conn_id_not_default(
++        self, db_path, csv_path, monkeypatch
++    ):
++        # Register ONLY the non-default conn id; the default is intentionally absent.
++        non_default_id = "my_custom_conn"
++        for key, val in _conn_env(db_path, conn_id=non_default_id).items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator, DuckDBWarehouseHook
++
++        assert non_default_id != DuckDBWarehouseHook.default_conn_name, (
++            "test_conn_id must differ from the hook's default_conn_name "
++            f"({DuckDBWarehouseHook.default_conn_name!r})"
++        )
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id=non_default_id,
++        )
++        # If the operator ignores duckdb_conn_id it would raise "connection not found".
++        result = op.execute(context={})
++        assert result > 0, "execute() must succeed when the given conn_id is valid"
++
++
++# ---------------------------------------------------------------------------
++# R4 + R5  execute() loads only the target partition and returns the row count
++# ---------------------------------------------------------------------------
++
++class TestExecuteLoadsOnlyTargetPartition:
++
++    def test_only_target_date_rows_are_written_to_db(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R4 – rows for other dates must not appear in the table."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="test_wh",
++        )
++        op.execute(context={})
++
++        rows = _read_table(db_path, "raw", "orders")
++        dates_in_db = {r["order_date"] for r in rows}
++        assert dates_in_db == {TARGET_DATE}, (
++            f"Only {TARGET_DATE!r} should be in the table; found dates: {dates_in_db}"
++        )
++
++    def test_correct_rows_are_written_for_target_date(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R4 – the exact rows for target date are present (not a subset or superset)."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="test_wh",
++        )
++        op.execute(context={})
++
++        rows = _read_table(db_path, "raw", "orders")
++        ids_in_db = {r["order_id"] for r in rows}
++        expected_ids = {r["order_id"] for r in ORDERS if r["order_date"] == TARGET_DATE}
++        assert ids_in_db == expected_ids, (
++            f"Expected rows {expected_ids}; got {ids_in_db}"
++        )
++
++    def test_execute_returns_number_of_loaded_rows(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R5 – execute() return value equals the count of rows loaded."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        expected_count = sum(
++            1 for r in ORDERS if r["order_date"] == TARGET_DATE
++        )
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="test_wh",
++        )
++        result = op.execute(context={})
++
++        assert result == expected_count, (
++            f"execute() returned {result}; expected {expected_count}"
++        )
++
++
++# ---------------------------------------------------------------------------
++# R6  Re-running replaces the partition (no duplicates)
++# ---------------------------------------------------------------------------
++
++class TestIdempotency:
++
++    def test_rerun_same_partition_produces_no_duplicates(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R6 – a second execute() for the same date must not double the rows."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        def _make_op():
++            return CsvPartitionToDuckDBOperator(
++                task_id="t",
++                csv_path=str(csv_path),
++                table="orders",
++                partition_column="order_date",
++                partition_date=TARGET_DATE,
++                duckdb_conn_id="test_wh",
++            )
++
++        first_count = _make_op().execute(context={})
++        second_count = _make_op().execute(context={})
++
++        rows = _read_table(db_path, "raw", "orders")
++        target_rows = [r for r in rows if r["order_date"] == TARGET_DATE]
++
++        assert len(target_rows) == first_count == second_count, (
++            f"After two runs expected {first_count} rows for {TARGET_DATE!r}; "
++            f"found {len(target_rows)} (duplicates indicate missing DELETE)"
++        )
++
++    def test_rerun_return_value_is_consistent(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R5+R6 – execute() returns the same count on both runs."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        def _make_op():
++            return CsvPartitionToDuckDBOperator(
++                task_id="t",
++                csv_path=str(csv_path),
++                table="orders",
++                partition_column="order_date",
++                partition_date=TARGET_DATE,
++                duckdb_conn_id="test_wh",
++            )
++
++        first = _make_op().execute(context={})
++        second = _make_op().execute(context={})
++        assert first == second, (
++            f"First run returned {first}, second returned {second}; "
++            "idempotent re-run should return the same count"
++        )
++
++
++# ---------------------------------------------------------------------------
++# R7  Re-running leaves other dates' rows alone
++# ---------------------------------------------------------------------------
++
++class TestOtherDatesPreserved:
++
++    def _load_all_dates(self, db_path, csv_path, schema, monkeypatch):
++        """Seed all three dates into the table as an initial state."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        for date in (OTHER_DATE_A, TARGET_DATE, OTHER_DATE_B):
++            op = CsvPartitionToDuckDBOperator(
++                task_id=f"t_{date}",
++                csv_path=str(csv_path),
++                table="orders",
++                partition_column="order_date",
++                partition_date=date,
++                duckdb_conn_id="test_wh",
++            )
++            op.execute(context={})
++
++    def test_rerun_does_not_remove_other_dates(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R7 – rows for dates other than the partition date survive a re-run."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        # Load all three dates so the table has rows for every date.
++        self._load_all_dates(db_path, csv_path, "raw", monkeypatch)
++
++        rows_before = _read_table(db_path, "raw", "orders")
++        other_before = {
++            r["order_id"] for r in rows_before if r["order_date"] != TARGET_DATE
++        }
++
++        # Re-run just the target date partition.
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t_rerun",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="test_wh",
++        )
++        op.execute(context={})
++
++        rows_after = _read_table(db_path, "raw", "orders")
++        other_after = {
++            r["order_id"] for r in rows_after if r["order_date"] != TARGET_DATE
++        }
++
++        assert other_after == other_before, (
++            f"Rows for other dates changed after re-running {TARGET_DATE!r}.\n"
++            f"  Before: {other_before}\n"
++            f"  After:  {other_after}"
++        )
++
++    def test_rerun_target_date_count_with_neighbours_present(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R6+R7 – after seeding all dates and re-running, target date has no duplicates
++        and neighbour dates still have their correct row counts."""
++        for key, val in _conn_env(db_path, schema="raw", conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        # Seed all three dates.
++        self._load_all_dates(db_path, csv_path, "raw", monkeypatch)
++
++        # Re-run target date.
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t_rerun2",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="test_wh",
++        )
++        op.execute(context={})
++
++        rows = _read_table(db_path, "raw", "orders")
++
++        for date in (OTHER_DATE_A, TARGET_DATE, OTHER_DATE_B):
++            expected = [r for r in ORDERS if r["order_date"] == date]
++            actual = [r for r in rows if r["order_date"] == date]
++            assert len(actual) == len(expected), (
++                f"Date {date!r}: expected {len(expected)} row(s), found {len(actual)}. "
++                f"IDs present: {[r['order_id'] for r in actual]}"
++            )
++
++
++# ---------------------------------------------------------------------------
++# R2  Schema is applied correctly – rows land in the configured schema
++# ---------------------------------------------------------------------------
++
++class TestSchemaRouting:
++
++    def test_rows_written_to_schema_from_connection(
++        self, db_path, csv_path, monkeypatch
++    ):
++        """R2 – rows are written to the schema specified in the connection."""
++        schema = "landing"
++        for key, val in _conn_env(db_path, schema=schema, conn_id="test_wh").items():
++            monkeypatch.setenv(key, val)
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_path),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="test_wh",
++        )
++        op.execute(context={})
++
++        # Must be readable from the schema the connection specified.
++        rows = _read_table(db_path, schema, "orders")
++        assert len(rows) > 0, f"No rows found in schema {schema!r}"
++        assert all(r["order_date"] == TARGET_DATE for r in rows)

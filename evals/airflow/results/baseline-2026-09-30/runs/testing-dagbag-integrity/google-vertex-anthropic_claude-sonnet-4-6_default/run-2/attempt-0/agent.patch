@@ -1,0 +1,186 @@
+diff --git a/tests/test_dagbag_integrity.py b/tests/test_dagbag_integrity.py
+new file mode 100644
+index 0000000..2b4c819
+--- /dev/null
++++ b/tests/test_dagbag_integrity.py
+@@ -0,0 +1,180 @@
++"""
++DAG integrity tests — run with: pytest tests/
++
++Coverage:
++1. All DAG files parse without import errors or cycles.
++2. Policy: every DAG has ≥1 tag, catchup=False, every task has
++   owner != "airflow" and retries >= 2.
++3. orders_ingest pipeline order is exactly:
++   extract_orders -> validate_orders -> load_orders -> publish_summary
++"""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pytest
++from airflow.models import DagBag
++
++# ---------------------------------------------------------------------------
++# Shared fixture — load the DagBag once per session.
++# safe_mode=False ensures Airflow processes every file in dags/ regardless of
++# whether it detects the airflow.* import marker (needed for plain-Python DAGs).
++# ---------------------------------------------------------------------------
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++
++
++@pytest.fixture(scope="session")
++def dagbag() -> DagBag:
++    """Return a fully-loaded DagBag from the project's dags/ directory."""
++    bag = DagBag(dag_folder=str(DAGS_DIR), safe_mode=False)
++    return bag
++
++
++# ---------------------------------------------------------------------------
++# 1. Import / parse integrity
++# ---------------------------------------------------------------------------
++
++
++def test_no_import_errors(dagbag: DagBag) -> None:
++    """Fail immediately if any DAG file raised an exception during loading."""
++    assert dagbag.import_errors == {}, (
++        "One or more DAG files failed to import:\n"
++        + "\n".join(
++            f"  {path}: {err}" for path, err in dagbag.import_errors.items()
++        )
++    )
++
++
++def test_dags_folder_is_not_empty(dagbag: DagBag) -> None:
++    """Guard against an empty dags/ directory silently passing all tests."""
++    assert len(dagbag.dags) > 0, (
++        f"No DAGs were loaded from {DAGS_DIR}. "
++        "Check that the folder exists and contains valid DAG files."
++    )
++
++
++# ---------------------------------------------------------------------------
++# 2. Policy checks — parametrized over every loaded DAG / task
++# ---------------------------------------------------------------------------
++
++
++def _all_dag_ids(dagbag: DagBag) -> list[str]:
++    return sorted(dagbag.dags.keys())
++
++
++@pytest.mark.parametrize("dag_id", _all_dag_ids(DagBag(dag_folder=str(DAGS_DIR), safe_mode=False)))
++def test_dag_has_tags(dag_id: str, dagbag: DagBag) -> None:
++    """Every DAG must declare at least one tag."""
++    dag = dagbag.dags[dag_id]
++    assert dag.tags, (
++        f"DAG '{dag_id}' has no tags. "
++        "Add at least one tag (e.g. tags=['team-name', 'domain'])."
++    )
++
++
++@pytest.mark.parametrize("dag_id", _all_dag_ids(DagBag(dag_folder=str(DAGS_DIR), safe_mode=False)))
++def test_dag_catchup_is_disabled(dag_id: str, dagbag: DagBag) -> None:
++    """Every DAG must have catchup=False to prevent accidental backfills."""
++    dag = dagbag.dags[dag_id]
++    assert dag.catchup is False, (
++        f"DAG '{dag_id}' has catchup=True (or unset, which defaults to True). "
++        "Set catchup=False explicitly."
++    )
++
++
++def _all_dag_task_pairs() -> list[tuple[str, str]]:
++    """Return (dag_id, task_id) tuples for every task in every DAG."""
++    bag = DagBag(dag_folder=str(DAGS_DIR), safe_mode=False)
++    pairs = []
++    for dag_id, dag in sorted(bag.dags.items()):
++        for task in dag.tasks:
++            pairs.append((dag_id, task.task_id))
++    return pairs
++
++
++@pytest.mark.parametrize("dag_id,task_id", _all_dag_task_pairs())
++def test_task_owner_is_not_default(dag_id: str, task_id: str, dagbag: DagBag) -> None:
++    """No task may use the default 'airflow' owner — set a real team owner."""
++    task = dagbag.dags[dag_id].get_task(task_id)
++    assert task.owner != "airflow", (
++        f"Task '{task_id}' in DAG '{dag_id}' uses the default owner 'airflow'. "
++        "Set a real owner in default_args or on the task directly."
++    )
++
++
++@pytest.mark.parametrize("dag_id,task_id", _all_dag_task_pairs())
++def test_task_has_at_least_2_retries(dag_id: str, task_id: str, dagbag: DagBag) -> None:
++    """Every task must be configured with retries >= 2."""
++    task = dagbag.dags[dag_id].get_task(task_id)
++    retries = task.retries if task.retries is not None else 0
++    assert retries >= 2, (
++        f"Task '{task_id}' in DAG '{dag_id}' has only {retries} retr"
++        f"{'y' if retries == 1 else 'ies'} (minimum is 2). "
++        "Set retries >= 2 in default_args or on the task directly."
++    )
++
++
++# ---------------------------------------------------------------------------
++# 3. orders_ingest pipeline order
++# ---------------------------------------------------------------------------
++
++EXPECTED_ORDERS_INGEST_ORDER = [
++    "extract_orders",
++    "validate_orders",
++    "load_orders",
++    "publish_summary",
++]
++
++
++def test_orders_ingest_dag_exists(dagbag: DagBag) -> None:
++    """The orders_ingest DAG must be present in the DagBag."""
++    assert "orders_ingest" in dagbag.dags, (
++        "DAG 'orders_ingest' was not found. "
++        "Ensure dags/orders_ingest.py exists and loads without errors."
++    )
++
++
++def test_orders_ingest_pipeline_order(dagbag: DagBag) -> None:
++    """
++    orders_ingest tasks must run in this exact linear order:
++        extract_orders -> validate_orders -> load_orders -> publish_summary
++
++    The test derives the order via topological sort so it works regardless of
++    how the dependency is expressed in the DAG file (bitshift, set_downstream,
++    TaskFlow chaining, etc.).
++    """
++    dag = dagbag.dags["orders_ingest"]
++    actual_order = [t.task_id for t in dag.topological_sort()]
++
++    assert actual_order == EXPECTED_ORDERS_INGEST_ORDER, (
++        f"orders_ingest pipeline order has changed!\n"
++        f"  Expected: {EXPECTED_ORDERS_INGEST_ORDER}\n"
++        f"  Got:      {actual_order}\n"
++        "Restore the original task order or update this test intentionally."
++    )
++
++
++def test_orders_ingest_task_dependencies(dagbag: DagBag) -> None:
++    """
++    Cross-check the explicit downstream edges of each task in orders_ingest,
++    providing a second, graph-level assertion on top of topological sort.
++    """
++    dag = dagbag.dags["orders_ingest"]
++
++    expected_edges: dict[str, list[str]] = {
++        "extract_orders": ["validate_orders"],
++        "validate_orders": ["load_orders"],
++        "load_orders": ["publish_summary"],
++        "publish_summary": [],
++    }
++
++    for task_id, expected_downstream in expected_edges.items():
++        task = dag.get_task(task_id)
++        actual_downstream = sorted(d.task_id for d in task.downstream_list)
++        assert actual_downstream == sorted(expected_downstream), (
++            f"Unexpected downstream for '{task_id}' in orders_ingest.\n"
++            f"  Expected downstream: {sorted(expected_downstream)}\n"
++            f"  Got:                 {actual_downstream}"
++        )

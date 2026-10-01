@@ -1,0 +1,163 @@
+{
+  "generated_at": "2026-10-01T09:29:30+00:00",
+  "inputs": [
+    "evals/airflow/results/baseline-2026-09-30",
+    "evals/airflow/results/baseline-run3-2026-09-30",
+    "evals/airflow/results/skill-2026-09-30"
+  ],
+  "index_dirs": [
+    "evals/airflow/results/_smoke-haiku-baseline",
+    "evals/airflow/results/_smoke-haiku-skill",
+    "evals/airflow/results/_smoke-sonnet-baseline",
+    "evals/airflow/results/baseline-2026-09-30",
+    "evals/airflow/results/baseline-run3-2026-09-30",
+    "evals/airflow/results/cc-baseline-sonnet-5-5-2026-10-01",
+    "evals/airflow/results/cc-skill-sonnet-5-5-2026-10-01",
+    "evals/airflow/results/cc-triggers-2026-10-01",
+    "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+    "evals/airflow/results/final-triggers-2026-10-01",
+    "evals/airflow/results/skill-2026-09-30",
+    "evals/airflow/results/triggers-2026-09-30"
+  ],
+  "work_root": "<work>",
+  "harness_sha256": "20c2cab06bbe97cdd2577a662e6740733505cb930d0a6fcd1255437418d64d6c",
+  "current_airflow_skills_sha256": "a8dbbed8a1a806945b4148c2bd2be3220610ac7e5403737df42dc6743411ca0e",
+  "campaigns": [
+    {
+      "dir": "evals/airflow/results/baseline-2026-09-30",
+      "arm": "baseline",
+      "models": [
+        "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "google-vertex-anthropic/claude-haiku-4-5@20251001"
+      ],
+      "runner": null,
+      "altimate_code_version": "0.12.2",
+      "airflow_skills_sha256": null,
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "started_at": "2026-09-30T11:53:13+00:00"
+    },
+    {
+      "dir": "evals/airflow/results/baseline-run3-2026-09-30",
+      "arm": "baseline",
+      "models": [
+        "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "google-vertex-anthropic/claude-haiku-4-5@20251001"
+      ],
+      "runner": null,
+      "altimate_code_version": "0.12.2",
+      "airflow_skills_sha256": null,
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "started_at": "2026-09-30T15:24:19+00:00"
+    },
+    {
+      "dir": "evals/airflow/results/skill-2026-09-30",
+      "arm": "skill",
+      "models": [
+        "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "google-vertex-anthropic/claude-haiku-4-5@20251001"
+      ],
+      "runner": null,
+      "altimate_code_version": "0.12.2",
+      "airflow_skills_sha256": "e03e9d6dbfd25d119b2586f509d4fce86bcfd8d5b243fa25994516fb246b0a19",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "started_at": "2026-09-30T15:26:28+00:00"
+    }
+  ],
+  "n_attempts": 244,
+  "n_attempts_with_events": 244,
+  "n_runs": {
+    "all": 240,
+    "excluding-flagged": 143,
+    "excluding-strong": 221
+  },
+  "flag_counts": [
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "attempts": 39,
+      "flagged": 19,
+      "strong": 1,
+      "no_events": 0,
+      "flagged_fail": 13,
+      "flagged_pass": 6
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "attempts": 39,
+      "flagged": 9,
+      "strong": 2,
+      "no_events": 0,
+      "flagged_pass": 8,
+      "flagged_fail": 1
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "attempts": 39,
+      "flagged": 15,
+      "strong": 3,
+      "no_events": 0,
+      "flagged_pass": 13,
+      "flagged_fail": 2
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "attempts": 39,
+      "flagged": 22,
+      "strong": 6,
+      "no_events": 0,
+      "flagged_pass": 21,
+      "flagged_fail": 1
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "attempts": 21,
+      "flagged": 11,
+      "strong": 1,
+      "no_events": 0,
+      "flagged_pass": 4,
+      "flagged_fail": 7
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "attempts": 21,
+      "flagged": 2,
+      "strong": 1,
+      "no_events": 0,
+      "flagged_fail": 1,
+      "flagged_pass": 1
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "attempts": 21,
+      "flagged": 8,
+      "strong": 2,
+      "no_events": 0,
+      "flagged_fail": 7,
+      "flagged_pass": 1
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "attempts": 21,
+      "flagged": 11,
+      "strong": 3,
+      "no_events": 0,
+      "flagged_pass": 8,
+      "flagged_fail": 3
+    }
+  ]
+}

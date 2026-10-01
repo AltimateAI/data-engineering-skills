@@ -1,0 +1,21 @@
+name: supply_cohorts
+team: supply
+tier: standard
+description: Cohorts pipeline for supply
+schedule:
+  hour: 4
+  days: '1'
+owners:
+- fatima
+steps:
+- name: extract
+  table: supply.raw_cohorts_00
+- name: aggregate
+  table: supply.int_cohorts_00
+  depends_on:
+  - extract
+- name: publish
+  table: supply.mart_cohorts_00
+  depends_on:
+  - aggregate
+  - extract

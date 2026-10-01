@@ -1,0 +1,18 @@
+name: support_inventory
+team: support
+tier: standard
+description: Inventory pipeline for support
+schedule:
+  hour: 3
+  days: '1'
+steps:
+- name: extract
+  table: support.raw_inventory_00
+- name: validate
+  table: support.int_inventory_00
+  depends_on:
+  - extract
+- name: publish
+  table: support.mart_inventory_00
+  depends_on:
+  - validate

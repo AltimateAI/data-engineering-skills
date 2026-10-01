@@ -1,0 +1,40 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: manual run without a logical date succeeds, manual run delivers the feed for its trigger day (2026-03-03)",
+  "primary_pass": false,
+  "primary_score": 0.7142857142857143,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 158.3,
+  "cost_usd": 0.730503,
+  "cost_reported_usd": 2.757341,
+  "tokens": {
+    "input": 2026993,
+    "output": 13732,
+    "reasoning": 0,
+    "cache_read": 1627704,
+    "cache_write": 399134,
+    "total": 4067563
+  },
+  "steps": 29,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 19,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d064a6dffeKRxdCmC6ITRG1k.json"
+}

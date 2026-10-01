@@ -1,0 +1,86 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..939d9cd
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,80 @@
++"""Daily processing of partner order files, one mapped task instance per file."""
++
++from __future__ import annotations
++
++import csv
++import json
++import os
++from decimal import Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_DIR = PROJECT_ROOT / "data" / "partner_drop"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "partner_feeds"
++CENTS = Decimal("0.01")
++
++
++def _write_json(path: Path, payload: dict) -> None:
++    """Write atomically so reruns/retries never leave a partial file."""
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_suffix(".json.tmp")
++    tmp.write_text(json.dumps(payload))
++    os.replace(tmp, path)
++
++
++@dag(
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=4,
++    default_args={"retries": 2},
++    tags=["partners"],
++)
++def partner_feeds():
++    @task
++    def list_partners(ds=None) -> list[str]:
++        # A date with no uploads has no folder at all: that means "no files".
++        day_dir = DROP_DIR / ds
++        if not day_dir.is_dir():
++            return []
++        return sorted(p.stem for p in day_dir.glob("*.csv"))
++
++    @task
++    def process_file(partner: str, ds=None) -> dict:
++        path = DROP_DIR / ds / f"{partner}.csv"
++        rows = 0
++        total = Decimal("0")
++        with path.open(newline="") as f:
++            for row in csv.DictReader(f):
++                rows += 1
++                total += Decimal(row["amount"])
++        result = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": float(total.quantize(CENTS)),
++        }
++        _write_json(OUTPUT_DIR / ds / f"{partner}.json", result)
++        return result
++
++    # With zero files the mapped task is skipped, so the default all_success
++    # rule would skip the summary too; it must run whenever nothing failed.
++    @task(trigger_rule="none_failed")
++    def write_summary(results, ds=None) -> dict:
++        results = list(results)
++        total = sum((Decimal(str(r["total_amount"])) for r in results), Decimal("0"))
++        summary = {
++            "files": len(results),
++            "rows": sum(r["rows"] for r in results),
++            "total_amount": float(total.quantize(CENTS)),
++        }
++        _write_json(OUTPUT_DIR / ds / "summary.json", summary)
++        return summary
++
++    partners = list_partners()
++    write_summary(process_file.expand(partner=partners))
++
++
++partner_feeds()

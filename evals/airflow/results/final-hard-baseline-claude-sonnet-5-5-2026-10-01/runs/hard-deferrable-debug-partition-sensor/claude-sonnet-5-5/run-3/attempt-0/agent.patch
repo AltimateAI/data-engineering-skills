@@ -1,0 +1,168 @@
+diff --git a/dags/lake/hooks.py b/dags/lake/hooks.py
+index 4d1973f..4e09efd 100644
+--- a/dags/lake/hooks.py
++++ b/dags/lake/hooks.py
+@@ -7,6 +7,8 @@ GET /v1/tables/<table>/partitions/<partition>
+ 
+ from __future__ import annotations
+ 
++import asyncio
++
+ import requests
+ from airflow.sdk import BaseHook
+ 
+@@ -51,4 +53,5 @@ class LakeCatalogHook(BaseHook):
+         """Async variant for triggers."""
+         conn = await self.aget_connection(self.lake_conn_id)
+         url, headers = self._url_and_headers(conn, table, partition)
+-        return self._fetch(url, headers)
++        # requests is blocking: keep it off the triggerer's event loop
++        return await asyncio.to_thread(self._fetch, url, headers)
+diff --git a/dags/lake/sensors.py b/dags/lake/sensors.py
+index 7966da3..6819639 100644
+--- a/dags/lake/sensors.py
++++ b/dags/lake/sensors.py
+@@ -2,16 +2,20 @@
+ 
+ from __future__ import annotations
+ 
++import time
+ from collections.abc import Sequence
+ from typing import Any
+ 
+ from airflow.sdk import BaseSensorOperator, PokeReturnValue
+-from airflow.sdk.exceptions import AirflowException
++from airflow.sdk.exceptions import AirflowException, AirflowFailException, AirflowSkipException
+ 
+ from lake.hooks import LakeCatalogHook
+ from lake.triggers import PartitionPublishedTrigger
+ 
+ 
++_STARTED_KEY = "wait_started_at"
++
++
+ class PartitionPublishedSensor(BaseSensorOperator):
+     """Wait until ``table``/``partition`` is PUBLISHED and return its file list.
+ 
+@@ -44,9 +48,28 @@ class PartitionPublishedSensor(BaseSensorOperator):
+             return PokeReturnValue(is_done=True, xcom_value=info["files"])
+         return False
+ 
++    def _timed_out(self, context) -> AirflowFailException | AirflowSkipException:
++        # Forget the start time so that clearing and re-running the task starts a fresh wait.
++        context["task_state_store"].delete(_STARTED_KEY)
++        message = f"{self.table}/{self.partition} was not published within {self.timeout}s"
++        if self.soft_fail:
++            return AirflowSkipException(message)
++        # AirflowFailException: fail for good, do not retry
++        return AirflowFailException(message)
++
+     def execute(self, context) -> Any:
+         if not self.deferrable:
+             return super().execute(context)
++        # ``timeout`` is the total wait, retries included, so remember when we first started waiting.
++        # The task state store survives retries (XComs are cleared on every new try).
++        store = context["task_state_store"]
++        started = store.get(_STARTED_KEY)
++        if started is None:
++            started = time.time()
++            store.set(_STARTED_KEY, started)
++        deadline = started + self.timeout
++        if time.time() >= deadline:
++            raise self._timed_out(context)
+         self.defer(
+             trigger=PartitionPublishedTrigger(
+                 table=self.table,
+@@ -54,13 +77,18 @@ class PartitionPublishedSensor(BaseSensorOperator):
+                 timeout=self.timeout,
+                 lake_conn_id=self.lake_conn_id,
+                 poll_interval=self.poke_interval,
++                deadline=deadline,
+             ),
+             method_name="execute_complete",
+         )
+ 
+     def execute_complete(self, context, event: dict[str, Any]) -> list[str]:
+-        if event["status"] == "timeout":
+-            raise AirflowException(f"{self.table}/{self.partition} was not published within {self.timeout}s")
+-        files = event.get("files", [])
++        status = event.get("status")
++        if status == "timeout":
++            raise self._timed_out(context)
++        if status != "success":
++            # API error: fail this try so that the task's retries take over
++            raise AirflowException(f"{self.table}/{self.partition}: {event.get('message', event)}")
++        files = event["files"]
+         self.log.info("%s/%s published with %d files", self.table, self.partition, len(files))
+         return files
+diff --git a/dags/lake/triggers.py b/dags/lake/triggers.py
+index e9c354a..9da13f6 100644
+--- a/dags/lake/triggers.py
++++ b/dags/lake/triggers.py
+@@ -6,12 +6,12 @@ import asyncio
+ import time
+ from typing import Any
+ 
+-from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
++from airflow.triggers.base import BaseTrigger, TriggerEvent
+ 
+ from lake.hooks import LakeApiError, LakeCatalogHook
+ 
+ # Published partitions never change, so remember them and spare the catalog API.
+-_PUBLISHED: dict[str, dict] = {}
++_PUBLISHED: dict[tuple[str, str], dict] = {}
+ 
+ 
+ class PartitionPublishedTrigger(BaseTrigger):
+@@ -24,6 +24,7 @@ class PartitionPublishedTrigger(BaseTrigger):
+         timeout: float,
+         lake_conn_id: str = LakeCatalogHook.default_conn_name,
+         poll_interval: float = 60.0,
++        deadline: float | None = None,
+     ) -> None:
+         super().__init__()
+         self.table = table
+@@ -31,7 +32,9 @@ class PartitionPublishedTrigger(BaseTrigger):
+         self.timeout = timeout
+         self.lake_conn_id = lake_conn_id
+         self.poll_interval = poll_interval
+-        self.give_up_at = time.monotonic() + timeout
++        # Absolute wall-clock deadline (epoch seconds): it must survive the trigger being re-created
++        # from its serialized form, e.g. after a triggerer restart.
++        self.deadline = deadline if deadline is not None else time.time() + timeout
+ 
+     def serialize(self) -> tuple[str, dict[str, Any]]:
+         return (
+@@ -42,17 +45,19 @@ class PartitionPublishedTrigger(BaseTrigger):
+                 "timeout": self.timeout,
+                 "lake_conn_id": self.lake_conn_id,
+                 "poll_interval": self.poll_interval,
++                "deadline": self.deadline,
+             },
+         )
+ 
+     async def run(self):
+         hook = LakeCatalogHook(self.lake_conn_id)
++        key = (self.table, self.partition)
+         while True:
+-            if self.table in _PUBLISHED:
+-                # Finish the task right here: no worker slot is needed just to return the list.
+-                yield TaskSuccessEvent(xcoms={"return_value": _PUBLISHED[self.table]["files"]})
++            if key in _PUBLISHED:
++                yield TriggerEvent({"status": "success", "files": _PUBLISHED[key]["files"]})
+                 return
+-            if time.monotonic() >= self.give_up_at:
++            remaining = self.deadline - time.time()
++            if remaining <= 0:
+                 yield TriggerEvent({"status": "timeout"})
+                 return
+             try:
+@@ -61,6 +66,6 @@ class PartitionPublishedTrigger(BaseTrigger):
+                 yield TriggerEvent({"status": "error", "message": str(exc)})
+                 return
+             if info["state"] == "PUBLISHED":
+-                _PUBLISHED[self.table] = info
++                _PUBLISHED[key] = info
+                 continue
+-            await asyncio.sleep(self.poll_interval)
++            await asyncio.sleep(max(0.0, min(self.poll_interval, self.deadline - time.time())))

@@ -1,0 +1,178 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..4bd598a
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,172 @@
++"""
++Daily DAG: process partner order-feed CSV files for the run's date.
++
++Layout
++------
++Input:  data/partner_drop/<YYYY-MM-DD>/<partner>.csv  (columns: order_id, amount)
++Output: output/partner_feeds/<YYYY-MM-DD>/<partner>.json  (per-file)
++        output/partner_feeds/<YYYY-MM-DD>/summary.json    (always written)
++
++Period contract
++---------------
++Scheduled run firing on date D  → processes date D's partner drop folder.
++Manual trigger (no logical date) → uses dag_run.run_after's UTC date (same rule).
++Rerun / clear of any run         → processes the same date as the original run.
++Backfill of date D               → processes date D's folder.
++
++Design
++------
++1. discover_files  — scans the drop folder; returns a (possibly empty) list of dicts.
++2. process_file    — mapped over each dict; each instance is independent so a broken
++                     file only fails its own task and does not block others.
++3. write_summary   — trigger_rule=ALL_DONE so it always runs, including zero-file days;
++                     reads per-file JSON already written to disk (claim-check pattern).
++"""
++
++from __future__ import annotations
++
++import json
++import tempfile
++import os
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronTriggerTimetable, dag, task
++from airflow.task.trigger_rule import TriggerRule
++
++# ── project root ──────────────────────────────────────────────────────────────
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++def _run_date(dag_run) -> str:
++    """
++    Return the YYYY-MM-DD date this run should process.
++
++    For a scheduled trigger-timetable run, logical_date (== run_after) is the
++    day the run fires — which is exactly the day we want.
++    For a manual run (logical_date may be None on 3.x), fall back to run_after.
++    """
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++# ── DAG definition ─────────────────────────────────────────────────────────────
++@dag(
++    dag_id="partner_feeds",
++    schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=4,
++    tags=["partners", "feeds"],
++    default_args={"retries": 2, "retry_delay": pendulum.duration(minutes=5)},
++)
++def partner_feeds():
++
++    @task
++    def discover_files(**context) -> list[dict]:
++        """
++        Scan data/partner_drop/<date>/ and return one dict per CSV file.
++        Returns an empty list when the folder doesn't exist (no-file day).
++        """
++        date_str = _run_date(context["dag_run"])
++        drop_dir = PROJECT_ROOT / "data" / "partner_drop" / date_str
++        if not drop_dir.exists():
++            return []
++        files = sorted(drop_dir.glob("*.csv"))
++        return [{"partner": f.stem, "path": str(f)} for f in files]
++
++    @task
++    def process_file(file_info: dict, **context) -> str:
++        """
++        Read one partner CSV, compute row count + total_amount, write JSON.
++        Returns the path written (claim-check for summary).
++        """
++        import csv
++
++        partner = file_info["partner"]
++        path = Path(file_info["path"])
++        date_str = _run_date(context["dag_run"])
++
++        # --- parse -----------------------------------------------------------
++        rows = 0
++        total = 0.0
++        with path.open(newline="", encoding="utf-8") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                rows += 1
++                total += float(row["amount"])
++
++        # --- write (atomic rename so partial writes are never visible) -------
++        out_dir = PROJECT_ROOT / "output" / "partner_feeds" / date_str
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out_path = out_dir / f"{partner}.json"
++
++        payload = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": round(total, 2),
++        }
++        fd, tmp = tempfile.mkstemp(dir=out_dir, suffix=".tmp")
++        try:
++            with os.fdopen(fd, "w", encoding="utf-8") as fh:
++                json.dump(payload, fh)
++            os.replace(tmp, out_path)
++        except Exception:
++            os.unlink(tmp)
++            raise
++
++        return str(out_path)
++
++    @task(trigger_rule=TriggerRule.ALL_DONE)
++    def write_summary(partner_paths: list, **context) -> str:
++        """
++        Collect all per-partner JSON files written for this date and produce a
++        summary.  Runs with trigger_rule=ALL_DONE so it always executes — even
++        on days with zero partner files.
++        """
++        date_str = _run_date(context["dag_run"])
++        out_dir = PROJECT_ROOT / "output" / "partner_feeds" / date_str
++        out_dir.mkdir(parents=True, exist_ok=True)
++
++        # Re-read the per-partner files that were successfully written.
++        # partner_paths is a list of paths (strings) or None for failed tasks.
++        total_files = 0
++        total_rows = 0
++        total_amount = 0.0
++
++        for p in partner_paths:
++            if p is None:
++                continue
++            try:
++                data = json.loads(Path(p).read_text(encoding="utf-8"))
++                total_files += 1
++                total_rows += data["rows"]
++                total_amount += data["total_amount"]
++            except Exception:
++                pass  # task failed; skip its contribution
++
++        summary = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": round(total_amount, 2),
++        }
++
++        out_path = out_dir / "summary.json"
++        fd, tmp = tempfile.mkstemp(dir=out_dir, suffix=".tmp")
++        try:
++            with os.fdopen(fd, "w", encoding="utf-8") as fh:
++                json.dump(summary, fh)
++            os.replace(tmp, out_path)
++        except Exception:
++            os.unlink(tmp)
++            raise
++
++        return str(out_path)
++
++    # ── wire up ────────────────────────────────────────────────────────────────
++    files = discover_files()
++    processed = process_file.expand(file_info=files)
++    write_summary(partner_paths=processed)
++
++
++partner_feeds()

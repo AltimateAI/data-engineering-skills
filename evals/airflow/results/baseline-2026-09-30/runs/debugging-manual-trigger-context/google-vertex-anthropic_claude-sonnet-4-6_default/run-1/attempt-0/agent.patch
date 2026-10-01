@@ -1,0 +1,47 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..d3f5ee9 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,7 +8,7 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ from airflow.providers.standard.operators.bash import BashOperator
+@@ -30,7 +30,17 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        # logical_date is a datetime for scheduled/triggered-with-date runs;
++        # it is None when the DAG is triggered manually without a date.
++        # In the None case we snapshot today's UTC date so that the day is
++        # frozen in the output path — re-running this task tomorrow will still
++        # write to the original date's directory (XCom caches the return value).
++        logical_date = context.get("logical_date")
++        if logical_date is not None:
++            day = logical_date.strftime("%Y-%m-%d")
++        else:
++            day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
++
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -46,8 +56,12 @@ def partner_feed():
+         return str(out)
+ 
+     @task
+-    def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++    def write_manifest(feed_path: str) -> str:
++        # Derive the partition date from the feed path produced by extract_orders.
++        # This avoids any reliance on context keys that differ between Airflow
++        # versions or trigger modes, and keeps the day frozen to whatever
++        # extract_orders chose (important for manual-trigger re-runs).
++        day = Path(feed_path).parent.name  # .../partner_feed/<YYYY-MM-DD>/orders.csv
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")

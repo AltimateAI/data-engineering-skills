@@ -1,0 +1,61 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..81032ee
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,55 @@
++"""Write the per-store revenue file for the previous UTC calendar day, every day at 03:00 UTC."""
++
++from __future__ import annotations
++
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    # first run (03:00 on 2026-09-02) reports 2026-09-01
++    start_date=pendulum.datetime(2026, 9, 2, tz="UTC"),
++    catchup=False,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def report() -> str:
++        import pandas as pd
++
++        ctx = get_current_context()
++        dag_run = ctx["dag_run"]
++        # Scheduled/backfill runs have a logical date; 3.x manual runs without one use run_after.
++        fired = pendulum.instance(dag_run.logical_date or dag_run.run_after).in_tz("UTC")
++        end = fired.start_of("day")  # midnight UTC at the start of the firing day
++        start = end.subtract(days=1)
++        day = start.format("YYYY-MM-DD")
++
++        orders = pd.read_csv(PROJECT_ROOT / "data" / "orders.csv", parse_dates=["order_ts"])
++        ts = orders["order_ts"].dt.tz_localize("UTC")
++        window = orders[(ts >= start) & (ts < end)]
++        result = (
++            window.groupby("store_id")
++            .agg(orders=("order_id", "count"), revenue=("amount", "sum"))
++            .reset_index()
++            .sort_values("store_id")
++        )
++        result["revenue"] = result["revenue"].round(2)
++
++        out = PROJECT_ROOT / "output" / "daily_revenue" / f"{day}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".csv.tmp")
++        result.to_csv(tmp, index=False, columns=["store_id", "orders", "revenue"], float_format="%.2f")
++        tmp.replace(out)
++        return str(out)
++
++    report()
++
++
++daily_revenue()

@@ -1,0 +1,43 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..45c438f 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -9,7 +9,8 @@ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import dag, get_current_context, task
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+@@ -18,16 +19,24 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    # A run firing at 03:00 UTC on day D+1 loads day D. The first run is the
++    # 2026-09-02 03:00 tick, which loads 2026-09-01, the first day with data.
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 2, tz="UTC"),
++    catchup=True,
++    # DuckDB allows one writer per file: run days strictly one at a time.
++    max_active_runs=1,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+     def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++        # Derived from the run, never the wall clock, so reruns and backfills
++        # reload the same day. Manual runs have no logical_date; use run_after.
++        dag_run = get_current_context()["dag_run"]
++        fired = pendulum.instance(dag_run.logical_date or dag_run.run_after).in_tz("UTC")
++        day = fired.subtract(days=1).to_date_string()
+         source = RAW_DIR / f"{day}.csv"
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))

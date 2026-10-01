@@ -1,0 +1,77 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..144527e 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,15 +1,21 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
++at about 01:00 UTC the next morning. This DAG aggregates that day's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++Backfill behavior:
++  - On initial unpause with start_date=2026-09-01 and catchup=True, will backfill
++    from Sept 1 to today, one day at a time (max_active_runs=1).
++  - After unpause, runs at 03:00 UTC daily and processes the previous day.
++  - Any day can be re-run later without double-counting (idempotent deletes and inserts).
+ """
+ 
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import dag, task, CronDataIntervalTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+@@ -18,17 +24,31 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    schedule=CronDataIntervalTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(**context) -> int:
++        """
++        Load pageviews for the day that just finished (data_interval_start).
++        
++        Under CronDataIntervalTimetable with schedule "0 3 * * *":
++          - A run at 2026-09-02 03:00 UTC has data_interval_start = 2026-09-01 00:00 UTC
++          - So we load the 2026-09-01 file
++        """
++        # Get the interval start from context (always present with interval timetables)
++        data_interval_start = context["data_interval_start"]
++        day = pendulum.instance(data_interval_start).to_date_string()
+         source = RAW_DIR / f"{day}.csv"
++        
++        if not source.exists():
++            raise FileNotFoundError(f"Raw pageviews file not found: {source}")
++        
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -54,9 +74,10 @@ def pageviews_daily():
+                 [day],
+             )
+             con.execute("COMMIT")
+-            return con.execute(
++            row_count = con.execute(
+                 "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
+             ).fetchone()[0]
++            return row_count
+         finally:
+             con.close()
+ 

@@ -1,0 +1,35 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [
+    "migrating-to-airflow-3"
+  ],
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "tools": [
+    "skill",
+    "todowrite",
+    "bash",
+    "glob",
+    "read",
+    "read",
+    "read"
+  ],
+  "returncode": 1,
+  "wall_s": 56.1,
+  "cost_usd": 0.820599,
+  "cost_reported_usd": 1.665813,
+  "steps": 4,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "errors": []
+}
