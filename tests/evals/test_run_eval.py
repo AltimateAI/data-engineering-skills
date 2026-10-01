@@ -312,7 +312,10 @@ def test_run_attempt_preserves_cost_on_post_execution_exception(tmp_path, monkey
     assert rec["cost_usd"] == pytest.approx(0.42) and budget.spent == pytest.approx(0.42)
     saved = json.loads((tmp_path / "out" / "attempt-0" / "attempt.json").read_text())
     assert saved["cost_usd"] == pytest.approx(0.42) and saved["launched"] is True
-    assert saved["tmpdir"].endswith("/tmp") and "harness_exception" in saved
+    tmpdir = Path(rec["tmpdir"])
+    assert tmpdir.name == "tmp" and tmpdir.parent.parent == args.work_dir
+    assert saved["tmpdir"] == r.san.sanitize_text(str(tmpdir))
+    assert "harness_exception" in saved
     assert not list((tmp_path / "work").iterdir())  # scratch cleaned up
 
 

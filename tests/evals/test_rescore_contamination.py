@@ -1,6 +1,7 @@
 """Unit tests for evals/harness/rescore_contamination.py (synthetic altimate-code streams)."""
 
 import json
+from pathlib import Path
 
 import rescore_contamination as rc
 import run_eval as re_
@@ -70,16 +71,29 @@ def test_overwrite_must_be_first_reference_in_command():
     assert rc._overwrites({"tool": "write", "input": {"filePath": "/tmp/x"}}, "/tmp/x")
 
 
-def test_alias_spellings_and_hit_cap(tmp_path):
+def test_alias_spellings_and_hit_cap(monkeypatch):
+    # Model the macOS /tmp alias even on hosts where /private/tmp is a distinct path.
+    realpath = rc.os.path.realpath
+
+    def resolve_temp_alias(path, *args, **kwargs):
+        path = str(path)
+        if path == "/private/tmp" or path.startswith("/private/tmp/"):
+            path = path[len("/private"):]
+        return realpath(path, *args, **kwargs)
+
+    monkeypatch.setattr(rc.os.path, "realpath", resolve_temp_alias)
     work = "/tmp/eval-work"
     own = f"/private/tmp/eval-work/camp/{CASE}-own12345"
     calls = [tool(f"cd {own}/ws", ts=1), tool("echo a > /tmp/x", ts=2), tool("cat /private/tmp/x", ts=3)]
     calls += [tool(f"cat /tmp/f{i}", ts=10 + i) for i in range(60)]
-    scan = rc.scan_attempt(calls, CASE, tmp_path, work, True, str(tmp_path))
+    scan = rc.scan_attempt(calls, CASE, Path("/eval-results"), work, True, "/eval-home")
     # the scratch dir is recognised through the /private alias, so it is not a hit
-    assert scan["scratch"] and not any(h["root"] == "work-root" for h in scan["hits"])
+    assert scan["scratch"] == f"{work}/camp/{CASE}-own12345"
+    assert not any(h["root"] == "work-root" for h in scan["hits"])
     # the first spelling decides the access type for later alias spellings
-    assert {h["first_access"] for h in scan["hits"] if h["key"] == "/tmp/x"} == {"overwrite"}
+    assert {(h["path"], h["first_access"]) for h in scan["hits"] if h["key"] == "/tmp/x"} == {
+        ("/tmp/x", "overwrite"), ("/private/tmp/x", "overwrite"),
+    }
     # no 50-hit truncation
     assert len(scan["hits"]) == 62
 

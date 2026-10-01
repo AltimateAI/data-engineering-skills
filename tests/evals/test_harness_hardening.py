@@ -246,28 +246,33 @@ def test_run_attempt_killed_altimate_run_is_not_graded(tmp_path, monkeypatch):
     assert rec["kill_command"] is False
 
 
-def test_run_agent_process_external_kill_reports_signal(tmp_path):
+def test_run_agent_process_external_kill_reports_signal(tmp_path, monkeypatch):
     """A real child killed by someone else: Popen reports ``-SIGTERM``; nothing marks it as
     a harness stop, so it classifies as killed."""
     proc_holder = {}
+    real_popen = subprocess.Popen
+
+    def capture_process(*args, **kwargs):
+        proc = real_popen(*args, **kwargs)
+        proc_holder["proc"] = proc
+        return proc
+
+    monkeypatch.setattr(r.subprocess, "Popen", capture_process)
 
     def factory(path):
         class M:
             inventory = inventory_problems = abort_reason = None
+            signalled = False
 
             def poll(self):
-                pid = proc_holder.get("pid")
-                if pid is None:
-                    out = subprocess.run(["pgrep", "-f", "des-evals-killprobe"], capture_output=True, text=True)
-                    pids = [int(p) for p in out.stdout.split()]
-                    if pids:
-                        proc_holder["pid"] = pids[0]
-                        os.kill(pids[0], signal.SIGTERM)
+                if not self.signalled:
+                    os.kill(proc_holder["proc"].pid, signal.SIGTERM)
+                    self.signalled = True
                 return 0.0
         return M()
 
-    script = "import sys,time\nsys.argv[0]='des-evals-killprobe'\ntime.sleep(60)\n"
-    res = r.run_agent_process([sys.executable, "-c", script, "des-evals-killprobe"], tmp_path, dict(os.environ),
+    script = "import time; time.sleep(60)"
+    res = r.run_agent_process([sys.executable, "-c", script], tmp_path, dict(os.environ),
                               tmp_path / "e.jsonl", tmp_path / "s.log", 120, None, "m", False,
                               monitor_factory=factory)
     assert res["returncode"] == -signal.SIGTERM and not res["timed_out"] and not res["cost_capped"]

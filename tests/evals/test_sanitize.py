@@ -41,7 +41,8 @@ def test_default_roots_cover_repo_home_and_work():
     labels = {label for _, label in san.default_roots()}
     assert labels == {"<repo>", "<work>", "<tmp>", "~"}
     assert san.sanitize_text(str(san.REPO_ROOT / "evals")) == "<repo>/evals"
-    assert san.sanitize_text(os.path.expanduser("~/.cache/des-evals/work/x")) == "<work>/x"
+    work_root = Path(os.environ.get("EVAL_WORK_ROOT", "~/.cache/des-evals/work")).expanduser().resolve()
+    assert san.sanitize_text(str(work_root / "x")) == "<work>/x"
     assert san.sanitize_text(os.path.expanduser("~/.cache/des-evals/agent-airflow-3.3")) == \
         "~/.cache/des-evals/agent-airflow-3.3"
 
