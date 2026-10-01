@@ -1,0 +1,115 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..361ab8f
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,109 @@
++"""Daily DAG to process partner order files from data/partner_drop/<YYYY-MM-DD>/.
++
++Each partner's CSV file is processed as its own task instance, so failures
++are isolated per file. Outputs per-file JSON summaries and a daily summary.
++"""
++
++from __future__ import annotations
++
++import json
++from decimal import Decimal
++from pathlib import Path
++
++import pendulum
++import pandas as pd
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 2 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["partners"],
++)
++def partner_feeds():
++    """Process partner order files and generate daily summaries."""
++
++    @task
++    def list_files(ds=None) -> list[str]:
++        """Discover all partner CSV files for the given date."""
++        date_dir = PROJECT_ROOT / "data" / "partner_drop" / ds
++        if not date_dir.exists():
++            return []
++
++        files = sorted(date_dir.glob("*.csv"))
++        return [str(f) for f in files]
++
++    @task
++    def process_file(file_path: str) -> dict:
++        """Process a single partner CSV file.
++
++        Returns a dict with partner name, row count, and total amount.
++        """
++        file_path_obj = Path(file_path)
++        partner = file_path_obj.stem
++
++        df = pd.read_csv(file_path)
++        row_count = len(df)
++        total_amount = float(Decimal(str(df["amount"].sum())).quantize(Decimal("0.01")))
++
++        return {
++            "partner": partner,
++            "rows": row_count,
++            "total_amount": total_amount,
++        }
++
++    @task
++    def collect_results(file_results: list[dict] | None = None) -> list[dict]:
++        """Collect and validate results from all process_file tasks.
++        
++        This intermediate task ensures summarize always runs, even with
++        zero file expansions.
++        """
++        return file_results if file_results else []
++
++    @task
++    def summarize(ds=None, file_results: list[dict] | None = None) -> str:
++        """Write daily summary JSON after all files are processed.
++
++        Handles the case where no files exist (all zeros) and still writes
++        the summary file.
++        """
++        if file_results is None:
++            file_results = []
++
++        summary = {
++            "files": len(file_results),
++            "rows": sum(r["rows"] for r in file_results),
++            "total_amount": float(
++                Decimal(
++                    str(sum(Decimal(str(r["total_amount"])) for r in file_results))
++                ).quantize(Decimal("0.01"))
++            ),
++        }
++
++        out_dir = PROJECT_ROOT / "output" / "partner_feeds" / ds
++        out_dir.mkdir(parents=True, exist_ok=True)
++
++        # Write individual file summaries
++        for file_result in file_results:
++            partner = file_result["partner"]
++            out_file = out_dir / f"{partner}.json"
++            out_file.write_text(json.dumps(file_result, indent=2))
++
++        # Write daily summary (even if no files)
++        summary_file = out_dir / "summary.json"
++        summary_file.write_text(json.dumps(summary, indent=2))
++
++        return str(summary_file)
++
++    # Workflow: list files -> process each -> collect results -> summarize
++    files = list_files()
++    file_results = process_file.expand(file_path=files)
++    collected = collect_results(file_results=file_results)
++    summarize(file_results=collected)
++
++
++partner_feeds()

@@ -1,0 +1,296 @@
+diff --git a/dags/broken_catchup.py b/dags/broken_catchup.py
+new file mode 100644
+index 0000000..9e8c885
+--- /dev/null
++++ b/dags/broken_catchup.py
+@@ -0,0 +1,12 @@
++from datetime import datetime
++from airflow import DAG
++from airflow.operators.empty import EmptyOperator
++
++dag = DAG(
++    'broken_catchup',
++    start_date=datetime(2024, 1, 1),
++    catchup=True,  # Should be False - policy violation
++    tags=['test'],
++)
++
++EmptyOperator(task_id='task1', owner='alice', retries=2, dag=dag)
+diff --git a/dags/broken_no_tags.py b/dags/broken_no_tags.py
+new file mode 100644
+index 0000000..d72263f
+--- /dev/null
++++ b/dags/broken_no_tags.py
+@@ -0,0 +1,12 @@
++from datetime import datetime
++from airflow import DAG
++from airflow.operators.empty import EmptyOperator
++
++dag = DAG(
++    'broken_no_tags',
++    start_date=datetime(2024, 1, 1),
++    catchup=False,
++    tags=None,  # No tags - should fail test
++)
++
++EmptyOperator(task_id='task1', owner='alice', retries=2, dag=dag)
+diff --git a/test_dagbag_attrs.py b/test_dagbag_attrs.py
+new file mode 100644
+index 0000000..202b21a
+--- /dev/null
++++ b/test_dagbag_attrs.py
+@@ -0,0 +1,18 @@
++#!/usr/bin/env python3
++from airflow.models import DagBag
++from pathlib import Path
++
++DAGS_DIR = Path("dags")
++dagbag = DagBag(dag_folder=str(DAGS_DIR))
++
++print("DagBag attributes:")
++print(f"  dag_ids: {dagbag.dag_ids}")
++print(f"  dags type: {type(dagbag.dags)}")
++print(f"  dags keys: {list(dagbag.dags.keys())}")
++
++orders_ingest = dagbag.dags.get("orders_ingest")
++if orders_ingest:
++    print(f"\nDirect access to orders_ingest works!")
++    print(f"  dag_id: {orders_ingest.dag_id}")
++    print(f"  tags: {orders_ingest.tags}")
++    print(f"  task_ids: {orders_ingest.task_ids}")
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..cb8fbe4
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++"""Test suite for Airflow DAGs."""
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..91e9686
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,38 @@
++"""Pytest fixtures and configuration for DAG tests."""
++
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++import pytest
++from airflow.models import DAG, DagBag
++
++
++# Add dags directory to Python path so imports work
++DAGS_DIR = Path(__file__).parent.parent / "dags"
++sys.path.insert(0, str(DAGS_DIR.parent))
++
++
++@pytest.fixture(scope="session")
++def dagbag() -> DagBag:
++    """Load all DAGs from the dags/ directory."""
++    return DagBag(dag_folder=str(DAGS_DIR))
++
++
++@pytest.fixture
++def all_dag_ids(dagbag: DagBag) -> list[str]:
++    """Return all DAG IDs in the DAG bag."""
++    return list(dagbag.dag_ids)
++
++
++@pytest.fixture
++def all_dags(dagbag: DagBag) -> list[DAG]:
++    """Return all DAG objects in the DAG bag."""
++    return [dagbag.dags[dag_id] for dag_id in dagbag.dag_ids]
++
++
++@pytest.fixture
++def orders_ingest_dag(dagbag: DagBag) -> DAG:
++    """Return the orders_ingest DAG."""
++    return dagbag.dags["orders_ingest"]
+diff --git a/tests/test_dag_loading.py b/tests/test_dag_loading.py
+new file mode 100644
+index 0000000..0d3131c
+--- /dev/null
++++ b/tests/test_dag_loading.py
+@@ -0,0 +1,35 @@
++"""Test that all DAGs can be loaded without errors."""
++
++from __future__ import annotations
++
++import pytest
++from airflow.models import DagBag
++
++
++def test_dagbag_loads_without_errors():
++    """Fail if any DAG file has import errors or parsing issues."""
++    from pathlib import Path
++
++    dags_dir = Path(__file__).parent.parent / "dags"
++    dagbag = DagBag(dag_folder=str(dags_dir))
++
++    # Check that there are no import errors
++    if dagbag.import_errors:
++        error_msg = "\n".join(
++            [f"{filename}: {error}" for filename, error in dagbag.import_errors.items()]
++        )
++        pytest.fail(f"DAG import errors detected:\n{error_msg}")
++
++    # Ensure we have at least one DAG (proves the directory was parsed)
++    assert len(dagbag.dag_ids) > 0, "No DAGs found in dags/ directory"
++
++
++def test_all_dags_parse(dagbag):
++    """Verify all DAGs can be instantiated and their tasks are accessible."""
++    for dag_id in dagbag.dag_ids:
++        dag = dagbag.dags[dag_id]
++        assert dag is not None, f"DAG {dag_id} could not be retrieved"
++        assert hasattr(dag, "tasks"), f"DAG {dag_id} has no tasks attribute"
++        # Ensure we can iterate over tasks (catches some parsing issues)
++        task_count = len(dag.tasks)
++        assert task_count > 0, f"DAG {dag_id} has no tasks"
+diff --git a/tests/test_dag_policy.py b/tests/test_dag_policy.py
+new file mode 100644
+index 0000000..ea136de
+--- /dev/null
++++ b/tests/test_dag_policy.py
+@@ -0,0 +1,66 @@
++"""Test that all DAGs comply with organizational policies."""
++
++from __future__ import annotations
++
++import pytest
++from airflow.models import DAG
++
++
++class TestDAGTagPolicy:
++    """Test that all DAGs have required tags."""
++
++    def test_all_dags_have_tags(self, all_dags: list[DAG]):
++        """Every DAG must have at least one tag."""
++        for dag in all_dags:
++            assert dag.tags is not None and len(dag.tags) > 0, (
++                f"DAG '{dag.dag_id}' has no tags. "
++                "Every DAG must have at least one tag for organization and discovery."
++            )
++
++    def test_all_dags_have_valid_tags(self, all_dags: list[DAG]):
++        """Every tag must be a non-empty string."""
++        for dag in all_dags:
++            for tag in dag.tags:
++                assert isinstance(tag, str) and tag, (
++                    f"DAG '{dag.dag_id}' has an invalid tag: {tag!r}. "
++                    "Tags must be non-empty strings."
++                )
++
++
++class TestDAGCatchupPolicy:
++    """Test that all DAGs have catchup disabled."""
++
++    def test_all_dags_have_catchup_false(self, all_dags: list[DAG]):
++        """Every DAG must have catchup=False."""
++        for dag in all_dags:
++            assert dag.catchup is False, (
++                f"DAG '{dag.dag_id}' has catchup=True. "
++                "All DAGs must have catchup=False to prevent unexpected backfill runs."
++            )
++
++
++class TestTaskOwnerPolicy:
++    """Test that all tasks have a real owner (not the default 'airflow')."""
++
++    def test_all_tasks_have_real_owner(self, all_dags: list[DAG]):
++        """Every task must have an owner that is not the default 'airflow'."""
++        for dag in all_dags:
++            for task in dag.tasks:
++                assert task.owner and task.owner != "airflow", (
++                    f"DAG '{dag.dag_id}', task '{task.task_id}' has owner='{task.owner}'. "
++                    "All tasks must have a real owner (not the default 'airflow'). "
++                    "Set it via default_args or task_kwargs."
++                )
++
++
++class TestTaskRetryPolicy:
++    """Test that all tasks have at least 2 retries."""
++
++    def test_all_tasks_have_min_retries(self, all_dags: list[DAG]):
++        """Every task must have at least 2 retries configured."""
++        for dag in all_dags:
++            for task in dag.tasks:
++                assert task.retries >= 2, (
++                    f"DAG '{dag.dag_id}', task '{task.task_id}' has only {task.retries} retries. "
++                    "All tasks must have at least 2 retries to handle transient failures."
++                )
+diff --git a/tests/test_dag_structure.py b/tests/test_dag_structure.py
+new file mode 100644
+index 0000000..1fc4a32
+--- /dev/null
++++ b/tests/test_dag_structure.py
+@@ -0,0 +1,66 @@
++"""Test the structure and ordering of specific DAGs."""
++
++from __future__ import annotations
++
++import pytest
++from airflow.models import DAG
++
++
++class TestOrdersIngestStructure:
++    """Test the orders_ingest DAG has the correct task ordering."""
++
++    @pytest.fixture
++    def orders_ingest_dag(self, dagbag) -> DAG:
++        """Get the orders_ingest DAG."""
++        dag = dagbag.dags["orders_ingest"]
++        assert dag is not None, "orders_ingest DAG not found"
++        return dag
++
++    def test_orders_ingest_task_order(self, orders_ingest_dag: DAG):
++        """Verify the task execution order: extract -> validate -> load -> publish."""
++        dag = orders_ingest_dag
++
++        # Get task by name
++        task_ids = {task.task_id: task for task in dag.tasks}
++
++        required_tasks = [
++            "extract_orders",
++            "validate_orders",
++            "load_orders",
++            "publish_summary",
++        ]
++
++        for task_id in required_tasks:
++            assert task_id in task_ids, (
++                f"orders_ingest DAG is missing required task '{task_id}'"
++            )
++
++        extract = task_ids["extract_orders"]
++        validate = task_ids["validate_orders"]
++        load = task_ids["load_orders"]
++        publish = task_ids["publish_summary"]
++
++        # Validate downstream relationships
++        assert validate in extract.downstream_list, (
++            "extract_orders must flow directly to validate_orders"
++        )
++        assert load in validate.downstream_list, (
++            "validate_orders must flow directly to load_orders"
++        )
++        assert publish in load.downstream_list, (
++            "load_orders must flow directly to publish_summary"
++        )
++
++        # Ensure the chain is unbroken
++        assert len(extract.downstream_list) == 1, (
++            "extract_orders should have exactly one downstream task"
++        )
++        assert len(validate.downstream_list) == 1, (
++            "validate_orders should have exactly one downstream task"
++        )
++        assert len(load.downstream_list) == 1, (
++            "load_orders should have exactly one downstream task"
++        )
++        assert len(publish.upstream_list) == 1, (
++            "publish_summary should have exactly one upstream task"
++        )

@@ -1,0 +1,26 @@
+name: catalog_tickets
+team: catalog
+tier: standard
+description: Tickets pipeline for catalog
+schedule:
+  hour: 5
+  days: '1'
+owners:
+- yusuf
+- dara
+steps:
+- name: extract
+  table: catalog.raw_tickets_00
+- name: stage
+  table: catalog.stg_tickets_00
+  depends_on:
+  - extract
+- name: validate
+  table: catalog.int_tickets_00
+  depends_on:
+  - stage
+  - extract
+- name: publish
+  table: catalog.mart_tickets_00
+  depends_on:
+  - validate

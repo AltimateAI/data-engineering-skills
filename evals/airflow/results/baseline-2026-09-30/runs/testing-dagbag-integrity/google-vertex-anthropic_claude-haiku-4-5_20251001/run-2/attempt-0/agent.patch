@@ -1,0 +1,181 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..a459bd3
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++"""DAG integrity test suite."""
+diff --git a/tests/test_dagbag_integrity.py b/tests/test_dagbag_integrity.py
+new file mode 100644
+index 0000000..bf99200
+--- /dev/null
++++ b/tests/test_dagbag_integrity.py
+@@ -0,0 +1,168 @@
++"""Comprehensive DAG integrity tests.
++
++Tests verify:
++1. All DAGs in dags/ load without import errors
++2. All DAGs have at least one tag
++3. All DAGs have catchup=False
++4. All tasks have a real owner (not 'airflow')
++5. All tasks have at least 2 retries
++6. The orders_ingest pipeline maintains its task order
++"""
++
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++import pytest
++from airflow.models import DAG
++from airflow.dag_processing.dagbag import DagBag
++
++
++# Setup: add dags directory to path so imports work
++REPO_ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = REPO_ROOT / "dags"
++sys.path.insert(0, str(DAGS_DIR))
++
++
++class TestDagLoading:
++    """Test that all DAGs load without import errors."""
++
++    @pytest.fixture
++    def dagbag(self):
++        """Create a DagBag that loads all DAGs from the dags/ directory."""
++        return DagBag(dag_folder=str(DAGS_DIR))
++
++    def test_no_import_errors(self, dagbag):
++        """Verify no DAGs failed to import."""
++        assert (
++            len(dagbag.import_errors) == 0
++        ), f"DAG import errors detected: {dagbag.import_errors}"
++
++    def test_all_dags_loaded(self, dagbag):
++        """Verify at least one DAG was loaded (sanity check)."""
++        assert len(dagbag.dags) > 0, "No DAGs found in dags/ directory"
++
++    def test_dag_cycles_detected(self, dagbag):
++        """Verify no circular dependencies in DAG task graphs."""
++        for dag_id, dag in dagbag.dags.items():
++            # DagBag validates cycles during load, but we can also check the graph structure
++            try:
++                # This will raise if there are cycles
++                _ = dag.topological_sort()
++            except Exception as e:
++                pytest.fail(f"DAG '{dag_id}' has cycle or invalid graph: {e}")
++
++
++class TestDagPolicy:
++    """Test DAG-level policy compliance."""
++
++    @pytest.fixture
++    def dagbag(self):
++        """Create a DagBag that loads all DAGs from the dags/ directory."""
++        return DagBag(dag_folder=str(DAGS_DIR))
++
++    def test_all_dags_have_tags(self, dagbag):
++        """Verify every DAG has at least one tag."""
++        for dag_id, dag in dagbag.dags.items():
++            assert (
++                dag.tags and len(dag.tags) > 0
++            ), f"DAG '{dag_id}' has no tags. Tags are required."
++
++    def test_all_dags_have_catchup_false(self, dagbag):
++        """Verify every DAG has catchup=False."""
++        for dag_id, dag in dagbag.dags.items():
++            assert (
++                dag.catchup is False
++            ), f"DAG '{dag_id}' has catchup={dag.catchup}. Must be False."
++
++
++class TestTaskPolicy:
++    """Test task-level policy compliance."""
++
++    @pytest.fixture
++    def dagbag(self):
++        """Create a DagBag that loads all DAGs from the dags/ directory."""
++        return DagBag(dag_folder=str(DAGS_DIR))
++
++    def test_all_tasks_have_real_owner(self, dagbag):
++        """Verify every task has a real owner (not the default 'airflow')."""
++        for dag_id, dag in dagbag.dags.items():
++            for task in dag.tasks:
++                # owner can be inherited from DAG's default_args, or set directly on the task
++                owner = task.owner
++                assert (
++                    owner and owner != "airflow"
++                ), f"Task '{task.task_id}' in DAG '{dag_id}' has default owner 'airflow'. Must assign a real owner."
++
++    def test_all_tasks_have_min_retries(self, dagbag):
++        """Verify every task has at least 2 retries."""
++        for dag_id, dag in dagbag.dags.items():
++            for task in dag.tasks:
++                retries = task.retries if task.retries is not None else 0
++                assert (
++                    retries >= 2
++                ), f"Task '{task.task_id}' in DAG '{dag_id}' has retries={retries}. Minimum is 2."
++
++
++class TestOrdersIngestPipeline:
++    """Test the specific task order of the orders_ingest DAG."""
++
++    @pytest.fixture
++    def dagbag(self):
++        """Create a DagBag that loads all DAGs from the dags/ directory."""
++        return DagBag(dag_folder=str(DAGS_DIR))
++
++    @pytest.fixture
++    def orders_ingest_dag(self, dagbag):
++        """Retrieve the orders_ingest DAG."""
++        dag = dagbag.dags.get("orders_ingest")
++        assert dag is not None, "orders_ingest DAG not found"
++        return dag
++
++    def test_orders_ingest_task_order(self, orders_ingest_dag):
++        """Verify orders_ingest tasks execute in the required order.
++
++        Required order: extract_orders -> validate_orders -> load_orders -> publish_summary
++        """
++        expected_order = [
++            "extract_orders",
++            "validate_orders",
++            "load_orders",
++            "publish_summary",
++        ]
++
++        # Get the topological sort (execution order) of the DAG
++        dag_tasks = orders_ingest_dag.topological_sort()
++        actual_order = [task.task_id for task in dag_tasks]
++
++        assert (
++            actual_order == expected_order
++        ), f"Task order mismatch in orders_ingest. Expected {expected_order}, got {actual_order}"
++
++    def test_orders_ingest_task_dependencies(self, orders_ingest_dag):
++        """Verify the exact dependency chain in orders_ingest."""
++        # Build the dependency graph as a dict of task_id -> list of downstream task_ids
++        dag_dict = orders_ingest_dag.task_dict
++        dependencies = {}
++
++        for task_id, task in dag_dict.items():
++            downstream_ids = [t.task_id for t in task.downstream_list]
++            dependencies[task_id] = downstream_ids
++
++        # Expected chain: extract -> validate -> load -> publish
++        assert (
++            dependencies["extract_orders"] == ["validate_orders"]
++        ), f"extract_orders should flow to validate_orders, got {dependencies['extract_orders']}"
++
++        assert (
++            dependencies["validate_orders"] == ["load_orders"]
++        ), f"validate_orders should flow to load_orders, got {dependencies['validate_orders']}"
++
++        assert (
++            dependencies["load_orders"] == ["publish_summary"]
++        ), f"load_orders should flow to publish_summary, got {dependencies['load_orders']}"
++
++        assert (
++            dependencies["publish_summary"] == []
++        ), f"publish_summary should have no downstream tasks, got {dependencies['publish_summary']}"

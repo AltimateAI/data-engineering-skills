@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_orders_enrichment.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 31 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]\n_____________ TestEndToEnd.test_e2e_missing_fx_rate_stops_pipeline _____________\n\nself = <test_orders_enrichment.TestEndToEnd object at 0x10b321100>\ntmp_path = PosixPath('<tmp>/pytest-of-user/pytest-1132/test_e2e_missing_fx_rate_stops0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11049ba10>\n\n    def test_e2e_missing_fx_rate_stops_pipeline(self, tmp_path, monkeypatch):\n        \"\"\"Missing FX rate halts pipeline before validate_totals.\"\"\"\n        from dags.orders_enrichment import (\n            dedupe_orders,\n            convert_to_usd,\n            validate_totals,\n            load_enriched,\n        )\n    \n        import dags.orders_enrichment as module\n        monkeypatch.setattr(module, \"OUTPUT_DIR\", tmp_path)\n    \n        rows = [\n            {\n                \"order_id\": \"S-101\",\n                \"order_date\": \"2026-03-01\",\n                \"updated_at\": \"2026-03-01T10:40:00\",\n                \"customer_id\": \"C-8\",\n                \"currency\": \"EUR\",\n                \"amount\": \"20.00\",\n            }\n        ]\n        rates = {\"USD\": \"1\"}  # EUR rate missing\n    \n>       with pytest.raises(ValueError, match=\"no FX rate for EUR\"):\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE ValueError\n\ntests/test_orders_enrichment.py:677: Failed\n=========================== short test summary info ============================\nFAILED tests/test_orders_enrichment.py::TestExtractOrders::test_extract_preserves_duplicates\nFAILED tests/test_orders_enrichment.py::TestEndToEnd::test_e2e_2026_03_02 - V...\nFAILED tests/test_orders_enrichment.py::TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline\n3 failed, 31 passed in 1.66s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 31 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]"
+    },
+    {
+      "name": "suite catches hidden bug: dedupe_keeps_first",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; dedupe_orders keeps the first row seen per order_id instead of the latest updated_at -> failed: 31 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]"
+    },
+    {
+      "name": "suite catches hidden bug: rounding_truncates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; convert_to_usd rounds down (ROUND_DOWN) instead of half-up -> failed: 31 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]"
+    },
+    {
+      "name": "suite catches hidden bug: unknown_currency_as_usd",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; convert_to_usd treats a currency with no FX rate as USD instead of failing -> failed: 31 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]"
+    },
+    {
+      "name": "suite catches hidden bug: validation_bypassed",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; load_enriched is wired from convert_to_usd; validate_totals runs in parallel -> failed: 30 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestDagStructure::test_dag_task_dependencies [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]"
+    },
+    {
+      "name": "suite catches hidden bug: schedule_midnight",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; schedule changed from 0 6 * * * to @daily (00:00 UTC) -> failed: 30 passed, 4 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestExtractOrders::test_extract_preserves_duplicates [AssertionError], tests.test_orders_enrichment.TestDagStructure::test_dag_schedule_06_00_utc [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_2026_03_02 [ValueError], tests.test_orders_enrichment.TestEndToEnd::test_e2e_missing_fx_rate_stops_pipeline [None]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/orders_enrichment.py"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.75
+}

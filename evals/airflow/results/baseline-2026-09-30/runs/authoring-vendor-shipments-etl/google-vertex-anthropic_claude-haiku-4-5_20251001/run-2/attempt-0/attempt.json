@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: file sensor is reschedule-mode or deferrable",
+  "primary_pass": false,
+  "primary_score": 0.9166666666666666,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 165.0,
+  "cost_usd": 0.477223,
+  "cost_reported_usd": 2.319464,
+  "tokens": {
+    "input": 1842387,
+    "output": 9196,
+    "reasoning": 0,
+    "cache_read": 1627569,
+    "cache_write": 214672,
+    "total": 3693824
+  },
+  "steps": 26,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0da78be3ffe6FhgDBoZNprySk.json"
+}

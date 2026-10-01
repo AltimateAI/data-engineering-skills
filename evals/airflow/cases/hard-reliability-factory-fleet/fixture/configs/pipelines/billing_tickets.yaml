@@ -1,0 +1,26 @@
+name: billing_tickets
+team: billing
+tier: standard
+description: Tickets pipeline for billing
+schedule:
+  hour: 2
+  days: '*'
+owners:
+- hana
+- quinn
+retries: 4
+steps:
+- name: extract
+  table: billing.raw_tickets_00
+- name: transform
+  table: billing.int_tickets_00
+  depends_on:
+  - extract
+- name: enrich
+  table: billing.int_tickets_00
+  depends_on:
+  - transform
+- name: publish
+  table: billing.mart_tickets_00
+  depends_on:
+  - enrich

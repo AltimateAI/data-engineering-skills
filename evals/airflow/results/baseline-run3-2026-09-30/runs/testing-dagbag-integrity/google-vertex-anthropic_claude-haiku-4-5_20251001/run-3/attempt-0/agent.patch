@@ -1,0 +1,838 @@
+diff --git a/tests/README.md b/tests/README.md
+new file mode 100644
+index 0000000..8a77f6d
+--- /dev/null
++++ b/tests/README.md
+@@ -0,0 +1,265 @@
++# Airflow DAG Integrity Test Suite
++
++A comprehensive pytest suite that validates DAG integrity, policy compliance, and pipeline structure. Designed to catch import errors, policy violations, and pipeline ordering issues before they reach production.
++
++## Running the Tests
++
++```bash
++pytest tests/
++```
++
++For verbose output:
++```bash
++pytest tests/ -v
++```
++
++To run specific test classes:
++```bash
++pytest tests/test_dag_integrity.py::TestDagPolicy -v
++pytest tests/test_dag_integrity.py::TestOrdersIngestPipeline -v
++```
++
++## What Gets Tested
++
++### 1. **Import & Loading Tests** (`TestDagImports`)
++
++Ensures all DAG files in `dags/` can be loaded without errors.
++
++- **Fails when:** Any Python file in `dags/` has syntax errors, import errors, or circular dependencies
++- **Example failure:**
++  ```python
++  # Bad: import that doesn't exist
++  from nonexistent_module import something
++  ```
++
++### 2. **DAG Policy Tests** (`TestDagPolicy`)
++
++Enforces organizational policies at the DAG level.
++
++**Policy Requirements:**
++- Every DAG must have **at least one tag**
++- Every DAG must have **`catchup=False`**
++
++- **Fails when:**
++  ```python
++  @dag(
++      tags=[],  # ❌ Empty tags list
++      catchup=True,  # ❌ Catchup not disabled
++  )
++  def my_dag():
++      pass
++  ```
++
++- **Passes when:**
++  ```python
++  @dag(
++      tags=["data", "critical"],  # ✅ At least one tag
++      catchup=False,  # ✅ Catchup disabled
++  )
++  def my_dag():
++      pass
++  ```
++
++### 3. **Task Policy Tests** (`TestTaskPolicy`)
++
++Enforces operational policies at the task level.
++
++**Policy Requirements:**
++- Every task must have a real **owner** (not the default `"airflow"`)
++- Every task must have **at least 2 retries**
++
++- **Fails when:**
++  ```python
++  @task  # ❌ No explicit owner, uses default "airflow"
++  def my_task():
++      pass
++  
++  @task(retries=1)  # ❌ Only 1 retry
++  def another_task():
++      pass
++  ```
++
++- **Passes when:**
++  ```python
++  DEFAULT_ARGS = {
++      "owner": "data-platform",  # ✅ Real owner set at DAG level
++      "retries": 2,  # ✅ Minimum retries
++  }
++  
++  @dag(..., default_args=DEFAULT_ARGS)
++  def my_dag():
++      @task  # Inherits owner and retries from default_args
++      def my_task():
++          pass
++  ```
++
++### 4. **Pipeline Ordering Tests** (`TestOrdersIngestPipeline`)
++
++Validates the specific task order in the `orders_ingest` pipeline.
++
++**Required Pipeline:**
++```
++extract_orders → validate_orders → load_orders → publish_summary
++```
++
++- **Fails when:** Any task is missing, renamed, or the ordering is changed
++- **Example failure:**
++  ```python
++  # ❌ Wrong order!
++  publish_summary(load_orders(extract_orders(validate_orders())))
++  ```
++
++## Design Decisions
++
++### Why DagBag?
++
++We use Airflow's `DagBag` to load DAGs because:
++1. **Respects Airflow semantics** — handles both task-flow API (`@dag`, `@task`) and traditional API (DAG, operators)
++2. **Detects import errors** — catches syntax errors, missing imports, and circular dependencies
++3. **No database required** — works in CI without a running database or scheduler
++4. **Safe mode** — prevents execution of DAG code that has side effects
++
++### Why Session Fixtures?
++
++Fixtures are marked `scope="session"` because:
++- Loading all DAGs once per test session is more efficient than reloading for every test
++- Policy checks are deterministic — the DAGs don't change between tests
++
++### Error Handling
++
++If any DAG fails to import, the `loaded_dags` fixture raises an exception with details about the error, and all dependent tests fail immediately. This is intentional — import errors are critical and should block the test suite.
++
++## Failure Examples
++
++### Example 1: Import Error
++
++```python
++# dags/broken_dag.py
++from nonexistent_module import something
++
++@dag(dag_id="broken")
++def broken_dag():
++    pass
++```
++
++**Test output:**
++```
++ERROR at setup of TestDagPolicy.test_all_dags_have_tags
++
++RuntimeError: DAG import errors:
++  dags/broken_dag.py: ModuleNotFoundError: No module named 'nonexistent_module'
++```
++
++### Example 2: Missing Tags
++
++```python
++# dags/no_tags_dag.py
++@dag(dag_id="no_tags", tags=[], catchup=False, default_args=DEFAULT_ARGS)
++def no_tags_dag():
++    pass
++```
++
++**Test output:**
++```
++FAILED tests/test_dag_integrity.py::TestDagPolicy::test_all_dags_have_tags
++AssertionError: DAGs without tags: ['no_tags']. All DAGs must have at least one tag.
++```
++
++### Example 3: Wrong Task Order
++
++If `orders_ingest` tasks were connected in the wrong order:
++
++```python
++# ❌ Wrong: publish_summary happens first
++publish_summary(load_orders(validate_orders(extract_orders())))
++```
++
++**Test output:**
++```
++FAILED tests/test_dag_integrity.py::TestOrdersIngestPipeline::test_orders_ingest_task_order
++AssertionError: Task ordering violation: extract_orders does not have validate_orders as downstream. 
++Expected chain: extract_orders -> validate_orders -> load_orders -> publish_summary. 
++extract_orders downstream: ['load_orders']
++```
++
++## Integration with CI
++
++The test suite is designed to run in a minimal CI environment (Python venv, no Airflow services):
++
++```yaml
++# Example: .github/workflows/test-dags.yml
++- name: Test DAGs
++  run: |
++    pip install -r requirements.txt
++    pytest tests/
++```
++
++No scheduler, webserver, database initialization, or Airflow configuration is needed.
++
++## Adding New DAGs
++
++When you add a new DAG, it must:
++
++1. ✅ Be a valid Python file (no syntax errors)
++2. ✅ Import successfully (no missing dependencies)
++3. ✅ Have at least one tag: `tags=["some-tag"]`
++4. ✅ Have `catchup=False`
++5. ✅ Set a real owner in `default_args`: `"owner": "your-team"`
++6. ✅ Have at least 2 retries: `"retries": 2`
++7. ✅ All tasks must have a real owner and 2+ retries (inherited from default_args or set explicitly)
++
++## Adding New Pipeline Ordering Tests
++
++To validate the ordering of another pipeline, add a new test class following the `TestOrdersIngestPipeline` pattern:
++
++```python
++class TestNewPipelineOrdering:
++    """Test the new_pipeline DAG structure and task ordering."""
++
++    def test_new_pipeline_dag_exists(self, loaded_dags: dict[str, DAG]):
++        assert "new_pipeline" in loaded_dags
++
++    def test_new_pipeline_has_required_tasks(self, loaded_dags: dict[str, DAG]):
++        dag = loaded_dags["new_pipeline"]
++        task_ids = {task.task_id for task in dag.tasks}
++        required_tasks = {"step_1", "step_2", "step_3"}
++        missing = required_tasks - task_ids
++        assert not missing
++
++    def test_new_pipeline_task_order(self, loaded_dags: dict[str, DAG]):
++        dag = loaded_dags["new_pipeline"]
++        tasks_by_id = {task.task_id: task for task in dag.tasks}
++        
++        expected_deps = [
++            ("step_1", "step_2"),
++            ("step_2", "step_3"),
++        ]
++        
++        for upstream_id, downstream_id in expected_deps:
++            upstream_task = tasks_by_id[upstream_id]
++            downstream_ids = {t.task_id for t in upstream_task.downstream_list}
++            assert downstream_id in downstream_ids
++```
++
++## Troubleshooting
++
++### "No DAGs were loaded from dags/"
++
++- Check that `dags/` directory exists and has `.py` files
++- Verify the files contain valid DAG definitions (using `@dag` decorator or `DAG()` class)
++- Run with `-v` to see if there are import errors in the fixture setup
++
++### "Task X does not have owner 'X-team'"
++
++- Check that the task or its parent DAG has `owner` set in `default_args`
++- The owner must not be the string `"airflow"` (Airflow's default)
++
++### "Task X has < 2 retries"
++
++- Check that the task has `retries >= 2` or inherits it from `default_args`
++- Note: Task-level `retries` overrides `default_args` if both are set
++
++### "Task ordering violation"
++
++- Check that your task dependencies match the expected order
++- Verify you're using the correct dependency operator (`>>`, `<<`, or direct function calls in task-flow API)
+diff --git a/tests/VIOLATIONS.md b/tests/VIOLATIONS.md
+new file mode 100644
+index 0000000..e34b0bc
+--- /dev/null
++++ b/tests/VIOLATIONS.md
+@@ -0,0 +1,315 @@
++# Example DAG Violations & Test Failures
++
++This document shows what happens when DAGs violate the policy rules. Each example would cause specific test(s) to fail.
++
++## Violation 1: Import Error
++
++**File: `dags/broken_dag.py`**
++```python
++"""This file has an import error."""
++from airflow import DAG
++from nonexistent_module import something  # ❌ Module doesn't exist
++
++dag = DAG(dag_id="broken")
++```
++
++**Test Failure:**
++```
++ERROR at setup of TestDagPolicy.test_all_dags_have_tags
++
++RuntimeError: DAG import errors:
++  /path/to/dags/broken_dag.py: ModuleNotFoundError: No module named 'nonexistent_module'
++```
++
++**Why it fails:** The `loaded_dags` fixture uses DagBag with safe_mode=True, which executes all DAG files. If a file can't be imported, the fixture fails and all tests that depend on it error out.
++
++---
++
++## Violation 2: Missing Tags
++
++**File: `dags/no_tags_dag.py`**
++```python
++from airflow.sdk import dag
++from datetime import datetime, timedelta
++
++DEFAULT_ARGS = {
++    "owner": "data-platform",
++    "retries": 2,
++}
++
++@dag(
++    schedule="0 2 * * *",
++    start_date=datetime(2026, 1, 1),
++    catchup=False,
++    default_args=DEFAULT_ARGS,
++    tags=[],  # ❌ Empty tags list!
++)
++def no_tags_dag():
++    @task
++    def dummy():
++        pass
++    dummy()
++
++no_tags_dag()
++```
++
++**Test Failure:**
++```
++FAILED tests/test_dag_integrity.py::TestDagPolicy::test_all_dags_have_tags
++
++AssertionError: DAGs without tags: ['no_tags_dag']. All DAGs must have at least one tag.
++```
++
++**Why it fails:** Every DAG must have at least one tag for organization and discoverability. Empty tags lists are not allowed.
++
++---
++
++## Violation 3: Catchup Not Disabled
++
++**File: `dags/catchup_enabled_dag.py`**
++```python
++from airflow.sdk import dag
++from datetime import datetime, timedelta
++
++DEFAULT_ARGS = {
++    "owner": "data-platform",
++    "retries": 2,
++}
++
++@dag(
++    schedule="0 2 * * *",
++    start_date=datetime(2024, 1, 1),  # Old date in the past
++    catchup=True,  # ❌ Catchup is enabled!
++    default_args=DEFAULT_ARGS,
++    tags=["test"],
++)
++def catchup_enabled_dag():
++    @task
++    def process():
++        pass
++    process()
++
++catchup_enabled_dag()
++```
++
++**Test Failure:**
++```
++FAILED tests/test_dag_integrity.py::TestDagPolicy::test_all_dags_have_catchup_false
++
++AssertionError: DAGs with catchup != False: {'catchup_enabled_dag': True}. All DAGs must have catchup=False.
++```
++
++**Why it fails:** If a DAG has `catchup=True` and a start_date in the past, Airflow will attempt to run all historical runs on the first scheduler parse. This can overwhelm the scheduler and warehouse, so all new DAGs must have `catchup=False`.
++
++---
++
++## Violation 4: Default Owner (No Real Owner Set)
++
++**File: `dags/default_owner_dag.py`**
++```python
++from airflow.sdk import dag, task
++from datetime import datetime, timedelta
++
++# ❌ No default_args with owner set!
++
++@dag(
++    schedule="0 2 * * *",
++    start_date=datetime(2026, 1, 1),
++    catchup=False,
++    tags=["test"],
++)
++def default_owner_dag():
++    @task
++    def process():
++        pass
++    process()
++
++default_owner_dag()
++```
++
++**Test Failure:**
++```
++FAILED tests/test_dag_integrity.py::TestTaskPolicy::test_all_tasks_have_real_owner
++
++AssertionError: Tasks with default owner 'airflow': 
++{'default_owner_dag': [('process', 'airflow')]}. 
++All tasks must have a real owner (not 'airflow').
++```
++
++**Why it fails:** Tasks without explicit owners default to the "airflow" user, making it impossible to contact the responsible team for alerts, issues, or changes.
++
++---
++
++## Violation 5: Insufficient Retries
++
++**File: `dags/no_retries_dag.py`**
++```python
++from airflow.sdk import dag, task
++from datetime import datetime
++
++DEFAULT_ARGS = {
++    "owner": "data-platform",
++    "retries": 0,  # ❌ Only 0 retries!
++}
++
++@dag(
++    schedule="0 2 * * *",
++    start_date=datetime(2026, 1, 1),
++    catchup=False,
++    default_args=DEFAULT_ARGS,
++    tags=["test"],
++)
++def no_retries_dag():
++    @task
++    def process():
++        pass
++    process()
++
++no_retries_dag()
++```
++
++**Test Failure:**
++```
++FAILED tests/test_dag_integrity.py::TestTaskPolicy::test_all_tasks_have_minimum_retries
++
++AssertionError: Tasks with < 2 retries: 
++{'no_retries_dag': [('process', 0)]}. 
++All tasks must have at least 2 retries.
++```
++
++**Why it fails:** Transient failures (network hiccups, temporary service outages) are common. Without retries, a task fails immediately. The minimum of 2 retries with exponential backoff gives services time to recover.
++
++---
++
++## Violation 6: Wrong Task Order in orders_ingest
++
++**File: `dags/orders_ingest.py` (modified with wrong order)**
++```python
++@dag(
++    schedule="0 2 * * *",
++    start_date=datetime(2026, 1, 1),
++    catchup=False,
++    max_active_runs=1,
++    default_args=DEFAULT_ARGS,
++    tags=["orders", "ingest"],
++)
++def orders_ingest():
++    @task
++    def extract_orders(ds=None) -> list[dict]:
++        ...
++
++    @task
++    def validate_orders(rows: list[dict]) -> list[dict]:
++        ...
++
++    @task
++    def load_orders(rows: list[dict], ds=None) -> int:
++        ...
++
++    @task
++    def publish_summary(loaded: int, ds=None) -> str:
++        ...
++
++    # ❌ WRONG ORDER: validate_orders runs before extract_orders!
++    publish_summary(load_orders(extract_orders(validate_orders())))
++
++orders_ingest()
++```
++
++**Test Failure:**
++```
++FAILED tests/test_dag_integrity.py::TestOrdersIngestPipeline::test_orders_ingest_task_order
++
++AssertionError: Task ordering violation: extract_orders does not have validate_orders as downstream. 
++Expected chain: extract_orders -> validate_orders -> load_orders -> publish_summary. 
++extract_orders downstream: ['load_orders']
++```
++
++**Why it fails:** The pipeline must follow a strict order:
++1. **extract_orders** - Pull raw data from the source
++2. **validate_orders** - Check data quality (can only validate what was extracted)
++3. **load_orders** - Insert into warehouse (can only load what passed validation)
++4. **publish_summary** - Create output file (only after data is loaded)
++
++If the order changes, data quality checks are bypassed or applied to the wrong data, and invalid orders could reach the warehouse.
++
++---
++
++## Violation 7: Missing Task in orders_ingest
++
++**File: `dags/orders_ingest.py` (modified with missing task)**
++```python
++@dag(
++    schedule="0 2 * * *",
++    start_date=datetime(2026, 1, 1),
++    catchup=False,
++    max_active_runs=1,
++    default_args=DEFAULT_ARGS,
++    tags=["orders", "ingest"],
++)
++def orders_ingest():
++    @task
++    def extract_orders(ds=None) -> list[dict]:
++        ...
++
++    # ❌ MISSING: validate_orders task removed!
++
++    @task
++    def load_orders(rows: list[dict], ds=None) -> int:
++        ...
++
++    @task
++    def publish_summary(loaded: int, ds=None) -> str:
++        ...
++
++    publish_summary(load_orders(extract_orders()))
++
++orders_ingest()
++```
++
++**Test Failure:**
++```
++FAILED tests/test_dag_integrity.py::TestOrdersIngestPipeline::test_orders_ingest_has_required_tasks
++
++AssertionError: orders_ingest is missing tasks: {'validate_orders'}. 
++Found tasks: {'extract_orders', 'load_orders', 'publish_summary'}
++```
++
++**Why it fails:** Data validation is a critical step. Removing it would allow bad data into the warehouse.
++
++---
++
++## Summary Table
++
++| Violation | Caught By | Impact |
++|-----------|-----------|--------|
++| Syntax error in DAG file | `test_dags_can_be_loaded` | DAG doesn't parse; users don't know which DAG is broken |
++| Import error (missing dependency) | `test_dags_can_be_loaded` | DAG fails silently in scheduler |
++| Empty or no tags | `test_all_dags_have_tags` | Can't organize/discover DAGs; alerts unclear |
++| `catchup=True` | `test_all_dags_have_catchup_false` | Massive backfill on first run; scheduler overload |
++| No real owner | `test_all_tasks_have_real_owner` | Can't alert on-call; can't route incidents |
++| < 2 retries | `test_all_tasks_have_minimum_retries` | Transient failures fail immediately; SLA misses |
++| Wrong task order | `test_orders_ingest_task_order` | Data validation bypassed; bad data in warehouse |
++| Missing task | `test_orders_ingest_has_required_tasks` | Pipeline incomplete; SLA misses |
++
++---
++
++## How to Run Tests to See Failures
++
++To test that the suite catches violations, you can temporarily modify a DAG and run the tests:
++
++```bash
++# Make a backup
++cp dags/orders_ingest.py dags/orders_ingest.py.backup
++
++# Edit dags/orders_ingest.py to break one of the policies (e.g., remove catchup=False)
++
++# Run the tests to see the failure
++pytest tests/ -v
++
++# Restore the original
++mv dags/orders_ingest.py.backup dags/orders_ingest.py
++
++# Verify tests pass again
++pytest tests/
++```
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..6995a04
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++"""Airflow DAG integrity tests."""
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..b3365b1
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,233 @@
++"""
++Test suite for Airflow DAG integrity, policy compliance, and structure validation.
++
++Validates:
++- All DAGs can be imported without errors
++- DAG policy compliance (tags, catchup)
++- Task policy compliance (owner, retries)
++- Pipeline ordering (orders_ingest)
++"""
++
++from pathlib import Path
++from typing import Any
++
++import pytest
++from airflow.models import DAG, DagBag
++
++
++# ============================================================================
++# Fixtures
++# ============================================================================
++
++
++@pytest.fixture(scope="session")
++def dags_dir() -> Path:
++    """Return path to the dags directory."""
++    return Path(__file__).parent.parent / "dags"
++
++
++@pytest.fixture(scope="session")
++def dag_files(dags_dir: Path) -> list[Path]:
++    """Return list of all .py DAG files in dags_dir."""
++    return sorted(dags_dir.glob("*.py"))
++
++
++@pytest.fixture(scope="session")
++def loaded_dags(dags_dir: Path) -> dict[str, DAG]:
++    """Load all DAGs from the dags directory using DagBag.
++    
++    This fixture will fail if any DAG file has import errors or syntax issues.
++    """
++    dagbag = DagBag(dag_folder=str(dags_dir), safe_mode=True)
++    
++    # If there were any import errors, report them
++    if dagbag.import_errors:
++        error_msg = "DAG import errors:\n"
++        for file_path, exception_list in dagbag.import_errors.items():
++            for exc in exception_list:
++                error_msg += f"  {file_path}: {exc}\n"
++        raise RuntimeError(error_msg)
++    
++    # Return all loaded DAGs as {dag_id: DAG}
++    # Note: dagbag.get_dag() can fail if DB isn't initialized, so we access from dagbag.dags dict directly
++    dags = {}
++    for dag_id, dag in dagbag.dags.items():
++        dags[dag_id] = dag
++    
++    return dags
++
++
++# ============================================================================
++# Import & Loading Tests
++# ============================================================================
++
++
++class TestDagImports:
++    """Test that all DAG files can be imported without errors."""
++
++    def test_all_dag_files_exist(self, dag_files: list[Path]):
++        """DAG files should exist in the dags directory."""
++        assert len(dag_files) > 0, "No DAG files found in dags/"
++
++    def test_dags_can_be_loaded(self, loaded_dags: dict[str, DAG]):
++        """All DAGs should load without errors via DagBag."""
++        assert len(loaded_dags) > 0, "No DAGs were loaded from dags/"
++
++
++# ============================================================================
++# DAG Policy Tests
++# ============================================================================
++
++
++class TestDagPolicy:
++    """Test DAG-level policy compliance."""
++
++    def test_all_dags_have_tags(self, loaded_dags: dict[str, DAG]):
++        """Every DAG must have at least one tag."""
++        failed_dags = {}
++        for dag_id, dag in loaded_dags.items():
++            if not dag.tags or len(dag.tags) == 0:
++                failed_dags[dag_id] = dag.tags or []
++        
++        assert not failed_dags, (
++            f"DAGs without tags: {list(failed_dags.keys())}. "
++            f"All DAGs must have at least one tag."
++        )
++
++    def test_all_dags_have_catchup_false(self, loaded_dags: dict[str, DAG]):
++        """Every DAG must have catchup=False."""
++        failed_dags = {}
++        for dag_id, dag in loaded_dags.items():
++            if dag.catchup is not False:
++                failed_dags[dag_id] = dag.catchup
++        
++        assert not failed_dags, (
++            f"DAGs with catchup != False: {failed_dags}. "
++            f"All DAGs must have catchup=False."
++        )
++
++
++# ============================================================================
++# Task Policy Tests
++# ============================================================================
++
++
++class TestTaskPolicy:
++    """Test task-level policy compliance."""
++
++    def test_all_tasks_have_real_owner(self, loaded_dags: dict[str, DAG]):
++        """Every task must have an owner that is not 'airflow' (the default)."""
++        failed_tasks = {}
++        
++        for dag_id, dag in loaded_dags.items():
++            for task in dag.tasks:
++                # Check task-specific owner first, then fall back to DAG default
++                owner = task.owner or dag.owner or "airflow"
++                
++                if owner == "airflow":
++                    if dag_id not in failed_tasks:
++                        failed_tasks[dag_id] = []
++                    failed_tasks[dag_id].append((task.task_id, owner))
++        
++        assert not failed_tasks, (
++            f"Tasks with default owner 'airflow': {failed_tasks}. "
++            f"All tasks must have a real owner (not 'airflow')."
++        )
++
++    def test_all_tasks_have_minimum_retries(self, loaded_dags: dict[str, DAG]):
++        """Every task must have at least 2 retries."""
++        failed_tasks = {}
++        
++        for dag_id, dag in loaded_dags.items():
++            for task in dag.tasks:
++                # Check task-specific retries first, then fall back to DAG default
++                retries = (
++                    task.retries 
++                    if task.retries is not None 
++                    else (dag.default_args.get("retries", 0) if dag.default_args else 0)
++                )
++                
++                if retries < 2:
++                    if dag_id not in failed_tasks:
++                        failed_tasks[dag_id] = []
++                    failed_tasks[dag_id].append((task.task_id, retries))
++        
++        assert not failed_tasks, (
++            f"Tasks with < 2 retries: {failed_tasks}. "
++            f"All tasks must have at least 2 retries."
++        )
++
++
++# ============================================================================
++# Pipeline Ordering Tests
++# ============================================================================
++
++
++class TestOrdersIngestPipeline:
++    """Test the orders_ingest pipeline structure and task ordering."""
++
++    def test_orders_ingest_dag_exists(self, loaded_dags: dict[str, DAG]):
++        """The orders_ingest DAG must exist."""
++        assert "orders_ingest" in loaded_dags, (
++            "orders_ingest DAG not found. Expected a DAG with dag_id='orders_ingest'."
++        )
++
++    def test_orders_ingest_has_required_tasks(self, loaded_dags: dict[str, DAG]):
++        """The orders_ingest DAG must have all required tasks."""
++        dag = loaded_dags["orders_ingest"]
++        task_ids = {task.task_id for task in dag.tasks}
++        
++        required_tasks = {
++            "extract_orders",
++            "validate_orders",
++            "load_orders",
++            "publish_summary",
++        }
++        
++        missing = required_tasks - task_ids
++        assert not missing, (
++            f"orders_ingest is missing tasks: {missing}. "
++            f"Found tasks: {task_ids}"
++        )
++
++    def test_orders_ingest_task_order(self, loaded_dags: dict[str, DAG]):
++        """Tasks in orders_ingest must follow the correct order:
++        extract_orders -> validate_orders -> load_orders -> publish_summary
++        """
++        dag = loaded_dags["orders_ingest"]
++        
++        # Build task_id -> task mapping
++        tasks_by_id = {task.task_id: task for task in dag.tasks}
++        
++        required_tasks = [
++            "extract_orders",
++            "validate_orders",
++            "load_orders",
++            "publish_summary",
++        ]
++        
++        # Verify each task exists (already tested above, but good to repeat)
++        for task_id in required_tasks:
++            assert task_id in tasks_by_id, f"Task {task_id} not found"
++        
++        # Check the dependency chain by examining downstream relationships
++        # For each task, verify it has the expected downstream task
++        expected_deps = [
++            ("extract_orders", "validate_orders"),
++            ("validate_orders", "load_orders"),
++            ("load_orders", "publish_summary"),
++        ]
++        
++        for upstream_id, downstream_id in expected_deps:
++            upstream_task = tasks_by_id[upstream_id]
++            downstream_task = tasks_by_id[downstream_id]
++            
++            # Check if downstream_task is in upstream_task's downstream list
++            downstream_ids = {t.task_id for t in upstream_task.downstream_list}
++            
++            assert downstream_id in downstream_ids, (
++                f"Task ordering violation: {upstream_id} does not have "
++                f"{downstream_id} as downstream. "
++                f"Expected chain: extract_orders -> validate_orders -> load_orders -> publish_summary. "
++                f"{upstream_id} downstream: {downstream_ids}"
++            )

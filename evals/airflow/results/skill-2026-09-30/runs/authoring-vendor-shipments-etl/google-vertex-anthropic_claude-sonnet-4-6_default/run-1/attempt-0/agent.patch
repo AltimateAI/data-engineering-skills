@@ -1,0 +1,159 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..c69eabc
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,153 @@
++"""Wait for the daily vendor shipments file, load it into DuckDB, and publish the report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++# 18 hours: the run fires at 06:00 UTC; midnight is 18 h away.
++# If the file is still absent at that point the sensor raises AirflowSensorTimeout
++# and the run fails so on-call gets paged.
++_SENSOR_TIMEOUT_SECS = 18 * 3600
++_SENSOR_POKE_INTERVAL_SECS = 5 * 60  # check every 5 minutes
++
++
++def _ship_date(dag_run) -> str:
++    """Return the YYYY-MM-DD calendar date this run processes (its own UTC firing day).
++
++    CronTriggerTimetable: each run fires at the tick; run_after == the tick
++    and is always present for scheduled, backfill, manual, and dags-test runs.
++    logical_date is preferred when available (dags test passes it as a concrete date).
++    """
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++@dag(
++    dag_id="vendor_shipments",
++    schedule=CronTriggerTimetable("0 6 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={
++        "owner": "logistics-analytics",
++        "retries": 2,
++        "retry_delay": timedelta(minutes=5),
++    },
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++
++    @task
++    def resolve_day(**context) -> str:
++        """Return the YYYY-MM-DD date this run processes.
++
++        Kept as a separate task so downstream tasks and the BashOperator can
++        pull it cleanly via XCom without any template gymnastics.
++        """
++        return _ship_date(context["dag_run"])
++
++    @task
++    def resolve_file_path(**context) -> str:
++        """Return the absolute path of today's shipments CSV file.
++
++        The Variable lookup happens inside the task — never at DAG parse time —
++        so the scheduler does not need a live Airflow DB connection during import.
++        """
++        from airflow.sdk import Variable
++
++        day = _ship_date(context["dag_run"])
++        landing_dir = Variable.get("vendor_landing_dir")
++        return str(Path(landing_dir) / f"shipments_{day}.csv")
++
++    ship_day = resolve_day()
++    csv_path = resolve_file_path()
++
++    # FileSensor in reschedule mode: the worker slot is released between pokes
++    # so limited worker slots are not held for the full wait duration.
++    wait_for_file = FileSensor(
++        task_id="wait_for_file",
++        filepath="{{ ti.xcom_pull(task_ids='resolve_file_path') }}",
++        fs_conn_id="fs_default",
++        mode="reschedule",
++        poke_interval=_SENSOR_POKE_INTERVAL_SECS,
++        timeout=_SENSOR_TIMEOUT_SECS,
++    )
++
++    @task
++    def load_shipments(**context) -> int:
++        """Load the CSV into vendor_shipments, keyed on ship_date.
++
++        Idempotent: the day's existing rows are deleted inside a transaction
++        before the new rows are inserted, so a rerun never produces duplicates.
++        """
++        import duckdb
++
++        day = _ship_date(context["dag_run"])
++        path = context["ti"].xcom_pull(task_ids="resolve_file_path")
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS vendor_shipments (
++                    shipment_id  VARCHAR,
++                    carrier      VARCHAR,
++                    destination  VARCHAR,
++                    weight_kg    DOUBLE,
++                    shipped_at   TIMESTAMP,
++                    ship_date    DATE
++                )
++                """
++            )
++            con.execute("BEGIN")
++            con.execute(
++                "DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)",
++                [day],
++            )
++            con.execute(
++                """
++                INSERT INTO vendor_shipments
++                SELECT
++                    shipment_id,
++                    carrier,
++                    destination,
++                    weight_kg,
++                    shipped_at,
++                    CAST(? AS DATE) AS ship_date
++                FROM read_csv_auto(?)
++                """,
++                [day, path],
++            )
++            con.execute("COMMIT")
++            row_count = con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)",
++                [day],
++            ).fetchone()[0]
++        return row_count
++
++    # Pass the date as a positional argument.  The script signature is:
++    #   publish_shipments_report.sh YYYY-MM-DD
++    # BashOperator commands ending in ".sh" are treated as Jinja template
++    # file names, so the command is written as a Python f-string (absolute
++    # path) followed by the templated date argument — no ".sh"-only string.
++    publish_report = BashOperator(
++        task_id="publish_shipments_report",
++        bash_command=(
++            f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh "
++            "\"{{ ti.xcom_pull(task_ids='resolve_day') }}\""
++        ),
++    )
++
++    [ship_day, csv_path] >> wait_for_file >> load_shipments() >> publish_report
++
++
++vendor_shipments()

@@ -1,0 +1,202 @@
+{
+  "skills": [
+    "altimate-code",
+    "authoring-airflow-dags",
+    "creating-dbt-models",
+    "debugging-dbt-errors",
+    "developing-incremental-models",
+    "documenting-dbt-models",
+    "finding-expensive-queries",
+    "migrating-sql-to-dbt",
+    "migrating-to-airflow-3",
+    "optimizing-databricks-sql",
+    "optimizing-query-by-id",
+    "optimizing-query-text",
+    "refactoring-dbt-models",
+    "testing-airflow-dags",
+    "testing-dbt-models",
+    "dataviz",
+    "update-config",
+    "verify",
+    "debug",
+    "code-review",
+    "simplify",
+    "batch",
+    "fewer-permission-prompts",
+    "doctor",
+    "loop",
+    "schedule",
+    "claude-api",
+    "run",
+    "run-skill-generator",
+    "plugin-authoring"
+  ],
+  "plugins": [
+    {
+      "name": "cc-plugin-agents-md",
+      "path": "builtin",
+      "source": "cc-plugin-agents-md@builtin"
+    },
+    {
+      "name": "cc-plugin-plugin-authoring",
+      "path": "builtin",
+      "source": "cc-plugin-plugin-authoring@builtin"
+    }
+  ],
+  "mcp_servers": [],
+  "agents": [
+    "claude",
+    "Explore",
+    "general-purpose",
+    "Plan",
+    "statusline-setup"
+  ],
+  "tools": [
+    "Task",
+    "Bash",
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "Edit",
+    "EnterWorktree",
+    "ExitWorktree",
+    "ListAgents",
+    "NotebookEdit",
+    "Read",
+    "RemoteTrigger",
+    "ReportFindings",
+    "ScheduleWakeup",
+    "SendMessage",
+    "Skill",
+    "TaskStop",
+    "ToolSearch",
+    "WebFetch",
+    "WebSearch",
+    "Write"
+  ],
+  "model": "claude-fable-5-1",
+  "permission_mode": "auto",
+  "api_key_source": "none",
+  "claude_code_version": "2.1.287",
+  "memory_paths": null,
+  "context_skills": [
+    {
+      "name": "altimate-code",
+      "source": "User"
+    },
+    {
+      "name": "authoring-airflow-dags",
+      "source": "User"
+    },
+    {
+      "name": "creating-dbt-models",
+      "source": "User"
+    },
+    {
+      "name": "debugging-dbt-errors",
+      "source": "User"
+    },
+    {
+      "name": "developing-incremental-models",
+      "source": "User"
+    },
+    {
+      "name": "documenting-dbt-models",
+      "source": "User"
+    },
+    {
+      "name": "finding-expensive-queries",
+      "source": "User"
+    },
+    {
+      "name": "migrating-sql-to-dbt",
+      "source": "User"
+    },
+    {
+      "name": "migrating-to-airflow-3",
+      "source": "User"
+    },
+    {
+      "name": "optimizing-databricks-sql",
+      "source": "User"
+    },
+    {
+      "name": "optimizing-query-by-id",
+      "source": "User"
+    },
+    {
+      "name": "optimizing-query-text",
+      "source": "User"
+    },
+    {
+      "name": "refactoring-dbt-models",
+      "source": "User"
+    },
+    {
+      "name": "testing-airflow-dags",
+      "source": "User"
+    },
+    {
+      "name": "testing-dbt-models",
+      "source": "User"
+    },
+    {
+      "name": "dataviz",
+      "source": "Built-in"
+    },
+    {
+      "name": "update-config",
+      "source": "Built-in"
+    },
+    {
+      "name": "keybindings-help",
+      "source": "Built-in"
+    },
+    {
+      "name": "code-review",
+      "source": "Built-in"
+    },
+    {
+      "name": "simplify",
+      "source": "Built-in"
+    },
+    {
+      "name": "fewer-permission-prompts",
+      "source": "Built-in"
+    },
+    {
+      "name": "loop",
+      "source": "Built-in"
+    },
+    {
+      "name": "schedule",
+      "source": "Built-in"
+    },
+    {
+      "name": "claude-api",
+      "source": "Built-in"
+    },
+    {
+      "name": "run",
+      "source": "Built-in"
+    },
+    {
+      "name": "plugin-authoring",
+      "source": "Built-in"
+    },
+    {
+      "name": "init",
+      "source": "Built-in"
+    },
+    {
+      "name": "security-review",
+      "source": "Built-in"
+    }
+  ],
+  "context_memory_files": [],
+  "ancestor_memory_files_disabled": [
+    "~/AGENTS.md",
+    "~/.claude/CLAUDE.md"
+  ],
+  "sandbox": true
+}

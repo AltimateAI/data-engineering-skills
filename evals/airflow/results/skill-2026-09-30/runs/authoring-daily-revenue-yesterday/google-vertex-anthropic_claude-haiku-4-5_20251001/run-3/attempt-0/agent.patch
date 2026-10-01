@@ -1,0 +1,93 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..e82996a
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,87 @@
++"""Generate daily revenue reports per store. Runs at 03:00 UTC daily, reporting on yesterday."""
++
++from __future__ import annotations
++
++import csv
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",  # 03:00 UTC every day
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,  # Allow rerunning any day since start_date
++    tags=["finance"],
++)
++def daily_revenue():
++    @task
++    def generate_report(logical_date: str) -> str:
++        """
++        Generate daily revenue report for the previous calendar day.
++        
++        The logical_date (data_interval_start) represents the start of the interval.
++        For a schedule of "0 3 * * *" (03:00 UTC), logical_date is midnight UTC of that day.
++        We report on the previous day (yesterday) because orders trickle in until ~2am.
++        
++        For example:
++        - Run at 03:00 UTC on 2026-09-29 has logical_date=2026-09-29T00:00:00Z
++        - We report on 2026-09-28 (yesterday)
++        """
++        # Parse logical_date and get the previous day
++        run_date = pendulum.parse(logical_date, tz="UTC")
++        report_date = run_date.subtract(days=1)
++        report_date_str = report_date.format("YYYY-MM-DD")
++        
++        # Read orders CSV and aggregate by store for the report date
++        orders_file = PROJECT_ROOT / "data" / "orders.csv"
++        
++        # Dictionary to store: store_id -> {count, total_revenue}
++        store_stats = {}
++        
++        with open(orders_file, "r") as f:
++            reader = csv.DictReader(f)
++            for row in reader:
++                order_ts = row["order_ts"]  # Format: "2026-09-20 00:04:00"
++                
++                # Extract date part (YYYY-MM-DD)
++                order_date = order_ts.split()[0]
++                
++                # Only include orders from the report date
++                if order_date == report_date_str:
++                    store_id = row["store_id"]
++                    amount = float(row["amount"])
++                    
++                    if store_id not in store_stats:
++                        store_stats[store_id] = {"count": 0, "revenue": 0.0}
++                    
++                    store_stats[store_id]["count"] += 1
++                    store_stats[store_id]["revenue"] += amount
++        
++        # Write output CSV sorted by store_id
++        output_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        output_dir.mkdir(parents=True, exist_ok=True)
++        output_file = output_dir / f"{report_date_str}.csv"
++        
++        with open(output_file, "w", newline="") as f:
++            writer = csv.DictWriter(f, fieldnames=["store_id", "orders", "revenue"])
++            writer.writeheader()
++            
++            # Sort by store_id for consistent output
++            for store_id in sorted(store_stats.keys()):
++                stats = store_stats[store_id]
++                writer.writerow({
++                    "store_id": store_id,
++                    "orders": stats["count"],
++                    "revenue": round(stats["revenue"], 2),
++                })
++        
++        return str(output_file)
++    
++    generate_report()
++
++
++daily_revenue()

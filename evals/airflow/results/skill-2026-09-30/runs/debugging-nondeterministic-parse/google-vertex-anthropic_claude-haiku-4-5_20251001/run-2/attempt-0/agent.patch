@@ -1,0 +1,98 @@
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..6e3d933 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -8,48 +8,42 @@ DuckDB allows a single writer, so the loads run one after another between
+ from __future__ import annotations
+ 
+ import json
+-import os
+-import time
+-import urllib.request
+-from datetime import datetime, timedelta
++from datetime import timedelta
+ from pathlib import Path
+ 
+ import duckdb
+ from airflow.providers.standard.operators.empty import EmptyOperator
+ from airflow.providers.standard.operators.python import PythonOperator
+-from airflow.sdk import DAG, chain
++from airflow.sdk import DAG, CronDataIntervalTimetable, chain
++import pendulum
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_ROOT / "data" / "raw"
+ WAREHOUSE_DB = PROJECT_ROOT / "warehouse" / "warehouse.duckdb"
+-CATALOG_URL = os.environ.get(
+-    "CATALOG_URL", "http://localhost:8765/api/v1/tables?domain=warehouse"
+-)
+ # Copy of the catalog response, refreshed by the deploy pipeline on every release.
+ CATALOG_SNAPSHOT = PROJECT_ROOT / "config" / "tables.json"
+ 
+ 
+-def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+-    """Tables registered in the catalog for the warehouse domain.
++def load_tables_from_snapshot() -> list[str]:
++    """Load tables from the deployed catalog snapshot.
+ 
+-    Retries with exponential backoff and falls back to the deployed snapshot
+-    when the service is unreachable.
++    The snapshot is refreshed by the deploy pipeline on every release,
++    ensuring the DAG definition is deterministic and does not hit the
++    catalog service during parsing.
+     """
+-    for attempt in range(retries):
+-        try:
+-            with urllib.request.urlopen(CATALOG_URL, timeout=5) as resp:
+-                return [t["name"] for t in json.load(resp)["tables"]]
+-        except OSError:
+-            if attempt < retries - 1:
+-                time.sleep(backoff_s * 2**attempt)
+-    return json.loads(CATALOG_SNAPSHOT.read_text())
+-
+-
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++    tables = json.loads(CATALOG_SNAPSHOT.read_text())
++    # The catalog sometimes lists a table twice; deduplicate while preserving order.
++    seen = set()
++    unique_tables = []
++    for table in tables:
++        if table not in seen:
++            seen.add(table)
++            unique_tables.append(table)
++    return unique_tables
+ 
+ 
+ def load_table(table: str) -> int:
++    """Load a single table from CSV into DuckDB."""
+     WAREHOUSE_DB.parent.mkdir(parents=True, exist_ok=True)
+     source = RAW_DIR / f"{table}.csv"
+     with duckdb.connect(str(WAREHOUSE_DB)) as con:
+@@ -64,12 +58,14 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
+-    schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    description="Load raw tables into DuckDB warehouse. Tables are determined from the deployed catalog snapshot.",
++    schedule=CronDataIntervalTimetable("30 1 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+-):
++) as dag:
++    tables = load_tables_from_snapshot()
++    
+     start = EmptyOperator(task_id="start")
+     done = EmptyOperator(task_id="done")
+     loads = [
+@@ -78,6 +74,6 @@ with DAG(
+             python_callable=load_table,
+             op_kwargs={"table": table},
+         )
+-        for table in TABLES
++        for table in sorted(tables)  # Sort for deterministic task order
+     ]
+     chain(start, *loads, done)

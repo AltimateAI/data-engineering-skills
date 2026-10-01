@@ -1,0 +1,348 @@
+{
+  "run_name": "baseline-2026-09-30",
+  "arm": "baseline",
+  "models": [
+    "google-vertex-anthropic/claude-sonnet-4-6@default",
+    "google-vertex-anthropic/claude-haiku-4-5@20251001"
+  ],
+  "runs_per_case": 3,
+  "split": "all",
+  "argv": [
+    "evals/harness/run_eval.py",
+    "--cases",
+    "evals/airflow/cases",
+    "--arm",
+    "baseline",
+    "--models",
+    "google-vertex-anthropic/claude-sonnet-4-6@default,google-vertex-anthropic/claude-haiku-4-5@20251001",
+    "--runs",
+    "3",
+    "--parallel",
+    "4",
+    "--split",
+    "all",
+    "--max-cost-usd",
+    "80",
+    "--out",
+    "evals/airflow/results/baseline-2026-09-30"
+  ],
+  "started_at": "2026-09-30T11:53:13+00:00",
+  "altimate_code_version": "0.12.2",
+  "small_model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+  "envs": {
+    "2.11": {
+      "python": "3.12.8",
+      "airflow": "2.11.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.4.4",
+      "pandas": "2.1.4",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+    },
+    "3.3": {
+      "python": "3.12.8",
+      "airflow": "3.3.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.5.6",
+      "pandas": "3.0.5",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+    }
+  },
+  "cases": {
+    "authoring-airflow2-inventory-snapshot": {
+      "sha256": "ae584c8885a3231aefbda92cbd0e3a71defa32bb3b25c2ee3186fa850283ca0d",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "2.11"
+    },
+    "authoring-clickstream-claim-check": {
+      "sha256": "37a8ae627611237474b83cf5466d569d495cd0f9a685a1378c88484a6ab7e2fe",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "authoring-daily-revenue-yesterday": {
+      "sha256": "4642d8bf21aab04711921f58ecb6a41b1b4ecf154034c7c5530766fa8f3f75d3",
+      "area": "authoring",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "authoring-partner-feeds-mapping": {
+      "sha256": "d980d3caa6e3e9349e444bf1839b5e2b125e0b211599d1d9280b8e136daf8c46",
+      "area": "authoring",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "authoring-vendor-shipments-etl": {
+      "sha256": "a4b4ec3598fde2bdd0861c6ac07d869a4fb9c9cd4f7e11afc1c80d148807cb3f",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "debugging-manual-trigger-context": {
+      "sha256": "8338c7cee702b4f7e5fb5aeebb27e86a7e5e3480033c6262d992ca0dfb2e0012",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "debugging-nondeterministic-parse": {
+      "sha256": "1bf8b7694a8ad4a6615d6d8f254d981dc83d01a972ce7498913ac4ee6de692f0",
+      "area": "debugging",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "debugging-variable-at-parse": {
+      "sha256": "436770cb552cd4b75a7f97e40679e325aefe4cfd9ffe3b056e3e7edd3904b7a3",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "migration-hourly-pageviews-templates": {
+      "sha256": "eac1e05c242883e2ba514c9a40eada3ca3a3eea85964e1dc941f730c22f471a9",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "migration-inventory-context": {
+      "sha256": "7ceaba6f5bf122cc4ad72f52907a5ca590f2f8fd453510481ee4cd0bfeb2684e",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "migration-revenue-previous-day": {
+      "sha256": "9515ef4db5d2e875160dd43bc05c7486a225d4c0e9d5bf327062eda80731b4a4",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "migration-shipments-assets": {
+      "sha256": "eb3b442aa66d7ef010f409e021cec3aab4f2ea405b3595e6a59702c2fb08f817",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "migration-weekly-catchup": {
+      "sha256": "33eb41343603e6636fbedb532f638c14d7344557b72de6453c7b4743b360ef65",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "scheduling-backfill-pageviews": {
+      "sha256": "21f1a5b92665ac392eee3645c12f5bec695a1bca968e69048e95da056f6a32fd",
+      "area": "scheduling",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    },
+    "scheduling-idempotent-orders-load": {
+      "sha256": "d7be51f944fc210339eb4ba7af7cddc57a443a4ea1b5bbebaffe7050d55b8b50",
+      "area": "scheduling",
+      "split": "dev",
+      "airflow_version": "2.11"
+    },
+    "scheduling-weekday-ny-business-day": {
+      "sha256": "1b164415c1d78cbbcc41b74b4e8ad603477667f8021035b233d98d374acbbbe6",
+      "area": "scheduling",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "testing-airflow2-ci-suite": {
+      "sha256": "e9a78ab26628508f469970c94d20f18ce2f867ea9c781ec705ea858a21ae19f8",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "2.11"
+    },
+    "testing-custom-operator-conn": {
+      "sha256": "16b1915f0ea41351962b8c9bed5cd993ab60e878915fca081a9d1a8f58275e81",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "testing-dagbag-integrity": {
+      "sha256": "b33916eeb24d1bad516adc8b2371cdc46c4ba8951622c03999c93862aabebe27",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "3.3"
+    },
+    "testing-taskflow-transforms": {
+      "sha256": "3e703799455d8ba3eaad83795358beeb387898fd0504ab751e27f5fc0b717acc",
+      "area": "testing",
+      "split": "holdout",
+      "airflow_version": "3.3"
+    }
+  },
+  "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+  "airflow_skills_dir": "<repo>/skills/airflow",
+  "airflow_skills_sha256": null,
+  "airflow_skill_names": [],
+  "repo_skill_names": [
+    "optimizing-databricks-sql",
+    "creating-dbt-models",
+    "debugging-dbt-errors",
+    "developing-incremental-models",
+    "documenting-dbt-models",
+    "migrating-sql-to-dbt",
+    "refactoring-dbt-models",
+    "testing-dbt-models",
+    "finding-expensive-queries",
+    "optimizing-query-by-id",
+    "optimizing-query-text"
+  ],
+  "inventory": [
+    [
+      "altimate-code",
+      "project"
+    ],
+    [
+      "altimate-setup",
+      "builtin"
+    ],
+    [
+      "cost-report",
+      "builtin"
+    ],
+    [
+      "creating-dbt-models",
+      "project"
+    ],
+    [
+      "customize-opencode",
+      "project"
+    ],
+    [
+      "data-parity",
+      "builtin"
+    ],
+    [
+      "data-viz",
+      "builtin"
+    ],
+    [
+      "dbt-analyze",
+      "builtin"
+    ],
+    [
+      "dbt-develop",
+      "builtin"
+    ],
+    [
+      "dbt-docs",
+      "builtin"
+    ],
+    [
+      "dbt-pr-review",
+      "builtin"
+    ],
+    [
+      "dbt-schema-verify",
+      "builtin"
+    ],
+    [
+      "dbt-test",
+      "builtin"
+    ],
+    [
+      "dbt-troubleshoot",
+      "builtin"
+    ],
+    [
+      "dbt-unit-tests",
+      "builtin"
+    ],
+    [
+      "debugging-dbt-errors",
+      "project"
+    ],
+    [
+      "developing-incremental-models",
+      "project"
+    ],
+    [
+      "documenting-dbt-models",
+      "project"
+    ],
+    [
+      "finding-expensive-queries",
+      "project"
+    ],
+    [
+      "lineage-diff",
+      "builtin"
+    ],
+    [
+      "migrating-sql-to-dbt",
+      "project"
+    ],
+    [
+      "optimizing-databricks-sql",
+      "project"
+    ],
+    [
+      "optimizing-query-by-id",
+      "project"
+    ],
+    [
+      "optimizing-query-text",
+      "project"
+    ],
+    [
+      "pii-audit",
+      "builtin"
+    ],
+    [
+      "query-optimize",
+      "builtin"
+    ],
+    [
+      "refactoring-dbt-models",
+      "project"
+    ],
+    [
+      "schema-migration",
+      "builtin"
+    ],
+    [
+      "sql-review",
+      "builtin"
+    ],
+    [
+      "sql-translate",
+      "builtin"
+    ],
+    [
+      "teach",
+      "builtin"
+    ],
+    [
+      "testing-dbt-models",
+      "project"
+    ],
+    [
+      "train",
+      "builtin"
+    ],
+    [
+      "training-status",
+      "builtin"
+    ]
+  ],
+  "harness_sha256": "8a34b5a45a17fc7b278e59e1fcc16d6a65419e7865d4eda84d04734f28478eae",
+  "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+  "host": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.8"
+  },
+  "budget": {
+    "cap_usd": 80.0,
+    "per_run_cap_usd": 5.0,
+    "spent_usd": 83.57,
+    "stopped_early": true
+  },
+  "finished_at": "2026-09-30T13:20:21+00:00",
+  "status_counts": {
+    "ok": 32,
+    "skipped_budget": 40,
+    "task_fail": 38,
+    "turn_limit": 10
+  }
+}

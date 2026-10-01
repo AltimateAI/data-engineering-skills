@@ -1,0 +1,2114 @@
+{
+  "groups": [
+    {
+      "case": "hard-deferrable-debug-partition-sensor",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.963,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1621456.3333,
+      "mean_tokens_input": 66.0,
+      "mean_tokens_output": 20899.6667,
+      "mean_cost_usd": 1.2346,
+      "total_cost_usd": 3.7038,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 579.4,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-debug-partition-sensor",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 516999.6667,
+      "mean_tokens_input": 32.0,
+      "mean_tokens_output": 9697.6667,
+      "mean_cost_usd": 0.3222,
+      "total_cost_usd": 0.9665,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 97.0,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-debug-partition-sensor",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1264687.0,
+      "mean_tokens_input": 48.6667,
+      "mean_tokens_output": 19345.3333,
+      "mean_cost_usd": 1.0923,
+      "total_cost_usd": 3.2768,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 371.1333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-debug-partition-sensor",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 460964.0,
+      "mean_tokens_input": 22.6667,
+      "mean_tokens_output": 8135.0,
+      "mean_cost_usd": 0.3119,
+      "total_cost_usd": 0.9357,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 243.6,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-sensor-retry-budget",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2720202.3333,
+      "mean_tokens_input": 80.0,
+      "mean_tokens_output": 37648.3333,
+      "mean_cost_usd": 1.9916,
+      "total_cost_usd": 5.9748,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 860.4333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-sensor-retry-budget",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.7083,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 416348.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 9952.6667,
+      "mean_cost_usd": 0.3024,
+      "total_cost_usd": 0.9073,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 105.7,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-sensor-retry-budget",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1569559.0,
+      "mean_tokens_input": 57.3333,
+      "mean_tokens_output": 22143.6667,
+      "mean_cost_usd": 1.2441,
+      "total_cost_usd": 3.7322,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 518.3667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-deferrable-sensor-retry-budget",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 679499.0,
+      "mean_tokens_input": 32.0,
+      "mean_tokens_output": 10768.6667,
+      "mean_cost_usd": 0.399,
+      "total_cost_usd": 1.197,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 186.7,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-claims-partitions",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4387723.0,
+      "mean_tokens_input": 113.3333,
+      "mean_tokens_output": 43072.3333,
+      "mean_cost_usd": 2.5293,
+      "total_cost_usd": 7.5879,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 1465.9333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-claims-partitions",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.75,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1259265.6667,
+      "mean_tokens_input": 56.0,
+      "mean_tokens_output": 16502.6667,
+      "mean_cost_usd": 0.607,
+      "total_cost_usd": 1.8209,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 511.7667,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-claims-partitions",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 3642384.3333,
+      "mean_tokens_input": 83.3333,
+      "mean_tokens_output": 36178.3333,
+      "mean_cost_usd": 2.3437,
+      "total_cost_usd": 7.0312,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 1656.0,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-claims-partitions",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 899153.0,
+      "mean_tokens_input": 37.3333,
+      "mean_tokens_output": 11626.6667,
+      "mean_cost_usd": 0.4914,
+      "total_cost_usd": 1.4741,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 317.8667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-ledger-close",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3659401.3333,
+      "mean_tokens_input": 95.3333,
+      "mean_tokens_output": 37681.6667,
+      "mean_cost_usd": 2.2577,
+      "total_cost_usd": 6.7731,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 1108.6,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-ledger-close",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.7667,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1496833.0,
+      "mean_tokens_input": 59.3333,
+      "mean_tokens_output": 21383.3333,
+      "mean_cost_usd": 0.7378,
+      "total_cost_usd": 2.2134,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 1117.3333,
+      "statuses": {
+        "task_fail": 2,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-ledger-close",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 1220094.3333,
+      "mean_tokens_input": 40.6667,
+      "mean_tokens_output": 14199.3333,
+      "mean_cost_usd": 1.1056,
+      "total_cost_usd": 3.3168,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 401.3667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-ledger-close",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 851559.0,
+      "mean_tokens_input": 34.0,
+      "mean_tokens_output": 11521.3333,
+      "mean_cost_usd": 0.4878,
+      "total_cost_usd": 1.4633,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 371.4667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-meter-rollups",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.9259,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5446597.6667,
+      "mean_tokens_input": 128.0,
+      "mean_tokens_output": 50470.6667,
+      "mean_cost_usd": 3.0394,
+      "total_cost_usd": 9.1181,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 989.5333,
+      "statuses": {
+        "task_fail": 1,
+        "turn_limit": 1,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-meter-rollups",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4085931.0,
+      "mean_tokens_input": 114.6667,
+      "mean_tokens_output": 36534.6667,
+      "mean_cost_usd": 1.5137,
+      "total_cost_usd": 4.5412,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 1668.4667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-meter-rollups",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 1614542.6667,
+      "mean_tokens_input": 54.0,
+      "mean_tokens_output": 21703.6667,
+      "mean_cost_usd": 1.3224,
+      "total_cost_usd": 3.9671,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 742.7,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-migration-meter-rollups",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 978222.3333,
+      "mean_tokens_input": 40.0,
+      "mean_tokens_output": 12022.3333,
+      "mean_cost_usd": 0.5138,
+      "total_cost_usd": 1.5415,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 497.2333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-reliability-factory-fleet",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9792,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1037775.3333,
+      "mean_tokens_input": 54.0,
+      "mean_tokens_output": 20157.6667,
+      "mean_cost_usd": 0.9439,
+      "total_cost_usd": 2.8318,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 639.4,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-reliability-factory-fleet",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.9167,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 342799.6667,
+      "mean_tokens_input": 23.3333,
+      "mean_tokens_output": 7547.0,
+      "mean_cost_usd": 0.2389,
+      "total_cost_usd": 0.7168,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 126.4333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-reliability-factory-fleet",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1222304.0,
+      "mean_tokens_input": 49.3333,
+      "mean_tokens_output": 18511.0,
+      "mean_cost_usd": 1.0352,
+      "total_cost_usd": 3.1057,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 481.1,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "hard-reliability-factory-fleet",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 722915.0,
+      "mean_tokens_input": 34.6667,
+      "mean_tokens_output": 10683.3333,
+      "mean_cost_usd": 0.4029,
+      "total_cost_usd": 1.2086,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 281.7,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    }
+  ],
+  "by_split_arm_model": [
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "n_runs": 12,
+      "n_valid": 12,
+      "n_excluded": 0,
+      "pass_rate": 0.75,
+      "mean_primary_score": 0.9763,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3398074.5833,
+      "mean_tokens_input": 93.8333,
+      "mean_tokens_output": 37837.25,
+      "mean_cost_usd": 2.126,
+      "total_cost_usd": 25.5126,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 988.825,
+      "statuses": {
+        "ok": 9,
+        "task_fail": 2,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 12,
+      "n_valid": 12,
+      "n_excluded": 0,
+      "pass_rate": 0.4167,
+      "mean_primary_score": 0.8438,
+      "mean_secondary_score": 0.75,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1526086.0833,
+      "mean_tokens_input": 55.0,
+      "mean_tokens_output": 17634.25,
+      "mean_cost_usd": 0.6655,
+      "total_cost_usd": 7.9863,
+      "contamination_suspect_runs": 4,
+      "mean_wall_s": 603.0917,
+      "statuses": {
+        "task_fail": 7,
+        "ok": 5
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "n_runs": 12,
+      "n_valid": 12,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 6,
+        "migrating-to-airflow-3": 6
+      },
+      "mean_tokens_total": 2012197.5,
+      "mean_tokens_input": 61.0,
+      "mean_tokens_output": 24634.1667,
+      "mean_cost_usd": 1.4863,
+      "total_cost_usd": 17.8362,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 849.5417,
+      "statuses": {
+        "ok": 12
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 12,
+      "n_valid": 12,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.9722,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 6,
+        "migrating-to-airflow-3": 6
+      },
+      "mean_tokens_total": 819947.3333,
+      "mean_tokens_input": 36.0,
+      "mean_tokens_output": 11275.25,
+      "mean_cost_usd": 0.4518,
+      "total_cost_usd": 5.4213,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 320.875,
+      "statuses": {
+        "ok": 12
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "n_runs": 6,
+      "n_valid": 6,
+      "n_excluded": 0,
+      "pass_rate": 0.8333,
+      "mean_primary_score": 0.9815,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2640428.8333,
+      "mean_tokens_input": 80.6667,
+      "mean_tokens_output": 29290.6667,
+      "mean_cost_usd": 1.7462,
+      "total_cost_usd": 10.4769,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 844.0,
+      "statuses": {
+        "ok": 5,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 6,
+      "n_valid": 6,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8833,
+      "mean_secondary_score": 0.9444,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1006916.3333,
+      "mean_tokens_input": 45.6667,
+      "mean_tokens_output": 15540.5,
+      "mean_cost_usd": 0.53,
+      "total_cost_usd": 3.18,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 607.1667,
+      "statuses": {
+        "ok": 4,
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "n_runs": 6,
+      "n_valid": 6,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3,
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 1242390.6667,
+      "mean_tokens_input": 44.6667,
+      "mean_tokens_output": 16772.3333,
+      "mean_cost_usd": 1.0989,
+      "total_cost_usd": 6.5935,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 386.25,
+      "statuses": {
+        "ok": 6
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 6,
+      "n_valid": 6,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.9444,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3,
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 656261.5,
+      "mean_tokens_input": 28.3333,
+      "mean_tokens_output": 9828.1667,
+      "mean_cost_usd": 0.3998,
+      "total_cost_usd": 2.399,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 307.5333,
+      "statuses": {
+        "ok": 6
+      },
+      "retries": 0
+    }
+  ],
+  "paired_deltas": [
+    {
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "n_cases": 4,
+      "mean_delta_pass_rate": 0.25,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.5
+      ],
+      "mean_delta_primary_score": 0.0237,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.0556
+      ],
+      "cases": [
+        {
+          "case": "hard-deferrable-sensor-retry-budget",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "hard-migration-claims-partitions",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "hard-migration-meter-rollups",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.0741
+        },
+        {
+          "case": "hard-reliability-factory-fleet",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.0208
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "n_cases": 2,
+      "mean_delta_pass_rate": 0.1666,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.3333
+      ],
+      "mean_delta_primary_score": 0.0185,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.037
+      ],
+      "cases": [
+        {
+          "case": "hard-deferrable-debug-partition-sensor",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.037
+        },
+        {
+          "case": "hard-migration-ledger-close",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "n_cases": 4,
+      "mean_delta_pass_rate": 0.5833,
+      "ci95_delta_pass_rate": [
+        0.1666,
+        1.0
+      ],
+      "mean_delta_primary_score": 0.1562,
+      "ci95_delta_primary_score": [
+        0.0416,
+        0.2709
+      ],
+      "cases": [
+        {
+          "case": "hard-deferrable-sensor-retry-budget",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.2917
+        },
+        {
+          "case": "hard-migration-claims-partitions",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.25
+        },
+        {
+          "case": "hard-migration-meter-rollups",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "hard-reliability-factory-fleet",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.0833
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "n_cases": 2,
+      "mean_delta_pass_rate": 0.3333,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.6667
+      ],
+      "mean_delta_primary_score": 0.1167,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.2333
+      ],
+      "cases": [
+        {
+          "case": "hard-deferrable-debug-partition-sensor",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "hard-migration-ledger-close",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.2333
+        }
+      ]
+    }
+  ],
+  "pooled_deltas": [
+    {
+      "split": "dev",
+      "n_cases": 4,
+      "n_pairs": 8,
+      "models": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5"
+      ],
+      "mean_delta_pass_rate": 0.4167,
+      "ci95_delta_pass_rate": [
+        0.25,
+        0.5833
+      ],
+      "mean_delta_primary_score": 0.09,
+      "ci95_delta_primary_score": [
+        0.0445,
+        0.1354
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    },
+    {
+      "split": "holdout",
+      "n_cases": 2,
+      "n_pairs": 4,
+      "models": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5"
+      ],
+      "mean_delta_pass_rate": 0.25,
+      "ci95_delta_pass_rate": [
+        0.1666,
+        0.3333
+      ],
+      "mean_delta_primary_score": 0.0676,
+      "ci95_delta_primary_score": [
+        0.0185,
+        0.1167
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    }
+  ],
+  "failure_classes": {
+    "ok": 59,
+    "task_fail": 12,
+    "turn_limit": 1
+  },
+  "total_cost_usd": 79.4057,
+  "isolation": {
+    "contamination_suspects": [
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 9,
+            "tool": "bash",
+            "path": "<tmp>/p",
+            "root": "shared-temp"
+          },
+          {
+            "call": 9,
+            "tool": "bash",
+            "path": "<tmp>/p",
+            "root": "shared-temp"
+          },
+          {
+            "call": 10,
+            "tool": "bash",
+            "path": "<tmp>/p",
+            "root": "shared-temp"
+          },
+          {
+            "call": 10,
+            "tool": "bash",
+            "path": "<tmp>/p",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 9,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          },
+          {
+            "call": 13,
+            "tool": "bash",
+            "path": "<work>/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 13,
+            "tool": "bash",
+            "path": "<tmp>/meter_dropbox",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 13,
+            "tool": "bash",
+            "path": "<tmp>/pf",
+            "root": "shared-temp"
+          },
+          {
+            "call": 13,
+            "tool": "bash",
+            "path": "<work>/",
+            "root": "work-root"
+          },
+          {
+            "call": 13,
+            "tool": "bash",
+            "path": "<tmp>/pf",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-reliability-factory-fleet",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 8,
+            "tool": "bash",
+            "path": "<tmp>/t.py",
+            "root": "shared-temp"
+          },
+          {
+            "call": 8,
+            "tool": "bash",
+            "path": "<tmp>/t.py",
+            "root": "shared-temp"
+          },
+          {
+            "call": 8,
+            "tool": "bash",
+            "path": "<tmp>/t.py",
+            "root": "shared-temp"
+          },
+          {
+            "call": 8,
+            "tool": "bash",
+            "path": "<tmp>/t.py",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 15,
+            "tool": "bash",
+            "path": "<work>/",
+            "root": "work-root"
+          },
+          {
+            "call": 15,
+            "tool": "bash",
+            "path": "<tmp>/p",
+            "root": "shared-temp"
+          },
+          {
+            "call": 15,
+            "tool": "bash",
+            "path": "<tmp>/stub.log",
+            "root": "shared-temp"
+          },
+          {
+            "call": 15,
+            "tool": "bash",
+            "path": "<tmp>/p",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 10,
+            "tool": "bash",
+            "path": "<tmp>/meter_dropbox",
+            "root": "shared-temp"
+          },
+          {
+            "call": 11,
+            "tool": "bash",
+            "path": "<tmp>/meter_dropbox",
+            "root": "shared-temp"
+          },
+          {
+            "call": 11,
+            "tool": "bash",
+            "path": "<tmp>/meter_dropbox",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "<work>/",
+            "root": "work-root"
+          },
+          {
+            "call": 3,
+            "tool": "bash",
+            "path": "<work>",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 8,
+            "tool": "bash",
+            "path": "<tmp>/mig",
+            "root": "shared-temp"
+          },
+          {
+            "call": 9,
+            "tool": "bash",
+            "path": "<tmp>/mig",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-opus-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 11,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 12,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 13,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 14,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 15,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 16,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-baseline-claude-opus-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 54,
+            "tool": "bash",
+            "path": "<tmp>/mart_before.csv",
+            "root": "shared-temp"
+          },
+          {
+            "call": 55,
+            "tool": "bash",
+            "path": "<tmp>/mart_before.csv",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "skill",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-skill-claude-opus-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 23,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "skill",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-skill-claude-opus-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 5,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 6,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          },
+          {
+            "call": 7,
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "skill",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-hard-skill-claude-opus-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 17,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/airflow-2.11/lib/python3",
+            "root": "grader-env"
+          },
+          {
+            "call": 18,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/airflow-2.11/bin/python",
+            "root": "grader-env"
+          },
+          {
+            "call": 20,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/airflow-2.11/bin/python",
+            "root": "grader-env"
+          },
+          {
+            "call": 23,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/airflow-2.11/bin/python",
+            "root": "grader-env"
+          }
+        ]
+      }
+    ],
+    "kill_command_runs": [
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "commands": [
+          "pkill -f \"airflow\" ; grep -n \"Error\\|error\" ../sched.log | head -8 | cut -c1-250; ps aux | grep -c \"[a]irflow\""
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "commands": [
+          "pkill -f \"airflow\" ; sleep 3; pgrep -fl airflow | head -3; rm -rf output; find . -name __pycache__ -not -path \"./.git/*\""
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "pkill -f \"airflow\" ; sleep 3; ps aux | grep -c \"[a]irflow\"; lsof -i :8793 -i :8080 2>/dev/null | head"
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "cd <work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-033030/hard-deferrable-debug-partition-sens"
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "task_fail",
+        "commands": [
+          "pkill -f \"airflow standalone\"; pkill -f \"airflow\"; grep -B25 \"HTTPStatusError.__init__\" $TMPDIR/af.log | cut -c1-220 | h"
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "pkill -f \"des-evals/agent-airflow-2.11/bin/airflow scheduler\" ; pkill -f \"airflow tasks run\" ; sleep 1; pgrep -fl \"agent",
+          "cd ../mt; pkill -f \"agent-airflow-3.3/bin/airflow scheduler\" 2>/dev/null; echo \"(note: that may also match other session"
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "cd <work>/*/hard-deferrable-debug-partition-sensor-qcythn61/ws && (python tools/catalog_stub.py --publish orders/2026-09",
+          "cd <work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-040414/hard-deferrable-debug-partition-sens"
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "task_fail",
+        "commands": [
+          "pkill -f \"airflow\" ; sleep 2\ncat > .afhome/env.sh <<E\nexport AIRFLOW_HOME=$PWD/.afhome AIRFLOW__CORE__PLUGINS_FOLDER=$PW"
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "export AIRFLOW_HOME=$PWD/.afhome AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/plugins AIRFLOW__CORE__DAGS_FOLDER=$PWD/dags AIRFLOW"
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "pkill -u $(id -u) -f \"airflow (scheduler|dag-processor|api-server)\" 2>&1; sleep 2\nexport AIRFLOW__CORE__PLUGINS_FOLDER=$",
+          "pkill -u $(id -u) -f \"airflow (scheduler|dag-processor|api-server)\" 2>/dev/null; sleep 3\nT=<tmp>/metertest; rm -rf $T; m",
+          "pkill -u $(id -u) -f \"airflow (scheduler|dag-processor|api-server)\" 2>/dev/null; rm -rf $AIRFLOW_HOME/metertest output; "
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "pkill -f catalog_stub.py; rm -rf .tmp; git status --short"
+        ]
+      },
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "export WS=$PWD TD=$PWD/../tmp/td PATH=~/.cache/des-evals/agent-airflow-3.3/bin:$PATH\npkill -f manifest_stub; export AIRF"
+        ]
+      },
+      {
+        "case": "hard-reliability-factory-fleet",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "cat $TMPDIR/claude-501/*/*/tasks/b9d5gb37z.output | cut -c1-300 | head -20; pkill -f h.py; git status --short; ls config"
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "pkill -f \"airflow dags test\"; cat \"<work>/final-hard-skill-claude-sonnet-5-5-2026-10-01-skill-20261001-042421/hard-defer",
+          "pkill -f \"port-file .af/port\" ; rm -rf .af; git status --short"
+        ]
+      },
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "T=$TMPDIR/e2e; pkill -f \"airflow standalone\"; sleep 5; pkill -f \"airflow (scheduler|triggerer|dag-processor|api-server)\"",
+          "T=$TMPDIR/e2e; source $T/env.sh; cd $T; pgrep -fl \"airflow triggerer\" ; airflow dags trigger e2e_partner -r r3 >/dev/nul",
+          "pkill -f \"manifest_stub.py\"; pkill -f \"airflow standalone\"; pkill -f \"e2e/home\" ; sleep 3; pkill -f \"airflow triggerer\" "
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "pkill -f \"airflow dags test\" ; T=$(cd ../tmp && pwd); mkdir -p $T/dags; cp -r dags/lake $T/dags/; rm -rf $T/dags/lake/__",
+          "T=$(cd ../tmp && pwd); P=$(cat $T/p1); rm $T/dags/scratch2.py\ncat > $T/dags/scratch.py <<'EOF'\nfrom datetime import date",
+          "pkill -f catalog_stub.py; cd dags && python -c \"import lake_ingest, orders_diff; print('dags import ok')\" 2>&1 | tail -1"
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "cd <work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-050445/hard-migration-ledger-close-kfdp7306/w",
+          "cd <work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-050445/hard-migration-ledger-close-kfdp7306/w"
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "pkill -f \"des-evals/agent-airflow\" ; pkill -f \"drive.py\"; sleep 3; cd ../tmp/e2e && python3 - <<'EOF'\nimport pathlib\np =",
+          "cd ../tmp/e2e; pkill -f \"drive.py v\"; sleep 1; P=$(lsof -t v2/home/airflow.db v3/home/airflow.db v2/home/logs v3/home/lo",
+          "cd ../tmp/e2e; pkill -f \"drive.py v2\"; sleep 8; pgrep -f \"agent-airflow-2.11\" | head; V=~/.cache/des-evals/agent-airflow",
+          "pkill -f \"drive.py v2\"; sleep 5; for p in $(pgrep -f \"agent-airflow-2.11\"); do kill -9 $p; done; cd ../tmp/e2e; mkdir -p"
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "commands": [
+          "pkill -f \"e2e3\" ; pkill -f \"airflow scheduler\"; pkill -f \"airflow dag-processor\"; pkill -f \"airflow api-server\"; sleep 3"
+        ]
+      },
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "pkill -f manifest_stub.py; E=$TMPDIR/e2e; WS=$PWD; cat > $E/stubs.sh <<EOF\n#!/bin/bash\ncd $E\nrm -f p_pub p_outpub p_outh",
+          "E=$TMPDIR/e2e; cd $E && for c in api-server scheduler dag-processor triggerer; do kill $(cat $c.pid) 2>/dev/null; done; "
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "T=$(cd ../tmp && pwd); pkill -f \"sim.py\" ; grep -B30 \"not supported between\" $T/sim33.log | grep -v \"^\\s*$\" | head -40; "
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 2,
+        "status": "ok",
+        "commands": [
+          "E=<work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-062054/hard-migration-claims-partitions-8lab_r"
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 2,
+        "status": "turn_limit",
+        "commands": [
+          "L=$PWD/../tmp; pkill -f \"airflow standalone\"; sleep 8; pkill -f \"airflow (scheduler|api-server|dag-processor|triggerer)\""
+        ]
+      },
+      {
+        "case": "hard-deferrable-debug-partition-sensor",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "task_fail",
+        "commands": [
+          "pkill -f catalog_stub.py; export AIRFLOW_HOME=$PWD/.scratch/ah AIRFLOW__CORE__DAGS_FOLDER=$PWD/dags AIRFLOW__CORE__LOAD_"
+        ]
+      },
+      {
+        "case": "hard-deferrable-sensor-retry-budget",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "sleep 5; cat \"$TMPDIR/claude-501/\"*/*/tasks/b292mdt47.output | grep -E \"^(PASS|FAIL)|Error|Traceback\" | head; pkill -f s"
+        ]
+      },
+      {
+        "case": "hard-migration-ledger-close",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "cd ../tmp; pkill -f \"harness.py.*ctl\"; sleep 2; mv events3.good events3.log 2>/dev/null; grep -c success events3.log; rm"
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "cd \"$PWD\"; T=$(cd ..; pwd)<tmp>; pkill -f \"airflow standalone\"; pkill -f \"airflow scheduler\"; pkill -f \"airflow api-serv",
+          "cd \"$PWD\"; pkill -f \"airflow standalone\" 2>/dev/null; sleep 8; pgrep -fl \"airflow (scheduler|api-server|dag-processor|tr"
+        ]
+      },
+      {
+        "case": "hard-migration-meter-rollups",
+        "arm": "skill",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "M=${TMPDIR:-/tmp}/mig; sed -i '' 's/2026-03-04T00:00:00+00:00\"/2026-03-04T01:00:00+00:00\"/g; s/east_hourly 2026-03-04T01",
+          "M=${TMPDIR:-/tmp}/mig; python - <<EOF\np=\"$M/asset_run.sh\"; s=open(p).read()\ns=s.replace(\"export AIRFLOW__SCHEDULER__USE_"
+        ]
+      },
+      {
+        "case": "hard-migration-claims-partitions",
+        "arm": "skill",
+        "model": "claude-opus-5-5",
+        "run": 3,
+        "status": "ok",
+        "commands": [
+          "S=<work>/final-hard-skill-claude-opus-5-5-2026-10-01-skill-20261001-071914/hard-migration-claims-partitions-o3ia812h/cla",
+          "pkill -f \"e2e.sh\"; pkill -f \"airflow standalone\"; pkill -f \"agent-airflow-3.3/bin/airflow\"; sleep 2; M=\"${TMPDIR:-/tmp}/",
+          "ps -eo pid,command | grep -E \"standalone|airflow (scheduler|api-server|dag-processor|triggerer|webserver)\" | grep -v gre",
+          "M=\"${TMPDIR:-/tmp}/mig\"; pkill -f \"$M/e2e.sh\"; for p in $(pgrep -f \"agent-airflow-(2.11|3.3)/bin/airflow\"); do kill $p 2",
+          "M=\"${TMPDIR:-/tmp}/mig\"; pkill -f \"$M/e2e.sh\"; for p in $(pgrep -f \"agent-airflow-(2.11|3.3)/bin/airflow\"); do kill $p 2"
+        ]
+      }
+    ],
+    "agent_env_restored_runs": [],
+    "agent_env_restore_failed_runs": []
+  },
+  "sources": [
+    {
+      "dir": "evals/airflow/results/final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+      "run_name": "final-hard-baseline-claude-sonnet-5-5-2026-10-01",
+      "arm": "baseline",
+      "runner": "claude-code",
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T09:29:23+00:00",
+      "finished_at": "2026-10-01T11:24:21+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": null,
+      "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-sonnet-5-5": 6.0
+        },
+        "spent_usd": 11.1662,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 9,
+        "task_fail": 9
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 7,
+        "kill_command_runs": 10,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "3.3": 0
+        }
+      }
+    },
+    {
+      "dir": "evals/airflow/results/final-hard-skill-claude-sonnet-5-5-2026-10-01",
+      "run_name": "final-hard-skill-claude-sonnet-5-5-2026-10-01",
+      "arm": "skill",
+      "runner": "claude-code",
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T10:06:04+00:00",
+      "finished_at": "2026-10-01T11:35:34+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+      "staged_skills_sha256": "45fa68a50442686473230d5f88f3825d3652a30ed9c04372429216257627d553",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-sonnet-5-5": 6.0
+        },
+        "spent_usd": 7.8203,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 18
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 3,
+        "kill_command_runs": 4,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "3.3": 0
+        }
+      }
+    },
+    {
+      "dir": "evals/airflow/results/final-hard-baseline-claude-opus-5-5-2026-10-01",
+      "run_name": "final-hard-baseline-claude-opus-5-5-2026-10-01",
+      "arm": "baseline",
+      "runner": "claude-code",
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T12:04:47+00:00",
+      "finished_at": "2026-10-01T14:19:14+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": null,
+      "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-opus-5-5": 12.0
+        },
+        "spent_usd": 35.9895,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 14,
+        "task_fail": 3,
+        "turn_limit": 1
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 2,
+        "kill_command_runs": 13,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "3.3": 0
+        }
+      }
+    },
+    {
+      "dir": "evals/airflow/results/final-hard-skill-claude-opus-5-5-2026-10-01",
+      "run_name": "final-hard-skill-claude-opus-5-5-2026-10-01",
+      "arm": "skill",
+      "runner": "claude-code",
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T12:35:11+00:00",
+      "finished_at": "2026-10-01T14:58:51+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+      "staged_skills_sha256": "45fa68a50442686473230d5f88f3825d3652a30ed9c04372429216257627d553",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-opus-5-5": 12.0
+        },
+        "spent_usd": 24.4297,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 18
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 3,
+        "kill_command_runs": 2,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "3.3": 0
+        }
+      }
+    }
+  ],
+  "consistency_warnings": [],
+  "superseded_placeholders": []
+}

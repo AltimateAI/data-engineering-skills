@@ -1,0 +1,40 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: airflow dags test succeeds, snapshot and low-stock files are correct for each logical date, rerun is idempotent and keeps other dates",
+  "primary_pass": false,
+  "primary_score": 0.5714285714285714,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 242.6,
+  "cost_usd": 0.404497,
+  "cost_reported_usd": 1.951407,
+  "tokens": {
+    "input": 1547028,
+    "output": 10477,
+    "reasoning": 0,
+    "cache_read": 1375342,
+    "cache_write": 171568,
+    "total": 3104415
+  },
+  "steps": 22,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "idle-done",
+    "done_reason": "idle_heuristic"
+  },
+  "skill_invocations": [
+    {
+      "name": "authoring-airflow-dags",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "authoring-airflow-dags"
+  ],
+  "bash_commands": 17,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cbef940ffeUcoCk1sQ2UkpCq.json"
+}

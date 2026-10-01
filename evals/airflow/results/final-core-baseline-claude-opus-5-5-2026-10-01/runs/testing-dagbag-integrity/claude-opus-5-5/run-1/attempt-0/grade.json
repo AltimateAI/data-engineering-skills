@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_integrity.py, tests/test_dag_policy.py, tests/test_orders_ingest.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 11 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 11 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: import_error",
+      "kind": "primary",
+      "passed": true,
+      "detail": "customer_snapshot imports the removed airflow.operators.dummy module -> failed: 9 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_no_import_errors [AssertionError], tests.test_dag_integrity::test_file_defines_a_dag[customer_snapshot.py] [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: dag_cycle",
+      "kind": "primary",
+      "passed": true,
+      "detail": "orders_ingest gains a publish_summary >> extract_orders edge (cycle) -> failed: 8 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity::test_no_import_errors [AssertionError], tests.test_dag_integrity::test_file_defines_a_dag[orders_ingest.py] [AssertionError], tests.test_orders_ingest::test_orders_ingest_pipeline_order [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "orders_ingest loads straight from extract; validate_orders is left dangling -> failed: 10 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_ingest::test_orders_ingest_pipeline_order [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_disabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "marketing_spend.fetch_spend overrides retries=0 at task level -> failed: 10 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy::test_dag_policy [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: catchup_enabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "customer_snapshot sets catchup=True -> failed: 10 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_policy::test_dag_policy [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

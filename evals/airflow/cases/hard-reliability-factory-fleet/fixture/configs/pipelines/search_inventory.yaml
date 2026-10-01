@@ -1,0 +1,35 @@
+name: search_inventory
+team: search
+tier: standard
+description: Inventory pipeline for search
+schedule:
+  hour: 1
+  days: '*'
+steps:
+- name: extract
+  table: search.raw_inventory_00
+- name: stage
+  table: search.stg_inventory_00
+  depends_on:
+  - extract
+- name: transform
+  table: search.int_inventory_00
+  depends_on:
+  - stage
+- name: enrich
+  table: search.int_inventory_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: search.int_inventory_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: search.int_inventory_00
+  depends_on:
+  - aggregate
+  - enrich
+- name: publish
+  table: search.mart_inventory_00
+  depends_on:
+  - snapshot

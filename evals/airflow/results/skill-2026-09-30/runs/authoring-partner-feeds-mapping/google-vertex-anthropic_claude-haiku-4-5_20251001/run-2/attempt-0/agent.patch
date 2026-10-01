@@ -1,0 +1,190 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..05f652a
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,184 @@
++"""Daily processing of partner order files with individual task per file and final summary.
++
++Partners upload CSV files to data/partner_drop/<YYYY-MM-DD>/<partner>.csv with columns
++order_id, amount. Each file is processed as its own task (isolation + independent retry),
++and outputs to output/partner_feeds/<date>/<partner>.json. A summary.json with aggregate
++metrics is written once all files are processed, even on dates with no files.
++
++Run contract:
++  - Scheduled run (06:00 UTC daily) processes the previous day's files.
++  - Manual trigger / rerun processes the specified day.
++  - Start date: 2026-09-01 (earliest rerun date).
++"""
++
++from __future__ import annotations
++
++import json
++from decimal import Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import DAG, CronDataIntervalTimetable, dag, task
++
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data" / "partner_drop"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "partner_feeds"
++
++
++def run_window(dag_run):
++    """Extract the business date from the run.
++    
++    For interval timetable (scheduled runs): returns the data_interval_start as the processed date.
++    For manual runs (3.x, no interval): uses run_after (the trigger time), which the user can set.
++    
++    Returns a pendulum DateTime object in UTC.
++    """
++    # Scheduled run: use data_interval_start (guaranteed to exist under interval timetable)
++    if dag_run.data_interval_start:
++        return pendulum.instance(dag_run.data_interval_start)
++    
++    # Manual run (3.x): run_after is always set; convert to UTC date
++    # This covers manual triggers and reruns of manual runs.
++    if dag_run.run_after:
++        return pendulum.instance(dag_run.run_after)
++    
++    # Fallback (should not happen in normal Airflow operation)
++    return pendulum.now(tz="UTC")
++
++
++@dag(
++    schedule=CronDataIntervalTimetable(
++        expression="0 6 * * *",
++        timezone="UTC",
++    ),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["partners"],
++    doc_md=__doc__,
++)
++def partner_feeds():
++    """Main DAG for processing partner feed files."""
++
++    @task
++    def get_date(**context) -> str:
++        """Return the business date string for the run.
++        
++        For scheduled runs: data_interval_start
++        For manual runs: run_after
++        """
++        dag_run = context["dag_run"]
++        business_date = run_window(dag_run)
++        return business_date.format("YYYY-MM-DD")
++
++    @task
++    def list_files_for_date(business_date: str) -> list:
++        """List all CSV file paths for the processed date.
++        
++        Returns a list of file paths (strings).
++        If the date folder doesn't exist, returns an empty list.
++        """
++        date_dir = DATA_DIR / business_date
++        
++        files = []
++        if date_dir.exists():
++            files = sorted(str(f) for f in date_dir.glob("*.csv"))
++        
++        return files
++
++    @task
++    def process_file(file_path: str) -> dict:
++        """Process a single CSV file and write output.
++        
++        Returns metadata dict with partner name, row count, and total amount.
++        """
++        file_p = Path(file_path)
++        partner = file_p.stem
++        date_str = file_p.parent.name
++        
++        # Read the CSV file
++        rows = []
++        total_amount = Decimal("0.00")
++        
++        with open(file_p, "r") as f:
++            lines = f.readlines()
++            if len(lines) > 1:  # Skip header
++                for line in lines[1:]:
++                    line = line.strip()
++                    if line:
++                        parts = line.split(",")
++                        if len(parts) >= 2:
++                            order_id, amount_str = parts[0], parts[1]
++                            rows.append({"order_id": order_id, "amount": float(amount_str)})
++                            total_amount += Decimal(amount_str)
++        
++        # Write output JSON
++        output_file = OUTPUT_DIR / date_str / f"{partner}.json"
++        output_file.parent.mkdir(parents=True, exist_ok=True)
++        
++        output_data = {
++            "partner": partner,
++            "rows": len(rows),
++            "total_amount": float(total_amount.quantize(Decimal("0.01"))),
++        }
++        output_file.write_text(json.dumps(output_data, indent=2))
++        
++        return output_data
++
++    @task
++    def write_summary(business_date: str, file_results: list | None = None) -> str:
++        """Aggregate results from all files and write summary.json.
++        
++        Handles both cases: files exist and files don't exist.
++        Summary is always written (even with zero metrics) for finance checks.
++        
++        Args:
++            business_date: The date string for the run (YYYY-MM-DD).
++            file_results: List of metadata dicts from process_file tasks (empty if no files).
++        """
++        file_metadata = file_results or []
++        total_files = len(file_metadata)
++        total_rows = sum(m["rows"] for m in file_metadata) if file_metadata else 0
++        total_amount = Decimal("0.00")
++        
++        for m in file_metadata:
++            total_amount += Decimal(str(m["total_amount"]))
++        
++        summary_data = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": float(total_amount.quantize(Decimal("0.01"))),
++        }
++        
++        summary_file = OUTPUT_DIR / business_date / "summary.json"
++        summary_file.parent.mkdir(parents=True, exist_ok=True)
++        summary_file.write_text(json.dumps(summary_data, indent=2))
++        
++        return str(summary_file)
++
++    # Task 1: Get the business date
++    business_date = get_date()
++    
++    # Task 2: List files for that date
++    file_list = list_files_for_date(business_date)
++    
++    # Task 3: Process each file independently (dynamic mapping)
++    # When file_list is empty, no process_file instances are created.
++    file_results = process_file.expand(file_path=file_list)
++    
++    # Task 4: Write summary after all files are processed (handle both empty and non-empty cases)
++    # Key: write_summary depends on both file_results (which may be empty) and file_list.
++    # This ensures write_summary runs even when process_file expands to zero instances.
++    # When file_list is empty, file_results will be an empty list,
++    # and write_summary will write all-zero summary metrics.
++    summary = write_summary(
++        business_date=business_date,
++        file_results=file_results,
++    )
++    
++    # Explicit dependency: ensure write_summary runs after list_files_for_date
++    # even if process_file has zero instances.
++    file_list >> summary
++
++
++partner_feeds()

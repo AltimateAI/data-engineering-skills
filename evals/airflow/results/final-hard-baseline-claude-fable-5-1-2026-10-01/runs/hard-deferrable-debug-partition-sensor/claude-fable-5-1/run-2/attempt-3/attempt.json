@@ -1,0 +1,98 @@
+{
+  "status": "harness_error",
+  "reason": "inventory mismatch: skills not in the campaign inventory: ['deep-research', 'workflow-authoring']",
+  "primary_pass": false,
+  "primary_score": null,
+  "secondary_score": null,
+  "cost_usd": 0.190231,
+  "cost_reported_usd": 0.0,
+  "wall_s": 2.0,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-113901/hard-deferrable-debug-partition-sensor-i8au6ku7/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 143,
+  "run_cap_usd": 30.0,
+  "cost_list_price_usd": 0.190231,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 2,
+    "output": 7,
+    "reasoning": 0,
+    "cache_read": 10084,
+    "cache_write": 9367,
+    "total": 19460
+  },
+  "steps": 1,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.190231,
+  "cost_source": "estimate",
+  "model_usage": null,
+  "num_turns": null,
+  "result_subtype": null,
+  "subagent_stats": {
+    "spawned": null,
+    "completed": null,
+    "failed": null
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-fable-5-1",
+    "claude_code_version": "2.1.287",
+    "memory_paths": null
+  },
+  "inventory_problems": [
+    "skills not in the campaign inventory: ['deep-research', 'workflow-authoring']"
+  ],
+  "aborted": true
+}

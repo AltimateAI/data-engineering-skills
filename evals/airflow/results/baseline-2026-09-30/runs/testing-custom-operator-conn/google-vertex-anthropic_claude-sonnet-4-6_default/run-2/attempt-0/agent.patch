@@ -1,0 +1,416 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/test_warehouse.py b/tests/test_warehouse.py
+new file mode 100644
+index 0000000..f4dfb3b
+--- /dev/null
++++ b/tests/test_warehouse.py
+@@ -0,0 +1,407 @@
++"""Unit tests for DuckDBWarehouseHook and CsvPartitionToDuckDBOperator.
++
++The tests run with plain ``pytest tests/`` and require no external services or
++Airflow connections configured in the environment.  Each test that needs a
++connection injects one into Airflow's ``_preset_connections`` ContextVar so
++that ``BaseHook.get_connection()`` resolves it without touching any secrets
++backend or metadata database.
++
++The operator's ``execute()`` is exercised for real against a temporary DuckDB
++file created by each test, so DuckDB itself is never mocked.
++"""
++
++from __future__ import annotations
++
++import csv
++import os
++import sys
++import textwrap
++from contextlib import contextmanager
++from pathlib import Path
++
++import duckdb
++import pytest
++
++# ---------------------------------------------------------------------------
++# Make dags/ importable so that ``from warehouse.x import ...`` works.
++# ---------------------------------------------------------------------------
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++if str(DAGS_DIR) not in sys.path:
++    sys.path.insert(0, str(DAGS_DIR))
++
++from airflow.sdk.definitions.connection import Connection  # noqa: E402
++from airflow.sdk.execution_time.context import _preset_connections  # noqa: E402
++
++from warehouse.hooks import DuckDBWarehouseHook  # noqa: E402
++from warehouse.operators import CsvPartitionToDuckDBOperator  # noqa: E402
++
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++@contextmanager
++def preset_connection(conn_id: str, conn: Connection):
++    """Inject *conn* as *conn_id* into Airflow's connection lookup for the
++    duration of the ``with`` block.  Works in any thread; uses ContextVar
++    tokens so it is safe to nest."""
++    token = _preset_connections.set({conn_id: conn})
++    try:
++        yield conn
++    finally:
++        _preset_connections.reset(token)
++
++
++def make_connection(
++    conn_id: str,
++    db_path: str,
++    schema: str = "main",
++    extra: dict | None = None,
++) -> Connection:
++    """Build a minimal DuckDB connection object."""
++    import json
++
++    extra_str = json.dumps(extra) if extra else None
++    return Connection(
++        conn_id=conn_id,
++        conn_type="duckdb",
++        host=db_path,
++        schema=schema,
++        extra=extra_str,
++    )
++
++
++def write_csv(path: Path, rows: list[dict]) -> None:
++    """Write *rows* to *path* as CSV with headers from the first row's keys."""
++    with path.open("w", newline="") as fh:
++        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
++        writer.writeheader()
++        writer.writerows(rows)
++
++
++def row_count(db_path: str, schema: str, table: str, where: str = "") -> int:
++    """Return row count from table in db_path, optionally filtered."""
++    sql = f'SELECT count(*) FROM "{schema}"."{table}"'
++    if where:
++        sql += f" WHERE {where}"
++    con = duckdb.connect(db_path, read_only=True)
++    try:
++        return con.execute(sql).fetchone()[0]
++    finally:
++        con.close()
++
++
++def fetch_all(db_path: str, schema: str, table: str) -> list[tuple]:
++    """Return all rows from table as a list of tuples."""
++    con = duckdb.connect(db_path, read_only=True)
++    try:
++        return con.execute(f'SELECT * FROM "{schema}"."{table}"').fetchall()
++    finally:
++        con.close()
++
++
++# ---------------------------------------------------------------------------
++# Fixtures
++# ---------------------------------------------------------------------------
++
++@pytest.fixture()
++def tmp_db(tmp_path):
++    """Return path to a (not-yet-created) temporary DuckDB file."""
++    return str(tmp_path / "warehouse.duckdb")
++
++
++@pytest.fixture()
++def orders_csv(tmp_path):
++    """A small orders CSV with rows across two dates."""
++    path = tmp_path / "orders.csv"
++    write_csv(path, [
++        {"order_id": "O-1", "order_date": "2026-03-01", "amount": "10.00"},
++        {"order_id": "O-2", "order_date": "2026-03-01", "amount": "20.00"},
++        {"order_id": "O-3", "order_date": "2026-03-02", "amount": "30.00"},
++        {"order_id": "O-4", "order_date": "2026-03-02", "amount": "40.00"},
++        {"order_id": "O-5", "order_date": "2026-03-02", "amount": "50.00"},
++    ])
++    return path
++
++
++# ===========================================================================
++# DuckDBWarehouseHook
++# ===========================================================================
++
++
++class TestDuckDBWarehouseHook:
++    """Tests for DuckDBWarehouseHook."""
++
++    def test_database_path_comes_from_host(self, tmp_db):
++        conn_id = "test_hook"
++        conn = make_connection(conn_id, tmp_db, schema="raw")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            assert hook.database_path == tmp_db
++
++    def test_target_schema_comes_from_schema_field(self, tmp_db):
++        conn_id = "test_hook_schema"
++        conn = make_connection(conn_id, tmp_db, schema="analytics")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            assert hook.target_schema == "analytics"
++
++    def test_target_schema_defaults_to_main_when_schema_is_empty(self, tmp_db):
++        conn_id = "test_hook_default_schema"
++        conn = make_connection(conn_id, tmp_db, schema="")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            assert hook.target_schema == "main"
++
++    def test_database_path_raises_when_host_is_empty(self, tmp_db):
++        conn_id = "test_hook_no_host"
++        conn = Connection(conn_id=conn_id, conn_type="duckdb", host="", schema="raw")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            with pytest.raises(ValueError, match=conn_id):
++                _ = hook.database_path
++
++    def test_get_conn_returns_live_duckdb_connection(self, tmp_db):
++        conn_id = "test_hook_live"
++        conn = make_connection(conn_id, tmp_db, schema="main")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            db_conn = hook.get_conn()
++            try:
++                result = db_conn.execute("SELECT 42").fetchone()[0]
++            finally:
++                db_conn.close()
++        assert result == 42
++
++    def test_get_conn_creates_duckdb_file_at_host_path(self, tmp_db):
++        conn_id = "test_hook_creates_file"
++        conn = make_connection(conn_id, tmp_db, schema="main")
++        assert not os.path.exists(tmp_db), "file should not exist yet"
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            db_conn = hook.get_conn()
++            db_conn.close()
++        assert os.path.exists(tmp_db), "hook should have created the DuckDB file"
++
++    def test_uses_custom_conn_id(self, tmp_db, tmp_path):
++        """Hook must use the conn_id it was constructed with, not the default."""
++        other_db = str(tmp_path / "other.duckdb")
++        for conn_id, path in [("conn_a", tmp_db), ("conn_b", other_db)]:
++            conn = make_connection(conn_id, path)
++            with preset_connection(conn_id, conn):
++                hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++                assert hook.database_path == path
++
++
++# ===========================================================================
++# CsvPartitionToDuckDBOperator — execute()
++# ===========================================================================
++
++
++class TestCsvPartitionToDuckDBOperatorExecute:
++    """Tests for CsvPartitionToDuckDBOperator.execute()."""
++
++    CONN_ID = "warehouse"
++
++    def _make_op(self, csv_path, table, partition_column, partition_date, conn_id=None):
++        return CsvPartitionToDuckDBOperator(
++            task_id="test_task",
++            csv_path=str(csv_path),
++            table=table,
++            partition_column=partition_column,
++            partition_date=partition_date,
++            duckdb_conn_id=conn_id or self.CONN_ID,
++        )
++
++    # ------------------------------------------------------------------
++    # Basic loading and return value
++    # ------------------------------------------------------------------
++
++    def test_execute_returns_number_of_rows_loaded(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            loaded = op.execute(context={})
++        assert loaded == 2
++
++    def test_execute_only_loads_rows_for_partition_date(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-02")
++        with preset_connection(self.CONN_ID, conn):
++            loaded = op.execute(context={})
++        assert loaded == 3
++
++    def test_execute_writes_correct_rows_to_table(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++        rows = fetch_all(tmp_db, "raw", "orders")
++        assert len(rows) == 2
++        order_ids = {r[0] for r in rows}
++        assert order_ids == {"O-1", "O-2"}
++
++    def test_execute_uses_duckdb_conn_id_from_operator(self, tmp_db, orders_csv):
++        """Operator must honour the duckdb_conn_id it was constructed with."""
++        custom_conn_id = "custom_warehouse"
++        conn = make_connection(custom_conn_id, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01", conn_id=custom_conn_id)
++        with preset_connection(custom_conn_id, conn):
++            loaded = op.execute(context={})
++        assert loaded == 2
++
++    # ------------------------------------------------------------------
++    # Schema field wiring
++    # ------------------------------------------------------------------
++
++    def test_table_is_created_in_the_connections_schema(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="staging")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++        assert row_count(tmp_db, "staging", "orders") == 2
++
++    def test_table_defaults_to_main_schema_when_connection_schema_empty(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++        assert row_count(tmp_db, "main", "orders") == 2
++
++    # ------------------------------------------------------------------
++    # Idempotency: re-run replaces the partition
++    # ------------------------------------------------------------------
++
++    def test_rerun_same_partition_does_not_duplicate_rows(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++            loaded_second = op.execute(context={})
++        assert loaded_second == 2
++        assert row_count(tmp_db, "raw", "orders") == 2
++
++    def test_rerun_same_partition_returns_same_count(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            first = op.execute(context={})
++            second = op.execute(context={})
++        assert first == second
++
++    # ------------------------------------------------------------------
++    # Idempotency: re-run leaves other partitions untouched
++    # ------------------------------------------------------------------
++
++    def test_rerun_one_partition_leaves_other_partition_intact(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op_day1 = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        op_day2 = self._make_op(orders_csv, "orders", "order_date", "2026-03-02")
++        with preset_connection(self.CONN_ID, conn):
++            op_day1.execute(context={})
++            op_day2.execute(context={})
++            # Re-run day1; day2 rows must survive
++            op_day1.execute(context={})
++
++        assert row_count(tmp_db, "raw", "orders", "\"order_date\" = '2026-03-01'") == 2
++        assert row_count(tmp_db, "raw", "orders", "\"order_date\" = '2026-03-02'") == 3
++
++    def test_loading_two_partitions_gives_correct_total(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op_day1 = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        op_day2 = self._make_op(orders_csv, "orders", "order_date", "2026-03-02")
++        with preset_connection(self.CONN_ID, conn):
++            op_day1.execute(context={})
++            op_day2.execute(context={})
++
++        assert row_count(tmp_db, "raw", "orders") == 5
++
++    # ------------------------------------------------------------------
++    # Edge cases
++    # ------------------------------------------------------------------
++
++    def test_execute_returns_zero_for_partition_with_no_matching_rows(self, tmp_db, orders_csv):
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2099-01-01")
++        with preset_connection(self.CONN_ID, conn):
++            loaded = op.execute(context={})
++        assert loaded == 0
++
++    def test_execute_creates_table_if_not_exists(self, tmp_db, orders_csv):
++        """The operator must create the target table automatically."""
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++        # If we got here without an exception the table was created.
++        assert row_count(tmp_db, "raw", "orders") == 2
++
++    def test_execute_creates_schema_if_not_exists(self, tmp_db, orders_csv):
++        """A schema that doesn't exist yet must be created automatically."""
++        conn = make_connection(self.CONN_ID, tmp_db, schema="brand_new_schema")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++        assert row_count(tmp_db, "brand_new_schema", "orders") == 2
++
++    def test_all_columns_loaded_as_text(self, tmp_db, orders_csv):
++        """Operator contract says all columns are loaded as varchar."""
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op = self._make_op(orders_csv, "orders", "order_date", "2026-03-01")
++        with preset_connection(self.CONN_ID, conn):
++            op.execute(context={})
++
++        db_conn = duckdb.connect(tmp_db, read_only=True)
++        try:
++            col_types = {
++                row[0]: row[1]
++                for row in db_conn.execute(
++                    "SELECT column_name, data_type "
++                    "FROM information_schema.columns "
++                    "WHERE table_schema = 'raw' AND table_name = 'orders'"
++                ).fetchall()
++            }
++        finally:
++            db_conn.close()
++
++        for col, dtype in col_types.items():
++            assert "VARCHAR" in dtype.upper() or "TEXT" in dtype.upper(), (
++                f"Column {col!r} has type {dtype!r}, expected VARCHAR/TEXT"
++            )
++
++    def test_independent_tables_do_not_interfere(self, tmp_db, tmp_path):
++        """Loading into 'orders' must not affect a separately loaded 'refunds' table."""
++        orders_csv = tmp_path / "orders.csv"
++        refunds_csv = tmp_path / "refunds.csv"
++        write_csv(orders_csv, [
++            {"order_id": "O-1", "order_date": "2026-03-01", "amount": "10.00"},
++        ])
++        write_csv(refunds_csv, [
++            {"refund_id": "R-1", "refund_date": "2026-03-01", "order_id": "O-1", "amount": "10.00"},
++            {"refund_id": "R-2", "refund_date": "2026-03-01", "order_id": "O-1", "amount": "5.00"},
++        ])
++
++        conn = make_connection(self.CONN_ID, tmp_db, schema="raw")
++        op_orders = CsvPartitionToDuckDBOperator(
++            task_id="load_orders",
++            csv_path=str(orders_csv),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++            duckdb_conn_id=self.CONN_ID,
++        )
++        op_refunds = CsvPartitionToDuckDBOperator(
++            task_id="load_refunds",
++            csv_path=str(refunds_csv),
++            table="refunds",
++            partition_column="refund_date",
++            partition_date="2026-03-01",
++            duckdb_conn_id=self.CONN_ID,
++        )
++
++        with preset_connection(self.CONN_ID, conn):
++            op_orders.execute(context={})
++            op_refunds.execute(context={})
++
++        assert row_count(tmp_db, "raw", "orders") == 1
++        assert row_count(tmp_db, "raw", "refunds") == 2

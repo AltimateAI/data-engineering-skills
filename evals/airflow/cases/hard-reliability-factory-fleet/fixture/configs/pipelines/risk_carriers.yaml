@@ -1,0 +1,24 @@
+name: risk_carriers
+team: risk
+tier: standard
+description: Carriers pipeline for risk
+schedule:
+  hour: 1
+  days: '*'
+  minute: 30
+retries: 4
+steps:
+- name: extract
+  table: risk.raw_carriers_00
+- name: transform
+  table: risk.int_carriers_00
+  depends_on:
+  - extract
+- name: enrich
+  table: risk.int_carriers_00
+  depends_on:
+  - transform
+- name: publish
+  table: risk.mart_carriers_00
+  depends_on:
+  - enrich

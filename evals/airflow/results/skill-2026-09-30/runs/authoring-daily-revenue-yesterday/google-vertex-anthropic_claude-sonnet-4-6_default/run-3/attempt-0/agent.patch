@@ -1,0 +1,106 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..901a661
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,100 @@
++"""Daily revenue report per store.
++
++Runs at 03:00 UTC and reports on the *previous* calendar day (midnight to midnight UTC).
++The run at 03:00 on the 29th writes output/daily_revenue/YYYY-MM-DD.csv named after the 28th.
++Late orders trickle in until ~02:00, so 03:00 is the cutoff.
++
++Period contract
++---------------
++Scheduled run firing at 03:00 UTC on day D  ->  window [D-1 00:00 UTC, D 00:00 UTC)
++Manual run (no logical_date on Airflow 3.x)  ->  same rule applied to dag_run.run_after
++Rerun / backfill of any run                  ->  same window as the original run (idempotent)
++"""
++
++from __future__ import annotations
++
++import csv
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronTriggerTimetable, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_FILE = PROJECT_ROOT / "data" / "orders.csv"
++
++
++def _prev_day(d: pendulum.DateTime) -> pendulum.DateTime:
++    return d.subtract(days=1)
++
++
++def _run_window(dag_run) -> tuple[pendulum.DateTime, pendulum.DateTime]:
++    """Return the [start, end) window this run should process.
++
++    Uses the verified run_window pattern from the skill reference.
++    Works for scheduled, manual, backfill and rerun on Airflow 3.x.
++    """
++    s, e = dag_run.data_interval_start, dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        # Interval timetable: the interval IS the period (not used here, but safe)
++        return pendulum.instance(s).in_tz("UTC"), pendulum.instance(e).in_tz("UTC")
++    # Trigger timetable (our case) or 3.x manual run: derive from anchor
++    anchor = dag_run.logical_date or dag_run.run_after
++    day_start = _prev_day(pendulum.instance(anchor).in_tz("UTC").start_of("day"))
++    return day_start, day_start.add(days=1)
++
++
++@dag(
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def generate_report(**context) -> str:
++        """Aggregate orders for the previous day and write a CSV per store."""
++        dag_run = context["dag_run"]
++        window_start, window_end = _run_window(dag_run)
++        report_date = window_start.to_date_string()  # YYYY-MM-DD of the day being reported
++
++        # Read orders
++        rows = []
++        with open(DATA_FILE, newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                ts = pendulum.parse(row["order_ts"], tz="UTC")
++                if window_start <= ts < window_end:
++                    rows.append(row)
++
++        # Aggregate: group by store_id
++        store_stats: dict[str, dict] = {}
++        for row in rows:
++            sid = row["store_id"]
++            if sid not in store_stats:
++                store_stats[sid] = {"orders": 0, "revenue": 0.0}
++            store_stats[sid]["orders"] += 1
++            store_stats[sid]["revenue"] += float(row["amount"])
++
++        # Sort by store_id
++        sorted_stores = sorted(store_stats.items())
++
++        # Write output – overwrite atomically so reruns are idempotent
++        out_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out_path = out_dir / f"{report_date}.csv"
++        tmp_path = out_path.with_suffix(".csv.tmp")
++
++        with open(tmp_path, "w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["store_id", "orders", "revenue"])
++            for sid, stats in sorted_stores:
++                writer.writerow([sid, stats["orders"], round(stats["revenue"], 2)])
++
++        tmp_path.replace(out_path)  # atomic rename; idempotent on rerun
++        return str(out_path)
++
++    generate_report()
++
++
++daily_revenue()

@@ -1,0 +1,48 @@
+id: debugging-variable-at-parse
+area: debugging
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  I'm moving our warehouse_load DAG over from the old Airflow 2 box to our new
+  3.3 setup and it won't even show up. `airflow dags list-import-errors --local`
+  gives me this for dags/warehouse_load.py:
+
+      Traceback (most recent call last):
+        File ".../site-packages/airflow/sdk/definitions/variable.py", line 54, in get
+          return _get_variable(key, deserialize_json=deserialize_json)
+        File ".../site-packages/airflow/sdk/execution_time/context.py", line 353, in _get_variable
+          raise AirflowRuntimeError(
+      airflow.sdk.exceptions.AirflowRuntimeError: VARIABLE_NOT_FOUND: {'message': 'Variable warehouse_path not found'}
+
+  Which makes no sense, because the variable is definitely there:
+  `airflow variables get warehouse_path` prints our warehouse directory. CI has
+  no variables configured at all and fails on the same file.
+
+  Can you figure out what's going on and fix the DAG so it imports and actually
+  runs? The warehouse location has to keep coming from the `warehouse_path`
+  variable (it's different in every environment), and don't drop any of the
+  steps or change when it runs.
+description: |
+  Debugging a DAG that fails to import on Airflow 3.3 with a confusing error.
+  The fixture reads `Variable.get("warehouse_path")` at module level. Outside a
+  task (CLI, CI, `dags test`) the Task SDK cannot reach Variables, so parsing
+  fails with VARIABLE_NOT_FOUND even when the Variable exists in the metadata
+  DB. A second, hidden layer only shows up after that fix: the DAG still passes
+  the removed `schedule_interval` argument (TypeError). Pain points: P3/P10
+  top-level Variable access, removed Airflow 2 arguments, and verifying a fix
+  instead of stopping at the first error.
+  Primary checks: every DAG file imports with no Variables available; the
+  extract -> aggregate -> load -> validate chain is kept; the DAG still runs
+  daily at 06:00 UTC (trigger or data-interval timetable) with catchup off;
+  `airflow dags test` succeeds with `warehouse_path` stored in the metadata DB;
+  the revenue rows land in the DuckDB file under the directory that Variable
+  points to.
+  Mutants: `default_at_parse` (top-level `Variable.get` with a project-local
+  default), `schedule_dropped` (TypeError "fixed" by deleting the schedule),
+  `hardcoded_path` (Variable replaced by a hard-coded path),
+  `variable_in_dag_body` (`Variable.get` moved into the `@dag` function body,
+  which still runs at parse time), `daily_preset` (`schedule_interval`
+  translated to `@daily`, i.e. midnight), `catchup_enabled` (catchup turned on
+  while rewriting the decorator).

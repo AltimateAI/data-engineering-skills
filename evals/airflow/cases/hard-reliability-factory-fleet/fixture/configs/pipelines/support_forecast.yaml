@@ -1,0 +1,32 @@
+name: support_forecast
+team: support
+tier: critical
+description: Forecast pipeline for support
+schedule:
+  hour: 4
+  days: '*'
+retries: 1
+steps:
+- name: extract
+  table: support.raw_forecast_00
+- name: stage
+  table: support.stg_forecast_00
+  depends_on:
+  - extract
+- name: validate
+  table: support.int_forecast_00
+  depends_on:
+  - stage
+- name: enrich
+  table: support.int_forecast_00
+  depends_on:
+  - validate
+- name: snapshot
+  table: support.int_forecast_00
+  depends_on:
+  - enrich
+- name: publish
+  table: support.mart_forecast_00
+  depends_on:
+  - snapshot
+  - enrich

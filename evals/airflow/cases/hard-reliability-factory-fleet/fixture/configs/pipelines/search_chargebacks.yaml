@@ -1,0 +1,32 @@
+name: search_chargebacks
+team: search
+tier: standard
+description: Chargebacks pipeline for search
+schedule:
+  hour: 3
+  days: 1-5
+  minute: 15
+steps:
+- name: extract
+  table: search.raw_chargebacks_00
+- name: transform
+  table: search.int_chargebacks_00
+  depends_on:
+  - extract
+- name: enrich
+  table: search.int_chargebacks_00
+  depends_on:
+  - transform
+  - extract
+- name: aggregate
+  table: search.int_chargebacks_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: search.int_chargebacks_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: search.mart_chargebacks_00
+  depends_on:
+  - snapshot

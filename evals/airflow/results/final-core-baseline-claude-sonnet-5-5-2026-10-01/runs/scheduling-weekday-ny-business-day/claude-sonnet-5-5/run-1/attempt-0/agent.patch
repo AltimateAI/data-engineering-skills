@@ -1,0 +1,81 @@
+diff --git a/README.md b/README.md
+index dba9efd..068656a 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,7 @@ Airflow 3.3 project for the treasury desk reports.
+ 
+ | DAG | Output |
+ |---|---|
+-| `fx_pnl_report` | `reports/fx_pnl_<trade date>.csv`, per-desk trade count, notional and P&L |
++| `fx_pnl_report` | `reports/fx_pnl_<trade date>.csv`, per-desk trade count, notional and P&L. Runs 06:00 New York time Mon-Fri and reports the previous business day (no holiday calendar) |
+ | `desk_reference_refresh` | `reports/reference/desks.csv` |
+ 
+ `data/fx_trades.csv` is the nightly export of booked trades. `trade_date` is
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..dce6df0 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -1,7 +1,10 @@
+-"""Daily FX P&L report for the trading desks.
++"""Weekday FX P&L report for the trading desks.
++
++Runs at 06:00 New York time Monday to Friday and reports the previous business
++day (Monday's run covers Friday).
+ 
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+-New York trade date) and writes one CSV per trading day to
++New York trade date) and writes one CSV per reported trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
+ """
+ 
+@@ -10,7 +13,8 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import dag, get_current_context, task
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+@@ -39,18 +43,36 @@ def write_pnl_report(trade_date: str) -> Path:
+     return out
+ 
+ 
++NY_TZ = "America/New_York"
++
++
++def previous_business_day(run_time: pendulum.DateTime) -> str:
++    """Previous weekday (YYYY-MM-DD) before ``run_time``, in New York time.
++
++    Monday (and any weekend day, for manual runs) maps to the prior Friday.
++    Bank holidays are not considered.
++    """
++    day = run_time.in_timezone(NY_TZ).start_of("day").subtract(days=1)
++    while day.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
++        day = day.subtract(days=1)
++    return day.to_date_string()
++
++
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    # 06:00 New York every weekday; follows DST, so UTC time shifts by an hour.
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY_TZ),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY_TZ),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report() -> str:
++        context = get_current_context()
++        run_time = context["logical_date"] or context["run_after"]
++        return str(write_pnl_report(previous_business_day(run_time)))
+ 
+     build_report()
+ 

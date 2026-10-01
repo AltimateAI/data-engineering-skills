@@ -1,0 +1,78 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..fff00a5 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,16 +1,19 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads the scheduled day's shop orders into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
+-`daily_revenue` rollup that the finance dashboard reads.
++non-cancelled orders of the run's data interval day into `orders` and then
++refreshes the `daily_revenue` rollup that the finance dashboard reads.
++
++Every run only replaces its own day (delete + insert in one transaction), so
++clearing, retrying or backfilling a day is safe and leaves other days alone.
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+ from airflow.decorators import dag, task
++from airflow.operators.python import get_current_context
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+@@ -22,13 +25,14 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+     schedule="@daily",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
++    max_active_runs=1,  # DuckDB allows a single writer process
+     default_args={"owner": "data-eng"},
+     tags=["shop", "warehouse"],
+ )
+ def orders_daily_load():
+     @task
+     def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++        day = get_current_context()["data_interval_start"].date()
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+@@ -42,6 +46,8 @@ def orders_daily_load():
+             )
+             """
+         )
++        con.execute("BEGIN")
++        con.execute("DELETE FROM orders WHERE order_date = ?", [day])
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -56,6 +62,7 @@ def orders_daily_load():
+             """,
+             [day],
+         )
++        con.execute("COMMIT")
+         con.close()
+         return day.isoformat()
+ 
+@@ -71,6 +78,8 @@ def orders_daily_load():
+             )
+             """
+         )
++        con.execute("BEGIN")
++        con.execute("DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)", [day])
+         con.execute(
+             """
+             INSERT INTO daily_revenue
+@@ -81,6 +90,7 @@ def orders_daily_load():
+             """,
+             [day],
+         )
++        con.execute("COMMIT")
+         con.close()
+ 
+     build_daily_revenue(load_orders())

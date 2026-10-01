@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['campaign_sync', 'weekly_campaign_report']"
+    },
+    {
+      "name": "weekly_campaign_report keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['publish_manifest', 'summarize_week'] deps=[['summarize_week', 'publish_manifest']]"
+    },
+    {
+      "name": "dags test succeeds (weekly_campaign_report, campaign_sync)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "weekly_campaign_report: manual 2026-03-09: state=failed interval=[None, None] failed=['publish_manifest', 'summarize_week']\ncampaign_sync: manual 2026-03-09: state=success interval=[None, None] failed=[]\n^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/providers/standard/operators/python.py\", line 254, in execute_callable\n    return runner.run(*self.op_args, **self.op_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/callback_runner.py\", line 97, in run\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"<work>/baseline-2026-09-30-baseline-20260930-045309/migration-weekly-catchup-trocgob0/grade-ws/dags/weekly_campaign_report.py\", line 51, in summarize_week\n    if ds <= row[\"event_ts\"][:10] < next_ds:\n       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: '<' not supported between instances of 'str' and 'NoneType'\n2026-09-30T13:05:03.373450Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T13:05:03.375779Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T13:05:03.414901Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f26b-2590-76d5-89e5-27dcc6a95851 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f26b-113a-7a83-b4f4-e61db8db0b02\n2026-09-30T13:05:03.440870Z [info     ] [DAG TEST] end task task_id=summarize_week map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T13:05:03.446735Z [info     ] Marking run <DagRun weekly_campaign_report @ 2026-03-09 00:00:00+00:00: manual__2026-09-30T13:04:57.960727+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T13:05:03.447198Z [info     ] DagRun Finished: dag_id=weekly_campaign_report, logical_date=2026-03-09 00:00:00+00:00, run_id=manual__2026-09-30T13:04:57.960727+00:00, run_start_date=2026-03-09 00:00:00+00:00, run_end_date=2026-09-30 13:05:03.446824+00:00, run_duration=17759103.446824, state=failed, run_type=manual, data_interval_start=2026-03-09 00:00:00+00:00, data_interval_end=2026-03-09 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"manual\": \"2026-03-09\", \"logical_date\": \"2026-03-09T00:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"publish_manifest\": \"upstream_failed\", \"summarize_week\": \"failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "scheduled Monday 06:00 runs succeed on 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-03-09T06:00:00+00:00: state=failed interval=[2026-03-09T06:00:00+00:00, 2026-03-09T06:00:00+00:00] failed=['publish_manifest', 'summarize_week']; 2026-03-16T06:00:00+00:00: state=failed interval=[2026-03-16T06:00:00+00:00, 2026-03-16T06:00:00+00:00] failed=['publish_manifest', 'summarize_week']\n/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/callback_runner.py\", line 97, in run\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"<work>/baseline-2026-09-30-baseline-20260930-045309/migration-weekly-catchup-trocgob0/grade-ws/dags/weekly_campaign_report.py\", line 51, in summarize_week\n    if ds <= row[\"event_ts\"][:10] < next_ds:\n       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: '<' not supported between instances of 'str' and 'NoneType'\n2026-09-30T13:05:33.325639Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T13:05:33.325874Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T13:05:33.406532Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f26b-9a8e-7584-8d23-3f2c365e1db2 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f26b-99b4-75c1-b441-556eaa363078\n2026-09-30T13:05:33.443812Z [info     ] [DAG TEST] end task task_id=summarize_week map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T13:05:33.453131Z [info     ] Marking run <DagRun weekly_campaign_report @ 2026-03-16 06:00:00+00:00: manual__2026-03-16T06:00:00+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T13:05:33.453263Z [info     ] DagRun Finished: dag_id=weekly_campaign_report, logical_date=2026-03-16 06:00:00+00:00, run_id=manual__2026-03-16T06:00:00+00:00, run_start_date=2026-03-16 06:00:00+00:00, run_end_date=2026-09-30 13:05:33.453204+00:00, run_duration=17132733.453204, state=failed, run_type=manual, data_interval_start=2026-03-16 06:00:00+00:00, data_interval_end=2026-03-16 06:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"run_after\": \"2026-03-09T06:00:00+00:00\", \"logical_date\": \"2026-03-09T06:00:00+00:00\", \"start\": \"2026-03-09T06:00:00+00:00\", \"end\": \"2026-03-09T06:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"publish_manifest\": \"upstream_failed\", \"summarize_week\": \"failed\"}}, {\"run_after\": \"2026-03-16T06:00:00+00:00\", \"logical_date\": \"2026-03-16T06:00:00+00:00\", \"start\": \"2026-03-16T06:00:00+00:00\", \"end\": \"2026-03-16T06:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"publish_manifest\": \"upstream_failed\", \"summarize_week\": \"failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "Monday runs report on the previous week, same output as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'manifests/2026-03-02.json': '{\"campaigns\": 4, \"week_end\": \"2026-03-09\", \"week_start\": \"2026-03-02\"}', 'manifests/2026-03-09.json': '{\"campaigns\": 4, \"week_end\": \"2026-03-16\", \"week_start\": \"2026-03-09\"}', 'weekly/2026-03-02.csv': 'campaign_id,spend,conversions,cost_per_conversion\\nC-101,4379.65,31,141.28\\nC-102,2985.82,44,67.86\\nC-205,3595.97,36,99.89\\nC-310,4849.46,32,151.55', 'weekly/2026-03-09.csv': 'campaign_id,spend,conversions,cost_per_conversion\\nC-101,5938.62,70,84.84\\nC-102,2937.86,42,69.95\\nC-205,1016.85,28,36.32\\nC-310,3803.94,23,165.39'}\n got {}"
+    },
+    {
+      "name": "season backfill: scheduler creates the same weekly runs from start_date as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected run_afters ['2026-01-12T06:00:00+00:00', '2026-01-19T06:00:00+00:00', '2026-01-26T06:00:00+00:00', '2026-02-02T06:00:00+00:00', '2026-02-09T06:00:00+00:00', '2026-02-16T06:00:00+00:00', '2026-02-23T06:00:00+00:00', '2026-03-02T06:00:00+00:00', '2026-03-09T06:00:00+00:00', '2026-03-16T06:00:00+00:00']\n got {'catchup': False, 'timetable': 'CronTriggerTimetable', 'run_afters': []}"
+    },
+    {
+      "name": "late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "alerts=[] found_run=True"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "21 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/campaign_sync.py:14 AIR311; dags/campaign_sync.py:21 AIR311; dags/weekly_campaign_report.py:37 AIR311; dags/weekly_campaign_report.py:41 AIR311; dags/weekly_campaign_report.py:46 AIR311; dags/weekly_campaign_report.py:47 AIR301; dags/weekly_campaign_report.py:64 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/campaign_sync.py:9 DeprecatedImportWarning: The `airflow.decorators.dag` attribute is deprecated. Please use `'airflow.sdk.dag'`.; dags/campaign_sync.py:9 DeprecatedImportWarning: The `airflow.decorators.task` attribute is deprecated. Please use `'airflow.sdk.task'`.; dags/campaign_sync.py:9 DeprecatedImportWarning: The `airflow.decorators.dag` attribute is deprecated. Please use `'airflow.sdk.dag'`.; dags/campaign_sync.py:9 DeprecatedImportWarning: The `airflow.decorators.task` attribute is deprecated. Please use `'airflow.sdk.task'`.; dags/weekly_campaign_report.py:16 DeprecatedImportWarning: The `airflow.decorators.dag` attribute is deprecated. Please use `'airflow.sdk.dag'`.; dags/weekly_campaign_report.py:16 DeprecatedImportWarning: The `airflow.decorators.task` attribute is deprecated. Please use `'airflow.sdk.task'`.; dags/weekly_campaign_report.py:16 DeprecatedImportWarning: The `airflow.decorators.dag` attribute is deprecated. Please use `'airflow.sdk.dag'`.; dags/weekly_campaign_report.py:16 DeprecatedImportWarning: The `airflow.decorators.task` attribute is deprecated. Please use `'airflow.sdk.task'`."
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.2857142857142857,
+  "secondary_score": 0.0
+}

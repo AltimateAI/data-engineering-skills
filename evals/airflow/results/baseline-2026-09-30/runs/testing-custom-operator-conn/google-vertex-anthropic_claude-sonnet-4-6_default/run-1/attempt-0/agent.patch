@@ -1,0 +1,378 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/tests/test_warehouse.py b/tests/test_warehouse.py
+new file mode 100644
+index 0000000..65dff2c
+--- /dev/null
++++ b/tests/test_warehouse.py
+@@ -0,0 +1,369 @@
++"""Unit tests for DuckDBWarehouseHook and CsvPartitionToDuckDBOperator.
++
++These tests supply their own Airflow connection (via the SDK's _preset_connections
++context-var) so no Airflow metastore, environment variables, or running services
++are required.  They exercise operator.execute() for real against a temporary
++DuckDB file – DuckDB itself is never mocked.
++
++Run with:
++    pytest tests/
++"""
++
++from __future__ import annotations
++
++import csv
++import os
++import sys
++import tempfile
++from contextlib import contextmanager
++from pathlib import Path
++
++import pytest
++
++# ---------------------------------------------------------------------------
++# Make the warehouse package importable when pytest is run from the repo root.
++# ---------------------------------------------------------------------------
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++if str(DAGS_DIR) not in sys.path:
++    sys.path.insert(0, str(DAGS_DIR))
++
++from airflow.sdk import Connection
++from airflow.sdk.execution_time import context as airflow_ctx
++
++from warehouse.hooks import DuckDBWarehouseHook
++from warehouse.operators import CsvPartitionToDuckDBOperator
++
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++@contextmanager
++def preset_connection(conn_id: str, connection: Connection):
++    """Inject *connection* into Airflow's preset-connections context-var.
++
++    This is the official way to supply connections in tests without a running
++    Airflow metastore: _preset_connections is checked first by
++    _get_connection() before any secrets-backend is consulted.
++    """
++    token = airflow_ctx._preset_connections.set({conn_id: connection})
++    try:
++        yield
++    finally:
++        airflow_ctx._preset_connections.reset(token)
++
++
++def _make_csv(path: Path, rows: list[dict]) -> None:
++    """Write *rows* (list-of-dicts) to a CSV at *path*."""
++    if not rows:
++        return
++    with open(path, "w", newline="") as fh:
++        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
++        writer.writeheader()
++        writer.writerows(rows)
++
++
++def _run_operator(
++    *,
++    db_path: str,
++    schema: str,
++    csv_path: str,
++    table: str,
++    partition_column: str,
++    partition_date: str,
++    conn_id: str = "test_wh",
++) -> int:
++    """Build and execute a CsvPartitionToDuckDBOperator inside a preset connection."""
++    conn = Connection(conn_id=conn_id, host=db_path, schema=schema)
++    op = CsvPartitionToDuckDBOperator(
++        task_id="test_task",
++        csv_path=csv_path,
++        table=table,
++        partition_column=partition_column,
++        partition_date=partition_date,
++        duckdb_conn_id=conn_id,
++    )
++    with preset_connection(conn_id, conn):
++        return op.execute(context={})
++
++
++# ---------------------------------------------------------------------------
++# Fixtures
++# ---------------------------------------------------------------------------
++
++@pytest.fixture()
++def tmp_db(tmp_path):
++    """Return a path string for a temporary DuckDB file (not yet created)."""
++    return str(tmp_path / "warehouse.duckdb")
++
++
++@pytest.fixture()
++def orders_csv(tmp_path):
++    """Write a small orders CSV and return its path."""
++    rows = [
++        {"order_id": "O-1", "order_date": "2026-03-01", "customer_id": "C-10", "amount": "50.00"},
++        {"order_id": "O-2", "order_date": "2026-03-01", "customer_id": "C-11", "amount": "20.00"},
++        {"order_id": "O-3", "order_date": "2026-03-02", "customer_id": "C-10", "amount": "80.00"},
++        {"order_id": "O-4", "order_date": "2026-03-02", "customer_id": "C-12", "amount": "15.00"},
++    ]
++    p = tmp_path / "orders.csv"
++    _make_csv(p, rows)
++    return str(p)
++
++
++# ---------------------------------------------------------------------------
++# Hook tests
++# ---------------------------------------------------------------------------
++
++class TestDuckDBWarehouseHook:
++    """Tests for DuckDBWarehouseHook – connection field mapping."""
++
++    def test_database_path_comes_from_host(self, tmp_db):
++        """hook.database_path must return the value stored in connection.host."""
++        conn_id = "wh_path_test"
++        conn = Connection(conn_id=conn_id, host=tmp_db, schema="main")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            assert hook.database_path == tmp_db
++
++    def test_target_schema_comes_from_schema_field(self, tmp_db):
++        """hook.target_schema must return the value stored in connection.schema."""
++        conn_id = "wh_schema_test"
++        conn = Connection(conn_id=conn_id, host=tmp_db, schema="analytics")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            assert hook.target_schema == "analytics"
++
++    def test_target_schema_defaults_to_main_when_not_set(self, tmp_db):
++        """hook.target_schema must fall back to 'main' when schema is empty."""
++        conn_id = "wh_schema_default"
++        conn = Connection(conn_id=conn_id, host=tmp_db)
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            assert hook.target_schema == "main"
++
++    def test_missing_host_raises(self, tmp_db):
++        """hook.database_path must raise ValueError when host is absent."""
++        conn_id = "wh_no_host"
++        conn = Connection(conn_id=conn_id, schema="raw")  # no host
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            with pytest.raises(ValueError, match=conn_id):
++                _ = hook.database_path
++
++    def test_get_conn_opens_real_duckdb_file(self, tmp_db):
++        """get_conn() must return a live DuckDB connection to the file on disk."""
++        import duckdb
++
++        conn_id = "wh_open_test"
++        conn = Connection(conn_id=conn_id, host=tmp_db, schema="main")
++        with preset_connection(conn_id, conn):
++            hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++            db_conn = hook.get_conn()
++            try:
++                result = db_conn.execute("SELECT 42 AS answer").fetchone()
++                assert result == (42,)
++            finally:
++                db_conn.close()
++
++    def test_hook_uses_given_conn_id(self, tmp_db):
++        """The hook must route to whichever duckdb_conn_id it is initialised with."""
++        conn_id_a = "wh_a"
++        conn_id_b = "wh_b"
++        db_b = tmp_db + "_b.duckdb"
++
++        conn_a = Connection(conn_id=conn_id_a, host=tmp_db, schema="s1")
++        conn_b = Connection(conn_id=conn_id_b, host=db_b, schema="s2")
++
++        token = airflow_ctx._preset_connections.set({conn_id_a: conn_a, conn_id_b: conn_b})
++        try:
++            hook_a = DuckDBWarehouseHook(duckdb_conn_id=conn_id_a)
++            hook_b = DuckDBWarehouseHook(duckdb_conn_id=conn_id_b)
++            assert hook_a.database_path == tmp_db
++            assert hook_b.database_path == db_b
++            assert hook_a.target_schema == "s1"
++            assert hook_b.target_schema == "s2"
++        finally:
++            airflow_ctx._preset_connections.reset(token)
++
++
++# ---------------------------------------------------------------------------
++# Operator tests
++# ---------------------------------------------------------------------------
++
++class TestCsvPartitionToDuckDBOperator:
++    """Tests for CsvPartitionToDuckDBOperator.execute()."""
++
++    def test_execute_loads_only_matching_partition(self, tmp_db, orders_csv):
++        """Only rows whose partition_column equals partition_date should be loaded."""
++        loaded = _run_operator(
++            db_path=tmp_db,
++            schema="raw",
++            csv_path=orders_csv,
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++        )
++        assert loaded == 2  # two rows for 2026-03-01
++
++    def test_execute_returns_row_count(self, tmp_db, orders_csv):
++        """execute() must return the integer count of rows loaded."""
++        result = _run_operator(
++            db_path=tmp_db,
++            schema="raw",
++            csv_path=orders_csv,
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-02",
++        )
++        assert isinstance(result, int)
++        assert result == 2  # two rows for 2026-03-02
++
++    def test_execute_writes_into_schema_from_connection(self, tmp_db, orders_csv):
++        """Rows must land in the schema taken from the connection's schema field."""
++        import duckdb
++
++        schema = "staging"
++        _run_operator(
++            db_path=tmp_db,
++            schema=schema,
++            csv_path=orders_csv,
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++        )
++        con = duckdb.connect(tmp_db, read_only=True)
++        try:
++            rows = con.execute(f'SELECT * FROM "{schema}"."orders"').fetchall()
++        finally:
++            con.close()
++        assert len(rows) == 2
++
++    def test_rerun_same_partition_no_duplicates(self, tmp_db, orders_csv):
++        """Running the same partition twice must not duplicate rows."""
++        kwargs = dict(
++            db_path=tmp_db,
++            schema="raw",
++            csv_path=orders_csv,
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++        )
++        first = _run_operator(**kwargs)
++        second = _run_operator(**kwargs)
++        assert first == 2
++        assert second == 2  # same count, not doubled
++
++        # Verify directly in the database
++        import duckdb
++
++        con = duckdb.connect(tmp_db, read_only=True)
++        try:
++            count = con.execute(
++                'SELECT count(*) FROM "raw"."orders" WHERE "order_date" = ?',
++                ["2026-03-01"],
++            ).fetchone()[0]
++        finally:
++            con.close()
++        assert count == 2
++
++    def test_rerun_leaves_other_partitions_unchanged(self, tmp_db, orders_csv):
++        """Re-running a partition must not touch rows from other dates."""
++        import duckdb
++
++        # Load both partitions first
++        _run_operator(
++            db_path=tmp_db, schema="raw", csv_path=orders_csv,
++            table="orders", partition_column="order_date", partition_date="2026-03-01",
++        )
++        _run_operator(
++            db_path=tmp_db, schema="raw", csv_path=orders_csv,
++            table="orders", partition_column="order_date", partition_date="2026-03-02",
++        )
++
++        # Re-run the 2026-03-01 partition
++        _run_operator(
++            db_path=tmp_db, schema="raw", csv_path=orders_csv,
++            table="orders", partition_column="order_date", partition_date="2026-03-01",
++        )
++
++        con = duckdb.connect(tmp_db, read_only=True)
++        try:
++            count_mar2 = con.execute(
++                'SELECT count(*) FROM "raw"."orders" WHERE "order_date" = ?',
++                ["2026-03-02"],
++            ).fetchone()[0]
++        finally:
++            con.close()
++
++        assert count_mar2 == 2  # 2026-03-02 rows untouched
++
++    def test_operator_uses_given_duckdb_conn_id(self, tmp_path, orders_csv):
++        """The operator must honour whichever duckdb_conn_id it is given."""
++        db_a = str(tmp_path / "a.duckdb")
++        db_b = str(tmp_path / "b.duckdb")
++        conn_id_a = "wh_op_a"
++        conn_id_b = "wh_op_b"
++
++        conn_a = Connection(conn_id=conn_id_a, host=db_a, schema="raw")
++        conn_b = Connection(conn_id=conn_id_b, host=db_b, schema="raw")
++
++        # Load into db_a
++        token = airflow_ctx._preset_connections.set({conn_id_a: conn_a, conn_id_b: conn_b})
++        try:
++            op_a = CsvPartitionToDuckDBOperator(
++                task_id="op_a",
++                csv_path=orders_csv,
++                table="orders",
++                partition_column="order_date",
++                partition_date="2026-03-01",
++                duckdb_conn_id=conn_id_a,
++            )
++            op_a.execute(context={})
++        finally:
++            airflow_ctx._preset_connections.reset(token)
++
++        # db_b must remain empty (operator used conn_id_a → db_a)
++        assert not Path(db_b).exists()
++        assert Path(db_a).exists()
++
++    def test_zero_matching_rows_returns_zero(self, tmp_db, orders_csv):
++        """execute() must return 0 when no CSV rows match the requested date."""
++        loaded = _run_operator(
++            db_path=tmp_db,
++            schema="raw",
++            csv_path=orders_csv,
++            table="orders",
++            partition_column="order_date",
++            partition_date="2099-01-01",  # date not present in CSV
++        )
++        assert loaded == 0
++
++    def test_all_columns_loaded_as_text(self, tmp_db, orders_csv):
++        """All columns must be stored as VARCHAR (all_varchar=true requirement)."""
++        import duckdb
++
++        _run_operator(
++            db_path=tmp_db,
++            schema="raw",
++            csv_path=orders_csv,
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++        )
++        con = duckdb.connect(tmp_db, read_only=True)
++        try:
++            col_types = {
++                row[0]: row[1]
++                for row in con.execute(
++                    "SELECT column_name, data_type "
++                    "FROM information_schema.columns "
++                    'WHERE table_schema = \'raw\' AND table_name = \'orders\''
++                ).fetchall()
++            }
++        finally:
++            con.close()
++        for col, dtype in col_types.items():
++            assert "VARCHAR" in dtype or "TEXT" in dtype, (
++                f"Column {col!r} has type {dtype!r}, expected VARCHAR/TEXT"
++            )

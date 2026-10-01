@@ -1,0 +1,937 @@
+diff --git a/dags/orders_enrichment.py b/dags/orders_enrichment.py
+index 9eacf18..9c8640d 100644
+--- a/dags/orders_enrichment.py
++++ b/dags/orders_enrichment.py
+@@ -6,79 +6,26 @@ Output: output/orders_enriched/<ds>.csv
+ 
+ from __future__ import annotations
+ 
+-import csv
+ from datetime import datetime, timedelta
+-from decimal import ROUND_HALF_UP, Decimal
+-from pathlib import Path
+ 
+ from airflow.sdk import dag, task
+ 
+-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+-DATA_DIR = PROJECT_ROOT / "data"
+-OUTPUT_DIR = PROJECT_ROOT / "output" / "orders_enriched"
+-OUTPUT_COLUMNS = ["order_id", "customer_id", "currency", "amount", "amount_usd"]
+-
+-
+-@task
+-def extract_orders(ds: str | None = None) -> list[dict]:
+-    """All order rows exported for the run date (an order can appear more than once)."""
+-    with (DATA_DIR / "orders.csv").open(newline="") as fh:
+-        return [row for row in csv.DictReader(fh) if row["order_date"] == ds]
+-
+-
+-@task
+-def load_fx_rates(ds: str | None = None) -> dict[str, str]:
+-    """USD per unit of each currency on the run date."""
+-    rates = {"USD": "1"}
+-    with (DATA_DIR / "fx_rates.csv").open(newline="") as fh:
+-        for row in csv.DictReader(fh):
+-            if row["rate_date"] == ds:
+-                rates[row["currency"]] = row["usd_per_unit"]
+-    return rates
+-
+-
+-@task
+-def dedupe_orders(rows: list[dict]) -> list[dict]:
+-    """Keep only the latest version of each order (highest updated_at), sorted by order_id."""
+-    latest: dict[str, dict] = {}
+-    for row in rows:
+-        current = latest.get(row["order_id"])
+-        if current is None or row["updated_at"] > current["updated_at"]:
+-            latest[row["order_id"]] = row
+-    return [latest[order_id] for order_id in sorted(latest)]
+-
+-
+-@task
+-def convert_to_usd(rows: list[dict], rates: dict[str, str]) -> list[dict]:
+-    """Add amount_usd = amount * usd_per_unit, rounded half-up to cents."""
+-    enriched = []
+-    for row in rows:
+-        rate = rates.get(row["currency"])
+-        if rate is None:
+-            raise ValueError(f"no FX rate for {row['currency']} (order {row['order_id']})")
+-        usd = (Decimal(row["amount"]) * Decimal(rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+-        enriched.append({**row, "amount_usd": str(usd)})
+-    return enriched
+-
+-
+-@task
+-def validate_totals(rows: list[dict]) -> list[dict]:
+-    """Refuse to publish orders without a customer or with a negative USD amount."""
+-    bad = [r["order_id"] for r in rows if not r["customer_id"] or Decimal(r["amount_usd"]) < 0]
+-    if bad:
+-        raise ValueError(f"invalid orders: {bad}")
+-    return rows
+-
++from orders_enrichment_functions import (
++    convert_to_usd as _convert_to_usd,
++    dedupe_orders as _dedupe_orders,
++    extract_orders as _extract_orders,
++    load_enriched as _load_enriched,
++    load_fx_rates as _load_fx_rates,
++    validate_totals as _validate_totals,
++)
+ 
+-@task
+-def load_enriched(rows: list[dict], ds: str | None = None) -> str:
+-    out = OUTPUT_DIR / f"{ds}.csv"
+-    out.parent.mkdir(parents=True, exist_ok=True)
+-    with out.open("w", newline="") as fh:
+-        writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS, extrasaction="ignore")
+-        writer.writeheader()
+-        writer.writerows(rows)
+-    return str(out)
++# Wrap pure functions with @task decorator to make them Airflow tasks
++extract_orders = task(_extract_orders)
++load_fx_rates = task(_load_fx_rates)
++dedupe_orders = task(_dedupe_orders)
++convert_to_usd = task(_convert_to_usd)
++validate_totals = task(_validate_totals)
++load_enriched = task(_load_enriched)
+ 
+ 
+ @dag(
+diff --git a/dags/orders_enrichment_functions.py b/dags/orders_enrichment_functions.py
+new file mode 100644
+index 0000000..7f753ec
+--- /dev/null
++++ b/dags/orders_enrichment_functions.py
+@@ -0,0 +1,72 @@
++"""Pure Python functions for the orders_enrichment DAG (testable without Airflow context).
++
++These functions contain the actual business logic. The DAG decorates them with @task
++to make them Airflow tasks.
++"""
++
++import csv
++from datetime import datetime
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "orders_enriched"
++OUTPUT_COLUMNS = ["order_id", "customer_id", "currency", "amount", "amount_usd"]
++
++
++def extract_orders(ds: str | None = None) -> list[dict]:
++    """All order rows exported for the run date (an order can appear more than once)."""
++    with (DATA_DIR / "orders.csv").open(newline="") as fh:
++        return [row for row in csv.DictReader(fh) if row["order_date"] == ds]
++
++
++def load_fx_rates(ds: str | None = None) -> dict[str, str]:
++    """USD per unit of each currency on the run date."""
++    rates = {"USD": "1"}
++    with (DATA_DIR / "fx_rates.csv").open(newline="") as fh:
++        for row in csv.DictReader(fh):
++            if row["rate_date"] == ds:
++                rates[row["currency"]] = row["usd_per_unit"]
++    return rates
++
++
++def dedupe_orders(rows: list[dict]) -> list[dict]:
++    """Keep only the latest version of each order (highest updated_at), sorted by order_id."""
++    latest: dict[str, dict] = {}
++    for row in rows:
++        current = latest.get(row["order_id"])
++        if current is None or row["updated_at"] > current["updated_at"]:
++            latest[row["order_id"]] = row
++    return [latest[order_id] for order_id in sorted(latest)]
++
++
++def convert_to_usd(rows: list[dict], rates: dict[str, str]) -> list[dict]:
++    """Add amount_usd = amount * usd_per_unit, rounded half-up to cents."""
++    enriched = []
++    for row in rows:
++        rate = rates.get(row["currency"])
++        if rate is None:
++            raise ValueError(f"no FX rate for {row['currency']} (order {row['order_id']})")
++        usd = (Decimal(row["amount"]) * Decimal(rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
++        enriched.append({**row, "amount_usd": str(usd)})
++    return enriched
++
++
++def validate_totals(rows: list[dict]) -> list[dict]:
++    """Refuse to publish orders without a customer or with a negative USD amount."""
++    bad = [r["order_id"] for r in rows if not r["customer_id"] or Decimal(r["amount_usd"]) < 0]
++    if bad:
++        raise ValueError(f"invalid orders: {bad}")
++    return rows
++
++
++def load_enriched(rows: list[dict], ds: str | None = None) -> str:
++    """Write validated enriched orders to CSV and return the output path."""
++    out = OUTPUT_DIR / f"{ds}.csv"
++    out.parent.mkdir(parents=True, exist_ok=True)
++    with out.open("w", newline="") as fh:
++        writer = csv.DictWriter(fh, fieldnames=OUTPUT_COLUMNS, extrasaction="ignore")
++        writer.writeheader()
++        writer.writerows(rows)
++    return str(out)
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..753e16a
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,67 @@
++"""Shared pytest fixtures for Airflow DAG tests (Airflow 3.3)."""
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    """Load all DAGs from the dags/ folder."""
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag  # Airflow 2.x, 3.0, 3.1
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrates the throwaway metadata DB. Required for dag.test()."""
++    subprocess.run(
++        [sys.executable, "-m", "airflow", "db", "migrate"],
++        check=True,
++        capture_output=True,
++    )
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    """Generate the next n scheduled run times for a DAG.
++    
++    Usage: upcoming_runs(dag, after, n) -> list of datetime objects (aware, UTC).
++    """
++    from airflow.timetables.base import TimeRestriction
++
++    def _runs(dag, after, n):
++        tt = dag.timetable
++        try:
++            from airflow.serialization.encoders import coerce_to_core_timetable
++            tt = coerce_to_core_timetable(tt)
++        except ImportError:
++            pass
++        restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++        last, runs = None, []
++        for _ in range(n):
++            info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++            if info is None:
++                break
++            runs.append(info.run_after)
++            last = info.data_interval
++        return runs
++
++    return _runs
+diff --git a/tests/test_orders_enrichment.py b/tests/test_orders_enrichment.py
+new file mode 100644
+index 0000000..4223b98
+--- /dev/null
++++ b/tests/test_orders_enrichment.py
+@@ -0,0 +1,681 @@
++"""Tests for the orders_enrichment DAG.
++
++Validates:
++1. DAG structure and schedule (06:00 UTC daily)
++2. extract_orders: filters by order_date = ds
++3. dedupe_orders: keeps latest version by updated_at, sorted by order_id
++4. convert_to_usd: multiplies by FX rate, rounds half-up to cents
++5. Missing FX rate raises ValueError
++6. validate_totals: rejects orders with missing customer_id or negative amount_usd
++7. Output written only after validate_totals passes
++8. End-to-end on sample data (2026-03-02)
++"""
++from datetime import datetime, timezone
++from decimal import Decimal
++from pathlib import Path
++
++import pytest
++
++# Import the pure functions for unit testing (not the decorated @task versions)
++from dags.orders_enrichment_functions import (
++    convert_to_usd,
++    dedupe_orders,
++    extract_orders,
++    load_enriched,
++    load_fx_rates,
++    validate_totals,
++)
++
++
++class TestExtractOrders:
++    """Test extract_orders task."""
++
++    def test_extract_single_day(self):
++        """Extract only rows matching the run date."""
++        rows = extract_orders(ds="2026-03-02")
++        order_ids = [r["order_id"] for r in rows]
++        # S-102 and S-103 appear twice on 2026-03-02, S-104 and S-105 once each = 6 rows total
++        assert sorted(order_ids) == ["S-102", "S-102", "S-103", "S-103", "S-104", "S-105"]
++
++    def test_extract_different_day(self):
++        """Extract rows from a different date."""
++        rows = extract_orders(ds="2026-03-01")
++        assert len(rows) == 2
++        assert all(r["order_date"] == "2026-03-01" for r in rows)
++
++    def test_extract_no_rows(self):
++        """Return empty list for a date with no orders."""
++        rows = extract_orders(ds="2026-02-01")
++        assert rows == []
++
++    def test_extract_preserves_duplicates(self):
++        """Order can appear multiple times (before deduplication)."""
++        # S-102 appears twice on 2026-03-02
++        rows = extract_orders(ds="2026-03-02")
++        order_ids = [r["order_id"] for r in rows]
++        assert order_ids.count("S-102") == 1  # One row per date (both S-102 rows are on 03-02)
++        # Actually, looking at data: S-102 appears once on 03-02 with updated_at 08:05 and once with 11:47
++        # extract_orders filters by order_date, so both versions appear
++        rows_s102 = [r for r in rows if r["order_id"] == "S-102"]
++        assert len(rows_s102) == 2
++
++
++class TestDedupeOrders:
++    """Test dedupe_orders task."""
++
++    def test_dedupe_keeps_latest_by_updated_at(self):
++        """Keep the row with the highest updated_at timestamp."""
++        rows = [
++            {
++                "order_id": "S-102",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T08:05:00",
++                "customer_id": "C-7",
++                "currency": "EUR",
++                "amount": "100.00",
++            },
++            {
++                "order_id": "S-102",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T11:47:00",
++                "customer_id": "C-7",
++                "currency": "EUR",
++                "amount": "120.00",
++            },
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 1
++        assert result[0]["amount"] == "120.00"
++        assert result[0]["updated_at"] == "2026-03-02T11:47:00"
++
++    def test_dedupe_older_version_discarded(self):
++        """Discard older versions even if they appear later in the list."""
++        rows = [
++            {
++                "order_id": "S-103",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T07:55:00",
++                "customer_id": "C-9",
++                "currency": "GBP",
++                "amount": "38.00",
++            },
++            {
++                "order_id": "S-103",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T08:30:00",
++                "customer_id": "C-9",
++                "currency": "GBP",
++                "amount": "40.50",
++            },
++        ]
++        result = dedupe_orders(rows)
++        assert len(result) == 1
++        assert result[0]["amount"] == "40.50"
++
++    def test_dedupe_returns_sorted_by_order_id(self):
++        """Result is sorted by order_id."""
++        rows = [
++            {
++                "order_id": "S-105",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T13:20:00",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "0.35",
++            },
++            {
++                "order_id": "S-102",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T11:47:00",
++                "customer_id": "C-7",
++                "currency": "EUR",
++                "amount": "120.00",
++            },
++        ]
++        result = dedupe_orders(rows)
++        assert [r["order_id"] for r in result] == ["S-102", "S-105"]
++
++    def test_dedupe_single_order(self):
++        """Single order with no duplicates passes through."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "order_date": "2026-03-01",
++                "updated_at": "2026-03-01T09:12:00",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++            }
++        ]
++        result = dedupe_orders(rows)
++        assert result == rows
++
++
++class TestConvertToUsd:
++    """Test convert_to_usd task."""
++
++    def test_convert_usd_no_change(self):
++        """USD amounts remain unchanged (rate = 1)."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "order_date": "2026-03-01",
++                "updated_at": "2026-03-01T09:12:00",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++            }
++        ]
++        rates = {"USD": "1"}
++        result = convert_to_usd(rows, rates)
++        assert result[0]["amount_usd"] == "15.00"
++
++    def test_convert_eur_to_usd(self):
++        """EUR amounts converted at the given rate."""
++        rows = [
++            {
++                "order_id": "S-101",
++                "order_date": "2026-03-01",
++                "updated_at": "2026-03-01T10:40:00",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++            }
++        ]
++        rates = {"USD": "1", "EUR": "1.0812"}
++        result = convert_to_usd(rows, rates)
++        # 20.00 * 1.0812 = 21.624, rounded half-up to cents = 21.62
++        assert result[0]["amount_usd"] == "21.62"
++
++    def test_convert_rounding_half_up_down(self):
++        """Test rounding down: 0.625 -> 0.62 (ROUND_HALF_UP)."""
++        rows = [
++            {
++                "order_id": "S-test-1",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T12:00:00",
++                "customer_id": "C-test",
++                "currency": "EUR",
++                "amount": "0.576",
++            }
++        ]
++        rates = {"USD": "1", "EUR": "1.0833"}
++        result = convert_to_usd(rows, rates)
++        # 0.576 * 1.0833 = 0.623901, rounds down to 0.62
++        assert result[0]["amount_usd"] == "0.62"
++
++    def test_convert_rounding_half_up_up(self):
++        """Test rounding up: 0.625 -> 0.63 (ROUND_HALF_UP at the midpoint)."""
++        rows = [
++            {
++                "order_id": "S-test-2",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T12:00:00",
++                "customer_id": "C-test",
++                "currency": "GBP",
++                "amount": "0.495",
++            }
++        ]
++        rates = {"USD": "1", "GBP": "1.27"}
++        result = convert_to_usd(rows, rates)
++        # 0.495 * 1.27 = 0.62865, rounds to 0.63
++        assert result[0]["amount_usd"] == "0.63"
++
++    def test_convert_preserves_other_fields(self):
++        """Conversion adds amount_usd without removing other fields."""
++        rows = [
++            {
++                "order_id": "S-102",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T11:47:00",
++                "customer_id": "C-7",
++                "currency": "EUR",
++                "amount": "120.00",
++            }
++        ]
++        rates = {"USD": "1", "EUR": "1.0850"}
++        result = convert_to_usd(rows, rates)
++        assert result[0]["order_id"] == "S-102"
++        assert result[0]["customer_id"] == "C-7"
++        assert result[0]["currency"] == "EUR"
++        assert result[0]["amount"] == "120.00"
++        assert "amount_usd" in result[0]
++
++    def test_convert_missing_fx_rate_raises_error(self):
++        """Missing FX rate for a currency raises ValueError."""
++        rows = [
++            {
++                "order_id": "S-101",
++                "order_date": "2026-03-01",
++                "updated_at": "2026-03-01T10:40:00",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++            }
++        ]
++        rates = {"USD": "1"}  # EUR rate missing
++        with pytest.raises(ValueError, match="no FX rate for EUR.*S-101"):
++            convert_to_usd(rows, rates)
++
++    def test_convert_missing_fx_rate_multiple_orders(self):
++        """Error message includes the order_id that failed."""
++        rows = [
++            {
++                "order_id": "S-101",
++                "order_date": "2026-03-01",
++                "updated_at": "2026-03-01T10:40:00",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++            },
++            {
++                "order_id": "S-102",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T11:47:00",
++                "customer_id": "C-7",
++                "currency": "JPY",
++                "amount": "100.00",
++            },
++        ]
++        rates = {"USD": "1"}
++        # Should fail on the first missing currency
++        with pytest.raises(ValueError, match="no FX rate"):
++            convert_to_usd(rows, rates)
++
++    def test_convert_zero_amount(self):
++        """Zero amount is allowed and converts to 0.00."""
++        rows = [
++            {
++                "order_id": "S-test",
++                "order_date": "2026-03-02",
++                "updated_at": "2026-03-02T12:00:00",
++                "customer_id": "C-test",
++                "currency": "EUR",
++                "amount": "0.00",
++            }
++        ]
++        rates = {"USD": "1", "EUR": "1.0850"}
++        result = convert_to_usd(rows, rates)
++        assert result[0]["amount_usd"] == "0.00"
++
++
++class TestValidateTotals:
++    """Test validate_totals task."""
++
++    def test_validate_totals_valid_orders(self):
++        """Valid orders pass through unchanged."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++            },
++            {
++                "order_id": "S-101",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++                "amount_usd": "21.62",
++            },
++        ]
++        result = validate_totals(rows)
++        assert result == rows
++
++    def test_validate_totals_missing_customer_id(self):
++        """Order with missing customer_id is rejected."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++            },
++            {
++                "order_id": "S-101",
++                "customer_id": "",  # Empty customer_id
++                "currency": "EUR",
++                "amount": "20.00",
++                "amount_usd": "21.62",
++            },
++        ]
++        with pytest.raises(ValueError, match="invalid orders.*S-101"):
++            validate_totals(rows)
++
++    def test_validate_totals_none_customer_id(self):
++        """Order with None customer_id is rejected."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++            },
++            {
++                "order_id": "S-101",
++                "customer_id": None,
++                "currency": "EUR",
++                "amount": "20.00",
++                "amount_usd": "21.62",
++            },
++        ]
++        with pytest.raises(ValueError, match="invalid orders.*S-101"):
++            validate_totals(rows)
++
++    def test_validate_totals_negative_amount_usd(self):
++        """Order with negative amount_usd is rejected."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++            },
++            {
++                "order_id": "S-101",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++                "amount_usd": "-5.00",
++            },
++        ]
++        with pytest.raises(ValueError, match="invalid orders.*S-101"):
++            validate_totals(rows)
++
++    def test_validate_totals_zero_amount_usd_allowed(self):
++        """Zero amount_usd is allowed (only negative rejects)."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "0.00",
++                "amount_usd": "0.00",
++            }
++        ]
++        result = validate_totals(rows)
++        assert result == rows
++
++    def test_validate_totals_multiple_invalid_orders(self):
++        """Error lists all invalid order_ids."""
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++            },
++            {
++                "order_id": "S-101",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++                "amount_usd": "-5.00",
++            },
++        ]
++        with pytest.raises(ValueError) as exc_info:
++            validate_totals(rows)
++        # Both orders should be listed
++        assert "S-100" in str(exc_info.value)
++        assert "S-101" in str(exc_info.value)
++
++
++class TestLoadEnriched:
++    """Test load_enriched task."""
++
++    def test_load_enriched_writes_csv(self, tmp_path, monkeypatch):
++        """Output CSV is written with the correct columns."""
++        # Patch OUTPUT_DIR to a temp directory
++        import dags.orders_enrichment_functions as module
++        monkeypatch.setattr(module, "OUTPUT_DIR", tmp_path)
++
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++                "extra": "ignored",
++            }
++        ]
++        output_path = load_enriched(rows, ds="2026-03-02")
++        assert Path(output_path).exists()
++        assert Path(output_path).name == "2026-03-02.csv"
++
++        # Verify file contents
++        with open(output_path) as fh:
++            lines = fh.readlines()
++        assert lines[0].strip() == "order_id,customer_id,currency,amount,amount_usd"
++        assert "S-100" in lines[1]
++        assert "extra" not in lines[0]  # extrasaction="ignore"
++
++    def test_load_enriched_creates_parent_dirs(self, tmp_path, monkeypatch):
++        """Parent directories are created if missing."""
++        import dags.orders_enrichment_functions as module
++        monkeypatch.setattr(module, "OUTPUT_DIR", tmp_path / "orders_enriched")
++
++        rows = [
++            {
++                "order_id": "S-100",
++                "customer_id": "C-7",
++                "currency": "USD",
++                "amount": "15.00",
++                "amount_usd": "15.00",
++            }
++        ]
++        output_path = load_enriched(rows, ds="2026-03-02")
++        assert Path(output_path).parent.exists()
++
++
++class TestDagStructure:
++    """Test DAG definition and schedule."""
++
++    def test_dag_imports(self, dagbag):
++        """DAG imports without errors."""
++        assert "orders_enrichment" in dagbag.dags
++        assert dagbag.import_errors == {}
++
++    def test_dag_schedule_06_00_utc(self, dagbag, upcoming_runs):
++        """DAG runs daily at 06:00 UTC."""
++        dag = dagbag.dags["orders_enrichment"]
++        runs = upcoming_runs(dag, datetime(2026, 3, 1, tzinfo=timezone.utc), 10)
++
++        assert len(runs) == 10
++        # All runs should be at 06:00 UTC
++        for run in runs:
++            assert run.hour == 6
++            assert run.minute == 0
++            assert run.second == 0
++            # Pendulum Timezone('UTC') is equivalent to timezone.utc
++            assert str(run.tzinfo) == "UTC"
++
++    def test_dag_daily_schedule(self, dagbag, upcoming_runs):
++        """DAG runs every day (no gaps)."""
++        dag = dagbag.dags["orders_enrichment"]
++        runs = upcoming_runs(dag, datetime(2026, 3, 1, tzinfo=timezone.utc), 10)
++
++        # Check that runs are exactly one day apart
++        for i in range(len(runs) - 1):
++            delta = (runs[i + 1] - runs[i]).total_seconds()
++            assert delta == 86400  # 24 hours
++
++    def test_dag_max_active_runs(self, dagbag):
++        """DAG has max_active_runs = 1."""
++        dag = dagbag.dags["orders_enrichment"]
++        assert dag.max_active_runs == 1
++
++    def test_dag_catchup_disabled(self, dagbag):
++        """DAG has catchup = False."""
++        dag = dagbag.dags["orders_enrichment"]
++        assert dag.catchup is False
++
++    def test_dag_task_dependencies(self, dagbag):
++        """Task execution order is correct."""
++        dag = dagbag.dags["orders_enrichment"]
++
++        extract = dag.get_task("extract_orders")
++        load_fx = dag.get_task("load_fx_rates")
++        dedupe = dag.get_task("dedupe_orders")
++        convert = dag.get_task("convert_to_usd")
++        validate = dag.get_task("validate_totals")
++        load = dag.get_task("load_enriched")
++
++        # dedupe depends on extract
++        assert extract.task_id in dedupe.upstream_task_ids
++
++        # convert depends on dedupe and load_fx
++        assert dedupe.task_id in convert.upstream_task_ids
++        assert load_fx.task_id in convert.upstream_task_ids
++
++        # validate depends on convert
++        assert convert.task_id in validate.upstream_task_ids
++
++        # load depends on validate
++        assert validate.task_id in load.upstream_task_ids
++
++    def test_dag_owner_and_retries(self, dagbag):
++        """DAG has correct owner and retry settings."""
++        dag = dagbag.dags["orders_enrichment"]
++
++        for task in dag.tasks:
++            assert task.owner == "finance-data"
++            assert task.retries == 2
++
++
++class TestEndToEnd:
++    """End-to-end test on sample data."""
++
++    def test_e2e_2026_03_02(self, airflow_db, tmp_path, monkeypatch):
++        """Full run on 2026-03-02 with sample data."""
++        from dags.orders_enrichment import (
++            extract_orders,
++            load_fx_rates,
++            dedupe_orders,
++            convert_to_usd,
++            validate_totals,
++            load_enriched,
++        )
++
++        # Patch OUTPUT_DIR to temp directory
++        import dags.orders_enrichment as module
++        monkeypatch.setattr(module, "OUTPUT_DIR", tmp_path)
++
++        ds = "2026-03-02"
++
++        # Run the pipeline
++        orders = extract_orders(ds=ds)
++        fx_rates = load_fx_rates(ds=ds)
++        deduped = dedupe_orders(orders)
++        converted = convert_to_usd(deduped, fx_rates)
++        validated = validate_totals(converted)
++        output_path = load_enriched(validated, ds=ds)
++
++        # Verify output file exists
++        assert Path(output_path).exists()
++
++        # Verify output contains expected rows
++        with open(output_path) as fh:
++            lines = [line.strip() for line in fh.readlines()]
++
++        header = lines[0]
++        assert header == "order_id,customer_id,currency,amount,amount_usd"
++
++        # Parse CSV
++        rows = {}
++        for line in lines[1:]:
++            parts = line.split(",")
++            order_id = parts[0]
++            rows[order_id] = {
++                "order_id": parts[0],
++                "customer_id": parts[1],
++                "currency": parts[2],
++                "amount": parts[3],
++                "amount_usd": parts[4],
++            }
++
++        # Verify expected orders are present
++        assert "S-102" in rows
++        assert "S-103" in rows
++        assert "S-104" in rows
++        assert "S-105" in rows
++        assert len(rows) == 4
++
++        # S-102: 120.00 EUR * 1.0850 = 130.20
++        assert rows["S-102"]["amount_usd"] == "130.20"
++
++        # S-103: 40.50 GBP * 1.2700 = 51.435 -> 51.44 (ROUND_HALF_UP)
++        assert rows["S-103"]["amount_usd"] == "51.44"
++
++        # S-104: 9.99 USD * 1 = 9.99
++        assert rows["S-104"]["amount_usd"] == "9.99"
++
++        # S-105: 0.35 EUR * 1.0850 = 0.37975 -> 0.38 (ROUND_HALF_UP)
++        assert rows["S-105"]["amount_usd"] == "0.38"
++
++    def test_e2e_output_not_written_on_validation_failure(self, tmp_path, monkeypatch):
++        """Output is not written if validate_totals fails."""
++        from dags.orders_enrichment import (
++            dedupe_orders,
++            convert_to_usd,
++            validate_totals,
++            load_enriched,
++        )
++
++        import dags.orders_enrichment as module
++        monkeypatch.setattr(module, "OUTPUT_DIR", tmp_path)
++
++        # Create a row with invalid data
++        rows = [
++            {
++                "order_id": "S-test",
++                "customer_id": "",  # Empty customer_id
++                "currency": "USD",
++                "amount": "100.00",
++                "amount_usd": "100.00",
++            }
++        ]
++
++        # validate_totals should raise before load_enriched is called
++        with pytest.raises(ValueError):
++            validated = validate_totals(rows)
++            load_enriched(validated, ds="2026-03-02")
++
++        # Output file should not exist (because exception was raised)
++        output_file = tmp_path / "2026-03-02.csv"
++        assert not output_file.exists()
++
++    def test_e2e_missing_fx_rate_stops_pipeline(self, tmp_path, monkeypatch):
++        """Missing FX rate halts pipeline before validate_totals."""
++        from dags.orders_enrichment import (
++            dedupe_orders,
++            convert_to_usd,
++            validate_totals,
++            load_enriched,
++        )
++
++        import dags.orders_enrichment as module
++        monkeypatch.setattr(module, "OUTPUT_DIR", tmp_path)
++
++        rows = [
++            {
++                "order_id": "S-101",
++                "order_date": "2026-03-01",
++                "updated_at": "2026-03-01T10:40:00",
++                "customer_id": "C-8",
++                "currency": "EUR",
++                "amount": "20.00",
++            }
++        ]
++        rates = {"USD": "1"}  # EUR rate missing
++
++        with pytest.raises(ValueError, match="no FX rate for EUR"):
++            convert_to_usd(rows, rates)
++
++        output_file = tmp_path / "2026-03-01.csv"
++        assert not output_file.exists()

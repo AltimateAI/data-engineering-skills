@@ -1,0 +1,31 @@
+name: growth_refunds
+team: growth
+tier: standard
+description: Refunds pipeline for growth
+schedule:
+  hour: 2
+  days: '*'
+  minute: 15
+steps:
+- name: extract
+  table: growth.raw_refunds_00
+- name: stage
+  table: growth.stg_refunds_00
+  depends_on:
+  - extract
+- name: transform
+  table: growth.int_refunds_00
+  depends_on:
+  - stage
+- name: aggregate
+  table: growth.int_refunds_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: growth.int_refunds_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: growth.mart_refunds_00
+  depends_on:
+  - snapshot

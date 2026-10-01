@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: no XCom/Variable value larger than 48 KB (data passed by reference)",
+  "primary_pass": false,
+  "primary_score": 0.8571428571428571,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 229.4,
+  "cost_usd": 0.57126,
+  "cost_reported_usd": 2.240903,
+  "tokens": {
+    "input": 1669775,
+    "output": 7936,
+    "reasoning": 0,
+    "cache_read": 1352701,
+    "cache_write": 316942,
+    "total": 3347354
+  },
+  "steps": 25,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dd65c1bffeZXPZNvOGJu2TNM.json"
+}

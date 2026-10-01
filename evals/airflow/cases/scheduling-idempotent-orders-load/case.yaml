@@ -1,0 +1,34 @@
+id: scheduling-idempotent-orders-load
+area: scheduling
+split: dev
+airflow_version: "2.11"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  Our `orders_daily_load` DAG keeps corrupting the warehouse. When someone
+  clears a run or re-runs it after a failure, the orders get inserted again and
+  finance sees doubled revenue in `daily_revenue`. We also want to backfill
+  early March, but right now every run just loads "yesterday" relative to
+  whenever it happens to execute, so a backfill would load the same day over
+  and over.
+
+  Please fix the DAG so each run loads the day it is scheduled for, and
+  re-running, retrying or backfilling any day is always safe: the day ends up
+  with exactly the right rows even if a previous attempt died halfway through,
+  and other days are left alone. Keep the table names and columns the same,
+  because the dashboard reads them. The export we load from is
+  data/orders.csv.
+description: |
+  Idempotency and backfill safety for an Airflow 2.11 daily DuckDB load (pain
+  point P4, plus P2 logical-date semantics). The fixture appends with
+  datetime.now()-based dates into `orders` and `daily_revenue`. The grader runs
+  the DAG as the scheduler would (the timetable's own logical date and data
+  interval) for 2026-03-09 and then 2026-03-10 against an empty warehouse and
+  checks exact per-day rows. It then re-runs 2026-03-10 (no duplicates, the
+  previous day untouched), simulates a half-written day (rows missing, stale
+  amounts, stale rollup) and re-runs again, which must fully repair it. A
+  plain `airflow dags test` must also succeed. Delete+insert and PK upserts
+  both pass (alt_reference). Mutants: off-by-one day from
+  `logical_date - 1 day`, table-wide replace, skip-if-already-loaded, rollup
+  still appending, an inclusive interval end that double-counts a midnight
+  order, and insert-only-missing order_ids (never repairs stale amounts).

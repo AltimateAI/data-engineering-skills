@@ -1,0 +1,19 @@
+id: _example_smoke
+area: authoring
+split: dev
+airflow_version: "3.3"
+max_turns: 25
+timeout_s: 600
+prompt: |
+  We need a new daily Airflow DAG called `event_counts`. It should read
+  data/events.csv, count the events per event_type for the rows whose
+  event_date equals the run's date, and write the result to
+  output/event_counts/<YYYY-MM-DD>.csv with the columns event_type,count,
+  sorted by event_type. Put it in dags/ next to the existing DAG and follow the
+  same conventions.
+description: |
+  Harness smoke case (not part of the benchmark; ids starting with "_" only run
+  when named with --case). Tests that a new Airflow 3.3 DAG imports, runs under
+  `airflow dags test`, writes correct per-day output and is idempotent on a
+  re-run. Mutant `airflow2_imports` uses Airflow 2 idioms (days_ago,
+  schedule_interval) that break on 3.3.

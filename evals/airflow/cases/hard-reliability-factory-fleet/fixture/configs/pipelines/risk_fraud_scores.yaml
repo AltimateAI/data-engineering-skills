@@ -1,0 +1,32 @@
+name: risk_fraud_scores
+team: risk
+tier: standard
+description: Fraud Scores pipeline for risk
+schedule:
+  hour: 2
+  days: 1-5
+steps:
+- name: extract
+  table: risk.raw_fraud_scores_00
+- name: stage
+  table: risk.stg_fraud_scores_00
+  depends_on:
+  - extract
+- name: transform
+  table: risk.int_fraud_scores_00
+  depends_on:
+  - stage
+  - extract
+- name: enrich
+  table: risk.int_fraud_scores_00
+  depends_on:
+  - transform
+  - stage
+- name: aggregate
+  table: risk.int_fraud_scores_00
+  depends_on:
+  - enrich
+- name: publish
+  table: risk.mart_fraud_scores_00
+  depends_on:
+  - aggregate

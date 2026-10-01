@@ -1,0 +1,34 @@
+id: scheduling-weekday-ny-business-day
+area: scheduling
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  The treasury desk wants the `fx_pnl_report` DAG changed. Right now it runs at
+  midnight UTC every day, including weekends, and reports that same date. What
+  they need: it should run every weekday at 6am New York time, and each run
+  should report the previous business day. So Monday morning's report covers
+  Friday's trades, Tuesday's covers Monday, and so on. Don't worry about bank
+  holidays for now. The report file name and columns have to stay the same,
+  because the desk heads pull them into Excel.
+description: |
+  Timezone-aware weekday scheduling and "previous business day" semantics on
+  Airflow 3.3 (pain points P2 logical-date/data-interval semantics and DST
+  handling; research 05 section 3 row 5: a bare cron string is a
+  CronTriggerTimetable with a zero-width interval). The fixture runs @daily in
+  UTC and reports `ds`. The grader reads the DAG's own timetable around both
+  2026 US DST switches (08 Mar and 01 Nov) and requires runs at exactly 06:00
+  New York on weekdays only. It then executes the scheduled runs for Monday
+  09 Mar (first run after DST starts), Tuesday 10 Mar and Monday 02 Nov (first
+  run after DST ends), each with the run's own logical date and data interval,
+  and checks that exactly the expected report (Friday, Monday, Friday) is
+  written with the right per-desk totals. A plain `airflow dags test` must
+  also pass. CronTriggerTimetable + weekday arithmetic (reference) and
+  CronDataIntervalTimetable + data_interval_start (alt_reference) both pass.
+  A bare cron string with a New York start_date also passes. Mutants: a fixed
+  11:00 UTC cron (wrong after DST starts), calendar "yesterday" (Monday
+  reports Sunday), a bare cron string reading data_interval_start (reports
+  the run day itself under 3.x trigger semantics), a bare cron string with a
+  UTC start_date (runs at 06:00 UTC), and the run day taken from the wall
+  clock instead of the logical date.

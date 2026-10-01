@@ -1,0 +1,21 @@
+name: marketing_sessions_daily
+team: marketing
+tier: standard
+description: Sessions pipeline for marketing
+schedule:
+  hour: 1
+  days: '1'
+  minute: 15
+retries: 0
+steps:
+- name: extract
+  table: marketing.raw_sessions_00
+- name: enrich
+  table: marketing.int_sessions_00
+  depends_on:
+  - extract
+- name: publish
+  table: marketing.mart_sessions_00
+  depends_on:
+  - enrich
+  - extract

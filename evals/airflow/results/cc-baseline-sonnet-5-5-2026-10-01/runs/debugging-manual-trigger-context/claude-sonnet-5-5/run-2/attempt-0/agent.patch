@@ -1,0 +1,70 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..bcef2b6 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,7 +8,7 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+ from airflow.providers.standard.operators.bash import BashOperator
+@@ -21,6 +21,18 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def feed_day(context) -> str:
++    """The day (UTC, YYYY-MM-DD) this run produces the feed for.
++
++    Runs with a logical date use it. A manual trigger without one has
++    logical_date=None, so fall back to the dag run's run_after (the trigger
++    time), which is fixed per run and so survives clear/re-run.
++    """
++    dag_run = context["dag_run"]
++    moment = dag_run.logical_date or dag_run.run_after
++    return moment.astimezone(timezone.utc).strftime("%Y-%m-%d")
++
++
+ @dag(
+     schedule="0 4 * * *",
+     start_date=datetime(2026, 1, 1),
+@@ -30,7 +42,7 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        day = feed_day(context)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -47,7 +59,7 @@ def partner_feed():
+ 
+     @task
+     def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++        day = feed_day(context)
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -56,14 +68,17 @@ def partner_feed():
+         )
+         return str(manifest)
+ 
++    # ds_nodash is unavailable when logical_date is None, so build it the same
++    # way as feed_day() (both values are UTC).
++    day_nodash = "(dag_run.logical_date or dag_run.run_after).strftime('%Y%m%d')"
+     deliver = BashOperator(
+         task_id="deliver",
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+             " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " {{ params.outbox }}/acme_orders_{{ "+day_nodash+" }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ "+day_nodash+" }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )

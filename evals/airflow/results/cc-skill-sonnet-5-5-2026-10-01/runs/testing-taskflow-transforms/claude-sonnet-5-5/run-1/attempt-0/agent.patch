@@ -1,0 +1,267 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..da1bf25
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,59 @@
++# tests/conftest.py
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)   # 3.x dag.test() requires the DAG to live here
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"  # throwaway DB
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))  # lets tests import DAG modules and helper packages in dags/
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag          # Airflow 2.x, 3.0, 3.1
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrates the throwaway metadata DB. Only dag.test() tests need it (about 1 s)."""
++    subprocess.run([sys.executable, "-m", "airflow", "db", "migrate"], check=True, capture_output=True)
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    """upcoming_runs(dag, after, n) -> the next n times the scheduler would start a run (aware datetimes)."""
++    from airflow.timetables.base import TimeRestriction
++
++    def _runs(dag, after, n):
++        tt = dag.timetable
++        try:
++            from airflow.serialization.encoders import coerce_to_core_timetable  # Airflow >= 3.0
++            tt = coerce_to_core_timetable(tt)
++        except ImportError:
++            pass
++        restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++        last, runs = None, []
++        for _ in range(n):
++            info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++            if info is None:
++                break
++            runs.append(info.run_after)
++            last = info.data_interval
++        return runs
++
++    return _runs
+diff --git a/tests/test_orders_enrichment.py b/tests/test_orders_enrichment.py
+new file mode 100644
+index 0000000..118cbbc
+--- /dev/null
++++ b/tests/test_orders_enrichment.py
+@@ -0,0 +1,196 @@
++import csv
++import shutil
++from datetime import datetime, timezone
++from decimal import Decimal
++from pathlib import Path
++
++import pytest
++
++DAG_ID = "orders_enrichment"
++REPO = Path(__file__).resolve().parents[1]
++
++
++@pytest.fixture(scope="session")
++def dag(dagbag):
++    return dagbag.dags[DAG_ID]
++
++
++def fn(dag, task_id):
++    """The undecorated task function from the parsed DAG."""
++    return dag.get_task(task_id).python_callable
++
++
++def order(order_id, updated_at, amount="10.00", currency="EUR", customer="C-1", date="2026-03-02"):
++    return {"order_id": order_id, "order_date": date, "updated_at": updated_at,
++            "customer_id": customer, "currency": currency, "amount": amount}
++
++
++# ---------- structure ----------
++
++def test_dag_imports(dagbag):
++    assert dagbag.import_errors == {}
++    assert DAG_ID in dagbag.dags
++
++
++def test_validate_totals_gates_the_write(dag):
++    # nothing is written unless validation passed: the writer's only upstream is validate_totals,
++    # and validate_totals sits after the conversion
++    assert dag.get_task("load_enriched").upstream_task_ids == {"validate_totals"}
++    assert "convert_to_usd" in dag.get_task("validate_totals").get_flat_relative_ids(upstream=True)
++
++
++def test_runs_daily_at_0600_utc(dag, upcoming_runs):
++    runs = upcoming_runs(dag, datetime(2026, 3, 2, tzinfo=timezone.utc), 10)
++    assert len(runs) == 10
++    assert [r.date() for r in runs] == [datetime(2026, 3, 2 + i).date() for i in range(10)]  # every day
++    assert all((r.hour, r.minute, r.utcoffset().total_seconds()) == (6, 0, 0) for r in runs)
++
++
++# ---------- dedupe ----------
++
++def test_dedupe_keeps_latest_version_by_updated_at_not_file_order(dag):
++    rows = [
++        order("A", "2026-03-02T11:00:00", amount="120.00"),
++        order("A", "2026-03-02T08:00:00", amount="100.00"),   # older row appears later in the file
++        order("B", "2026-03-02T07:55:00", amount="38.00"),
++        order("B", "2026-03-02T08:30:00", amount="40.50"),
++        order("B", "2026-03-02T08:00:00", amount="39.00"),
++    ]
++    out = fn(dag, "dedupe_orders")(rows)
++    assert {r["order_id"]: r["amount"] for r in out} == {"A": "120.00", "B": "40.50"}
++    assert len(out) == 2
++
++
++def test_dedupe_keeps_distinct_orders(dag):
++    rows = [order("A", "2026-03-02T08:00:00"), order("B", "2026-03-02T08:00:00")]
++    assert {r["order_id"] for r in fn(dag, "dedupe_orders")(rows)} == {"A", "B"}
++
++
++# ---------- conversion ----------
++
++RATES = {"USD": "1", "EUR": "1.0850", "GBP": "1.2700"}
++
++
++def usd(dag, amount, currency="EUR", rates=RATES):
++    out = fn(dag, "convert_to_usd")([order("A", "2026-03-02T08:00:00", amount=amount, currency=currency)], rates)
++    return out[0]["amount_usd"]
++
++
++@pytest.mark.parametrize("amount, rate, expected", [
++    ("120.00", "1.0850", "130.20"),
++    ("0.05", "0.5", "0.03"),        # 0.025 exactly: half-up gives .03 (banker's rounding or float would give .02)
++    ("0.35", "1.0850", "0.38"),     # 0.37975
++    ("40.50", "1.2700", "51.44"),   # 51.435 exactly: tie rounds up
++    ("1.00", "1.0049", "1.00"),     # just below the tie rounds down
++    ("1.00", "1.0051", "1.01"),
++])
++def test_amount_usd_rounds_half_up_to_cents(dag, amount, rate, expected):
++    assert usd(dag, amount, rates={"EUR": rate}) == expected
++
++
++def test_usd_orders_are_unchanged(dag):
++    assert usd(dag, "9.99", currency="USD") == "9.99"
++
++
++def test_missing_fx_rate_fails_the_run(dag):
++    with pytest.raises(Exception, match="JPY"):
++        usd(dag, "10.00", currency="JPY")
++
++
++def test_missing_rate_for_any_one_order_fails_even_if_others_convert(dag):
++    rows = [order("A", "2026-03-02T08:00:00", currency="EUR"), order("B", "2026-03-02T08:00:00", currency="JPY")]
++    with pytest.raises(Exception):
++        fn(dag, "convert_to_usd")(rows, RATES)
++
++
++def test_rates_are_those_of_the_run_day_only(dag):
++    rates = fn(dag, "load_fx_rates")(ds="2026-03-02")
++    assert rates == {"USD": "1", "EUR": "1.0850", "GBP": "1.2700"}
++    assert "JPY" not in fn(dag, "load_fx_rates")(ds="2026-03-03") and fn(dag, "load_fx_rates")(ds="2026-03-03")["EUR"] == "1.0833"
++    assert fn(dag, "load_fx_rates")(ds="2030-01-01") == {"USD": "1"}   # no rates that day -> only USD
++
++
++def test_extract_filters_to_run_day(dag):
++    rows = fn(dag, "extract_orders")(ds="2026-03-02")
++    assert rows and {r["order_date"] for r in rows} == {"2026-03-02"}
++    assert len(rows) == 6   # includes the duplicate versions; dedupe is a later step
++
++
++# ---------- validation ----------
++
++def test_validate_rejects_negative_usd(dag):
++    with pytest.raises(Exception):
++        fn(dag, "validate_totals")([{**order("A", "x"), "amount_usd": "-0.01"}])
++
++
++def test_validate_rejects_missing_customer(dag):
++    with pytest.raises(Exception):
++        fn(dag, "validate_totals")([{**order("A", "x", customer=""), "amount_usd": "5.00"}])
++
++
++def test_validate_passes_good_rows_through(dag):
++    rows = [{**order("A", "x"), "amount_usd": "0.00"}, {**order("B", "x"), "amount_usd": "5.00"}]
++    assert fn(dag, "validate_totals")(rows) == rows
++
++
++# ---------- end to end on data/ ----------
++
++def run_dag(dag, airflow_db, monkeypatch, tmp_path, day, data_dir=None):
++    out_dir = tmp_path / "out"
++    glb = fn(dag, "extract_orders").__globals__   # all tasks share the DAG module's globals
++    monkeypatch.setitem(glb, "OUTPUT_DIR", out_dir)
++    if data_dir is not None:
++        monkeypatch.setitem(glb, "DATA_DIR", data_dir)
++    for t in dag.tasks:   # the DAG retries twice with a 10 min delay; don't wait that out in a failing-run test
++        monkeypatch.setattr(t, "retries", 0)
++    dr = dag.test(logical_date=datetime.fromisoformat(f"{day}T06:00:00+00:00"))
++    states = {ti.task_id: ti.state for ti in dr.get_task_instances()}
++    return dr, states, out_dir / f"{day}.csv"
++
++
++def read(path):
++    with path.open(newline="") as fh:
++        return list(csv.DictReader(fh))
++
++
++def test_end_to_end_on_sample_data(dag, airflow_db, monkeypatch, tmp_path):
++    dr, states, out = run_dag(dag, airflow_db, monkeypatch, tmp_path, "2026-03-02")
++    assert dr.state == "success", states
++    assert out.exists()
++    rows = read(out)
++    by_id = {r["order_id"]: r for r in rows}
++
++    assert list(rows[0]) == ["order_id", "customer_id", "currency", "amount", "amount_usd"]
++    assert len(rows) == len(by_id) == 5 - 0 or len(rows) == len(by_id)   # one row per order
++    assert sorted(by_id) == ["S-102", "S-103", "S-104", "S-105"]          # only 03-02 orders, deduped
++    # every row satisfies the conversion rule against the sample FX file
++    rate = {"USD": Decimal(1), "EUR": Decimal("1.0850"), "GBP": Decimal("1.2700")}
++    for r in rows:
++        exp = (Decimal(r["amount"]) * rate[r["currency"]]).quantize(Decimal("0.01"), rounding="ROUND_HALF_UP")
++        assert Decimal(r["amount_usd"]) == exp
++    # verified by hand: latest versions win, ties round up
++    assert (by_id["S-102"]["amount"], by_id["S-102"]["amount_usd"]) == ("120.00", "130.20")
++    assert (by_id["S-103"]["amount"], by_id["S-103"]["amount_usd"]) == ("40.50", "51.44")
++    assert by_id["S-105"]["amount_usd"] == "0.38"
++
++
++def test_end_to_end_missing_rate_fails_and_writes_nothing(dag, airflow_db, monkeypatch, tmp_path):
++    data = tmp_path / "data"
++    shutil.copytree(REPO / "data", data)
++    with (data / "orders.csv").open("a", newline="") as fh:
++        fh.write("S-999,2026-03-02,2026-03-02T14:00:00,C-1,JPY,5000\n")
++    dr, states, out = run_dag(dag, airflow_db, monkeypatch, tmp_path, "2026-03-02", data_dir=data)
++    assert dr.state == "failed", states
++    assert not out.exists()
++    assert states["load_enriched"] != "success"
++
++
++def test_end_to_end_failed_validation_writes_nothing(dag, airflow_db, monkeypatch, tmp_path):
++    data = tmp_path / "data"
++    shutil.copytree(REPO / "data", data)
++    with (data / "orders.csv").open("a", newline="") as fh:
++        fh.write("S-998,2026-03-02,2026-03-02T14:00:00,,EUR,5.00\n")   # no customer
++    dr, states, out = run_dag(dag, airflow_db, monkeypatch, tmp_path, "2026-03-02", data_dir=data)
++    assert dr.state == "failed", states
++    assert states["validate_totals"] == "failed"
++    assert not out.exists() and not out.parent.exists() or not list(out.parent.glob("*.csv"))

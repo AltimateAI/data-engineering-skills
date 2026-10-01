@@ -1,0 +1,104 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..44c9d48 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,10 +8,10 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
++import shutil
++from datetime import datetime, timezone
+ from pathlib import Path
+ 
+-from airflow.providers.standard.operators.bash import BashOperator
+ from airflow.sdk import dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+@@ -21,6 +21,24 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def _resolve_day(context: dict) -> str:
++    """Return the feed date as YYYY-MM-DD.
++
++    Scheduled runs and triggered runs with an explicit logical date use
++    that date.  Manual triggers without a logical date (logical_date is
++    None) fall back to today in UTC *at the moment the task executes*.
++    The value is stored in XCom so re-runs on a later calendar day still
++    reproduce the same feed.
++    """
++    logical_date = context.get("logical_date")
++    if logical_date is not None:
++        return logical_date.strftime("%Y-%m-%d")
++    # Manual trigger with no date: use UTC now so the feed covers the day
++    # the operator pressed the button.  Downstream tasks read this from
++    # XCom, so clearing and re-running tomorrow still produces today's feed.
++    return datetime.now(timezone.utc).strftime("%Y-%m-%d")
++
++
+ @dag(
+     schedule="0 4 * * *",
+     start_date=datetime(2026, 1, 1),
+@@ -29,8 +47,8 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ )
+ def partner_feed():
+     @task
+-    def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++    def extract_orders(**context) -> dict:
++        day = _resolve_day(context)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -43,32 +61,34 @@ def partner_feed():
+             writer = csv.DictWriter(fh, fieldnames=FEED_COLUMNS)
+             writer.writeheader()
+             writer.writerows(rows)
+-        return str(out)
++        # Return both the path and the resolved day so downstream tasks
++        # never need to re-derive the date from context.
++        return {"feed_path": str(out), "day": day}
+ 
+     @task
+-    def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++    def write_manifest(extract_result: dict) -> dict:
++        feed_path = extract_result["feed_path"]
++        day = extract_result["day"]
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+         manifest.write_text(
+             json.dumps({"partner": "acme", "partition": day, "row_count": row_count}, indent=2)
+         )
+-        return str(manifest)
++        return {"manifest_path": str(manifest), "day": day}
+ 
+-    deliver = BashOperator(
+-        task_id="deliver",
+-        bash_command=(
+-            "mkdir -p {{ params.outbox }}"
+-            " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
+-            " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
+-        ),
+-        params={"outbox": str(OUTBOX)},
+-    )
++    @task
++    def deliver(extract_result: dict, manifest_result: dict) -> None:
++        feed_path = extract_result["feed_path"]
++        manifest_path = manifest_result["manifest_path"]
++        day_nodash = extract_result["day"].replace("-", "")
++        OUTBOX.mkdir(parents=True, exist_ok=True)
++        shutil.copy(feed_path, OUTBOX / f"acme_orders_{day_nodash}.csv")
++        shutil.copy(manifest_path, OUTBOX / f"acme_orders_{day_nodash}.manifest.json")
+ 
+-    write_manifest(extract_orders()) >> deliver
++    extract_result = extract_orders()
++    manifest_result = write_manifest(extract_result)
++    deliver(extract_result, manifest_result)
+ 
+ 
+ partner_feed()

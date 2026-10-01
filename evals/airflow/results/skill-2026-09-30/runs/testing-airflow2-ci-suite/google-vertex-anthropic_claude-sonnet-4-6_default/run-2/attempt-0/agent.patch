@@ -1,0 +1,345 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..6e5c819
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,67 @@
++"""Pytest configuration for Airflow 2.11 DAG tests.
++
++Runs in CI with no scheduler, webserver or external connections.
++"""
++from __future__ import annotations
++
++import os
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config on first import; set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++
++# Let tests import helper modules that live in dags/
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    from airflow.models import DagBag  # Airflow 2.x
++    return DagBag(dag_folder=str(DAGS), include_examples=False)
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrate the throwaway metadata DB once per session. Required by dag.test()."""
++    subprocess.run(
++        [sys.executable, "-m", "airflow", "db", "migrate"],
++        check=True,
++        capture_output=True,
++    )
++
++
++def upcoming_runs(dag, after, n):
++    """Return the next *n* run_after datetimes the scheduler would fire for *dag*.
++
++    Uses the timetable directly — no scheduler, no metadata DB.
++    Works on Airflow 2.x (CronDataIntervalTimetable).
++    """
++    from airflow.timetables.base import TimeRestriction
++
++    tt = dag.timetable
++    restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++    last, runs = None, []
++    for _ in range(n):
++        info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++        if info is None:
++            break
++        runs.append(info.run_after)
++        last = info.data_interval
++    return runs
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs_fn():
++    return upcoming_runs
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..ad22910
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,38 @@
++"""Integrity tests: every DAG file imports, expected DAG ids are present,
++and every task in every DAG has at least 2 retries.
++"""
++from __future__ import annotations
++
++# The DAG ids this repo is expected to define today.
++EXPECTED_DAG_IDS = {"shipments_daily", "carrier_rates_weekly"}
++
++
++def test_no_import_errors(dagbag):
++    """Every file in dags/ must import without errors."""
++    assert dagbag.import_errors == {}, "\n\n".join(
++        f"{path}:\n{err}" for path, err in dagbag.import_errors.items()
++    )
++
++
++def test_expected_dags_are_present(dagbag):
++    """All expected DAG ids must exist; catching a DAG that silently stops parsing."""
++    missing = EXPECTED_DAG_IDS - set(dagbag.dags)
++    assert not missing, f"DAGs missing from DagBag: {missing}"
++
++
++def test_every_task_has_at_least_two_retries(dagbag):
++    """Every task in every DAG must have retries >= 2.
++
++    We read task.retries (not dag.default_args) because a task-level
++    override silently wins over default_args.
++    """
++    bad = [
++        (dag_id, task.task_id, task.retries)
++        for dag_id, dag in dagbag.dags.items()
++        for task in dag.tasks
++        if task.retries < 2
++    ]
++    assert not bad, (
++        "Tasks with fewer than 2 retries:\n"
++        + "\n".join(f"  dag={d}  task={t}  retries={r}" for d, t, r in bad)
++    )
+diff --git a/tests/test_shipments_daily.py b/tests/test_shipments_daily.py
+new file mode 100644
+index 0000000..cea9db8
+--- /dev/null
++++ b/tests/test_shipments_daily.py
+@@ -0,0 +1,222 @@
++"""Tests for the shipments_daily DAG:
++
++- schedule: 07:30 UTC, Monday–Friday only
++- task order: build_report only runs after extract_shipments
++- late-shipment business rules (unit-level, via find_late_shipments)
++- end-to-end run on the sample data for 2026-03-03
++"""
++from __future__ import annotations
++
++import csv
++import importlib
++from datetime import datetime, timezone
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++
++# ---------------------------------------------------------------------------
++# Schedule
++# ---------------------------------------------------------------------------
++
++def test_shipments_daily_runs_at_0730_utc_weekdays_only(dagbag, upcoming_runs_fn):
++    """shipments_daily must fire at 07:30 UTC, Mon–Fri, never Sat/Sun."""
++    dag = dagbag.dags["shipments_daily"]
++    runs = upcoming_runs_fn(dag, datetime(2026, 3, 2, tzinfo=timezone.utc), 20)
++    assert len(runs) == 20, "timetable returned fewer runs than expected"
++    weekdays = {r.weekday() for r in runs}
++    assert weekdays == {0, 1, 2, 3, 4}, (
++        f"Runs landed on unexpected weekdays (0=Mon, 6=Sun): {weekdays}"
++    )
++    assert all(
++        r.hour == 7 and r.minute == 30 and r.utcoffset().total_seconds() == 0
++        for r in runs
++    ), "Not all runs fire at exactly 07:30 UTC"
++
++
++# ---------------------------------------------------------------------------
++# Task order
++# ---------------------------------------------------------------------------
++
++def test_build_report_requires_extract_shipments(dagbag):
++    """build_report may only run after extract_shipments (direct dependency)."""
++    dag = dagbag.dags["shipments_daily"]
++    report_task = dag.get_task("build_report")
++    assert report_task.upstream_task_ids == {"extract_shipments"}, (
++        f"build_report upstreams: {report_task.upstream_task_ids!r}; "
++        "expected exactly {{'extract_shipments'}}"
++    )
++
++
++def test_extract_shipments_is_transitively_upstream_of_build_report(dagbag):
++    """extract_shipments must appear anywhere upstream of build_report."""
++    dag = dagbag.dags["shipments_daily"]
++    all_upstream = dag.get_task("build_report").get_flat_relative_ids(upstream=True)
++    assert "extract_shipments" in all_upstream, (
++        f"extract_shipments not found in transitive upstreams of build_report: {all_upstream}"
++    )
++
++
++# ---------------------------------------------------------------------------
++# Late-shipment business rules
++# ---------------------------------------------------------------------------
++
++# Import the function under test directly; conftest puts dags/ on sys.path.
++from shipments_daily import find_late_shipments  # noqa: E402
++
++
++def _row(shipment_id, ship_date, promised_date, delivered_date=""):
++    return {
++        "shipment_id": shipment_id,
++        "ship_date": ship_date,
++        "carrier": "DHL",
++        "promised_date": promised_date,
++        "delivered_date": delivered_date,
++    }
++
++
++AS_OF = "2026-03-03"
++
++
++class TestLateIfDeliveredOnRunDateAfterPromised:
++    """Delivered on run-date AND after promised_date => late."""
++
++    def test_delivered_same_day_after_promised_is_late(self):
++        row = _row("X", "2026-02-26", "2026-03-02", "2026-03-03")
++        result = find_late_shipments([row], AS_OF)
++        assert len(result) == 1
++        assert result[0]["shipment_id"] == "X"
++        assert result[0]["days_late"] == 1
++
++    def test_delivered_same_day_equal_to_promised_is_not_late(self):
++        row = _row("X", "2026-02-27", "2026-03-03", "2026-03-03")
++        assert find_late_shipments([row], AS_OF) == []
++
++    def test_delivered_same_day_before_promised_is_not_late(self):
++        row = _row("X", "2026-02-27", "2026-03-05", "2026-03-03")
++        assert find_late_shipments([row], AS_OF) == []
++
++    def test_delivered_before_run_date_is_not_included(self):
++        """A shipment delivered before the run date is not in scope, even if late."""
++        row = _row("X", "2026-02-20", "2026-02-24", "2026-03-02")
++        assert find_late_shipments([row], AS_OF) == []
++
++    def test_days_late_is_delivery_minus_promised(self):
++        row = _row("X", "2026-02-28", "2026-03-01", "2026-03-03")
++        result = find_late_shipments([row], AS_OF)
++        assert result[0]["days_late"] == 2
++
++
++class TestLateIfUndeliveredAndPromisedBeforeRunDate:
++    """Undelivered AND promised_date < run_date => late; days counted to run_date."""
++
++    def test_undelivered_promised_before_run_date_is_late(self):
++        row = _row("X", "2026-02-25", "2026-02-28")
++        result = find_late_shipments([row], AS_OF)
++        assert len(result) == 1
++        assert result[0]["days_late"] == 3  # 03-03 minus 02-28
++
++    def test_days_late_counted_to_run_date(self):
++        row = _row("X", "2026-02-24", "2026-02-26")
++        result = find_late_shipments([row], AS_OF)
++        assert result[0]["days_late"] == 5  # 03-03 minus 02-26
++
++    def test_undelivered_promised_equal_run_date_is_not_late(self):
++        """promised_date == run_date: not yet late (>= check)."""
++        row = _row("X", "2026-03-01", "2026-03-03")
++        assert find_late_shipments([row], AS_OF) == []
++
++    def test_undelivered_promised_after_run_date_is_not_late(self):
++        row = _row("X", "2026-03-01", "2026-03-05")
++        assert find_late_shipments([row], AS_OF) == []
++
++    def test_ship_date_after_run_date_is_excluded(self):
++        """Shipments not yet shipped by run-date must not appear."""
++        row = _row("X", "2026-03-04", "2026-03-06")
++        assert find_late_shipments([row], AS_OF) == []
++
++
++class TestSortOrder:
++    """Results must be sorted worst first (most days_late), then by shipment_id."""
++
++    def test_sorted_by_days_late_descending(self):
++        rows = [
++            _row("A", "2026-02-24", "2026-02-26"),           # days_late=5
++            _row("B", "2026-02-25", "2026-02-28"),           # days_late=3
++            _row("C", "2026-02-28", "2026-03-01", "2026-03-03"),  # days_late=2
++        ]
++        result = find_late_shipments(rows, AS_OF)
++        assert [r["shipment_id"] for r in result] == ["A", "B", "C"]
++
++    def test_tiebreak_by_shipment_id_ascending(self):
++        rows = [
++            _row("B", "2026-02-25", "2026-02-28"),  # days_late=3
++            _row("A", "2026-02-25", "2026-02-28"),  # days_late=3
++        ]
++        result = find_late_shipments(rows, AS_OF)
++        assert [r["shipment_id"] for r in result] == ["A", "B"]
++
++
++# ---------------------------------------------------------------------------
++# End-to-end run on sample data for 2026-03-03
++# ---------------------------------------------------------------------------
++
++def test_shipments_daily_end_to_end_2026_03_03(dagbag, airflow_db, monkeypatch, tmp_path):
++    """Run shipments_daily end-to-end for 2026-03-03 against the sample data.
++
++    Expected late shipments for 2026-03-03 (hand-verified against data/shipments.csv):
++      SH-1009: undelivered, promised 2026-02-26, days_late=5
++      SH-1003: undelivered, promised 2026-02-28, days_late=3
++      SH-1007: delivered 2026-03-03, promised 2026-03-01, days_late=2
++      SH-1001: delivered 2026-03-03, promised 2026-03-02, days_late=1
++    """
++    dag = dagbag.dags["shipments_daily"]
++
++    # Redirect OUTPUT_DIR so the run writes into tmp_path, not the repo tree.
++    # DagBag loads each DAG file as its own private module, so we patch the
++    # globals the task functions actually see (not a separately-imported copy).
++    output_root = tmp_path / "late_shipments"
++    extract_task = dag.get_task("extract_shipments")
++    report_task = dag.get_task("build_report")
++    monkeypatch.setitem(extract_task.python_callable.__globals__, "DATA_DIR", REPO / "data")
++    monkeypatch.setitem(report_task.python_callable.__globals__, "OUTPUT_DIR", output_root)
++
++    # Airflow 2.x: keyword is execution_date.
++    run_dt = datetime(2026, 3, 3, 7, 30, tzinfo=timezone.utc)
++    dr = dag.test(execution_date=run_dt)
++
++    task_states = {ti.task_id: ti.state for ti in dr.get_task_instances()}
++    assert dr.state == "success", (
++        f"DagRun ended with state={dr.state!r}. Task states: {task_states}"
++    )
++
++    # Verify the output file was created for the right date.
++    out_file = output_root / "2026-03-03.csv"
++    assert out_file.exists(), f"Expected output file not found: {out_file}"
++
++    with out_file.open(newline="") as fh:
++        rows = list(csv.DictReader(fh))
++
++    shipment_ids = [r["shipment_id"] for r in rows]
++
++    # All four expected late shipments must appear.
++    assert set(shipment_ids) == {"SH-1001", "SH-1003", "SH-1007", "SH-1009"}, (
++        f"Unexpected shipment ids in report: {shipment_ids}"
++    )
++
++    # Correct sort order: SH-1009(5), SH-1003(3), SH-1007(2), SH-1001(1).
++    assert shipment_ids == ["SH-1009", "SH-1003", "SH-1007", "SH-1001"], (
++        f"Wrong sort order: {shipment_ids}"
++    )
++
++    # Spot-check days_late values.
++    by_id = {r["shipment_id"]: r for r in rows}
++    assert by_id["SH-1009"]["days_late"] == "5"
++    assert by_id["SH-1003"]["days_late"] == "3"
++    assert by_id["SH-1007"]["days_late"] == "2"
++    assert by_id["SH-1001"]["days_late"] == "1"
++
++    # Shipments that must NOT appear.
++    for excluded in ("SH-1002", "SH-1004", "SH-1005", "SH-1006", "SH-1008"):
++        assert excluded not in shipment_ids, f"{excluded} should not be in the late report"

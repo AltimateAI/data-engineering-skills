@@ -1,0 +1,24 @@
+name: finance_ledger
+team: finance
+tier: critical
+description: Ledger pipeline for finance
+schedule:
+  hour: 4
+  days: 1-5
+owners:
+- eli
+steps:
+- name: extract
+  table: finance.raw_ledger_00
+- name: transform
+  table: finance.int_ledger_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: finance.int_ledger_00
+  depends_on:
+  - transform
+- name: publish
+  table: finance.mart_ledger_00
+  depends_on:
+  - snapshot

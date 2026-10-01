@@ -1,0 +1,40 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: load tasks follow the deployed catalog snapshot (config/tables.json)",
+  "primary_pass": false,
+  "primary_score": 0.9,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 82.1,
+  "cost_usd": 0.961355,
+  "cost_reported_usd": 4.445168,
+  "tokens": {
+    "input": 1161285,
+    "output": 3675,
+    "reasoning": 0,
+    "cache_read": 999588,
+    "cache_write": 161683,
+    "total": 2326231
+  },
+  "steps": 13,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "authoring-airflow-dags",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "authoring-airflow-dags"
+  ],
+  "bash_commands": 3,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0caf5303ffehPo335c9SmIlFJ.json"
+}

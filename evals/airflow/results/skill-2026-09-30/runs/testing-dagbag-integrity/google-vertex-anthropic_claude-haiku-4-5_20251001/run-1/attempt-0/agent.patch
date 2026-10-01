@@ -1,0 +1,166 @@
+diff --git a/tests/__init__.py b/tests/__init__.py
+new file mode 100644
+index 0000000..1c5c21a
+--- /dev/null
++++ b/tests/__init__.py
+@@ -0,0 +1 @@
++"""Airflow DAG tests."""
+diff --git a/tests/test_dagbag_integrity.py b/tests/test_dagbag_integrity.py
+new file mode 100644
+index 0000000..b53d2fa
+--- /dev/null
++++ b/tests/test_dagbag_integrity.py
+@@ -0,0 +1,153 @@
++"""
++Test suite for Airflow DAG imports and policies.
++
++This suite ensures:
++1. All DAG files import successfully (no syntax errors, cycles, etc.)
++2. DAG policies are enforced (tags, catchup, owner, retries)
++3. Specific DAGs maintain required task ordering
++"""
++
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++import pytest
++from airflow.exceptions import AirflowException
++from airflow.models import DAG
++
++
++# Set up Python path to find dags/ module
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = PROJECT_ROOT / "dags"
++if str(PROJECT_ROOT) not in sys.path:
++    sys.path.insert(0, str(PROJECT_ROOT))
++
++
++class TestDAGBagIntegrity:
++    """Test that all DAGs import successfully."""
++
++    @pytest.fixture(scope="class")
++    def dagbag(self):
++        """Load the DagBag (all DAGs in dags/ folder)."""
++        from airflow.models import DagBag
++
++        bag = DagBag(dag_folder=str(DAGS_DIR))
++        yield bag
++
++    def test_no_import_errors(self, dagbag):
++        """Every DAG file must import without errors."""
++        # dagbag.import_errors is a dict of {filename: error}
++        if dagbag.import_errors:
++            errors = "\n".join(
++                f"  {path}: {error}" for path, error in dagbag.import_errors.items()
++            )
++            pytest.fail(f"DAG import errors found:\n{errors}")
++
++    def test_all_dags_loaded(self, dagbag):
++        """At least one DAG must be loaded."""
++        assert len(dagbag.dags) > 0, "No DAGs found in dags/ folder"
++
++
++class TestDAGPolicies:
++    """Test that DAGs conform to organizational policies."""
++
++    @pytest.fixture(scope="class")
++    def all_dags(self):
++        """Load all DAGs."""
++        from airflow.models import DagBag
++
++        bag = DagBag(dag_folder=str(DAGS_DIR))
++        return list(bag.dags.values())
++
++    def test_all_dags_have_tags(self, all_dags):
++        """Every DAG must have at least one tag."""
++        dags_without_tags = [dag for dag in all_dags if not dag.tags]
++        assert (
++            not dags_without_tags
++        ), f"DAGs missing tags: {[dag.dag_id for dag in dags_without_tags]}"
++
++    def test_all_dags_have_catchup_off(self, all_dags):
++        """Every DAG must have catchup=False."""
++        dags_with_catchup = [dag for dag in all_dags if dag.catchup]
++        assert (
++            not dags_with_catchup
++        ), f"DAGs with catchup=True: {[dag.dag_id for dag in dags_with_catchup]}"
++
++    def test_all_tasks_have_real_owner(self, all_dags):
++        """Every task must have a real owner (not the default 'airflow')."""
++        problems = []
++        for dag in all_dags:
++            for task in dag.tasks:
++                if task.owner == "airflow":
++                    problems.append(
++                        f"  {dag.dag_id}.{task.task_id}: owner='{task.owner}'"
++                    )
++        assert (
++            not problems
++        ), f"Tasks with default airflow owner:\n" + "\n".join(problems)
++
++    def test_all_tasks_have_min_retries(self, all_dags):
++        """Every task must have at least 2 retries."""
++        problems = []
++        for dag in all_dags:
++            for task in dag.tasks:
++                if task.retries < 2:
++                    problems.append(
++                        f"  {dag.dag_id}.{task.task_id}: retries={task.retries}"
++                    )
++        assert (
++            not problems
++        ), f"Tasks with fewer than 2 retries:\n" + "\n".join(problems)
++
++
++class TestOrdersIngestPipeline:
++    """Test the orders_ingest DAG task ordering."""
++
++    @pytest.fixture
++    def orders_ingest_dag(self):
++        """Load the orders_ingest DAG."""
++        from airflow.models import DagBag
++
++        bag = DagBag(dag_folder=str(DAGS_DIR))
++        # Use the in-memory dags dict, not get_dag() which queries the DB
++        dag = bag.dags.get("orders_ingest")
++        assert dag is not None, "orders_ingest DAG not found"
++        return dag
++
++    def test_orders_ingest_task_sequence(self, orders_ingest_dag):
++        """Verify the task order: extract -> validate -> load -> publish."""
++        dag = orders_ingest_dag
++
++        # Get task IDs in topological order (respecting dependencies)
++        # topological_sort() returns Task objects, extract their task_id
++        task_ids = [task.task_id for task in dag.topological_sort()]
++
++        # Expected sequence
++        expected_sequence = [
++            "extract_orders",
++            "validate_orders",
++            "load_orders",
++            "publish_summary",
++        ]
++
++        # Filter to only the expected tasks (in case there are others)
++        actual_sequence = [t for t in task_ids if t in expected_sequence]
++
++        assert (
++            actual_sequence == expected_sequence
++        ), f"Task order mismatch. Expected {expected_sequence}, got {actual_sequence}"
++
++    def test_orders_ingest_has_expected_tasks(self, orders_ingest_dag):
++        """Verify all expected tasks exist."""
++        dag = orders_ingest_dag
++        expected_tasks = {
++            "extract_orders",
++            "validate_orders",
++            "load_orders",
++            "publish_summary",
++        }
++        actual_tasks = {task.task_id for task in dag.tasks}
++        assert (
++            expected_tasks == actual_tasks
++        ), f"Task mismatch. Expected {expected_tasks}, got {actual_tasks}"

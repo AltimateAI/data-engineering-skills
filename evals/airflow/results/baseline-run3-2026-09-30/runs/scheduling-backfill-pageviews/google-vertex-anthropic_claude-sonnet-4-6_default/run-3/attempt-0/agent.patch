@@ -1,0 +1,79 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..83e23d1 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,8 +1,26 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
++at about 01:00 UTC the next morning. This DAG aggregates that day's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++Backfill behaviour
++------------------
++* start_date = 2026-09-01: the earliest date we have raw data for.  Airflow
++  will never schedule runs before this date, so there is no risk of loading
++  non-existent files.
++* catchup = True: when the DAG is unpaused, the scheduler creates one run for
++  every day from 2026-09-01 up to today and queues them automatically.
++* max_active_runs = 1: DuckDB allows only one writer at a time.  Serial
++  execution prevents the lock-file errors that would occur if two daily runs
++  tried to write web.duckdb simultaneously.
++
++Idempotency
++-----------
++Each run operates on exactly one day determined by the DAG's logical_date
++(the start of the data interval Airflow assigned to that run).  The task
++deletes any existing rows for that date before inserting, so re-running a
++day is always safe and will never double-count.
+ """
+ 
+ from pathlib import Path
+@@ -11,6 +29,7 @@ import duckdb
+ import pendulum
+ from airflow.sdk import dag, task
+ 
++
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+@@ -19,15 +38,25 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ @dag(
+     dag_id="pageviews_daily",
+     schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    # Earliest date we have raw data.  Airflow will never create runs before
++    # this date, and catchup=True makes it backfill every missing day on
++    # unpause.
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    # DuckDB is a single-writer database: serialize all backfill runs so they
++    # never compete for the write lock.
++    max_active_runs=1,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(logical_date=None) -> int:
++        # logical_date is the start of the data interval for this run.
++        # For the daily schedule "0 3 * * *", the interval [D 03:00, D+1 03:00)
++        # covers the page views for calendar day D — which is exactly the file
++        # named D.  This works correctly for both live runs and backfill runs.
++        day = pendulum.instance(logical_date).to_date_string()
+         source = RAW_DIR / f"{day}.csv"
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+@@ -43,6 +72,8 @@ def pageviews_daily():
+                 """
+             )
+             con.execute("BEGIN TRANSACTION")
++            # Delete-then-insert makes every run idempotent: re-running a day
++            # replaces the old rows rather than appending a second copy.
+             con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
+             con.execute(
+                 f"""

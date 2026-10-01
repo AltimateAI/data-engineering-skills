@@ -1,0 +1,1 @@
+Both differential runs are still going (2.11 at intake hour 03-05 15:00, 3.3 at 21:00). So far every output file present in both trees matches: the provider snapshots and statuses, the digests, and the real scheduled catch-up runs. I'll diff the complete output trees, including the alias-triggered mart rebuilds and the two reprocess triggers, once both finish.

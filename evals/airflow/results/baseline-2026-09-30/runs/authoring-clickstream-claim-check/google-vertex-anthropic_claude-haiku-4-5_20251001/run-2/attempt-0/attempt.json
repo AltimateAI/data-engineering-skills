@@ -1,0 +1,28 @@
+{
+  "status": "infra_error",
+  "reason": "no model steps completed: \u001b[91m\u001b[1mError: \u001b[0mModel not found: google-vertex-anthropic/claude-haiku-4-5@20251001\nTry: `altimate models` to list available models\nOr check your config (altimate-code.json) provider/model names",
+  "primary_pass": false,
+  "primary_score": null,
+  "secondary_score": null,
+  "returncode": 1,
+  "wall_s": 8.0,
+  "cost_usd": 0.0,
+  "cost_reported_usd": 0.0,
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total": 0
+  },
+  "steps": 0,
+  "termination": {},
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 0,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

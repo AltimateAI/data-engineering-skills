@@ -1,0 +1,73 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['partner_ingest']"
+    },
+    {
+      "name": "sensor defers and returns the manifest's file list",
+      "kind": "primary",
+      "passed": true,
+      "detail": "deferred=True\n{\"tis\": [[\"wait\", \"success\", 1], [\"staging\", \"success\", 1], [\"collect\", \"success\", 1]], \"outputs\": {\"eval_manifest_ok\": [\"s3://partners/acme/2026-09-29/batch-0.csv.gz\", \"s3://partners/acme/2026-09-29/batch-1.csv.gz\", \"s3://partners/acme/2026-09-29/batch-2.csv.gz\"]}, \"api_503s\": 0, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": 179.485854, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 4.533, \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"published\", \"files\": [\"s3://partners/acme/2026-09-29/batch-0.csv.gz\", \"s3://partners/acme/2026-09-29/batch-1.csv.gz\", \"s3://partners/acme/2026-09-29/batch-2.csv.gz\"]}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "trigger never blocks the event loop (API answers in 0.5 s)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "7 trigger runs; stalls >= 0.35s: []"
+    },
+    {
+      "name": "timeout is one budget per DAG run: retries after an outage do not reset it",
+      "kind": "primary",
+      "passed": true,
+      "detail": "sensor ran from first try start to final failure in 16.29s over 3 tries (timeout=16.0s, want 14.5-21.5s)\n{\"tis\": [[\"wait\", \"failed\", 3], [\"staging\", \"success\", 1], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"api_503s\": 2, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": 135.479719, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 3.021, \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"error\", \"message\": \"ManifestApiError: GET http://127.0.0.1:49859/v1/partners/acme/manifests/2026-09-29 -> HTTP 503\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"defer\", \"timeout_s\": 127.312128, \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"trigger_event\", \"waited_s\": 7.554, \"task_id\": \"wait\", \"try_number\": 3, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.FAILED\", \"task_id\": \"wait\", \"try_number\": 3}]}"
+    },
+    {
+      "name": "a timed-out sensor fails for good (no retries)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"tis\": [[\"wait\", \"failed\", 1], [\"staging\", \"success\", 1], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"api_503s\": 0, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": 131.483358, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"restart\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 11.983, \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.FAILED\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "triggerer restart does not extend the timeout",
+      "kind": "primary",
+      "passed": true,
+      "detail": "restart happened=True; ended 12.55s after the sensor started (want 10.5-17.5s)\n{\"tis\": [[\"wait\", \"failed\", 1], [\"staging\", \"success\", 1], [\"collect\", \"upstream_failed\", 0]], \"outputs\": {}, \"api_503s\": 0, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": 131.483358, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"restart\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 11.983, \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.FAILED\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "soft_fail sensor uses its retries for an API outage instead of skipping",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"tis\": [[\"wait\", \"success\", 3], [\"staging\", \"success\", 1], [\"collect\", \"success\", 1]], \"outputs\": {\"eval_manifest_softfail_outage\": [\"s3://partners/acme/2026-09-29/batch-0.csv.gz\", \"s3://partners/acme/2026-09-29/batch-1.csv.gz\", \"s3://partners/acme/2026-09-29/batch-2.csv.gz\"]}, \"api_503s\": 2, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": 179.483074, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 1.513, \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"error\", \"message\": \"ManifestApiError: GET http://127.0.0.1:49857/v1/partners/acme/manifests/2026-09-29 -> HTTP 503\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.UP_FOR_RETRY\", \"task_id\": \"wait\", \"try_number\": 2}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"defer\", \"timeout_s\": 172.826902, \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"trigger_event\", \"waited_s\": 3.025, \"task_id\": \"wait\", \"try_number\": 3, \"payload\": {\"status\": \"published\", \"files\": [\"s3://partners/acme/2026-09-29/batch-0.csv.gz\", \"s3://partners/acme/2026-09-29/batch-1.csv.gz\", \"s3://partners/acme/2026-09-29/batch-2.csv.gz\"]}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 3}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SUCCESS\", \"task_id\": \"wait\", \"try_number\": 3}]}"
+    },
+    {
+      "name": "soft_fail sensor is skipped when its timeout runs out",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"tis\": [[\"wait\", \"skipped\", 1], [\"staging\", \"success\", 1], [\"collect\", \"skipped\", 0]], \"outputs\": {}, \"api_503s\": 0, \"events\": [{\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"defer\", \"timeout_s\": 125.484754, \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"trigger_event\", \"waited_s\": 5.99, \"task_id\": \"wait\", \"try_number\": 1, \"payload\": {\"status\": \"timeout\"}}, {\"kind\": \"worker_run\", \"task_id\": \"wait\", \"try_number\": 1}, {\"kind\": \"task_end\", \"state\": \"TaskInstanceState.SKIPPED\", \"task_id\": \"wait\", \"try_number\": 1}]}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

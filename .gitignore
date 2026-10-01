@@ -27,6 +27,7 @@ logs/
 
 # Test outputs
 .pytest_cache/
+.ruff_cache/
 __pycache__/
 *.pyc
 
@@ -42,3 +43,24 @@ node_modules/
 .local/
 tmp/
 temp/
+
+# Eval results: commit summaries (meta.json, runs.jsonl, inventory-*.json,
+# report/, selftest/) and small per-attempt files (grade.json, attempt.json,
+# agent.patch, final.md). Raw agent transcripts and logs stay local.
+evals/**/results/*/runs/**/events.jsonl
+evals/**/results/*/runs/**/session.jsonl
+evals/**/results/*/runs/**/stderr.log
+evals/**/results/*/runs/**/grade.log
+evals/**/results/*/runs/**/trace.json
+evals/**/results/*/runs/**/workspace/
+# Harness smoke runs (case ids starting with "_")
+evals/**/results/_*/
+# Harness crash dumps and backups (runs.jsonl.prev-<stamp>, *.harness-exception, editor/merge leftovers)
+evals/**/results/**/*.harness-exception
+evals/**/results/**/*.prev-*
+evals/**/results/**/*.bak
+evals/**/results/**/*.orig
+evals/**/results/**/*.rej
+evals/**/results/**/*.tmp
+evals/**/results/**/core.[0-9]*
+evals/**/results/**/sandbox.sb

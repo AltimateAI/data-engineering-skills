@@ -1,0 +1,34 @@
+{
+  "status": "infra_error",
+  "reason": "no model steps completed: APIError: Too Many Requests: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"Quota exceeded for aiplatform.googleapis.com/global_online_prediction_input_tokens_per_minute_per_base_model with base model: anthropic-claude-sonnet-4-6. Please submit a quota increase request. https://cloud.google.com/vertex-ai/docs/generative-ai/quotas-genai.\",\n    \"status\": \"RESOURCE_EXHAUSTED\"\n  }\n}\n]",
+  "primary_pass": false,
+  "primary_score": null,
+  "secondary_score": null,
+  "returncode": 1,
+  "wall_s": 70.1,
+  "cost_usd": 0.0,
+  "cost_reported_usd": 0.0,
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "reasoning": 0,
+    "cache_read": 0,
+    "cache_write": 0,
+    "total": 0
+  },
+  "steps": 0,
+  "termination": {
+    "why_model_stopped": "unknown",
+    "why_harness_stopped": "error",
+    "done_reason": "none"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 0,
+  "edited_files": 0,
+  "errors": [
+    "APIError: Too Many Requests: [{\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"Quota exceeded for aiplatform.googleapis.com/global_online_prediction_input_tokens_per_minute_per_base_model with base model: anthropic-claude-sonnet-4-6. Please submit a quota increase request. https://cloud.google.com/vertex-ai/docs/generative-ai/quotas-genai.\",\n    \"status\": \"RESOURCE_EXHAUSTED\"\n  }\n}\n]"
+  ],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d0d5074ffeATimCrhV8IoI5Q.json"
+}

@@ -1,0 +1,23 @@
+name: growth_products
+team: growth
+tier: standard
+description: Products pipeline for growth
+schedule:
+  hour: 0
+  days: '*'
+steps:
+- name: extract
+  table: growth.raw_products_00
+- name: stage
+  table: growth.stg_products_00
+  depends_on:
+  - extract
+- name: enrich
+  table: growth.int_products_00
+  depends_on:
+  - stage
+  - extract
+- name: publish
+  table: growth.mart_products_00
+  depends_on:
+  - enrich

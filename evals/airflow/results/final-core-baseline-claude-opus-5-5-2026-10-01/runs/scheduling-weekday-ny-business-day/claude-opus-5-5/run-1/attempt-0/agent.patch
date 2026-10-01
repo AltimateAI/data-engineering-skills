@@ -1,0 +1,58 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..299ebbb 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,6 +3,9 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Runs at 06:00 New York time Monday to Friday and reports the previous business
++day (Monday's run covers Friday). Bank holidays are not skipped.
+ """
+ 
+ import csv
+@@ -11,10 +14,20 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
++NY_TZ = "America/New_York"
++
++
++def previous_business_day(run_time: pendulum.DateTime) -> str:
++    """The New York weekday (Mon-Fri) before ``run_time``, as YYYY-MM-DD."""
++    day = run_time.in_timezone(NY_TZ).date().subtract(days=1)
++    while day.weekday() >= 5:  # Saturday / Sunday
++        day = day.subtract(days=1)
++    return day.isoformat()
+ 
+ 
+ def write_pnl_report(trade_date: str) -> Path:
+@@ -41,16 +54,18 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY_TZ),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY_TZ),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(logical_date=None, dag_run=None) -> str:
++        # Manual triggers may have no logical date; fall back to the run time.
++        run_time = logical_date or dag_run.run_after
++        return str(write_pnl_report(previous_business_day(run_time)))
+ 
+     build_report()
+ 

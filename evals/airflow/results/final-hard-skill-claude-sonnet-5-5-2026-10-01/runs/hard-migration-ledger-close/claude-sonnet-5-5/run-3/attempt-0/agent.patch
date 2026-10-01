@@ -1,0 +1,292 @@
+diff --git a/dags/close_report_weekly.py b/dags/close_report_weekly.py
+index 21b8b00..e323bc7 100644
+--- a/dags/close_report_weekly.py
++++ b/dags/close_report_weekly.py
+@@ -10,16 +10,16 @@ import csv
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+ 
+ from ledger_lib import OUTPUT_DIR
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ CLOSE_DIR = OUTPUT_DIR / "close"
+ REPORT_DIR = OUTPUT_DIR / "reports"
+ 
+ 
+ @dag(
+-    schedule_interval="0 7 * * 1",
++    schedule=CronDataIntervalTimetable("0 7 * * 1", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 2, 23, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -28,8 +28,10 @@ REPORT_DIR = OUTPUT_DIR / "reports"
+ )
+ def close_report_weekly():
+     @task
+-    def weekly_report(ds=None, prev_ds=None, data_interval_start=None) -> str:
++    def weekly_report(ds=None, data_interval_start=None) -> str:
+         week_start = pendulum.instance(data_interval_start).start_of("day")
++        # previous schedule tick (Monday a week earlier), as 2.x prev_ds
++        prev_ds = pendulum.instance(data_interval_start).subtract(days=7).strftime("%Y-%m-%d")
+         totals: dict[str, int] = defaultdict(int)
+         closed = []
+         for offset in range(5):
+diff --git a/dags/daily_close.py b/dags/daily_close.py
+index 5998c92..f8adb68 100644
+--- a/dags/daily_close.py
++++ b/dags/daily_close.py
+@@ -11,11 +11,11 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+ 
+ from ledger_lib import DATA_DIR, OUTPUT_DIR
+-from ledger_lib.workdays import WorkdayTimetable, previous_workday
++from ledger_lib.workdays import WorkdayTimetable, previous_workday, run_interval
+ from ledger_lib.operators import DuckDbSqlOperator
++from airflow.sdk import dag, task
+ 
+ CLOSE_DIR = OUTPUT_DIR / "close"
+ 
+@@ -33,6 +33,7 @@ def read_accounts(path: Path, column: str) -> dict[str, int]:
+     catchup=True,
+     max_active_runs=1,
+     template_searchpath=[str(Path(__file__).parent / "sql")],
++    user_defined_macros={"run_interval": run_interval},
+     params={"postings": str(DATA_DIR / "postings.csv")},
+     default_args={"owner": "finance-data", "retries": 1},
+     tags=["ledger", "close"],
+@@ -41,12 +42,12 @@ def daily_close():
+     net = DuckDbSqlOperator(
+         task_id="net_movements",
+         sql="daily_close.sql",
+-        target="output/close/{{ data_interval_start | ds }}/net.csv",
++        target="output/close/{{ run_interval(dag_run)[0] | ds }}/net.csv",
+     )
+ 
+     @task
+-    def roll_balances(data_interval_start=None) -> int:
+-        day = pendulum.instance(data_interval_start)
++    def roll_balances(dag_run=None) -> int:
++        day = run_interval(dag_run)[0]
+         opening = read_accounts(CLOSE_DIR / previous_workday(day).strftime("%Y-%m-%d") / "balances.csv",
+                                 "closing_cents")
+         movements = read_accounts(CLOSE_DIR / day.strftime("%Y-%m-%d") / "net.csv", "net_cents")
+diff --git a/dags/fx_revaluation.py b/dags/fx_revaluation.py
+index f69714f..7de64fb 100644
+--- a/dags/fx_revaluation.py
++++ b/dags/fx_revaluation.py
+@@ -5,17 +5,18 @@ from __future__ import annotations
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+ 
+ from ledger_lib import DATA_DIR
+ from ledger_lib.operators import DuckDbSqlOperator
++from airflow.sdk import DAG, CronDataIntervalTimetable, conf
+ 
+ with DAG(
+     dag_id="fx_revaluation_daily",
+-    schedule_interval="0 6 * * *",
++    schedule=CronDataIntervalTimetable("0 6 * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     template_searchpath=[str(Path(__file__).parent / "sql")],
++    user_defined_macros={"conf": conf},
+     params={"data_dir": str(DATA_DIR)},
+     default_args={"owner": "finance-data", "retries": 1},
+     tags=["ledger", "fx"],
+@@ -23,5 +24,5 @@ with DAG(
+     DuckDbSqlOperator(
+         task_id="revalue",
+         sql="fx_revaluation.sql",
+-        target="output/fx/revaluation_{{ ds_nodash }}.csv",
++        target="output/fx/revaluation_{{ (dag_run.logical_date or dag_run.run_after) | ds_nodash }}.csv",
+     )
+diff --git a/dags/gl_postings_hourly.py b/dags/gl_postings_hourly.py
+index d2c1ae5..a3a6d88 100644
+--- a/dags/gl_postings_hourly.py
++++ b/dags/gl_postings_hourly.py
+@@ -10,15 +10,15 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+ 
+ from ledger_lib import DATA_DIR, OUTPUT_DIR
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ FIELDS = ["posting_id", "account", "amount_cents", "currency", "booked_at", "posted_at"]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -28,7 +28,8 @@ FIELDS = ["posting_id", "account", "amount_cents", "currency", "booked_at", "pos
+ def gl_postings_hourly():
+     @task
+     def extract(data_interval_end=None, ti=None) -> int:
+-        cursor = ti.xcom_pull(task_ids="extract", key="cursor", include_prior_dates=True)
++        cursor = ti.xcom_pull(task_ids="extract", key="cursor", include_prior_dates=True,
++                             map_indexes=-1)
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with (DATA_DIR / "postings.csv").open(newline="") as fh:
+             rows = [r for r in csv.DictReader(fh)
+diff --git a/dags/ledger_housekeeping.py b/dags/ledger_housekeeping.py
+index 1a60011..03f7bba 100644
+--- a/dags/ledger_housekeeping.py
++++ b/dags/ledger_housekeeping.py
+@@ -5,14 +5,14 @@ from __future__ import annotations
+ from datetime import timedelta
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.operators.bash import BashOperator
+ 
+ from ledger_lib import OUTPUT_DIR
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import DAG, DeltaDataIntervalTimetable
+ 
+ with DAG(
+     dag_id="ledger_housekeeping",
+-    schedule_interval=timedelta(hours=12),
++    schedule=DeltaDataIntervalTimetable(timedelta(hours=12)),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "finance-data"},
+diff --git a/dags/sql/daily_close.sql b/dags/sql/daily_close.sql
+index 9f0c70d..7949c27 100644
+--- a/dags/sql/daily_close.sql
++++ b/dags/sql/daily_close.sql
+@@ -1,12 +1,13 @@
+--- Net movement per account for business day {{ data_interval_start | ds }}
+--- (fiscal period {{ macros.ledger.fiscal_period(data_interval_start | ds) }}).
++{%- set window = run_interval(dag_run) %}
++-- Net movement per account for business day {{ window[0] | ds }}
++-- (fiscal period {{ macros.ledger.fiscal_period(window[0] | ds) }}).
+ SELECT
+     account,
+-    '{{ macros.ledger.fiscal_period(data_interval_start | ds) }}' AS fiscal_period,
++    '{{ macros.ledger.fiscal_period(window[0] | ds) }}' AS fiscal_period,
+     CAST(SUM(CAST(amount_cents AS BIGINT)) AS BIGINT) AS net_cents,
+     COUNT(*) AS postings
+ FROM read_csv('{{ params.postings }}', header = true, all_varchar = true)
+-WHERE booked_at >= '{{ data_interval_start.strftime("%Y-%m-%d %H:%M:%S") }}'
+-  AND booked_at <  '{{ data_interval_end.strftime("%Y-%m-%d %H:%M:%S") }}'
++WHERE booked_at >= '{{ window[0].strftime("%Y-%m-%d %H:%M:%S") }}'
++  AND booked_at <  '{{ window[1].strftime("%Y-%m-%d %H:%M:%S") }}'
+ GROUP BY account
+ ORDER BY account
+diff --git a/dags/sql/fx_revaluation.sql b/dags/sql/fx_revaluation.sql
+index 2655b3b..44ae822 100644
+--- a/dags/sql/fx_revaluation.sql
++++ b/dags/sql/fx_revaluation.sql
+@@ -1,10 +1,13 @@
+--- Revalue everything booked up to the end of {{ ds }} at that day's rate (published the
+--- morning of {{ next_ds }}), in {{ conf.get('ledger', 'base_currency') }}. The previous
+--- day's rate ({{ yesterday_ds }}) gives the day's revaluation effect.
++{%- set day = (dag_run.logical_date or dag_run.run_after) | ds -%}
++{%- set next_day = (dag_run.data_interval_end | ds) if dag_run.data_interval_end else day -%}
++{%- set prev_day = macros.ds_add(day, -1) -%}
++-- Revalue everything booked up to the end of {{ day }} at that day's rate (published the
++-- morning of {{ next_day }}), in {{ conf.get('ledger', 'base_currency') }}. The previous
++-- day's rate ({{ prev_day }}) gives the day's revaluation effect.
+ WITH balances AS (
+     SELECT account, currency, SUM(CAST(amount_cents AS BIGINT)) AS amount_cents
+     FROM read_csv('{{ params.data_dir }}/postings.csv', header = true, all_varchar = true)
+-    WHERE booked_at < '{{ next_ds }} 00:00:00'
++    WHERE booked_at < '{{ next_day }} 00:00:00'
+     GROUP BY account, currency
+ ),
+ rates AS (
+@@ -19,6 +22,6 @@ SELECT
+     CAST(b.amount_cents * (today.e4 - prev.e4) // 10000 AS BIGINT) AS revaluation_cents,
+     '{{ conf.get('ledger', 'base_currency') }}' AS base_currency
+ FROM balances b
+-JOIN rates today ON today.currency = b.currency AND today.rate_date = '{{ ds }}'
+-JOIN rates prev ON prev.currency = b.currency AND prev.rate_date = '{{ yesterday_ds }}'
++JOIN rates today ON today.currency = b.currency AND today.rate_date = '{{ day }}'
++JOIN rates prev ON prev.currency = b.currency AND prev.rate_date = '{{ prev_day }}'
+ ORDER BY b.account, b.currency
+diff --git a/dags/vendor_payments.py b/dags/vendor_payments.py
+index 7fc7fb4..f61feed 100644
+--- a/dags/vendor_payments.py
++++ b/dags/vendor_payments.py
+@@ -9,15 +9,15 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+ 
+ from ledger_lib import DATA_DIR, OUTPUT_DIR
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ NEW_YORK = pendulum.timezone("America/New_York")
+ 
+ 
+ @dag(
+-    schedule_interval="0 18 * * 1-5",
++    schedule=CronDataIntervalTimetable("0 18 * * 1-5", timezone=NEW_YORK),
+     start_date=pendulum.datetime(2026, 3, 2, tz=NEW_YORK),
+     catchup=False,
+     max_active_runs=1,
+diff --git a/plugins/ledger_lib/operators.py b/plugins/ledger_lib/operators.py
+index 12d3b0c..3da66ba 100644
+--- a/plugins/ledger_lib/operators.py
++++ b/plugins/ledger_lib/operators.py
+@@ -5,7 +5,7 @@ from __future__ import annotations
+ import csv
+ import json
+ 
+-from airflow.models import BaseOperator
++from airflow.sdk import BaseOperator
+ 
+ from ledger_lib import PROJECT_ROOT
+ 
+@@ -43,7 +43,7 @@ class DuckDbSqlOperator(BaseOperator):
+             writer.writerow(columns)
+             writer.writerows(rows)
+         dag_run = context["dag_run"]
+-        meta = {"rows": len(rows), "started_by": "operator" if dag_run.external_trigger else "scheduler"}
++        meta = {"rows": len(rows), "started_by": "operator" if dag_run.run_type == "manual" else "scheduler"}
+         path.with_suffix(".meta.json").write_text(json.dumps(meta, sort_keys=True) + "\n")
+         self.log.info("Wrote %d rows to %s", len(rows), self.target)
+         return len(rows)
+diff --git a/plugins/ledger_lib/workdays.py b/plugins/ledger_lib/workdays.py
+index b2ae1ba..baa47bd 100644
+--- a/plugins/ledger_lib/workdays.py
++++ b/plugins/ledger_lib/workdays.py
+@@ -22,6 +22,16 @@ def previous_workday(day: pendulum.DateTime) -> pendulum.DateTime:
+     return day
+ 
+ 
++def run_interval(dag_run) -> tuple[pendulum.DateTime, pendulum.DateTime]:
++    """Business day a run covers. Manual runs have no data interval on Airflow 3:
++    use the latest weekday that has ended, as the timetable did on 2.x."""
++    start, end = dag_run.data_interval_start, dag_run.data_interval_end
++    if start is None or end is None:
++        interval = WorkdayTimetable().infer_manual_data_interval(run_after=pendulum.instance(dag_run.run_after))
++        return interval.start, interval.end
++    return pendulum.instance(start), pendulum.instance(end)
++
++
+ class WorkdayTimetable(Timetable):
+     """One run per UTC weekday (Mon-Fri) covering that day, due at the following midnight.
+ 
+diff --git a/requirements.txt b/requirements.txt
+index 91d0128..d516427 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,3 +1,4 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ duckdb
+ pendulum==3.2.0

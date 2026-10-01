@@ -1,0 +1,24 @@
+name: billing_sessions
+team: billing
+tier: standard
+description: Sessions pipeline for billing
+schedule:
+  hour: 4
+  days: '1'
+  minute: 45
+retries: 1
+steps:
+- name: extract
+  table: billing.raw_sessions_00
+- name: enrich
+  table: billing.int_sessions_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: billing.int_sessions_00
+  depends_on:
+  - enrich
+- name: publish
+  table: billing.mart_sessions_00
+  depends_on:
+  - aggregate

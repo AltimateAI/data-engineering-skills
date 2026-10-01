@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: snapshots and audit records match the Airflow 2 output",
+  "primary_pass": false,
+  "primary_score": 0.8,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 172.4,
+  "cost_usd": 1.994396,
+  "cost_reported_usd": 8.256983,
+  "tokens": {
+    "input": 2087559,
+    "output": 8756,
+    "reasoning": 0,
+    "cache_read": 1729063,
+    "cache_write": 358466,
+    "total": 4183844
+  },
+  "steps": 29,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 25,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cfd3e8affesFGtK3A30JVRO2.json"
+}

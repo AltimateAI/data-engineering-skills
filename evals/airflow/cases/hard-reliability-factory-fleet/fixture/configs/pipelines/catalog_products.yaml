@@ -1,0 +1,21 @@
+name: catalog_products
+team: catalog
+tier: standard
+description: Products pipeline for catalog
+schedule:
+  hour: 1
+  days: '*'
+owners:
+- yusuf
+steps:
+- name: extract
+  table: catalog.raw_products_00
+- name: enrich
+  table: catalog.int_products_00
+  depends_on:
+  - extract
+- name: publish
+  table: catalog.mart_products_00
+  depends_on:
+  - enrich
+  - extract

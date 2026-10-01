@@ -1,0 +1,21 @@
+name: people_attribution
+team: people
+tier: standard
+description: Attribution pipeline for people
+schedule:
+  hour: 2
+  days: '1'
+owners:
+- quinn
+- tara
+steps:
+- name: extract
+  table: people.raw_attribution_00
+- name: validate
+  table: people.int_attribution_00
+  depends_on:
+  - extract
+- name: publish
+  table: people.mart_attribution_00
+  depends_on:
+  - validate

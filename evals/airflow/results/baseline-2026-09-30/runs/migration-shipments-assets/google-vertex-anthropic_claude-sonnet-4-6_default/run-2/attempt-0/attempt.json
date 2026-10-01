@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: three hourly loads and the scorecard run succeed on 3.3, every carrier event is loaded exactly once, in the same batches as 2.11, scorecard and _READY marker match 2.11",
+  "primary_pass": false,
+  "primary_score": 0.5714285714285714,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 355.9,
+  "cost_usd": 2.793506,
+  "cost_reported_usd": 10.939598,
+  "tokens": {
+    "input": 2715398,
+    "output": 14354,
+    "reasoning": 0,
+    "cache_read": 2204209,
+    "cache_write": 511155,
+    "total": 5445116
+  },
+  "steps": 33,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 30,
+  "edited_files": 3,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d9cba00ffeTWzQJfNp5S1e33.json"
+}

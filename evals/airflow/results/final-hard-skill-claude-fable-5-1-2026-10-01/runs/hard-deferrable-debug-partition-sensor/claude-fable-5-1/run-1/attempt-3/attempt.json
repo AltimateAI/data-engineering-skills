@@ -1,0 +1,187 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 4.383955,
+  "cost_reported_usd": 4.383955,
+  "wall_s": 525.2,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-skill-claude-fable-5-1-2026-10-01-skill-20261001-104351/hard-deferrable-debug-partition-sensor-lylzhaaz/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 30.0,
+  "cost_list_price_usd": 4.383955,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 644,
+    "output": 36807,
+    "reasoning": 13208,
+    "cache_read": 1490581,
+    "cache_write": 108226,
+    "total": 1636258
+  },
+  "steps": 40,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 4.383955,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 644,
+      "outputTokens": 36807,
+      "cacheReadInputTokens": 1490581,
+      "cacheCreationInputTokens": 108226,
+      "webSearchRequests": 0,
+      "costUSD": 4.38395525,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 13208,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 40,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "authoring-airflow-dags",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "migrating-to-airflow-3",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-airflow-dags",
+      "testing-dbt-models",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-fable-5-1",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": true,
+    "hits": [
+      {
+        "call": 8,
+        "tool": "bash",
+        "path": "<work>/final-hard-skill-claude-fable-5-1-2026-10-01-skill-20261001-104351/claude-config/skills/authoring-airflow-dags/scripts",
+        "root": "work-root"
+      }
+    ],
+    "denied_hits": [
+      {
+        "call": 21,
+        "tool": "bash",
+        "path": "<tmp>/lake_port",
+        "root": "shared-temp"
+      },
+      {
+        "call": 21,
+        "tool": "bash",
+        "path": "<tmp>/lake_port",
+        "root": "shared-temp"
+      },
+      {
+        "call": 21,
+        "tool": "bash",
+        "path": "<tmp>/stub_stall.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 21,
+        "tool": "bash",
+        "path": "<tmp>/lake_port",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 22,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd \"<work>/final-hard-skill-claude-fable-5-1-2026-10-01-skill-20261001-104351/hard-deferrable-debug-partition-sensor-lylzhaaz/ws\" && mkdir -p .scratch && rm -f .scratch/port && (python tools/catalog_stub.py --publish orders/2026-09-29=0 --latency 1.0 --port-file .scr",
+        "output": "port 63043\nevent={'status': 'published', 'files': ['s3://lake/orders/2026-09-29/part-0.parquet', 's3://lake/orders/2026-09-29/part-1.parquet']} worst_stall=0.048s call_took=1.09s\nSTALL TEST OK\npkill: "
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": true,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [
+    {
+      "name": "authoring-airflow-dags",
+      "origin": null,
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "authoring-airflow-dags"
+  ],
+  "bash_commands": 34,
+  "edited_files": 3,
+  "errors": [],
+  "trace_path": null
+}

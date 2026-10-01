@@ -1,0 +1,118 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..cdf16e5 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,11 +8,11 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
+ from pathlib import Path
+ 
++import pendulum
+ from airflow.providers.standard.operators.bash import BashOperator
+-from airflow.sdk import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "partner_orders.csv"
+@@ -21,16 +21,37 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def _feed_date(context: dict) -> str:
++    """Return the YYYY-MM-DD string for the day this run should produce a feed for.
++
++    Priority:
++    1. Scheduled run (interval timetable): use data_interval_start — the start of the
++       period this run covers.  This reproduces the Airflow 2.x ds / execution_date
++       value and is stable across retries and reruns.
++    2. Manual trigger (no data interval): use dag_run.run_after, the wall-clock time
++       of the trigger, so reruns the next day still produce the *original* day's feed.
++    """
++    dag_run = context["dag_run"]
++    start = dag_run.data_interval_start
++    end = dag_run.data_interval_end
++    if start is not None and end is not None and end > start:
++        # Interval timetable (scheduled): the run covers [start, end).
++        return pendulum.instance(start).in_tz("UTC").strftime("%Y-%m-%d")
++    # Manual trigger or trigger timetable: anchor on the trigger time.
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").strftime("%Y-%m-%d")
++
++
+ @dag(
+-    schedule="0 4 * * *",
+-    start_date=datetime(2026, 1, 1),
++    schedule=CronDataIntervalTimetable("0 4 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["partner", "acme"],
+ )
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        day = _feed_date(context)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -47,7 +68,7 @@ def partner_feed():
+ 
+     @task
+     def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++        day = _feed_date(context)
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -61,9 +82,9 @@ def partner_feed():
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+             " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='extract_orders').split('/')[-2] | replace('-', '') }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='extract_orders').split('/')[-2] | replace('-', '') }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )
+diff --git a/outbox/acme/acme_orders_20260930.csv b/outbox/acme/acme_orders_20260930.csv
+new file mode 100644
+index 0000000..f8e1b35
+--- /dev/null
++++ b/outbox/acme/acme_orders_20260930.csv
+@@ -0,0 +1 @@
++order_id,sku,qty,amount
+diff --git a/outbox/acme/acme_orders_20260930.manifest.json b/outbox/acme/acme_orders_20260930.manifest.json
+new file mode 100644
+index 0000000..8ff9f05
+--- /dev/null
++++ b/outbox/acme/acme_orders_20260930.manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-09-30",
++  "row_count": 0
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-09-30/manifest.json b/output/partner_feed/2026-09-30/manifest.json
+new file mode 100644
+index 0000000..8ff9f05
+--- /dev/null
++++ b/output/partner_feed/2026-09-30/manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-09-30",
++  "row_count": 0
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-09-30/orders.csv b/output/partner_feed/2026-09-30/orders.csv
+new file mode 100644
+index 0000000..f8e1b35
+--- /dev/null
++++ b/output/partner_feed/2026-09-30/orders.csv
+@@ -0,0 +1 @@
++order_id,sku,qty,amount

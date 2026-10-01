@@ -1,0 +1,19 @@
+name: payments_csat_eu
+team: payments
+tier: standard
+description: Csat pipeline for payments
+schedule:
+  hour: 6
+  days: '1'
+steps:
+- name: extract
+  table: payments.raw_csat_00
+- name: validate
+  table: payments.int_csat_00
+  depends_on:
+  - extract
+- name: publish
+  table: payments.mart_csat_00
+  depends_on:
+  - validate
+  - extract

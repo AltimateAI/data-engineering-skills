@@ -1,0 +1,41 @@
+id: scheduling-backfill-pageviews
+area: scheduling
+split: holdout
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  We finally got the raw page view exports back to September 1st. They're in
+  data/pageviews/, one file per UTC day. Can you set up `pageviews_daily` so
+  that when I unpause it, the scheduler fills in every day since Sept 1 on its
+  own and then just keeps going daily? There's nothing before Sept 1, so it
+  shouldn't try to load anything earlier.
+
+  Two things worry me. The warehouse is one DuckDB file, so only one day can be
+  written at a time. And I have to be able to re-run any day later without the
+  numbers getting double counted.
+description: |
+  Safe catchup backfill on Airflow 3.3 (pain points P2 start_date/catchup
+  semantics, P4 backfill-unsafe tasks, P-concurrency "one run at a time").
+  The fixture has catchup=False, start_date 2026-01-01 and reads
+  "yesterday" from the wall clock (already delete+insert per day). With "now"
+  pinned to 2026-09-30 12:00 UTC, the grader checks DAG attributes (catchup;
+  one writer across runs = max_active_runs == 1 or a single task with
+  max_active_tis_per_dag == 1, since max_active_tasks is per run on 3.x; a
+  start_date that does not move when the clock is shifted), then executes
+  every run the timetable would create from start_date, as the scheduler
+  would, against an empty warehouse: all must succeed and load exactly
+  09-01..09-29 (no earlier days, no duplicates), and no run may load a day
+  before its export lands (D+1 01:00 UTC, per the fixture README). It then
+  corrupts 09-15 and re-runs that day's run, which must repair it without
+  touching other days. A plain `airflow dags test` must pass. Trigger cron +
+  `logical_date - 1 day` with start 09-02 + max_active_runs=1 (reference) and
+  CronDataIntervalTimetable + `data_interval_start` + task-level
+  max_active_tis_per_dag=1 (alt_reference) both pass. Mutants: catchup with
+  the old 2026-01-01 start_date, start_date 09-01 with "previous day" logic
+  (first run wants 08-31), no concurrency limit, max_active_tasks=1 only
+  (per run on 3.x, so catchup still writes in parallel), a start_date
+  computed from now(), the date still taken from the wall clock, "skip days
+  already loaded", and loading the run's own day at 03:00 while skipping
+  missing exports (passes the simulation, never loads anything in
+  production).

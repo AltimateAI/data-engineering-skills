@@ -1,0 +1,19 @@
+name: catalog_promotions
+team: catalog
+tier: standard
+description: Promotions pipeline for catalog
+schedule:
+  hour: 0
+  days: '*'
+steps:
+- name: extract
+  table: catalog.raw_promotions_00
+- name: enrich
+  table: catalog.int_promotions_00
+  depends_on:
+  - extract
+- name: publish
+  table: catalog.mart_promotions_00
+  depends_on:
+  - enrich
+  - extract

@@ -1,0 +1,102 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..d5edb85
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,96 @@
++"""Daily revenue by store, reporting on the previous calendar day.
++
++Runs daily at 03:00 UTC. Late orders trickle in until ~02:00 UTC.
++Scheduled run at 03:00 UTC on day N reports on day N-1 (00:00-24:00 UTC).
++Output: output/daily_revenue/<YYYY-MM-DD>.csv with store_id, orders, revenue (rounded to 2 decimals).
++Can rerun any day since 2026-09-01.
++"""
++
++from __future__ import annotations
++
++import csv
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++def get_reporting_day(dag_run):
++    """
++    Compute the calendar day to report on.
++    - For scheduled runs: the previous calendar day (cron fires at 03:00 UTC, reports on day-1)
++    - For manual/backfill runs: the previous day from run_after/logical_date
++    """
++    # On 3.x, logical_date is None for manual runs triggered without a date
++    if dag_run.logical_date is not None:
++        run_time = pendulum.instance(dag_run.logical_date)
++    else:
++        # Fallback to run_after for manual triggers
++        run_time = pendulum.instance(dag_run.run_after)
++
++    # Convert to UTC and get the previous calendar day
++    run_time_utc = run_time.in_tz("UTC")
++    reporting_day = run_time_utc.subtract(days=1).date()
++    return reporting_day
++
++
++@dag(
++    dag_id="daily_revenue",
++    schedule="0 3 * * *",  # 03:00 UTC every day
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["finance", "daily"],
++)
++def daily_revenue():
++    @task
++    def compute_revenue(dag_run=None) -> str:
++        """
++        Read orders from data/orders.csv for the reporting day,
++        group by store_id, count orders and sum revenue (rounded to 2 decimals),
++        and write to output/daily_revenue/<YYYY-MM-DD>.csv.
++        """
++        reporting_day = get_reporting_day(dag_run)
++        reporting_day_str = reporting_day.isoformat()  # YYYY-MM-DD format
++
++        # Read orders.csv and filter for the reporting day
++        orders_path = PROJECT_ROOT / "data" / "orders.csv"
++        day_start = pendulum.parse(f"{reporting_day_str} 00:00:00", tz="UTC")
++        day_end = pendulum.parse(f"{reporting_day_str} 23:59:59.999999", tz="UTC")
++
++        aggregates = {}  # {store_id: {"count": N, "revenue": R}}
++
++        with open(orders_path, "r") as f:
++            reader = csv.DictReader(f)
++            for row in reader:
++                order_ts = pendulum.parse(row["order_ts"], tz="UTC")
++                if day_start <= order_ts <= day_end:
++                    store_id = row["store_id"]
++                    amount = float(row["amount"])
++                    if store_id not in aggregates:
++                        aggregates[store_id] = {"count": 0, "revenue": 0.0}
++                    aggregates[store_id]["count"] += 1
++                    aggregates[store_id]["revenue"] += amount
++
++        # Write output: sort by store_id, round revenue to 2 decimals
++        output_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        output_dir.mkdir(parents=True, exist_ok=True)
++        output_file = output_dir / f"{reporting_day_str}.csv"
++
++        with open(output_file, "w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerow(["store_id", "orders", "revenue"])
++
++            # Sort by store_id and write rows
++            for store_id in sorted(aggregates.keys()):
++                agg = aggregates[store_id]
++                revenue_rounded = round(agg["revenue"], 2)
++                writer.writerow([store_id, agg["count"], revenue_rounded])
++
++        return str(output_file)
++
++    compute_revenue()
++
++
++daily_revenue()

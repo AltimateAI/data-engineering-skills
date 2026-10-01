@@ -1,0 +1,62 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..1f967d3 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,15 +1,21 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
+-the `daily_pageviews` table (views and unique visitors per page).
++at about 01:00 UTC the next morning. Each run fires at 03:00 UTC and aggregates
++the file for the UTC day *before* its logical date into the `daily_pageviews`
++table (views and unique visitors per page).
++
++The day is derived from the run's logical date, never the wall clock, so catchup
++runs, backfills and cleared re-runs each load their own day. Loads replace the
++day's rows in one transaction, so re-running a day never double counts.
++Raw exports start on 2026-09-01, so the first run (2026-09-02 03:00) loads that day.
+ """
+ 
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import CronTriggerTimetable, dag, get_current_context, task
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+@@ -18,17 +24,27 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
+-    default_args={"owner": "web-analytics", "retries": 1},
++    schedule=CronTriggerTimetable("0 3 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 2, 3, tz="UTC"),
++    catchup=True,
++    # web.duckdb allows a single writer: never run two days at once.
++    max_active_runs=1,
++    max_active_tasks=1,
++    default_args={
++        "owner": "web-analytics",
++        "retries": 3,
++        "retry_delay": pendulum.duration(minutes=30),
++    },
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+     def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++        logical_date = get_current_context()["logical_date"]
++        day = logical_date.in_timezone("UTC").subtract(days=1).to_date_string()
+         source = RAW_DIR / f"{day}.csv"
++        if not source.exists():
++            raise FileNotFoundError(f"Raw export for {day} not found: {source}")
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:

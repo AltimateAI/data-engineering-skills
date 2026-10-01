@@ -1,0 +1,117 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..7ec1748
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,26 @@
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag
++    return DagBag(dag_folder=str(DAGS))
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..967ceec
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,62 @@
++"""Every file in dags/ must load, and every DAG must follow team policy."""
++from pathlib import Path
++
++import pytest
++
++DAGS = Path(__file__).resolve().parents[1] / "dags"
++EXPECTED_DAG_IDS = {"orders_ingest", "customer_snapshot", "marketing_spend"}
++DEFAULT_OWNER = "airflow"
++MIN_RETRIES = 2
++
++
++def test_no_import_errors(dagbag):
++    assert dagbag.import_errors == {}, dagbag.import_errors
++
++
++def test_every_dag_file_defines_a_dag(dagbag):
++    # A file that parses but silently stops defining its DAG would not show up as an import error.
++    files = {p.resolve() for p in DAGS.rglob("*.py") if p.name != "__init__.py"}
++    loaded = {Path(d.fileloc).resolve() for d in dagbag.dags.values()}
++    assert files - loaded == set(), f"files with no DAG: {sorted(str(f) for f in files - loaded)}"
++
++
++def test_expected_dags_present(dagbag):
++    assert EXPECTED_DAG_IDS <= set(dagbag.dags), f"missing: {EXPECTED_DAG_IDS - set(dagbag.dags)}"
++
++
++def test_dags_not_empty(dagbag):
++    assert dagbag.dags, "no DAGs loaded"
++
++
++def _dags(dagbag):
++    return sorted(dagbag.dags.values(), key=lambda d: d.dag_id)
++
++
++def test_every_dag_has_a_tag(dagbag):
++    bad = [d.dag_id for d in _dags(dagbag) if not d.tags]
++    assert not bad, f"DAGs without tags: {bad}"
++
++
++def test_catchup_disabled(dagbag):
++    bad = [d.dag_id for d in _dags(dagbag) if d.catchup]
++    assert not bad, f"DAGs with catchup enabled: {bad}"
++
++
++def test_task_owner_is_real(dagbag):
++    bad = [
++        f"{d.dag_id}.{t.task_id} (owner={t.owner!r})"
++        for d in _dags(dagbag)
++        for t in d.tasks
++        if not t.owner or not t.owner.strip() or t.owner == DEFAULT_OWNER
++    ]
++    assert not bad, f"tasks without a real owner: {bad}"
++
++
++def test_task_retries_at_least_two(dagbag):
++    bad = [
++        f"{d.dag_id}.{t.task_id} (retries={t.retries})"
++        for d in _dags(dagbag)
++        for t in d.tasks
++        if t.retries is None or t.retries < MIN_RETRIES
++    ]
++    assert not bad, f"tasks with fewer than {MIN_RETRIES} retries: {bad}"
+diff --git a/tests/test_orders_ingest.py b/tests/test_orders_ingest.py
+new file mode 100644
+index 0000000..63195c4
+--- /dev/null
++++ b/tests/test_orders_ingest.py
+@@ -0,0 +1,11 @@
++"""orders_ingest must run extract -> validate -> load -> publish, strictly in that order."""
++ORDER = ["extract_orders", "validate_orders", "load_orders", "publish_summary"]
++
++
++def test_pipeline_order(dagbag):
++    dag = dagbag.dags["orders_ingest"]
++    assert {t.task_id for t in dag.tasks} == set(ORDER)
++    for i, tid in enumerate(ORDER):
++        task = dag.get_task(tid)
++        assert task.upstream_task_ids == set(ORDER[i - 1:i]), tid
++        assert task.downstream_task_ids == set(ORDER[i + 1:i + 2]), tid

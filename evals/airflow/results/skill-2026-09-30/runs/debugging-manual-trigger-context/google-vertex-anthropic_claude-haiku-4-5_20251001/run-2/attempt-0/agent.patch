@@ -1,0 +1,65 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..93fa311 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -30,7 +30,12 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        # Use logical_date if available (scheduled or triggered with date),
++        # otherwise fall back to run_after (manual trigger without date).
++        # This ensures consistent behavior: scheduled and manual runs both use
++        # the date they are meant to process.
++        logical_date = context.get("logical_date") or context["dag_run"].run_after
++        day = logical_date.strftime("%Y-%m-%d")
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -47,7 +52,11 @@ def partner_feed():
+ 
+     @task
+     def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++        # Use logical_date if available (scheduled or triggered with date),
++        # otherwise fall back to run_after (manual trigger without date).
++        # This must match the date used in extract_orders.
++        logical_date = context.get("logical_date") or context["dag_run"].run_after
++        day = logical_date.strftime("%Y-%m-%d")
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -56,19 +65,30 @@ def partner_feed():
+         )
+         return str(manifest)
+ 
++    @task
++    def get_partition_date(**context) -> str:
++        # Helper to derive the partition date for templating in BashOperator.
++        # Works for both scheduled and manual runs (with or without logical_date).
++        logical_date = context.get("logical_date") or context["dag_run"].run_after
++        return logical_date.strftime("%Y%m%d")
++
++    partition_date = get_partition_date()
++
+     deliver = BashOperator(
+         task_id="deliver",
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+             " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='get_partition_date') }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='get_partition_date') }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )
+ 
+-    write_manifest(extract_orders()) >> deliver
++    extract = extract_orders()
++    manifest = write_manifest(extract)
++    [manifest, partition_date] >> deliver
+ 
+ 
+ partner_feed()

@@ -1,0 +1,29 @@
+name: finance_sessions
+team: finance
+tier: standard
+description: Sessions pipeline for finance
+schedule:
+  hour: 6
+  days: 1-5
+owners:
+- maya
+- ana
+steps:
+- name: extract
+  table: finance.raw_sessions_00
+- name: stage
+  table: finance.stg_sessions_00
+  depends_on:
+  - extract
+- name: validate
+  table: finance.int_sessions_00
+  depends_on:
+  - stage
+- name: enrich
+  table: finance.int_sessions_00
+  depends_on:
+  - validate
+- name: publish
+  table: finance.mart_sessions_00
+  depends_on:
+  - enrich

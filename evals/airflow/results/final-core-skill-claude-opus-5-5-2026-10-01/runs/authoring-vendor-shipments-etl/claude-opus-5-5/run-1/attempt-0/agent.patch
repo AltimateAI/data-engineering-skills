@@ -1,0 +1,110 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..be24193
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,104 @@
++"""Wait for the carrier aggregator's daily shipments file, load it into the warehouse and
++publish the per-carrier report.
++
++Each run processes its own UTC day: the 06:00 run on 2026-10-02 handles
++shipments_2026-10-02.csv. To reprocess a day by hand, clear that day's run, use
++`airflow backfill create`, or trigger the DAG with the param `day` set to YYYY-MM-DD.
++"""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import CronTriggerTimetable, Param, PokeReturnValue, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++FIRST_DAY = pendulum.date(2026, 9, 1)  # the aggregator's first file
++
++
++def ship_day(dag_run, params=None) -> str:
++    """The day (YYYY-MM-DD, UTC) this run processes.
++
++    `params.day` wins (manual reprocessing). Otherwise the run's own day: the logical date for
++    scheduled, backfill and cleared runs, or the trigger time for a manual run without one.
++    """
++    day = (params or {}).get("day")
++    if day:
++        d = pendulum.parse(day).date()
++    else:
++        anchor = dag_run.logical_date or dag_run.run_after
++        d = pendulum.instance(anchor).in_tz("UTC").date()
++    if d < FIRST_DAY:
++        raise ValueError(f"no vendor files exist before {FIRST_DAY}; got {d}")
++    return d.isoformat()
++
++
++@dag(
++    schedule=CronTriggerTimetable("0 6 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    params={"day": Param(None, type=["null", "string"], format="date",
++                         description="Reprocess this day (YYYY-MM-DD) instead of the run's own day")},
++    user_defined_macros={"ship_day": ship_day},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    # Reschedule mode frees the worker slot between pokes. The deadline is the end of the
++    # processed day (absolute, so retries or a late start never extend it); after that the
++    # task fails without retrying so on-call is paged.
++    @task.sensor(mode="reschedule", poke_interval=10 * 60, timeout=24 * 60 * 60, retries=0)
++    def wait_for_file(**context) -> PokeReturnValue:
++        from airflow.sdk import Variable
++        from airflow.sdk.exceptions import AirflowFailException
++
++        day = ship_day(context["dag_run"], context["params"])
++        path = Path(Variable.get("vendor_landing_dir")) / f"shipments_{day}.csv"
++        if path.is_file():
++            return PokeReturnValue(is_done=True, xcom_value=str(path))
++        deadline = pendulum.parse(day, tz="UTC").add(days=1)
++        if pendulum.now("UTC") >= deadline:
++            raise AirflowFailException(f"{path} did not arrive by {deadline.isoformat()}")
++        return PokeReturnValue(is_done=False)
++
++    @task
++    def load_shipments(path: str, **context) -> int:
++        import duckdb
++
++        day = ship_day(context["dag_run"], context["params"])
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                "CREATE TABLE IF NOT EXISTS vendor_shipments (shipment_id VARCHAR, carrier VARCHAR, "
++                "destination VARCHAR, weight_kg DOUBLE, shipped_at TIMESTAMP, ship_date DATE)"
++            )
++            # Replace the day's rows in one transaction so a rerun never duplicates them.
++            con.execute("BEGIN")
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [day])
++            con.execute(
++                "INSERT INTO vendor_shipments "
++                "SELECT shipment_id, carrier, destination, weight_kg, shipped_at, CAST(? AS DATE) "
++                "FROM read_csv(?, header = true, columns = {'shipment_id': 'VARCHAR', "
++                "'carrier': 'VARCHAR', 'destination': 'VARCHAR', 'weight_kg': 'DOUBLE', "
++                "'shipped_at': 'TIMESTAMP'})",
++                [day, path],
++            )
++            con.execute("COMMIT")
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [day]
++            ).fetchone()[0]
++
++    publish_shipments_report = BashOperator(
++        task_id="publish_shipments_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh "
++        "{{ ship_day(dag_run, params) }}",
++    )
++
++    load_shipments(wait_for_file()) >> publish_shipments_report
++
++
++vendor_shipments()

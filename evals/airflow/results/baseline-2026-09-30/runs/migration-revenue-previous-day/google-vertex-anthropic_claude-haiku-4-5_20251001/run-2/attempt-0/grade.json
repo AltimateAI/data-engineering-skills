@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['daily_revenue', 'region_reference']"
+    },
+    {
+      "name": "daily_revenue keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['load_daily_revenue', 'publish_manifest'] deps=[['load_daily_revenue', 'publish_manifest']]"
+    },
+    {
+      "name": "dags test succeeds (daily_revenue, region_reference)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "daily_revenue: manual 2026-03-05: state=failed interval=[None, None] failed=['load_daily_revenue', 'publish_manifest']\nregion_reference: manual 2026-03-05: state=success interval=[None, None] failed=[]\nxt), native=False)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/definitions/context.py\", line 204, in render_template\n    return \"\".join(nodes)\n           ^^^^^^^^^^^^^^\n  File \"<work>/baseline-2026-09-30-baseline-20260930-045309/migration-revenue-previous-day-sr2j3isu/grade-ws/dags/sql/daily_revenue.sql\", line 19, in root\n    AND order_ts <  TIMESTAMP '{{ next_ds }} 00:00:00'\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/jinja2/runtime.py\", line 859, in _fail_with_undefined_error\n    raise self._undefined_exception(self._undefined_message)\njinja2.exceptions.UndefinedError: 'next_ds' is undefined\n2026-09-30T13:00:46.828332Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T13:00:46.830735Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T13:00:46.892158Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f267-3b6f-79a6-8d6d-ceab1576c7b7 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f267-26f9-71b0-96c1-c2e750ffaf21\n2026-09-30T13:00:46.920928Z [info     ] [DAG TEST] end task task_id=load_daily_revenue map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T13:00:46.927929Z [info     ] Marking run <DagRun daily_revenue @ 2026-03-05 00:00:00+00:00: manual__2026-09-30T13:00:41.508599+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T13:00:46.928366Z [info     ] DagRun Finished: dag_id=daily_revenue, logical_date=2026-03-05 00:00:00+00:00, run_id=manual__2026-09-30T13:00:41.508599+00:00, run_start_date=2026-03-05 00:00:00+00:00, run_end_date=2026-09-30 13:00:46.928013+00:00, run_duration=18104446.928013, state=failed, run_type=manual, data_interval_start=2026-03-05 00:00:00+00:00, data_interval_end=2026-03-05 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"manual\": \"2026-03-05\", \"logical_date\": \"2026-03-05T00:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"load_daily_revenue\": \"failed\", \"publish_manifest\": \"upstream_failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "scheduled 04:15 runs succeed on 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-03-05T04:15:00+00:00: state=failed interval=[2026-03-05T04:15:00+00:00, 2026-03-05T04:15:00+00:00] failed=['load_daily_revenue', 'publish_manifest']; 2026-03-06T04:15:00+00:00: state=failed interval=[2026-03-06T04:15:00+00:00, 2026-03-06T04:15:00+00:00] failed=['load_daily_revenue', 'publish_manifest']\ncache/des-evals/work/baseline-2026-09-30-baseline-20260930-045309/migration-revenue-previous-day-sr2j3isu/grade-ws/dags/sql/daily_revenue.sql\", line 19, in root\n    AND order_ts <  TIMESTAMP '{{ next_ds }} 00:00:00'\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/jinja2/runtime.py\", line 859, in _fail_with_undefined_error\n    raise self._undefined_exception(self._undefined_message)\njinja2.exceptions.UndefinedError: 'next_ds' is undefined\n2026-09-30T13:01:10.304794Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T13:01:10.305073Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T13:01:10.357847Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f267-9721-7ff1-9f83-e1c217f38b01 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f267-9651-709c-8311-ff1e2a858ed4\n2026-09-30T13:01:10.436004Z [info     ] [DAG TEST] end task task_id=load_daily_revenue map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T13:01:10.453856Z [info     ] Marking run <DagRun daily_revenue @ 2026-03-06 04:15:00+00:00: manual__2026-03-06T04:15:00+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T13:01:10.454000Z [info     ] DagRun Finished: dag_id=daily_revenue, logical_date=2026-03-06 04:15:00+00:00, run_id=manual__2026-03-06T04:15:00+00:00, run_start_date=2026-03-06 04:15:00+00:00, run_end_date=2026-09-30 13:01:10.453939+00:00, run_duration=18002770.453939, state=failed, run_type=manual, data_interval_start=2026-03-06 04:15:00+00:00, data_interval_end=2026-03-06 04:15:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"run_after\": \"2026-03-05T04:15:00+00:00\", \"logical_date\": \"2026-03-05T04:15:00+00:00\", \"start\": \"2026-03-05T04:15:00+00:00\", \"end\": \"2026-03-05T04:15:00+00:00\", \"state\": \"failed\", \"tasks\": {\"load_daily_revenue\": \"failed\", \"publish_manifest\": \"upstream_failed\"}}, {\"run_after\": \"2026-03-06T04:15:00+00:00\", \"logical_date\": \"2026-03-06T04:15:00+00:00\", \"start\": \"2026-03-06T04:15:00+00:00\", \"end\": \"2026-03-06T04:15:00+00:00\", \"state\": \"failed\", \"tasks\": {\"load_daily_revenue\": \"failed\", \"publish_manifest\": \"upstream_failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "scheduled runs process the same business day and write the same output as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'daily_revenue/2026-03-04.csv': 'region,orders,revenue\\nAPAC,4,552.44\\nEMEA,2,409.40\\nLATAM,1,116.19\\nNA,3,537.20', 'daily_revenue/2026-03-05.csv': 'region,orders,revenue\\nEMEA,2,228.11\\nLATAM,2,349.40\\nNA,5,809.87', 'manifests/2026-03-04.json': '{\"business_date\": \"2026-03-04\"}', 'manifests/2026-03-05.json': '{\"business_date\": \"2026-03-05\"}'}\n got {}"
+    },
+    {
+      "name": "project test suite passes on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 2 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "project test suite still fails on a DAG file that does not import",
+      "kind": "primary",
+      "passed": false,
+      "detail": "clean: passed; with planted dags/zz_planted_broken.py: passed: 2 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b', '\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/daily_revenue.py:47 AIR311; dags/daily_revenue.py:58 AIR001; dags/daily_revenue.py:65 AIR001; dags/region_reference.py:27 AIR311; dags/region_reference.py:35 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.42857142857142855,
+  "secondary_score": 0.6666666666666666
+}

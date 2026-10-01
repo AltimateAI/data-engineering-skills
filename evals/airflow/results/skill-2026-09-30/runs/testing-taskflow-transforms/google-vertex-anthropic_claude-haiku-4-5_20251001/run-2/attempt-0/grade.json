@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_orders_enrichment.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 9 passed, 12 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError], tests.test_orders_enrichment.TestDedupeOrders::test_dedupe_keeps_latest [StatementError]\n                \"amount\": \"100.00\",\n                \"order_date\": \"2026-03-01\",\n                \"updated_at\": \"2026-03-01T00:00:00Z\"\n            })\n    \n        # Create empty FX file for the date (USD only, no JPY)\n        with test_fx_file.open(\"w\") as f:\n            writer = csv.DictWriter(f, fieldnames=[\"rate_date\", \"currency\", \"usd_per_unit\"])\n            writer.writeheader()\n            # USD is implicit, no other rates\n    \n        # This test would need to patch DATA_DIR, which is complex\n        # Instead, we verify the error message contains order_id when raised\n        from decimal import Decimal\n        from dags.orders_enrichment import convert_to_usd as convert_task\n    \n        # Test the underlying logic directly\n        rows = [{\"order_id\": \"T1\", \"currency\": \"JPY\", \"amount\": \"100\"}]\n        rates = {\"USD\": \"1\"}  # No JPY rate\n    \n>       with pytest.raises(ValueError) as exc_info:\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\nE       Failed: DID NOT RAISE ValueError\n\ntests/test_orders_enrichment.py:319: Failed\n=========================== short test summary info ============================\nFAILED tests/test_orders_enrichment.py::TestExtractOrders::test_extract_orders_filters_by_date\nFAILED tests/test_orders_enrichment.py::TestExtractOrders::test_extract_orders_different_dates_different_results\nFAILED tests/test_orders_enrichment.py::TestLoadFxRates::test_load_fx_rates_includes_usd\nFAILED tests/test_orders_enrichment.py::TestDedupeOrders::test_dedupe_keeps_latest\nFAILED tests/test_orders_enrichment.py::TestConvertToUsd::test_convert_basic_functionality\nFAILED tests/test_orders_enrichment.py::TestValidateTotals::test_validate_passes_valid_orders\nFAILED tests/test_orders_enrichment.py::TestLoadEnriched::test_load_enriched_writes_csv\nFAILED tests/test_orders_enrichment.py::TestEndToEnd::test_full_pipeline_mar1\nFAILED tests/test_orders_enrichment.py::TestEndToEnd::test_full_pipeline_mar2_with_dedup\nFAILED tests/test_orders_enrichment.py::TestEndToEnd::test_dag_test_succeeds_mar1\nFAILED tests/test_orders_enrichment.py::TestEndToEnd::test_dag_test_succeeds_mar2\nFAILED tests/test_orders_enrichment.py::TestPipelineFailureModes::test_convert_fails_on_missing_fx_rate\nERROR tests/test_orders_enrichment.py::TestDagStructure::test_schedule_is_daily_0600_utc\n12 failed, 9 passed, 1 error in 3.17s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 9 passed, 12 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError], tests.test_orders_enrichment.TestDedupeOrders::test_dedupe_keeps_latest [StatementError]"
+    },
+    {
+      "name": "suite catches hidden bug: dedupe_keeps_first",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; dedupe_orders keeps the first row seen per order_id instead of the latest updated_at -> failed: 9 passed, 12 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError], tests.test_orders_enrichment.TestDedupeOrders::test_dedupe_keeps_latest [StatementError]"
+    },
+    {
+      "name": "suite catches hidden bug: rounding_truncates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; convert_to_usd rounds down (ROUND_DOWN) instead of half-up -> failed: 9 passed, 12 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError], tests.test_orders_enrichment.TestDedupeOrders::test_dedupe_keeps_latest [StatementError]"
+    },
+    {
+      "name": "suite catches hidden bug: unknown_currency_as_usd",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; convert_to_usd treats a currency with no FX rate as USD instead of failing -> failed: 9 passed, 12 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError], tests.test_orders_enrichment.TestDedupeOrders::test_dedupe_keeps_latest [StatementError]"
+    },
+    {
+      "name": "suite catches hidden bug: validation_bypassed",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; load_enriched is wired from convert_to_usd; validate_totals runs in parallel -> failed: 8 passed, 13 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestDagStructure::test_task_dependencies [AssertionError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError]"
+    },
+    {
+      "name": "suite catches hidden bug: schedule_midnight",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; schedule changed from 0 6 * * * to @daily (00:00 UTC) -> failed: 9 passed, 12 failed, 1 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagStructure::test_schedule_is_daily_0600_utc [None], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_filters_by_date [StatementError], tests.test_orders_enrichment.TestExtractOrders::test_extract_orders_different_dates_different_results [StatementError], tests.test_orders_enrichment.TestLoadFxRates::test_load_fx_rates_includes_usd [StatementError], tests.test_orders_enrichment.TestDedupeOrders::test_dedupe_keeps_latest [StatementError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,53 @@
+id: hard-deferrable-sensor-retry-budget
+area: authoring
+suite: hard
+split: dev
+airflow_version: "3.3"
+max_turns: 80
+timeout_s: 3600
+grade_timeout_s: 1500
+prompt: |
+  dags/partners/sensors.py has PartnerManifestSensor, a poke-mode sensor that waits
+  for a partner's daily manifest through ManifestHook (API in README.md). Hundreds of
+  these sit waiting every morning and hold worker slots. Please make it deferrable on
+  our Airflow 3.3 deployment (`deferrable: bool = True` by default), keeping the
+  constructor arguments the DAGs use. What on-call relies on:
+
+  1. When the manifest is published, the sensor returns its file list (the load
+     tasks read it from XCom).
+  2. `timeout` is the total time we wait for a partner in a DAG run, counted from
+     when the sensor first started waiting in that run. Nothing may reset or extend
+     it: not the task's retries (the DAGs give it retries for API outages), not
+     triggerer restarts during deploys. When the time is up the sensor fails for
+     good, or is skipped when soft_fail=True.
+  3. An API error (HTTP 5xx or a connection error) fails the current try so the
+     task's retries take over, for soft_fail sensors too: an outage is not a
+     reason to skip.
+  4. The triggerer's event loop is shared with hundreds of other triggers and the
+     API takes about a second per call, so nothing may block the event loop.
+
+  tools/ has a local stand-in for the API.
+description: |
+  Hard suite, theme deferrable (Airflow 3.3). Convert a poke sensor into a deferrable
+  sensor + async trigger + async hook method where `timeout` is a per-DAG-run budget
+  across retries. Version-specific runtime facts: on 3.3 a retry clears the task
+  instance's XComs (an XCom anchor is lost), each try gets a new ti.start_date, and
+  `dags test` sets dag_run.start_date to the logical date; the 3.3 task state store
+  (context["task_state_store"]) keeps rows across retries (reference), a Variable
+  keyed by run/task also works. With soft_fail=True, BaseSensorOperator.resume_execution
+  turns any AirflowException into a skip, so API errors must not be AirflowExceptions.
+  Graded with grader-only DAGs against a grader-owned manifest API (0.5 s per request)
+  via grader_data/defer_runner.py (deferral timeouts enforced with a 4 s grace,
+  triggerer restarted mid-wait, event-loop stalls measured). Primary checks: DAGs
+  import; sensor defers and returns the file list; no event-loop stall >= 0.35 s;
+  budget scenario (6 s upstream task, timeout=16 s, retries=4, 503s from 3-8 s after
+  the first request) fails 14.5-21.5 s after the sensor's first start, after >= 2
+  tries; timed-out sensor fails on try 1 with retries=2; a triggerer restart 8 s into
+  a 12 s timeout still ends 10.5-17.5 s after start; a soft_fail sensor survives a
+  503 outage through retries and returns the files; a soft_fail sensor is skipped
+  when the budget runs out.
+  Mutants: anchor in XCom, anchor = this try's start, anchor = dag_run.start_date,
+  API error raised as AirflowException, sync hook call inside the trigger,
+  deadline relative to trigger construction without defer timeout, Variable anchor
+  stored as a float, a trigger that fabricates the file list without calling the API,
+  and a deferrable flag that is accepted but ignored (still pokes).

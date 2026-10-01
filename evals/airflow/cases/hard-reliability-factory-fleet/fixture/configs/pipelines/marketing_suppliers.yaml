@@ -1,0 +1,28 @@
+name: marketing_suppliers
+team: marketing
+tier: standard
+description: Suppliers pipeline for marketing
+schedule:
+  hour: 4
+  days: '*'
+retries: 4
+steps:
+- name: extract
+  table: marketing.raw_suppliers_00
+- name: validate
+  table: marketing.int_suppliers_00
+  depends_on:
+  - extract
+- name: transform
+  table: marketing.int_suppliers_00
+  depends_on:
+  - validate
+- name: snapshot
+  table: marketing.int_suppliers_00
+  depends_on:
+  - transform
+  - validate
+- name: publish
+  table: marketing.mart_suppliers_00
+  depends_on:
+  - snapshot

@@ -1,0 +1,202 @@
+diff --git a/dags/pipeline_factory.py b/dags/pipeline_factory.py
+index 96daadf..2fec3e5 100644
+--- a/dags/pipeline_factory.py
++++ b/dags/pipeline_factory.py
+@@ -9,18 +9,27 @@ of steps. Every step becomes a task that runs `run_step`.
+ from __future__ import annotations
+ 
+ import json
++import logging
++import zlib
+ from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import yaml
+ from airflow.providers.standard.operators.python import PythonOperator
+-from airflow.sdk import DAG
++from airflow.sdk import DAG, get_parsing_context
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ CONFIG_DIR = PROJECT_ROOT / "configs" / "pipelines"
+ REGISTRY = PROJECT_ROOT / "configs" / "registry.yaml"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
++log = logging.getLogger(__name__)
++
++# Every step is a warehouse query; the warehouse takes 16 at once (see pools.json).
++WAREHOUSE_POOL = "warehouse"
++# Absolute weights so a pipeline's priority does not depend on how many steps it has.
++TIER_PRIORITY = {"critical": 1000, "standard": 1}
++
+ 
+ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+     """Stand-in for the warehouse call: records which step ran for which logical date."""
+@@ -38,59 +47,124 @@ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+     return table
+ 
+ 
+-def load_yaml(path: Path) -> dict:
+-    with open(path) as fh:
+-        return yaml.load(fh, Loader=yaml.SafeLoader)
++try:
++    from yaml import CSafeLoader as _Loader
++except ImportError:  # pragma: no cover
++    from yaml import SafeLoader as _Loader
+ 
+ 
+-def check_table(registry: dict, table: str) -> None:
+-    if table not in registry["datasets"]:
+-        raise ValueError(f"unknown table {table!r}: register it in the platform catalog first")
++def load_yaml(path: Path) -> dict:
++    with open(path) as fh:
++        return yaml.load(fh, Loader=_Loader)
+ 
+ 
+ def start_minute(name: str) -> int:
+     # Spread pipelines over the hour so they do not all hit the warehouse at :00.
+-    return hash(name) % 60
+-
+-
+-def build_dag(path: Path) -> DAG:
++    # crc32 is stable across processes (unlike hash()), so the schedule never drifts.
++    return zlib.crc32(name.encode()) % 60
++
++
++def _check_acyclic(deps: dict[str, list[str]]) -> None:
++    state: dict[str, int] = {}
++    for root in deps:
++        stack = [(root, iter(deps[root]))]
++        state[root] = 1
++        while stack:
++            node, it = stack[-1]
++            for nxt in it:
++                if state.get(nxt) == 1:
++                    raise ValueError(f"dependency cycle through step {nxt!r}")
++                if nxt not in state:
++                    state[nxt] = 1
++                    stack.append((nxt, iter(deps[nxt])))
++                    break
++            else:
++                state[node] = 2
++                stack.pop()
++
++
++def build_dag(path: Path, registry: dict) -> DAG:
+     cfg = load_yaml(path)
+-    registry = load_yaml(REGISTRY)
++    if cfg["name"] != path.stem:
++        raise ValueError(f"name {cfg['name']!r} does not match file name")
+     team = registry["teams"][cfg["team"]]
++    tier = cfg["tier"]
++    if tier not in TIER_PRIORITY:
++        raise ValueError(f"unknown tier {tier!r}")
+     sched = cfg["schedule"]
+-    minute = sched.get("minute", start_minute(cfg["name"]))
+-    owners = set(team["owners"]) | set(cfg.get("owners", []))
++    minute = int(sched["minute"]) if "minute" in sched else start_minute(cfg["name"])
++    hour = int(sched["hour"])
++    if not (0 <= minute <= 59 and 0 <= hour <= 23):
++        raise ValueError("schedule hour/minute out of range")
++    owners = list(dict.fromkeys([*team["owners"], *cfg.get("owners", [])]))
++
++    steps = cfg["steps"]
++    names = [step["name"] for step in steps]
++    if not names or len(set(names)) != len(names):
++        raise ValueError("steps must be non-empty with unique names")
++    deps = {step["name"]: list(dict.fromkeys(step.get("depends_on") or [])) for step in steps}
++    for step in steps:
++        if step["table"] not in registry["datasets"]:
++            raise ValueError(f"unknown table {step['table']!r}: register it in the platform catalog first")
++        for upstream in deps[step["name"]]:
++            if upstream not in deps:
++                raise ValueError(f"step {step['name']!r} depends on unknown step {upstream!r}")
++    _check_acyclic(deps)
+ 
+     dag = DAG(
+         dag_id=cfg["name"],
+         description=cfg.get("description"),
+-        schedule=f"{minute} {sched['hour']} * * {sched.get('days', '*')}",
++        schedule=f"{minute} {hour} * * {sched.get('days', '*')}",
+         start_date=datetime(2026, 1, 1),
+         catchup=False,
+         tags=[cfg["team"], "fleet"],
+-        doc_md=f"Generated from `{path.name}` on {datetime.now():%Y-%m-%d %H:%M}. "
+-               f"On-call: {team['oncall']} ({team['slack']}).",
++        doc_md=f"Generated from `{path.name}`. On-call: {team['oncall']} ({team['slack']}).",
+         default_args={
+             "owner": ",".join(owners),
+             "retries": cfg.get("retries", team["default_retries"]),
+             "retry_delay": timedelta(minutes=5),
++            "pool": WAREHOUSE_POOL,
++            "pool_slots": 1,
++            "priority_weight": TIER_PRIORITY[tier],
++            "weight_rule": "absolute",
+         },
+     )
+     with dag:
+-        tasks = {}
+-        for step in cfg["steps"]:
+-            check_table(registry, step["table"])
+-            tasks[step["name"]] = PythonOperator(
++        tasks = {
++            step["name"]: PythonOperator(
+                 task_id=step["name"],
+                 python_callable=run_step,
+                 op_kwargs={"pipeline": cfg["name"], "step": step["name"], "table": step["table"]},
+             )
+-        for step in cfg["steps"]:
+-            for upstream in step.get("depends_on", []):
+-                tasks[upstream] >> tasks[step["name"]]
++            for step in steps
++        }
++        for name, ups in deps.items():
++            for upstream in ups:
++                tasks[upstream] >> tasks[name]
+     return dag
+ 
+ 
+-for config_path in CONFIG_DIR.glob("*.yaml"):
+-    dag = build_dag(config_path)
+-    globals()[dag.dag_id] = dag
++def _load_fleet() -> None:
++    # When a worker parses this file for a task, only that task's DAG is needed.
++    wanted = get_parsing_context().dag_id
++    if wanted is not None:
++        paths = [CONFIG_DIR / f"{wanted}.yaml"]
++        if not paths[0].is_file():
++            return
++    else:
++        paths = sorted(CONFIG_DIR.glob("*.yaml"))
++    try:
++        registry = load_yaml(REGISTRY)
++    except Exception:
++        log.exception("Failed to load registry %s; no fleet DAGs built", REGISTRY)
++        return
++    for path in paths:
++        try:
++            dag = build_dag(path, registry)
++        except Exception as exc:
++            log.error("Failed to build DAG from config %s: %s: %s", path, type(exc).__name__, exc)
++            continue
++        globals()[dag.dag_id] = dag
++
++
++_load_fleet()
+diff --git a/pools.json b/pools.json
+index bc85e99..9dd7746 100644
+--- a/pools.json
++++ b/pools.json
+@@ -1,3 +1,12 @@
+ {
+-  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false}
++  "default_pool": {
++    "slots": 128,
++    "description": "Default pool",
++    "include_deferred": false
++  },
++  "warehouse": {
++    "slots": 16,
++    "description": "Warehouse concurrent query limit for the fleet",
++    "include_deferred": false
++  }
+ }

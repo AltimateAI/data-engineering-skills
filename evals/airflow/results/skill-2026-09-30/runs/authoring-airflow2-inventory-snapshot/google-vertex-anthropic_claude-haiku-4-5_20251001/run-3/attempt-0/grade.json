@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly in Airflow 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG inventory_snapshot exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['inventory_snapshot', 'sales_daily']"
+    },
+    {
+      "name": "scheduled daily at 02:30 UTC",
+      "kind": "primary",
+      "passed": true,
+      "detail": "[{'start': '2026-10-01T02:30:00+00:00', 'end': '2026-10-02T02:30:00+00:00', 'run_after': '2026-10-02T02:30:00+00:00'}, {'start': '2026-10-02T02:30:00+00:00', 'end': '2026-10-03T02:30:00+00:00', 'run_after': '2026-10-03T02:30:00+00:00'}, {'start': '2026-10-03T02:30:00+00:00', 'end': '2026-10-04T02:30:00+00:00', 'run_after': '2026-10-04T02:30:00+00:00'}]"
+    },
+    {
+      "name": "catchup disabled (2.11 defaults to catchup=True)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "catchup=False"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed tasks: []\nTaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:34.813-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:35.827-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:36.847-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:37.860-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:38.872-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:39.879-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:40.893-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n[2026-09-30T10:07:41.910-0700] {dag.py:3061} WARNING - No tasks to run. unrunnable tasks: {<TaskInstance: inventory_snapshot.low_stock manual__2026-09-14T00:00:00+00:00 [up_for_retry]>}\n\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/metrics/base_stats_logger.py:22 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/triggers/base.py:27 RemovedInAirflow3Warning: Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.\n~/.cache/des-evals/airflow-2.11/lib/python3.12/site-packages/airflow/cli/commands/dag_command.py:48 UserWarning: Could not import graphviz. Rendering graph to the graphical format will not be possible.\n\n[timed out after 300s]"
+    },
+    {
+      "name": "snapshot and low-stock files are correct for each logical date",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-09-28: snapshot expected [('AMS1', 'SKU-001', 111), ('AMS1', 'SKU-002', 89), ('AMS1', 'SKU-003', 190), ('AMS1', 'SKU-004', 231), ('AMS1', 'SKU-005', 60)]... got missing 2026-09-28.csv; low_stock expected [('BER2', 'SKU-002', 23, 55), ('BER2', 'SKU-004', 26, 45), ('LON1', 'SKU-007', 49, 55)] got missing 2026-09-28.csv2026-09-14: snapshot expected [('AMS1', 'SKU-001', 132), ('AMS1', 'SKU-002', 88), ('AMS1', 'SKU-003', 201), ('AMS1', 'SKU-004', 126), ('AMS1', 'SKU-005', 73)]... got [('AMS1', 'SKU-001', 132), ('AMS1', 'SKU-002', 88), ('AMS1', 'SKU-003', 201), ('AMS1', 'SKU-004', 126), ('AMS1', 'SKU-005', 73)]; low_stock expected [('BER2', 'SKU-004', 18, 45), ('LON1', 'SKU-005', 17, 45), ('LON1', 'SKU-007', 42, 55)] got missing 2026-09-14.csv"
+    },
+    {
+      "name": "rerun is idempotent and keeps other dates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "second run ok=False; 2026-09-28: snapshot expected [('AMS1', 'SKU-001', 111), ('AMS1', 'SKU-002', 89), ('AMS1', 'SKU-003', 190), ('AMS1', 'SKU-004', 231), ('AMS1', 'SKU-005', 60)]... got missing 2026-09-28.csv; low_stock expected [('BER2', 'SKU-002', 23, 55), ('BER2', 'SKU-004', 26, 45), ('LON1', 'SKU-007', 49, 55)] got missing 2026-09-28.csv2026-09-14: snapshot expected [('AMS1', 'SKU-001', 132), ('AMS1', 'SKU-002', 88), ('AMS1', 'SKU-003', 201), ('AMS1', 'SKU-004', 126), ('AMS1', 'SKU-005', 73)]... got [('AMS1', 'SKU-001', 132), ('AMS1', 'SKU-002', 88), ('AMS1', 'SKU-003', 201), ('AMS1', 'SKU-004', 126), ('AMS1', 'SKU-005', 73)]; low_stock expected [('BER2', 'SKU-004', 18, 45), ('LON1', 'SKU-005', 17, 45), ('LON1', 'SKU-007', 42, 55)] got missing 2026-09-14.csv"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.5714285714285714,
+  "secondary_score": 1.0
+}

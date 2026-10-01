@@ -1,0 +1,38 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: each run loads a day whose export has already landed",
+  "primary_pass": false,
+  "primary_score": 0.8888888888888888,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 110.6,
+  "cost_usd": 1.05426,
+  "cost_reported_usd": 3.107331,
+  "tokens": {
+    "input": 684367,
+    "output": 4219,
+    "reasoning": 0,
+    "cache_read": 456636,
+    "cache_write": 227721,
+    "total": 1372943
+  },
+  "steps": 9,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "dbt-develop",
+      "origin": "builtin",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 4,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dbf1660ffeh7kp7HoVrMFCFj.json"
+}

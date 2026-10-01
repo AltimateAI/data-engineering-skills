@@ -1,0 +1,24 @@
+name: catalog_orders_backfill_safe
+team: catalog
+tier: standard
+description: Orders pipeline for catalog
+schedule:
+  hour: 4
+  days: 1-5
+  minute: 15
+retries: 4
+steps:
+- name: extract
+  table: catalog.raw_orders_00
+- name: transform
+  table: catalog.int_orders_00
+  depends_on:
+  - extract
+- name: enrich
+  table: catalog.int_orders_00
+  depends_on:
+  - transform
+- name: publish
+  table: catalog.mart_orders_00
+  depends_on:
+  - enrich

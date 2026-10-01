@@ -1,0 +1,198 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 0.346266,
+  "cost_reported_usd": 0.346266,
+  "wall_s": 90.3,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-040414/hard-deferrable-debug-partition-sensor-qcythn61/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 6.0,
+  "cost_list_price_usd": 0.346266,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 34,
+    "output": 9875,
+    "reasoning": 3444,
+    "cache_read": 524879,
+    "cache_write": 35618,
+    "total": 570406
+  },
+  "steps": 18,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.346266,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 34,
+      "outputTokens": 9875,
+      "cacheReadInputTokens": 524879,
+      "cacheCreationInputTokens": 35618,
+      "webSearchRequests": 0,
+      "costUSD": 0.34626579999999996,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 3444,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 18,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": true,
+    "hits": [
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<work>/",
+        "root": "work-root"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/stub.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      }
+    ],
+    "denied_hits": [
+      {
+        "call": 16,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      },
+      {
+        "call": 16,
+        "tool": "bash",
+        "path": "<tmp>/stub.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 16,
+        "tool": "bash",
+        "path": "<tmp>/p",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 15,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd <work>/*/hard-deferrable-debug-partition-sensor-qcythn61/ws && (python tools/catalog_stub.py --publish orders/2026-09-29=0 --port-file <tmp>/p ><tmp>/stub.log 2>&1 &) ; sleep 2; export AIRFLOW_CONN_LAKE_DEFAULT=\"{\\\"conn_type\\\": \\\"http\\\", \\\"host\\\": \\\"127.0.0.1\\\", \\\"p",
+        "output": "Exit code 1\n(eval):1: no matches found: <work>/*/hard-deferrable-debug-partition-sensor-qcythn61/ws"
+      },
+      {
+        "call": 16,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd <work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-040414/hard-deferrable-debug-partition-sensor-qcythn61/ws && (python tools/catalog_stub.py --publish orders/2026-09-29=0 --port-file <tmp>/p ><tmp>/stub.log 2>&1 &) ; sleep 2; export AIRFLOW_C",
+        "output": "Exit code 1\n(eval):1: operation not permitted: <tmp>/stub.log\ncat: <tmp>/p: No such file or directory\nTraceback (most recent call last):\n  File \"<stdin>\", line 6, in <module>\n  File \"/opt/homebrew/Cella"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": true,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

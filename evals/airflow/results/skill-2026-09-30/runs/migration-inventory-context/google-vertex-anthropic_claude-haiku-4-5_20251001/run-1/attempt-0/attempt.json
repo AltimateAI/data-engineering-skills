@@ -1,0 +1,40 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 170.3,
+  "cost_usd": 0.914718,
+  "cost_reported_usd": 3.453268,
+  "tokens": {
+    "input": 2538733,
+    "output": 12349,
+    "reasoning": 0,
+    "cache_read": 2017737,
+    "cache_write": 520813,
+    "total": 5089632
+  },
+  "steps": 37,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "idle-done",
+    "done_reason": "idle_heuristic"
+  },
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 16,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d008fa8ffendYLzZ2PC22XY5.json"
+}

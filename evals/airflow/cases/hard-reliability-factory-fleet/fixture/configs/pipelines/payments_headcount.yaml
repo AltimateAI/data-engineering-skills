@@ -1,0 +1,33 @@
+name: payments_headcount
+team: payments
+tier: critical
+description: Headcount pipeline for payments
+schedule:
+  hour: 1
+  days: '*'
+owners:
+- sam
+steps:
+- name: extract
+  table: payments.raw_headcount_00
+- name: validate
+  table: payments.int_headcount_00
+  depends_on:
+  - extract
+- name: transform
+  table: payments.int_headcount_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: payments.int_headcount_00
+  depends_on:
+  - transform
+  - validate
+- name: snapshot
+  table: payments.int_headcount_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: payments.mart_headcount_00
+  depends_on:
+  - snapshot

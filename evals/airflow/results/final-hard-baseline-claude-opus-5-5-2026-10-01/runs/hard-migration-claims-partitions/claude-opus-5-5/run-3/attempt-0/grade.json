@@ -1,0 +1,73 @@
+{
+  "checks": [
+    {
+      "name": "all 5 DAGs import on Airflow 3.3 (dags/ + plugins/)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing: []"
+    },
+    {
+      "name": "every DAG keeps its tasks and dependencies (added helper tasks allowed)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "claims_intake_hourly: tasks=['land_claims'] deps=[]; claims_service_date_marts: tasks=['publish_ready', 'rebuild_partitions'] deps=[['rebuild_partitions', 'publish_ready']]; provider_directory_daily: tasks=['sync_providers'] deps=[]; denials_digest_daily: tasks=['build_digest'] deps=[]; claims_reprocess: tasks=['log_recheck', 'recheck_partition'] deps=[['recheck_partition', 'log_recheck']]"
+    },
+    {
+      "name": "schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "provider_directory_daily scheduled 2026-03-04T03:00:00+00:00: state=success failed=[]; provider_directory_daily scheduled 2026-03-05T03:00:00+00:00: state=success failed=[]; claims_intake_hourly scheduled 2026-03-04T21:00:00+00:00: state=success failed=[]; claims_intake_hourly scheduled 2026-03-04T22:00:00+00:00: state=success failed=[]; claims_intake_hourly scheduled 2026-03-04T23:00:00+00:00: state=success failed=[]; claims_service_date_marts asset-triggered 2026-03-04T23:05:00+00:00: state=success failed=[]; claims_intake_hourly scheduled 2026-03-05T00:00:00+00:00: state=success failed=[]; claims_intake_hourly scheduled 2026-03-05T01:00:00+00:00: state=success failed=[]; claims_service_date_marts asset-triggered 2026-03-05T01:05:00+00:00: state=success failed=[]; denials_digest_daily scheduled 2026-03-05T07:00:00+00:00: state=success failed=[]; provider_directory_daily scheduled 2026-03-06T03:00:00+00:00: state=success failed=[]; denials_digest_daily scheduled 2026-03-06T07:00:00+00:00: state=success failed=[]; claims_reprocess CLI trigger 2026-03-06T09:00:00+00:00: state=success failed=[]; claims_service_date_marts asset-triggered 2026-03-06T09:05:00+00:00: state=success failed=[]; denials_digest_daily scheduled 2026-03-07T07:00:00+00:00: state=success failed=[]"
+    },
+    {
+      "name": "hourly intake lands the same partition files",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "partition marts, rebuild records and the READY list match",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "provider directory snapshots match",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "denials digests use the same directory versions and rows",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/claims_service_date_marts.py:69 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

@@ -1,0 +1,39 @@
+{
+  "status": "cost_limit",
+  "reason": "per-run cost cap",
+  "primary_pass": false,
+  "primary_score": 0.6666666666666666,
+  "secondary_score": 1.0,
+  "returncode": null,
+  "wall_s": 251.9,
+  "cost_usd": 5.274489,
+  "cost_reported_usd": 11.40357,
+  "tokens": {
+    "input": 2043056,
+    "output": 8308,
+    "reasoning": 0,
+    "cache_read": 727991,
+    "cache_write": 1315036,
+    "total": 4094391
+  },
+  "steps": 28,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "creating-dbt-models",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 22,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d0f9c71ffeFSiCr7ldyfQCPv.json",
+  "recovered": "harness crashed in os.killpg (EPERM: process group already exited) when the per-run cost cap tripped at the poll where the agent finished; attempt completed offline from the surviving workspace with the same patch/grade/classify code (cost_capped=True); wall_s from event timestamps"
+}

@@ -1,0 +1,35 @@
+name: search_signups_eu
+team: search
+tier: standard
+description: Signups pipeline for search
+schedule:
+  hour: 5
+  days: '1'
+steps:
+- name: extract
+  table: search.raw_signups_00
+- name: stage
+  table: search.stg_signups_00
+  depends_on:
+  - extract
+- name: validate
+  table: search.int_signups_00
+  depends_on:
+  - stage
+- name: enrich
+  table: search.int_signups_00
+  depends_on:
+  - validate
+  - stage
+- name: aggregate
+  table: search.int_signups_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: search.int_signups_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: search.mart_signups_00
+  depends_on:
+  - snapshot

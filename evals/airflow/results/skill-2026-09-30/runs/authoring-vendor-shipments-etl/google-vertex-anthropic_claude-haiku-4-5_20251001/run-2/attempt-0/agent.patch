@@ -1,0 +1,94 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..78465c1
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,88 @@
++"""Load daily vendor shipments file into warehouse and publish carrier report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    @task
++    def build_shipments_filepath(ds: str) -> str:
++        """Build the full path to today's shipments file from Airflow Variable."""
++        from airflow.models import Variable
++
++        landing_dir = Variable.get("vendor_landing_dir")
++        return f"{landing_dir}/shipments_{ds}.csv"
++
++    shipments_filepath = build_shipments_filepath(ds="{{ ds }}")
++
++    wait_for_file = FileSensor(
++        task_id="wait_for_shipments_file",
++        filepath=shipments_filepath,
++        poke_interval=300,  # Check every 5 minutes
++        timeout=54000,  # 15 hours (roughly until end of day)
++        mode="reschedule",  # Don't block the worker; reschedule the task
++    )
++
++    @task
++    def load_shipments(shipments_filepath: str, ds: str = None):
++        """Load the shipments file into the warehouse, replacing any existing day's data."""
++        import duckdb
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            # Create table if it doesn't exist.
++            # DuckDB will infer additional columns from the CSV.
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS vendor_shipments (
++                    ship_date DATE
++                )
++                """
++            )
++
++            # Replace the day's rows so a rerun never duplicates them
++            con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds])
++
++            # Insert the day's shipments with the ship_date column
++            con.execute(
++                """
++                INSERT INTO vendor_shipments
++                SELECT *, CAST(? AS DATE) as ship_date
++                FROM read_csv_auto(?)
++                """,
++                [ds, shipments_filepath],
++            )
++
++            # Return the count of rows loaded
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            ).fetchone()[0]
++
++    publish_report = BashOperator(
++        task_id="publish_shipments_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    # Task dependencies
++    load_result = load_shipments(shipments_filepath, ds="{{ ds }}")
++    wait_for_file >> load_result >> publish_report
++
++
++vendor_shipments()

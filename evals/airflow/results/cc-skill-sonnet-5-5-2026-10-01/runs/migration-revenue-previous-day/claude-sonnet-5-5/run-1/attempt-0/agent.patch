@@ -1,0 +1,156 @@
+diff --git a/README.md b/README.md
+index f74373e..4eb95ea 100644
+--- a/README.md
++++ b/README.md
+@@ -11,5 +11,5 @@ Local checks:
+ 
+ ```bash
+ pytest tests/
+-airflow dags test daily_revenue 2026-03-04
++airflow dags test daily_revenue 2026-03-04T04:15:00+00:00   # processes business day 2026-03-03
+ ```
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+index d013cbd..8b9b450 100644
+--- a/dags/daily_revenue.py
++++ b/dags/daily_revenue.py
+@@ -13,9 +13,9 @@ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow import DAG
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, CronDataIntervalTimetable
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_PATH = PROJECT_ROOT / "data" / "orders.csv"
+@@ -28,10 +28,10 @@ default_args = {
+ }
+ 
+ 
+-def load_daily_revenue(templates_dict, ds, **_):
++def load_daily_revenue(templates_dict, data_interval_start, **_):
+     """Run the rendered query and overwrite the CSV for the business day."""
+     rows = duckdb.sql(templates_dict["query"]).fetchall()
+-    out = OUTPUT_DIR / "daily_revenue" / f"{ds}.csv"
++    out = OUTPUT_DIR / "daily_revenue" / f"{data_interval_start:%Y-%m-%d}.csv"
+     out.parent.mkdir(parents=True, exist_ok=True)
+     with out.open("w", newline="") as fh:
+         writer = csv.writer(fh)
+@@ -43,7 +43,7 @@ def load_daily_revenue(templates_dict, ds, **_):
+ 
+ with DAG(
+     dag_id="daily_revenue",
+-    schedule_interval="15 4 * * *",
++    schedule=CronDataIntervalTimetable("15 4 * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -63,8 +63,8 @@ with DAG(
+         task_id="publish_manifest",
+         bash_command=(
+             "mkdir -p {{ params.output_dir }}/manifests && "
+-            "echo '{\"business_date\": \"{{ ds }}\", \"logical_ts\": \"{{ execution_date }}\"}' "
+-            "> {{ params.output_dir }}/manifests/{{ ds }}.json"
++            "echo '{\"business_date\": \"{{ data_interval_start | ds }}\", \"logical_ts\": \"{{ logical_date.isoformat() }}\"}' "
++            "> {{ params.output_dir }}/manifests/{{ data_interval_start | ds }}.json"
+         ),
+     )
+ 
+diff --git a/dags/region_reference.py b/dags/region_reference.py
+index 584b13a..5c689cb 100644
+--- a/dags/region_reference.py
++++ b/dags/region_reference.py
+@@ -5,10 +5,11 @@ from __future__ import annotations
+ import csv
+ from pathlib import Path
+ 
+-from airflow import DAG
+-from airflow.operators.dummy import DummyOperator
+-from airflow.operators.python import PythonOperator
+-from airflow.utils.dates import days_ago
++import pendulum
++
++from airflow.sdk import DAG
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.providers.standard.operators.empty import EmptyOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+@@ -26,11 +27,11 @@ def write_regions():
+ 
+ with DAG(
+     dag_id="region_reference",
+-    schedule_interval=None,
+-    start_date=days_ago(1),
++    schedule=None,
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["finance", "reference"],
+ ) as dag:
+-    start = DummyOperator(task_id="start")
++    start = EmptyOperator(task_id="start")
+     write = PythonOperator(task_id="write_regions", python_callable=write_regions)
+     start >> write
+diff --git a/dags/sql/daily_revenue.sql b/dags/sql/daily_revenue.sql
+index 7acfdb5..10a22b1 100644
+--- a/dags/sql/daily_revenue.sql
++++ b/dags/sql/daily_revenue.sql
+@@ -15,7 +15,7 @@ FROM read_csv(
+     }
+ )
+ WHERE status = 'completed'
+-  AND order_ts >= TIMESTAMP '{{ ds }} 00:00:00'
+-  AND order_ts <  TIMESTAMP '{{ next_ds }} 00:00:00'
++  AND order_ts >= TIMESTAMP '{{ data_interval_start | ds }} 00:00:00'
++  AND order_ts <  TIMESTAMP '{{ data_interval_end | ds }} 00:00:00'
+ GROUP BY region
+ ORDER BY region
+diff --git a/requirements.txt b/requirements.txt
+index 74b599a..0bc0b6c 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,4 +1,5 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ duckdb==1.4.4
+ pendulum==3.2.0
+ pytest==8.4.2
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+index 00cc214..b807f75 100644
+--- a/tests/test_dag_integrity.py
++++ b/tests/test_dag_integrity.py
+@@ -1,16 +1,19 @@
+ """CI checks: every DAG imports and the revenue pipeline keeps its shape."""
+ 
++import os
+ from pathlib import Path
+ 
+ import pytest
+-from airflow.models import DagBag
++from airflow.dag_processing.dagbag import DagBag
++
++os.environ.setdefault("AIRFLOW__CORE__LOAD_EXAMPLES", "False")
+ 
+ DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
+ 
+ 
+ @pytest.fixture(scope="session")
+ def dagbag():
+-    return DagBag(dag_folder=str(DAGS_DIR), include_examples=False)
++    return DagBag(dag_folder=str(DAGS_DIR))
+ 
+ 
+ def test_no_import_errors(dagbag):
+@@ -18,7 +21,7 @@ def test_no_import_errors(dagbag):
+ 
+ 
+ def test_daily_revenue_structure(dagbag):
+-    dag = dagbag.get_dag("daily_revenue")
++    dag = dagbag.dags.get("daily_revenue")
+     assert dag is not None
+     assert set(dag.task_ids) == {"load_daily_revenue", "publish_manifest"}
+     assert dag.get_task("publish_manifest").upstream_task_ids == {"load_daily_revenue"}

@@ -1,0 +1,786 @@
+diff --git a/README.md b/README.md
+index 5e1ebce..fc42b62 100644
+--- a/README.md
++++ b/README.md
+@@ -15,6 +15,30 @@ Connection `manifests_default` (type `http`): `host`, `port`, `schema` = URL sch
+ `200 {"status": "PUBLISHED", "files": [...]}`. A published manifest never changes.
+ The API takes about a second per call and has short outages (`503`) a few times a week.
+ 
++## PartnerManifestSensor
++
++The sensor is deferrable by default (`deferrable=True`): it records when it started waiting, then hands
++the polling to `partners.triggers.PartnerManifestTrigger` in the triggerer and frees its worker slot.
++
++- Once the manifest is `PUBLISHED` the sensor returns its file list (XCom `return_value`).
++- `timeout` is a per-DAG-run budget counted from the sensor's first start in that run. The start is kept
++  in the task state store, so the task's retries and triggerer restarts neither reset nor extend it; only
++  clearing the task starts a fresh budget. At the deadline the sensor fails without retrying, or is
++  skipped with `soft_fail=True`.
++- A manifest API error (HTTP error or connection failure) fails the current try so the task's retries
++  take over, for `soft_fail` sensors too.
++- All API calls from the trigger are async (`httpx`), so the triggerer's event loop is never blocked.
++- `deferrable=False` keeps the classic poke loop, with the same per-run budget.
++
++The triggerer imports the trigger by class path, so `dags/` must be on the triggerer's `PYTHONPATH`
++(workers pick it up from the DAG bundle automatically).
++
++## Tests
++
++```bash
++python -m pytest tests
++```
++
+ ## Local development
+ 
+ ```bash
+diff --git a/dags/partners/hooks.py b/dags/partners/hooks.py
+index 74b3ef7..56710be 100644
+--- a/dags/partners/hooks.py
++++ b/dags/partners/hooks.py
+@@ -7,6 +7,7 @@ GET /v1/partners/<partner>/manifests/<ds>
+ 
+ from __future__ import annotations
+ 
++import httpx
+ import requests
+ from airflow.sdk import BaseHook
+ 
+@@ -43,3 +44,26 @@ class ManifestHook(BaseHook):
+         if resp.status_code != 200:
+             raise ManifestApiError(f"GET {url} -> HTTP {resp.status_code}")
+         return resp.json()
++
++    async def aget_manifest(self, partner: str, ds: str, client: httpx.AsyncClient | None = None) -> dict:
++        """Async counterpart of :meth:`get_manifest` for use in triggers.
++
++        Everything awaits (connection lookup included), so the triggerer's event loop is never blocked.
++        Pass ``client`` to reuse one ``httpx.AsyncClient`` across calls.
++        """
++        conn = await self.aget_connection(self.manifest_conn_id)
++        url, headers = self.url_and_headers(conn, partner, ds)
++        try:
++            if client is None:
++                async with httpx.AsyncClient(timeout=self.request_timeout) as own_client:
++                    resp = await own_client.get(url, headers=headers)
++            else:
++                resp = await client.get(url, headers=headers, timeout=self.request_timeout)
++        except httpx.HTTPError as exc:
++            raise ManifestApiError(f"GET {url} failed: {exc!r}") from exc
++        if resp.status_code != 200:
++            raise ManifestApiError(f"GET {url} -> HTTP {resp.status_code}")
++        try:
++            return resp.json()
++        except ValueError as exc:
++            raise ManifestApiError(f"GET {url} -> unreadable body: {exc!r}") from exc
+diff --git a/dags/partners/sensors.py b/dags/partners/sensors.py
+index c7084fb..e80c6a8 100644
+--- a/dags/partners/sensors.py
++++ b/dags/partners/sensors.py
+@@ -3,38 +3,171 @@
+ from __future__ import annotations
+ 
+ from collections.abc import Sequence
+-from typing import Any
++from datetime import datetime, timedelta
++from typing import Any, NoReturn
+ 
+-from airflow.sdk import BaseSensorOperator, PokeReturnValue
++from airflow.sdk import BaseSensorOperator, PokeReturnValue, timezone
++from airflow.sdk.exceptions import (
++    AirflowSensorTimeout,
++    AirflowSkipException,
++    TaskDeferralError,
++    TaskDeferralTimeout,
++)
+ 
+-from partners.hooks import ManifestHook
++from partners.hooks import ManifestApiError, ManifestHook
++from partners.triggers import PartnerManifestTrigger
++
++# Scheduler-side backstop for a trigger that never reports back (for example the triggerer is down):
++# the scheduler fails the deferred task this long after the deadline. The grace leaves room for the
++# trigger's final API call at the deadline to complete and be delivered first.
++TRIGGER_TIMEOUT_GRACE = timedelta(seconds=60)
+ 
+ 
+ class PartnerManifestSensor(BaseSensorOperator):
+     """Wait until the partner has published the manifest for ``ds`` and return its file list.
+ 
++    By default the sensor defers to :class:`~partners.triggers.PartnerManifestTrigger`, so it holds no
++    worker slot while waiting. The returned file list is pushed to XCom as the task's return value.
++
++    ``timeout`` is a per-DAG-run budget counted from the moment the sensor first started waiting in that
++    run. The start is persisted in the task state store, so neither the task's retries nor triggerer
++    restarts reset or extend it. A fresh budget starts only when the task is cleared. When the budget is
++    spent the sensor fails for good (no retries), or is skipped when ``soft_fail=True``.
++
++    A manifest API error (HTTP error or connection failure) fails the current try so the task's retries
++    take over; this holds for ``soft_fail`` sensors too, because an outage says nothing about the partner.
++
+     :param partner: partner key, e.g. ``acme``
+     :param ds: manifest date (templated, usually ``{{ ds }}``)
+     :param manifest_conn_id: connection to the manifest API
++    :param deferrable: wait in the triggerer (default) instead of poking from a worker slot
+     """
+ 
+     template_fields: Sequence[str] = ("partner", "ds")
+ 
++    # Task state store key for when the sensor first started waiting in the current run.
++    # Renaming it on a deployed sensor restarts the budget of in-flight retries.
++    started_at_key = "partner_manifest_sensor.started_at"
++
+     def __init__(
+         self,
+         *,
+         partner: str,
+         ds: str = "{{ ds }}",
+         manifest_conn_id: str = ManifestHook.default_conn_name,
++        deferrable: bool = True,
+         **kwargs: Any,
+     ) -> None:
+         super().__init__(**kwargs)
+         self.partner = partner
+         self.ds = ds
+         self.manifest_conn_id = manifest_conn_id
++        self.deferrable = deferrable
+ 
+     def poke(self, context) -> PokeReturnValue | bool:
+         manifest = ManifestHook(self.manifest_conn_id).get_manifest(self.partner, self.ds)
+         if manifest["status"] == "PUBLISHED":
+             return PokeReturnValue(is_done=True, xcom_value=manifest["files"])
+         return False
++
++    def execute(self, context) -> Any:
++        started_at = self._started_at(context)
++        deadline = started_at + timedelta(seconds=self.timeout)
++        remaining = (deadline - timezone.utcnow()).total_seconds()
++
++        if not self.deferrable:
++            # Let the base class poke loop spend only what is left of this run's budget.
++            self.timeout = max(remaining, 0)
++            return super().execute(context)
++
++        if remaining <= 0:
++            self._timed_out(started_at)
++
++        self.log.info(
++            "Waiting for manifest %s/%s in the triggerer until %s (%.0fs left of %gs, waiting since %s)",
++            self.partner,
++            self.ds,
++            deadline.isoformat(),
++            remaining,
++            self.timeout,
++            started_at.isoformat(),
++        )
++        self.defer(
++            trigger=PartnerManifestTrigger(
++                partner=self.partner,
++                ds=self.ds,
++                manifest_conn_id=self.manifest_conn_id,
++                deadline=deadline,
++                poke_interval=self.poke_interval,
++            ),
++            method_name="execute_complete",
++            kwargs={"started_at": started_at.isoformat()},
++            timeout=timedelta(seconds=remaining) + TRIGGER_TIMEOUT_GRACE,
++        )
++
++    def execute_complete(self, context, event: Any = None, started_at: str | None = None) -> list[str]:
++        status = event.get("status") if isinstance(event, dict) else None
++        if status == "published":
++            files = event["files"]
++            self.log.info("Manifest %s/%s published with %d files", self.partner, self.ds, len(files))
++            return files
++        if status == "timeout":
++            self._timed_out(datetime.fromisoformat(started_at) if started_at else None)
++        if status == "error":
++            self._fail_try(ManifestApiError(event.get("message") or "manifest API error"))
++        self._fail_try(ManifestApiError(f"unexpected trigger event: {event!r}"))
++
++    def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context) -> Any:
++        # BaseSensorOperator.resume_execution turns every error raised while resuming into a skip for
++        # soft_fail sensors, which would skip globex on an API outage or a trigger crash. Resume through
++        # BaseOperator instead and apply soft_fail only to the timeout.
++        try:
++            return super(BaseSensorOperator, self).resume_execution(next_method, next_kwargs, context)
++        except TaskDeferralTimeout:
++            # The scheduler's backstop fired: the trigger did not report back by deadline + grace.
++            self._timed_out(None)
++        except TaskDeferralError as exc:
++            self._fail_try(exc)
++
++    def _started_at(self, context) -> datetime:
++        """Return when this sensor first started waiting in the current DAG run.
++
++        The first try of a wait (the very first try, or the first after the task was cleared) records
++        ``now`` in the task state store; later tries of the same wait read it back. Airflow sets
++        ``max_tries = try_number + retries`` when a task is cleared, so the first try of a wait is
++        ``max_tries - retries + 1``, the same rule Airflow's reschedule sensors use.
++        """
++        now = timezone.utcnow()
++        store = context.get("task_state_store")
++        if store is None:
++            self.log.warning("task_state_store is unavailable; the timeout is counted from this try only")
++            return now
++
++        ti = context["ti"]
++        first_try_number = (ti.max_tries or 0) - (self.retries or 0) + 1
++        if ti.try_number > first_try_number:
++            stored = store.get(self.started_at_key)
++            if stored:
++                started_at = datetime.fromisoformat(stored)
++                self.log.info("Try %s continues the wait started at %s", ti.try_number, started_at.isoformat())
++                return started_at
++            self.log.warning("Try %s has no recorded start of the wait; counting the timeout from now", ti.try_number)
++
++        store.set(self.started_at_key, now.isoformat(), retention=timedelta(seconds=self.timeout) + timedelta(days=7))
++        return now
++
++    def _timed_out(self, started_at: datetime | None) -> NoReturn:
++        since = f" (waiting since {started_at.isoformat()})" if started_at else ""
++        message = (
++            f"Sensor has timed out: no manifest for {self.partner}/{self.ds} "
++            f"within the {self.timeout:g}s budget{since}."
++        )
++        if self.soft_fail:
++            raise AirflowSkipException(message)
++        raise AirflowSensorTimeout(message)
++
++    def _fail_try(self, exc: Exception) -> NoReturn:
++        """Fail the current try (retries apply); only ``never_fail`` turns this into a skip."""
++        if self.never_fail:
++            raise AirflowSkipException("Skipping due to never_fail is set to True.") from exc
++        raise exc
+diff --git a/dags/partners/triggers.py b/dags/partners/triggers.py
+new file mode 100644
+index 0000000..fce7922
+--- /dev/null
++++ b/dags/partners/triggers.py
+@@ -0,0 +1,93 @@
++"""Trigger that polls the partner manifest API from the triggerer."""
++
++from __future__ import annotations
++
++import asyncio
++from collections.abc import AsyncIterator
++from datetime import datetime, timezone
++from typing import Any
++
++import httpx
++from airflow.triggers.base import BaseTrigger, TriggerEvent
++
++from partners.hooks import ManifestApiError, ManifestHook
++
++
++class PartnerManifestTrigger(BaseTrigger):
++    """Poll the manifest API until the manifest is PUBLISHED, the deadline passes, or the API errors.
++
++    The trigger never raises. Every outcome is a ``TriggerEvent`` whose payload carries a ``status``:
++
++    - ``published``: ``files`` holds the manifest's file list.
++    - ``timeout``: the deadline passed and the last call still saw PENDING.
++    - ``error``: the API answered with an error or could not be reached; ``message`` says what happened.
++
++    Reporting errors as events (instead of raising) matters: an exception escaping a trigger resumes the
++    task with a ``TaskDeferralError``, which ``BaseSensorOperator`` turns into a skip for ``soft_fail``
++    sensors. ``PartnerManifestSensor.execute_complete`` decides what each outcome means.
++
++    :param deadline: absolute, timezone-aware moment at which the wait is over. It travels in the serialized
++        kwargs, so a triggerer restart re-creates the trigger with the very same deadline.
++    :param poke_interval: seconds between two calls while the manifest is PENDING
++    :param request_timeout: per-call HTTP timeout in seconds
++    """
++
++    def __init__(
++        self,
++        *,
++        partner: str,
++        ds: str,
++        manifest_conn_id: str = ManifestHook.default_conn_name,
++        deadline: datetime,
++        poke_interval: float = 60.0,
++        request_timeout: float = 20.0,
++    ) -> None:
++        super().__init__()
++        if not isinstance(deadline, datetime):
++            raise TypeError(f"deadline must be a datetime, got {type(deadline).__name__}")
++        if deadline.tzinfo is None:
++            raise ValueError("deadline must be timezone-aware")
++        self.partner = partner
++        self.ds = ds
++        self.manifest_conn_id = manifest_conn_id
++        self.deadline = deadline.astimezone(timezone.utc)
++        self.poke_interval = float(poke_interval)
++        self.request_timeout = float(request_timeout)
++
++    def serialize(self) -> tuple[str, dict[str, Any]]:
++        return (
++            "partners.triggers.PartnerManifestTrigger",
++            {
++                "partner": self.partner,
++                "ds": self.ds,
++                "manifest_conn_id": self.manifest_conn_id,
++                "deadline": self.deadline,
++                "poke_interval": self.poke_interval,
++                "request_timeout": self.request_timeout,
++            },
++        )
++
++    async def run(self) -> AsyncIterator[TriggerEvent]:
++        hook = ManifestHook(self.manifest_conn_id, request_timeout=self.request_timeout)
++        try:
++            async with httpx.AsyncClient() as client:
++                while True:
++                    manifest = await hook.aget_manifest(self.partner, self.ds, client=client)
++                    if manifest.get("status") == "PUBLISHED":
++                        files = manifest.get("files") or []
++                        self.log.info("Manifest %s/%s is published with %d files", self.partner, self.ds, len(files))
++                        yield TriggerEvent({"status": "published", "files": files})
++                        return
++                    remaining = (self.deadline - datetime.now(timezone.utc)).total_seconds()
++                    if remaining <= 0:
++                        self.log.info("Manifest %s/%s still pending at the deadline %s", self.partner, self.ds, self.deadline)
++                        yield TriggerEvent({"status": "timeout", "deadline": self.deadline.isoformat()})
++                        return
++                    self.log.debug("Manifest %s/%s pending; %.0fs left", self.partner, self.ds, remaining)
++                    await asyncio.sleep(min(self.poke_interval, remaining))
++        except ManifestApiError as exc:
++            self.log.warning("Manifest API error for %s/%s: %s", self.partner, self.ds, exc)
++            yield TriggerEvent({"status": "error", "message": str(exc)})
++        except Exception as exc:  # e.g. the connection could not be fetched; must not become a skip
++            self.log.exception("Unexpected error while polling the manifest for %s/%s", self.partner, self.ds)
++            yield TriggerEvent({"status": "error", "message": f"{type(exc).__name__}: {exc}"})
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..5c9de4f
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,47 @@
++from __future__ import annotations
++
++import subprocess
++import sys
++import time
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "dags"))
++
++STUB = ROOT / "tools" / "manifest_stub.py"
++TOKEN = "eval-manifest-token"
++
++
++def fake_connection(port: int = 8000) -> SimpleNamespace:
++    return SimpleNamespace(host="127.0.0.1", port=port, schema="http", password=TOKEN)
++
++
++@pytest.fixture
++def stub(tmp_path):
++    """Start tools/manifest_stub.py with the given flags; returns (port, log path)."""
++    procs = []
++
++    def start(*flags: str) -> SimpleNamespace:
++        port_file = tmp_path / f"port-{len(procs)}"
++        log = tmp_path / f"requests-{len(procs)}.jsonl"
++        proc = subprocess.Popen(
++            [sys.executable, str(STUB), "--port-file", str(port_file), "--log", str(log), *flags],
++            stdout=subprocess.DEVNULL,
++            stderr=subprocess.DEVNULL,
++        )
++        procs.append(proc)
++        for _ in range(100):
++            if port_file.exists() and port_file.read_text().strip():
++                break
++            time.sleep(0.05)
++        else:
++            raise RuntimeError("manifest stub did not start")
++        return SimpleNamespace(port=int(port_file.read_text()), log=log)
++
++    yield start
++    for proc in procs:
++        proc.terminate()
++        proc.wait(timeout=5)
+diff --git a/tests/test_sensor.py b/tests/test_sensor.py
+new file mode 100644
+index 0000000..8f2ed74
+--- /dev/null
++++ b/tests/test_sensor.py
+@@ -0,0 +1,202 @@
++from __future__ import annotations
++
++from datetime import datetime, timedelta, timezone
++from types import SimpleNamespace
++
++import pytest
++from airflow.sdk.bases.operator import TriggerFailureReason
++from airflow.sdk.exceptions import (
++    AirflowSensorTimeout,
++    AirflowSkipException,
++    TaskDeferralError,
++    TaskDeferred,
++)
++from partners import sensors
++from partners.hooks import ManifestApiError, ManifestHook
++from partners.sensors import TRIGGER_TIMEOUT_GRACE, PartnerManifestSensor
++from partners.triggers import PartnerManifestTrigger
++
++T0 = datetime(2026, 9, 30, 4, 0, tzinfo=timezone.utc)
++FILES = ["s3://partners/acme/2026-09-30/batch-0.csv.gz"]
++KEY = PartnerManifestSensor.started_at_key
++
++
++class FakeStateStore:
++    def __init__(self, **values):
++        self.values = dict(values)
++        self.retentions = {}
++
++    def get(self, key, default=None):
++        return self.values.get(key, default)
++
++    def set(self, key, value, *, retention=None):
++        self.values[key] = value
++        self.retentions[key] = retention
++
++
++def make_sensor(**overrides) -> PartnerManifestSensor:
++    kwargs = {"task_id": "wait_acme", "partner": "acme", "ds": "2026-09-30", "poke_interval": 300, "timeout": 3600, "retries": 3}
++    kwargs.update(overrides)
++    return PartnerManifestSensor(**kwargs)
++
++
++def make_context(store=None, try_number=1, max_tries=3):
++    context = {"ti": SimpleNamespace(try_number=try_number, max_tries=max_tries)}
++    if store is not None:
++        context["task_state_store"] = store
++    return context
++
++
++@pytest.fixture
++def now(monkeypatch):
++    clock = SimpleNamespace(value=T0)
++    monkeypatch.setattr(sensors, "timezone", SimpleNamespace(utcnow=lambda: clock.value))
++    return clock
++
++
++def deferral(sensor, context) -> TaskDeferred:
++    with pytest.raises(TaskDeferred) as info:
++        sensor.execute(context)
++    return info.value
++
++
++def test_first_try_records_the_start_and_defers_with_the_full_budget(now):
++    store = FakeStateStore()
++    sensor = make_sensor()
++    deferred = deferral(sensor, make_context(store))
++
++    assert store.values[KEY] == T0.isoformat()
++    assert store.retentions[KEY] >= timedelta(seconds=3600)
++    trigger = deferred.trigger
++    assert isinstance(trigger, PartnerManifestTrigger)
++    assert trigger.deadline == T0 + timedelta(seconds=3600)
++    assert (trigger.partner, trigger.ds, trigger.manifest_conn_id, trigger.poke_interval) == (
++        "acme",
++        "2026-09-30",
++        ManifestHook.default_conn_name,
++        300,
++    )
++    assert deferred.method_name == "execute_complete"
++    assert deferred.kwargs == {"started_at": T0.isoformat()}
++    assert deferred.timeout == timedelta(seconds=3600) + TRIGGER_TIMEOUT_GRACE
++
++
++def test_retry_continues_the_wait_from_the_recorded_start(now):
++    started = T0 - timedelta(seconds=1000)
++    store = FakeStateStore(**{KEY: started.isoformat()})
++    deferred = deferral(make_sensor(), make_context(store, try_number=2))
++
++    assert deferred.trigger.deadline == started + timedelta(seconds=3600)
++    assert deferred.timeout == timedelta(seconds=2600) + TRIGGER_TIMEOUT_GRACE
++    assert deferred.kwargs == {"started_at": started.isoformat()}
++    assert store.values[KEY] == started.isoformat()
++
++
++def test_budget_survives_a_run_of_retries(now):
++    """Four tries, each after an API outage, never move the deadline."""
++    store = FakeStateStore()
++    deadline = None
++    for try_number in range(1, 5):
++        now.value = T0 + timedelta(minutes=10 * (try_number - 1))
++        deferred = deferral(make_sensor(), make_context(store, try_number=try_number))
++        deadline = deadline or deferred.trigger.deadline
++        assert deferred.trigger.deadline == deadline == T0 + timedelta(seconds=3600)
++
++
++@pytest.mark.parametrize("soft_fail, expected", [(False, AirflowSensorTimeout), (True, AirflowSkipException)])
++def test_retry_that_starts_after_the_deadline_ends_the_wait(now, soft_fail, expected):
++    started = T0 - timedelta(seconds=3601)
++    store = FakeStateStore(**{KEY: started.isoformat()})
++    with pytest.raises(expected, match="timed out"):
++        make_sensor(soft_fail=soft_fail).execute(make_context(store, try_number=3))
++    assert store.values[KEY] == started.isoformat()
++
++
++def test_cleared_task_starts_a_fresh_budget(now):
++    # After a clear Airflow sets max_tries = try_number + retries, so try 5 of 7 is a first try again.
++    stale = T0 - timedelta(hours=5)
++    store = FakeStateStore(**{KEY: stale.isoformat()})
++    deferred = deferral(make_sensor(), make_context(store, try_number=5, max_tries=7))
++
++    assert deferred.trigger.deadline == T0 + timedelta(seconds=3600)
++    assert store.values[KEY] == T0.isoformat()
++
++
++def test_retry_without_a_recorded_start_counts_from_now(now):
++    store = FakeStateStore()
++    deferred = deferral(make_sensor(), make_context(store, try_number=2))
++    assert deferred.trigger.deadline == T0 + timedelta(seconds=3600)
++    assert store.values[KEY] == T0.isoformat()
++
++
++def test_without_a_state_store_the_sensor_still_defers(now):
++    deferred = deferral(make_sensor(), make_context(store=None))
++    assert deferred.trigger.deadline == T0 + timedelta(seconds=3600)
++
++
++def test_published_event_returns_the_file_list():
++    sensor = make_sensor()
++    assert sensor.execute_complete({}, event={"status": "published", "files": FILES}) == FILES
++
++
++@pytest.mark.parametrize("soft_fail, expected", [(False, AirflowSensorTimeout), (True, AirflowSkipException)])
++def test_timeout_event_ends_the_wait(soft_fail, expected):
++    sensor = make_sensor(soft_fail=soft_fail)
++    with pytest.raises(expected, match="timed out"):
++        sensor.resume_execution(
++            "execute_complete",
++            {"started_at": T0.isoformat(), "event": {"status": "timeout", "deadline": "x"}},
++            make_context(),
++        )
++
++
++@pytest.mark.parametrize("soft_fail", [False, True])
++def test_api_error_event_fails_the_try_so_retries_take_over(soft_fail):
++    sensor = make_sensor(soft_fail=soft_fail)
++    with pytest.raises(ManifestApiError, match="HTTP 503"):
++        sensor.resume_execution(
++            "execute_complete",
++            {"started_at": T0.isoformat(), "event": {"status": "error", "message": "GET ... -> HTTP 503"}},
++            make_context(),
++        )
++
++
++@pytest.mark.parametrize("soft_fail", [False, True])
++def test_unexpected_event_fails_the_try(soft_fail):
++    with pytest.raises(ManifestApiError, match="unexpected trigger event"):
++        make_sensor(soft_fail=soft_fail).execute_complete({}, event=None)
++
++
++@pytest.mark.parametrize("soft_fail", [False, True])
++def test_trigger_crash_fails_the_try_instead_of_skipping(soft_fail):
++    sensor = make_sensor(soft_fail=soft_fail)
++    with pytest.raises(TaskDeferralError):
++        sensor.resume_execution("__fail__", {"error": "Trigger failure", "traceback": ["boom"]}, make_context())
++
++
++@pytest.mark.parametrize("soft_fail, expected", [(False, AirflowSensorTimeout), (True, AirflowSkipException)])
++def test_scheduler_trigger_timeout_ends_the_wait(soft_fail, expected):
++    sensor = make_sensor(soft_fail=soft_fail)
++    with pytest.raises(expected, match="timed out"):
++        sensor.resume_execution("__fail__", {"error": TriggerFailureReason.TRIGGER_TIMEOUT}, make_context())
++
++
++def test_never_fail_turns_api_errors_into_skips():
++    sensor = make_sensor(never_fail=True)
++    with pytest.raises(AirflowSkipException):
++        sensor.execute_complete({}, event={"status": "error", "message": "HTTP 503"})
++
++
++def test_non_deferrable_sensor_pokes_and_returns_files(now, monkeypatch):
++    monkeypatch.setattr(ManifestHook, "get_manifest", lambda self, p, d: {"status": "PUBLISHED", "files": FILES})
++    store = FakeStateStore()
++    assert make_sensor(deferrable=False).execute(make_context(store)) == FILES
++    assert store.values[KEY] == T0.isoformat()
++
++
++def test_non_deferrable_sensor_spends_only_the_remaining_budget(now, monkeypatch):
++    monkeypatch.setattr(ManifestHook, "get_manifest", lambda self, p, d: {"status": "PENDING"})
++    started = T0 - timedelta(seconds=3600)
++    store = FakeStateStore(**{KEY: started.isoformat()})
++    with pytest.raises(AirflowSensorTimeout):
++        make_sensor(deferrable=False, poke_interval=0.01).execute(make_context(store, try_number=2))
+diff --git a/tests/test_trigger.py b/tests/test_trigger.py
+new file mode 100644
+index 0000000..2842a1a
+--- /dev/null
++++ b/tests/test_trigger.py
+@@ -0,0 +1,167 @@
++from __future__ import annotations
++
++import asyncio
++import json
++import time
++from datetime import datetime, timedelta, timezone
++
++import httpx
++import pytest
++from airflow._shared.module_loading import import_string
++from conftest import TOKEN, fake_connection
++from partners import triggers
++from partners.hooks import ManifestHook
++from partners.triggers import PartnerManifestTrigger
++
++FILES = ["s3://partners/acme/2026-09-30/batch-0.csv.gz", "s3://partners/acme/2026-09-30/batch-1.csv.gz"]
++
++
++def make_trigger(**overrides) -> PartnerManifestTrigger:
++    kwargs = {
++        "partner": "acme",
++        "ds": "2026-09-30",
++        "deadline": datetime.now(timezone.utc) + timedelta(hours=1),
++        "poke_interval": 0.01,
++    }
++    kwargs.update(overrides)
++    return PartnerManifestTrigger(**kwargs)
++
++
++async def collect(trigger: PartnerManifestTrigger) -> list[dict]:
++    return [event.payload async for event in trigger.run()]
++
++
++@pytest.fixture
++def connection(monkeypatch):
++    async def aget_connection(cls, conn_id):
++        return fake_connection()
++
++    monkeypatch.setattr(ManifestHook, "aget_connection", classmethod(aget_connection))
++
++
++@pytest.fixture
++def api(monkeypatch):
++    """Route the trigger's httpx client to a handler; returns the list of requests it saw."""
++    seen: list[httpx.Request] = []
++
++    def install(handler):
++        def wrapped(request):
++            seen.append(request)
++            return handler(request, len(seen))
++
++        transport = httpx.MockTransport(wrapped)
++        real_client = httpx.AsyncClient
++        monkeypatch.setattr(triggers.httpx, "AsyncClient", lambda **kw: real_client(transport=transport, **kw))
++        return seen
++
++    return install
++
++
++def pending(request, n):
++    return httpx.Response(200, json={"status": "PENDING"})
++
++
++def published(request, n):
++    return httpx.Response(200, json={"status": "PUBLISHED", "files": FILES})
++
++
++def test_published_manifest_yields_its_files(connection, api):
++    seen = api(published)
++    events = asyncio.run(collect(make_trigger()))
++    assert events == [{"status": "published", "files": FILES}]
++    assert seen[0].url.path == "/v1/partners/acme/manifests/2026-09-30"
++    assert seen[0].headers["Authorization"] == f"Bearer {TOKEN}"
++
++
++def test_polls_while_pending_then_returns_files(connection, api):
++    seen = api(lambda request, n: published(request, n) if n >= 3 else pending(request, n))
++    events = asyncio.run(collect(make_trigger()))
++    assert events == [{"status": "published", "files": FILES}]
++    assert len(seen) == 3
++
++
++def test_deadline_reached_yields_timeout_event(connection, api):
++    deadline = datetime.now(timezone.utc) + timedelta(seconds=0.1)
++    seen = api(pending)
++    events = asyncio.run(collect(make_trigger(deadline=deadline)))
++    assert events == [{"status": "timeout", "deadline": deadline.isoformat()}]
++    assert len(seen) >= 2  # polled through the deadline, with one last call at it
++
++
++def test_http_error_is_reported_as_error_event(connection, api):
++    api(lambda request, n: httpx.Response(503, json={"error": "service unavailable"}))
++    events = asyncio.run(collect(make_trigger()))
++    assert len(events) == 1
++    assert events[0]["status"] == "error"
++    assert "HTTP 503" in events[0]["message"]
++
++
++def test_connection_failure_is_reported_as_error_event(connection, api):
++    def refuse(request, n):
++        raise httpx.ConnectError("connection refused", request=request)
++
++    api(refuse)
++    events = asyncio.run(collect(make_trigger()))
++    assert events[0]["status"] == "error"
++    assert "ConnectError" in events[0]["message"]
++
++
++def test_connection_lookup_failure_is_reported_as_error_event(monkeypatch, api):
++    async def missing(cls, conn_id):
++        raise RuntimeError(f"connection {conn_id} not found")
++
++    monkeypatch.setattr(ManifestHook, "aget_connection", classmethod(missing))
++    api(published)
++    events = asyncio.run(collect(make_trigger()))
++    assert events == [{"status": "error", "message": "RuntimeError: connection manifests_default not found"}]
++
++
++def test_serialize_rebuilds_an_identical_trigger():
++    deadline = datetime(2026, 9, 30, 10, 0, tzinfo=timezone(timedelta(hours=2)))
++    trigger = make_trigger(deadline=deadline, manifest_conn_id="other", poke_interval=300)
++    classpath, kwargs = trigger.serialize()
++    rebuilt = import_string(classpath)(**kwargs)
++    assert rebuilt.serialize() == (classpath, kwargs)
++    assert rebuilt.deadline == deadline
++    assert rebuilt.deadline.tzinfo == timezone.utc
++    assert rebuilt.poke_interval == 300
++
++
++def test_naive_deadline_is_rejected():
++    with pytest.raises(ValueError):
++        make_trigger(deadline=datetime(2026, 9, 30, 10, 0))  # noqa: DTZ001 - naive on purpose
++
++
++def test_slow_api_does_not_block_the_event_loop(monkeypatch, stub):
++    """With 1s API latency the loop must keep serving other coroutines between polls."""
++    server = stub("--latency", "1")
++
++    async def aget_connection(cls, conn_id):
++        return fake_connection(server.port)
++
++    monkeypatch.setattr(ManifestHook, "aget_connection", classmethod(aget_connection))
++    trigger = make_trigger(deadline=datetime.now(timezone.utc) + timedelta(seconds=2.5), poke_interval=0.1)
++
++    async def scenario():
++        gaps = []
++        stop = asyncio.Event()
++
++        async def heartbeat():
++            last = time.monotonic()
++            while not stop.is_set():
++                await asyncio.sleep(0.02)
++                now = time.monotonic()
++                gaps.append(now - last)
++                last = now
++
++        beat = asyncio.create_task(heartbeat())
++        events = await collect(trigger)
++        stop.set()
++        await beat
++        return events, max(gaps)
++
++    events, worst_gap = asyncio.run(scenario())
++    assert events[0]["status"] == "timeout"
++    requests = [json.loads(line) for line in server.log.read_text().splitlines()]
++    assert len(requests) >= 2
++    assert worst_gap < 0.3, f"event loop stalled for {worst_gap:.2f}s"

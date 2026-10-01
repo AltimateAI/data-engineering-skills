@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: load tasks follow the deployed catalog snapshot (config/tables.json)",
+  "primary_pass": false,
+  "primary_score": 0.9,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 171.0,
+  "cost_usd": 0.737863,
+  "cost_reported_usd": 2.445287,
+  "tokens": {
+    "input": 1707558,
+    "output": 10600,
+    "reasoning": 0,
+    "cache_read": 1260479,
+    "cache_write": 446945,
+    "total": 3425582
+  },
+  "steps": 24,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 16,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0da3976dffeMAZG3o93jwEj6z.json"
+}

@@ -1,0 +1,102 @@
+diff --git a/dags/campaign_sync.py b/dags/campaign_sync.py
+index 4ae3318..bba5d1e 100644
+--- a/dags/campaign_sync.py
++++ b/dags/campaign_sync.py
+@@ -6,13 +6,14 @@ import shutil
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    # Interval timetable keeps the Airflow 2 "@hourly" run dates.
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["marketing"],
+diff --git a/dags/weekly_campaign_report.py b/dags/weekly_campaign_report.py
+index 150cb17..b94535e 100644
+--- a/dags/weekly_campaign_report.py
++++ b/dags/weekly_campaign_report.py
+@@ -13,28 +13,60 @@ from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import (
++    CronDataIntervalTimetable,
++    DeadlineAlert,
++    DeadlineReference,
++    SyncCallback,
++    dag,
++    task,
++)
++from airflow.timetables.interval import CronDataIntervalTimetable as CoreCronDataIntervalTimetable
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "campaign_events.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
++SCHEDULE_CRON = "0 6 * * 1"
++
++
++def notify_growth_oncall(context=None, **kwargs):
++    print("SLA missed: weekly_campaign_report not finished 3h after it started")
+ 
+-def notify_growth_oncall(dag, task_list, blocking_task_list, slas, blocking_tis):
+-    print(f"SLA missed for {task_list} in {dag.dag_id}")
++
++def week_interval(data_interval_start, data_interval_end, dag_run):
++    """Scheduled runs use their interval; manual runs (no interval on Airflow 3)
++    get the latest closed Mon-Sun week, as Airflow 2 inferred for them."""
++    if data_interval_start is not None:
++        return data_interval_start, data_interval_end
++    iv = CoreCronDataIntervalTimetable(SCHEDULE_CRON, timezone="UTC").infer_manual_data_interval(
++        run_after=pendulum.instance(dag_run.run_after)
++    )
++    return iv.start, iv.end
+ 
+ 
+ @dag(
+-    schedule_interval="0 6 * * 1",
++    # Interval timetable: a run fires Monday 06:00 for the week that just ended,
++    # as the bare cron string did on Airflow 2.
++    schedule=CronDataIntervalTimetable(SCHEDULE_CRON, timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),
+-    default_args={"owner": "growth-analytics", "retries": 1, "sla": timedelta(hours=3)},
+-    sla_miss_callback=notify_growth_oncall,
++    # Airflow 2 caught up by default; season re-runs rely on one run per week.
++    catchup=True,
++    default_args={"owner": "growth-analytics", "retries": 1},
++    # Replaces the Airflow 2 SLA: page on-call if the run is not done 3h after it starts.
++    deadline=DeadlineAlert(
++        reference=DeadlineReference.DAGRUN_QUEUED_AT,
++        interval=timedelta(hours=3),
++        callback=SyncCallback(notify_growth_oncall),
++    ),
+     max_active_runs=2,
+     tags=["marketing", "weekly"],
+ )
+ def weekly_campaign_report():
+-    @task
+-    def summarize_week(ds=None, next_ds=None) -> dict:
++    @task(multiple_outputs=True)
++    def summarize_week(data_interval_start=None, data_interval_end=None, dag_run=None) -> dict:
++        start, end = week_interval(data_interval_start, data_interval_end, dag_run)
++        ds, next_ds = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+         totals: dict[str, list[float]] = defaultdict(lambda: [0.0, 0])
+         with EVENTS.open(newline="") as fh:
+             for row in csv.DictReader(fh):
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..3a46a94 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,2 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
+ pendulum==3.2.0

@@ -1,0 +1,39 @@
+id: testing-airflow2-ci-suite
+area: testing
+split: dev
+airflow_version: "2.11"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1800
+prompt: |
+  We're staying on Airflow 2.11 until the platform upgrade next year, and I want a
+  proper pytest suite for this repo before more people start touching it. CI will
+  run `pytest tests/` in this venv; there's no scheduler, webserver or anything
+  else running there.
+
+  Things the suite needs to catch:
+  - any DAG file in dags/ that doesn't import
+  - shipments_daily must run at 07:30 UTC Monday to Friday only
+  - every task in every DAG needs at least 2 retries
+  - in shipments_daily, the report can only be built after the export is extracted
+  - the late-shipment rules in shipments_daily: for a run date, a shipment is late
+    if it was delivered that day after its promised date, or if it still hasn't
+    been delivered and its promised date is before the run date. days_late counts
+    from the promised date to delivery (or to the run date if still open).
+
+  Please also include one test that runs shipments_daily end to end on the sample
+  data in data/ for 2026-03-03. It has to pass on the current code, and please
+  leave the DAGs as they are.
+description: |
+  Area: testing (Airflow 2.11). Pain point P5 (weak DAG tests) plus version
+  awareness in the other direction: the suite must use 2.x APIs
+  (airflow.models.DagBag, dag.test(execution_date=...) or the CLI), because
+  Airflow-3 imports (airflow.sdk, airflow.dag_processing.dagbag, the standard
+  provider) do not exist in 2.11. Primary checks: the suite passes on the correct
+  project and fails behaviourally on five hidden planted bugs: a DAG file that
+  imports PythonOperator from the Airflow-3 standard provider (import error in
+  2.11), a Sunday-Thursday cron, undelivered shipments ignored by the late-shipment
+  logic, retries dropped from default_args, and build_report no longer downstream
+  of extract_shipments. Mutants: the reference suite written with Airflow-3 test
+  APIs (collection error on 2.11), and a structure/policy-only suite that never
+  exercises the late-shipment logic.

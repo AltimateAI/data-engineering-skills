@@ -1,0 +1,74 @@
+diff --git a/dags/warehouse_ingest.py b/dags/warehouse_ingest.py
+index 81feb3f..b77dc73 100644
+--- a/dags/warehouse_ingest.py
++++ b/dags/warehouse_ingest.py
+@@ -26,27 +26,49 @@ CATALOG_URL = os.environ.get(
+     "CATALOG_URL", "http://localhost:8765/api/v1/tables?domain=warehouse"
+ )
+ # Copy of the catalog response, refreshed by the deploy pipeline on every release.
++# Used at DAG parse time to ensure deterministic DAG construction.
+ CATALOG_SNAPSHOT = PROJECT_ROOT / "config" / "tables.json"
+ 
+ 
+-def list_tables(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
+-    """Tables registered in the catalog for the warehouse domain.
++def list_tables_from_snapshot() -> list[str]:
++    """Tables from the deployed catalog snapshot.
++    
++    Read at parse time to ensure deterministic DAG construction.
++    The snapshot is refreshed by the deploy pipeline on every release.
++    """
++    # The catalog sometimes lists a table twice, so deduplicate and sort.
++    raw_tables = json.loads(CATALOG_SNAPSHOT.read_text())
++    return sorted(set(raw_tables))
++
+ 
+-    Retries with exponential backoff and falls back to the deployed snapshot
+-    when the service is unreachable.
++def list_tables_with_fallback(retries: int = 3, backoff_s: float = 1.5) -> list[str]:
++    """Tables from the catalog service, with fallback to snapshot.
++    
++    Called at execution time (in operators) to refresh from the live catalog,
++    but falls back gracefully if the service is unavailable.
++    Retries with exponential backoff.
+     """
+     for attempt in range(retries):
+         try:
+             with urllib.request.urlopen(CATALOG_URL, timeout=5) as resp:
+-                return [t["name"] for t in json.load(resp)["tables"]]
++                catalog = json.load(resp)
++                # Handle both list and dict formats
++                if isinstance(catalog, list):
++                    tables = catalog
++                else:
++                    tables = catalog.get("tables", [])
++                return sorted(set(tables))
+         except OSError:
+             if attempt < retries - 1:
+                 time.sleep(backoff_s * 2**attempt)
+-    return json.loads(CATALOG_SNAPSHOT.read_text())
++    # Fall back to snapshot if all retries fail.
++    raw_tables = json.loads(CATALOG_SNAPSHOT.read_text())
++    return sorted(set(raw_tables))
+ 
+ 
+-# The catalog sometimes lists a table twice.
+-TABLES = set(list_tables())
++# Deterministic table list, read from snapshot at parse time.
++# Sorted to ensure consistent task order across all DAG parses.
++TABLES = list_tables_from_snapshot()
+ 
+ 
+ def load_table(table: str) -> int:
+@@ -64,9 +86,9 @@ def load_table(table: str) -> int:
+ 
+ with DAG(
+     dag_id="warehouse_ingest",
+-    description=f"Load {len(TABLES)} raw tables (catalog read {datetime.now():%Y-%m-%d %H:%M})",
++    description=f"Load {len(TABLES)} raw tables into the warehouse nightly.",
+     schedule="30 1 * * *",
+-    start_date=datetime.now() - timedelta(days=1),
++    start_date=datetime(2024, 1, 1),
+     catchup=False,
+     tags=["warehouse", "ingest"],
+ ):

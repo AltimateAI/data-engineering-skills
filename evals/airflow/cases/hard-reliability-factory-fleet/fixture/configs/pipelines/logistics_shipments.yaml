@@ -1,0 +1,28 @@
+name: logistics_shipments
+team: logistics
+tier: standard
+description: Shipments pipeline for logistics
+schedule:
+  hour: 4
+  days: '1'
+retries: 0
+steps:
+- name: extract
+  table: logistics.raw_shipments_00
+- name: validate
+  table: logistics.int_shipments_00
+  depends_on:
+  - extract
+- name: enrich
+  table: logistics.int_shipments_00
+  depends_on:
+  - validate
+  - extract
+- name: aggregate
+  table: logistics.int_shipments_00
+  depends_on:
+  - enrich
+- name: publish
+  table: logistics.mart_shipments_00
+  depends_on:
+  - aggregate

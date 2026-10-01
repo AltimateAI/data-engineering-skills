@@ -1,0 +1,19 @@
+All seven incidents trace back to five defects in `dags/lake/`. I fixed them in the hook, trigger and sensor, kept the sensor deferrable with its constructor unchanged, and verified each fix with unit tests plus real `airflow dags test` runs against the catalog stub. The changes are uncommitted in the working tree.
+
+**Root causes and fixes**
+
+- **Incident 1, blocked event loop.** The "async" hook method called the blocking `requests` library, stalling the triggerer for every 1-2 s catalog call. It now uses `httpx.AsyncClient`, so other triggers keep running during slow calls.
+- **Incidents 2 and 7, waits restarting.** The trigger computed its deadline with `time.monotonic()` in its constructor and serialized only the relative timeout. Every triggerer restart rebuilt the trigger and started a fresh 2-hour countdown, and every retry did the same. The sensor now computes an absolute UTC deadline, anchored to the time the task first started waiting. That start time is kept in Airflow 3.3's `task_state_store`, which survives retries, unlike XComs, which Airflow purges at every task start. A manual clear restarts the clock, using the same first-try rule as Airflow's reschedule sensors. The deadline is serialized in the trigger and also passed to `defer(timeout=...)` so the scheduler enforces it even if no triggerer is running.
+- **Incident 3, retries after timeout.** The sensor raised a plain `AirflowException` on timeout, which Airflow retries. It now raises `AirflowSensorTimeout`, which the task runner fails without retry, or `AirflowSkipException` when `soft_fail=True`. A retry that starts after the deadline times out immediately instead of deferring.
+- **Incident 4, outages going green.** The trigger reported errors as an event, but `execute_complete` only checked for "timeout" and returned an empty list for anything else. Errors now raise `LakeApiError` in the worker. It is deliberately not an `AirflowException`, because the base sensor's resume path would convert that into a skip under `soft_fail` instead of retrying.
+- **Incidents 5 and 6, wrong file lists.** The published-partition cache was keyed by table only, so a second partition of the same table was served the first partition's files. It is now keyed by connection, table and partition. The "92 files" came from finishing via `TaskSuccessEvent(xcoms=...)`: that path writes the XCom through the scheduler-side model, which JSON-encodes the list into a string, and the Task SDK hands downstream that 92-character string verbatim. The sensor now resumes briefly on a worker and returns the list, which goes through the SDK's own XCom path.
+
+**Verification**
+
+- 15 unit tests in `tests/test_lake.py` cover the async hook not blocking the loop, 503 and connection errors, per-partition caching, absolute deadlines surviving re-creation, retry versus clear anchoring, and the timeout, skip and error outcomes.
+- `airflow dags test lake_ingest` against the stub: both sensors deferred, resumed and returned lists, and `load_orders` logged "loading 2 files into orders".
+- With the stub answering 503, both sensors, including the soft_fail one, failed with the HTTP 503 error and went to up_for_retry. The real retry five minutes later logged the same deadline as the first try.
+- A DAG with 3-second timeouts: the hard sensor failed on try 1 with no retry, the soft_fail sensor was skipped, and a published partition succeeded.
+- `orders_diff` returned distinct file lists for today and yesterday and reported 2 new files.
+
+One note for the deploy: the trigger still accepts the old relative `timeout` kwarg, so tasks already deferred under the previous code resume instead of failing when the new version ships.

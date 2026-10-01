@@ -1,0 +1,405 @@
+[
+  {
+    "name": "altimate-code",
+    "description": "Delegates dbt and warehouse work to altimate-code, a specialized CLI agent with 100+ purpose-built data tools. USE THIS SKILL FIRST whenever the task mentions or implies: warehouse access (Snowflake, BigQuery, Redshift, Databricks, Postgres, MySQL, DuckDB), column-level lineage, downstream-impact analysis, dbt builds against a real warehouse, cross-database migration or validation, query cost attribution, schema diff, data parity checking, PII detection from sampled rows, incremental/SCD2/backfill verification, FinOps reporting, model documentation generation, query optimization, anomaly detection, dev-vs-prod diffing, or when the user says \"altimate\", \"altimate-code\", or \"the data agent\". Strongly preferred over Read/Write/Edit whenever the task touches live data, lineage, or warehouse state \u2014 consult before doing the work yourself.",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/altimate-code/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-code",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "altimate-setup",
+    "description": "Configure Altimate platform credentials for datamate and API access",
+    "source": "builtin",
+    "location": "builtin:altimate-setup/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "cost-report",
+    "description": "Analyze Snowflake query costs and identify optimization opportunities",
+    "source": "builtin",
+    "location": "builtin:cost-report/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "creating-dbt-models",
+    "description": "Creates dbt models following project conventions. Use when working with dbt models for:\n(1) Creating new models (any layer - discovers project's naming conventions first)\n(2) Task mentions \"create\", \"build\", \"add\", \"write\", \"new\", or \"implement\" with model, table, or SQL\n(3) Modifying existing model logic, columns, joins, or transformations\n(4) Implementing a model from schema.yml specs or expected output requirements\nDiscovers project conventions before writing. Runs dbt build (not just compile) to verify.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/creating-dbt-models/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      },
+      {
+        "name": "select",
+        "available": false
+      },
+      {
+        "name": "from",
+        "available": false
+      },
+      {
+        "name": "where",
+        "available": false
+      }
+    ]
+  },
+  {
+    "name": "customize-opencode",
+    "description": "Use ONLY when the user is editing or creating Altimate Code's own configuration: altimate-code.json, opencode.json, opencode.jsonc, files under .altimate-code/, files under .opencode/, or files under ~/.config/altimate-code/. Also use when creating or fixing Altimate Code agents, subagents, skills, plugins, MCP servers, or permission rules. Do not use for the user's own application code, or for any project that is not configuring Altimate Code itself.",
+    "source": "project",
+    "location": "<built-in>",
+    "tools": []
+  },
+  {
+    "name": "data-parity",
+    "description": "Validate that two tables or query results are identical \u2014 or diagnose exactly how they differ. Discover schema, identify keys, profile cheaply, then diff. Use for migration validation, ETL regression, and query refactor verification.",
+    "source": "builtin",
+    "location": "builtin:data-parity/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "data-viz",
+    "description": "Build modern, interactive data visualizations and dashboards using code-based component libraries (shadcn/ui, Recharts, Tremor, Nivo, D3, Victory, visx). Use this skill whenever the user asks to visualize data, build dashboards, create analytics views, chart metrics, tell a data story, build a reporting interface, create KPI cards, plot graphs, or explore a dataset \u2014 even if they mention PowerBI, Tableau, Streamlit, Metabase, Looker, Grafana, or similar tools. Also trigger when the user says \"make a dashboard\", \"show me the data\", \"chart this\", \"visualize trends\", \"build an analytics page\", \"data story\", or anything involving turning raw data into interactive visual interfaces. If the task involves presenting data visually \u2014 this is the skill. Always prefer building a real, interactive, code-based UI over exporting to or recommending a BI platform.\n",
+    "source": "builtin",
+    "location": "builtin:data-viz/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "dbt-analyze",
+    "description": "Analyze downstream impact of dbt model changes using column-level lineage and the dependency graph. Use when evaluating the blast radius of a change before shipping. Powered by altimate-dbt.",
+    "source": "builtin",
+    "location": "builtin:dbt-analyze/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "dbt-develop",
+    "description": "REQUIRED before writing or modifying ANY dbt model. Invoke this skill FIRST\nwhenever a task says \"create\", \"build\", \"add\", \"modify\", \"update\", \"fix\", or\n\"refactor\" a dbt model, staging file, mart, incremental, or snapshot.\n\nSkipping this skill is the leading cause of silent-correctness bugs \u2014\nmodels that compile and `dbt build` cleanly but produce wrong values. It\ncontains the patterns that prevent the most common such bugs encountered\nin real dbt projects:\n\n\u2022 Incremental high-water marks (`>=` vs `>` ties \u2192 silent row dropout)\n\u2022 Snapshot strategy selection (timestamp vs check, `unique_key` choice)\n\u2022 `LEFT JOIN + COUNT(*)` phantom rows from unmatched parents\n\u2022 Type harmonization in `COALESCE` / `CASE` / `UNION` legs\n\u2022 Date-spine completeness (every period present, even empty ones)\n\u2022 Off-by-one window boundaries (`BETWEEN d - (N-1) AND d` for N-wide)\n\u2022 Uniqueness enforcement when schema implies a key\n\u2022 Window-function `LIMIT` with deterministic tiebreaker\n\u2022 Verifying transformation correctness with dbt unit tests, not just `dbt build`\n\u2022 Enumerating every requested deliverable and checking each exists on disk\n\nDo not start writing SQL until this skill is loaded. Powered by altimate-dbt.\n",
+    "source": "builtin",
+    "location": "builtin:dbt-develop/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "dbt-docs",
+    "description": "Document dbt models and columns in schema.yml with business context \u2014 model descriptions, column definitions, and doc blocks. Use when adding or improving documentation for discoverability. Powered by altimate-dbt.",
+    "source": "builtin",
+    "location": "builtin:dbt-docs/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "dbt-pr-review",
+    "description": "Cloudflare-style AI code review for dbt/SQL pull requests. Produces a signed APPROVE/COMMENT/REQUEST_CHANGES verdict where every blocking finding is backed by a deterministic engine call \u2014 column-lineage blast radius, query equivalence, PII classification, and A\u2013F grade. Use to review a dbt PR or the working-tree changes before merge.",
+    "source": "builtin",
+    "location": "builtin:dbt-pr-review/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt_pr_review",
+        "available": false
+      },
+      {
+        "name": "impact_analysis",
+        "available": false
+      },
+      {
+        "name": "altimate_core_equivalence",
+        "available": false
+      },
+      {
+        "name": "altimate_core_check",
+        "available": false
+      },
+      {
+        "name": "lineage_check",
+        "available": false
+      }
+    ]
+  },
+  {
+    "name": "dbt-schema-verify",
+    "description": "REQUIRED after building or modifying ANY dbt model that has columns declared\nin `schema.yml` / `_models.yml`. Run `altimate-dbt schema-verify --model\n<name>` to diff actual columns against the spec, and treat any `mismatch`\nverdict as \"not done.\"\n\nThe most common reason \"the build is green but the tests still fail\" is\nthat the model produces the right *data values* in the wrong *column\nshape* \u2014 extra columns, missing columns, wrong order, wrong types. Many\ndbt equality tests grade the column tuple `(name, type, position)`\nexactly, and the agent's prior bias is to add \"helpful\" extras\n(`p1`/`p2`/`p3` rank breakdowns, name-resolved variants, lineage\nmetadata) or reorder columns \"more logically.\" Both break the contract.\n\nThis skill enforces the mechanical check that catches those bugs before\ndeclaring done. Use it before declaring any model task complete.\n",
+    "source": "builtin",
+    "location": "builtin:dbt-schema-verify/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      },
+      {
+        "name": "dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "dbt-test",
+    "description": "Add schema tests, unit tests, and data quality checks to dbt models. Use when validating data integrity, adding test definitions to schema.yml, writing unit tests, or practicing test-driven development in dbt. Powered by altimate-dbt.",
+    "source": "builtin",
+    "location": "builtin:dbt-test/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "dbt-troubleshoot",
+    "description": "Debug dbt errors \u2014 compilation failures, runtime database errors, test failures, wrong data, and performance issues. Use when something is broken, producing wrong results, or failing to build. Powered by altimate-dbt.",
+    "source": "builtin",
+    "location": "builtin:dbt-troubleshoot/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      },
+      {
+        "name": "altimate_core_semantics",
+        "available": false
+      },
+      {
+        "name": "altimate_core_column_lineage",
+        "available": false
+      },
+      {
+        "name": "altimate_core_correct",
+        "available": false
+      }
+    ]
+  },
+  {
+    "name": "dbt-unit-tests",
+    "description": "Generate dbt unit tests automatically for any model. Analyzes SQL logic (CASE/WHEN, JOINs, window functions, NULLs), creates type-correct mock inputs from manifest schema, and assembles complete YAML. Use when a user says \"generate tests\", \"add unit tests\", \"test this model\", or \"test coverage\" for dbt models.",
+    "source": "builtin",
+    "location": "builtin:dbt-unit-tests/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      },
+      {
+        "name": "dbt_unit_test_gen",
+        "available": false
+      }
+    ]
+  },
+  {
+    "name": "debugging-dbt-errors",
+    "description": "Debugs and fixes dbt errors systematically. Use when working with dbt errors for:\n(1) Task mentions \"fix\", \"error\", \"broken\", \"failing\", \"debug\", \"wrong\", or \"not working\"\n(2) Compilation Error, Database Error, or test failures occur\n(3) Model produces incorrect output or unexpected results\n(4) Need to troubleshoot why a dbt command failed\nReads full error, checks upstream first, runs dbt build (not just compile) to verify fix.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/debugging-dbt-errors/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "developing-incremental-models",
+    "description": "Develops and troubleshoots dbt incremental models. Use when working with incremental materialization for:\n(1) Creating new incremental models (choosing strategy, unique_key, partition)\n(2) Task mentions \"incremental\", \"append\", \"merge\", \"upsert\", or \"late arriving data\"\n(3) Troubleshooting incremental failures (merge errors, partition pruning, schema drift)\n(4) Optimizing incremental performance or deciding table vs incremental\nGuides through strategy selection, handles common incremental gotchas.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/developing-incremental-models/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      },
+      {
+        "name": "select",
+        "available": false
+      },
+      {
+        "name": "min",
+        "available": false
+      },
+      {
+        "name": "max",
+        "available": false
+      },
+      {
+        "name": "count",
+        "available": false
+      },
+      {
+        "name": "from",
+        "available": false
+      },
+      {
+        "name": "group",
+        "available": false
+      },
+      {
+        "name": "having",
+        "available": false
+      },
+      {
+        "name": "limit",
+        "available": false
+      }
+    ]
+  },
+  {
+    "name": "documenting-dbt-models",
+    "description": "Documents dbt models and columns in schema.yml. Use when working with dbt documentation for:\n(1) Adding model descriptions or column definitions to schema.yml\n(2) Task mentions \"document\", \"describe\", \"description\", \"dbt docs\", or \"schema.yml\"\n(3) Explaining business context, grain, meaning of data, or business rules\n(4) Preparing dbt docs generate or improving model discoverability\nMatches existing project documentation style and conventions before writing.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/documenting-dbt-models/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "finding-expensive-queries",
+    "description": "Finds and ranks expensive Snowflake queries by cost, time, or data scanned. Use when:\n(1) User asks to find slow, expensive, or problematic queries\n(2) Task mentions \"query history\", \"top queries\", \"most expensive\", or \"slowest queries\"\n(3) Analyzing warehouse costs or identifying optimization candidates\n(4) Finding queries that scan the most data or have the most spillage\nReturns ranked list of queries with metrics and optimization recommendations.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/snowflake/finding-expensive-queries/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "lineage-diff",
+    "description": "Compare column-level lineage between two versions of a SQL query to show added, removed, and changed data flow edges.",
+    "source": "builtin",
+    "location": "builtin:lineage-diff/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "migrating-sql-to-dbt",
+    "description": "Converts legacy SQL to modular dbt models. Use when migrating SQL to dbt for:\n(1) Converting stored procedures, views, or raw SQL files to dbt models\n(2) Task mentions \"migrate\", \"convert\", \"legacy SQL\", \"transform to dbt\", or \"modernize\"\n(3) Breaking monolithic queries into modular layers (discovers project conventions first)\n(4) Porting existing data pipelines or ETL to dbt patterns\nChecks for existing models/sources, builds and validates layer by layer.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/migrating-sql-to-dbt/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "optimizing-databricks-sql",
+    "description": "Analyze DBSQL queries, including SQL embedded in notebooks (`spark.sql(...)`, `%sql` cells), for anti-patterns, lint issues, and performance problems, using Databricks-specific dialect and platform knowledge (Delta, Photon, Unity Catalog) layered on top of altimate-code's generic SQL engine. Use when a user asks to optimize, review, or lint DBSQL queries on Databricks, whether standalone or embedded in a notebook.",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/databricks/optimizing-databricks-sql/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "optimizing-query-by-id",
+    "description": "Optimizes Snowflake query performance using query ID from history. Use when optimizing Snowflake queries for:\n(1) User provides a Snowflake query_id (UUID format) to analyze or optimize\n(2) Task mentions \"slow query\", \"optimize\", \"query history\", or \"query profile\" with a query ID\n(3) Analyzing query performance metrics - bytes scanned, spillage, partition pruning\n(4) User references a previously run query that needs optimization\nFetches query profile, identifies bottlenecks, returns optimized SQL with expected improvements.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/snowflake/optimizing-query-by-id/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "optimizing-query-text",
+    "description": "Optimizes Snowflake SQL query performance from provided query text. Use when optimizing Snowflake SQL for:\n(1) User provides or pastes a SQL query and asks to optimize, tune, or improve it\n(2) Task mentions \"slow query\", \"make faster\", \"improve performance\", \"optimize SQL\", or \"query tuning\"\n(3) Reviewing SQL for performance anti-patterns (function on filter column, implicit joins, etc.)\n(4) User asks why a query is slow or how to speed it up\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/snowflake/optimizing-query-text/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "pii-audit",
+    "description": "Classify schema columns for PII (SSN, email, phone, name, address, credit card) and check whether queries expose them. Use for GDPR/CCPA/HIPAA compliance audits.",
+    "source": "builtin",
+    "location": "builtin:pii-audit/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "query-optimize",
+    "description": "Analyze and optimize SQL queries for better performance",
+    "source": "builtin",
+    "location": "builtin:query-optimize/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "refactoring-dbt-models",
+    "description": "Safely refactors dbt models with downstream impact analysis. Use when restructuring dbt models for:\n(1) Task mentions \"refactor\", \"restructure\", \"extract\", \"split\", \"break into\", or \"reorganize\"\n(2) Extracting CTEs to intermediate models or creating macros\n(3) Modifying model logic that has downstream consumers\n(4) Renaming columns, changing types, or reorganizing model dependencies\nAnalyzes all downstream dependencies BEFORE making changes.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/refactoring-dbt-models/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "schema-migration",
+    "description": "Analyze DDL migrations for data loss risks \u2014 type narrowing, missing defaults, dropped constraints, breaking column changes. Use before applying schema changes to production.",
+    "source": "builtin",
+    "location": "builtin:schema-migration/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "sql-review",
+    "description": "Pre-merge SQL quality gate \u2014 lint 26 anti-patterns, grade readability/performance A-F, validate syntax, and scan for injection threats. Use before committing or reviewing SQL changes.",
+    "source": "builtin",
+    "location": "builtin:sql-review/SKILL.md",
+    "tools": [
+      {
+        "name": "altimate-dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "sql-translate",
+    "description": "Translate SQL queries between database dialects (Snowflake, BigQuery, PostgreSQL, MySQL, etc.)",
+    "source": "builtin",
+    "location": "builtin:sql-translate/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "teach",
+    "description": "Teach your AI teammate a pattern by showing it an example file from your codebase",
+    "source": "builtin",
+    "location": "builtin:teach/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "testing-dbt-models",
+    "description": "Adds schema tests and data quality validation to dbt models. Use when working with dbt tests for:\n(1) Adding or modifying tests in schema.yml files\n(2) Task mentions \"test\", \"validate\", \"data quality\", \"unique\", \"not_null\", or \"accepted_values\"\n(3) Ensuring data integrity - primary keys, foreign keys, relationships\n(4) Debugging test failures or understanding why dbt test failed\nMatches existing project test patterns and YAML style before adding new tests.\n",
+    "source": "project",
+    "location": "<work>/baseline-2026-09-30-baseline-20260930-045309/skills/dbt/testing-dbt-models/SKILL.md",
+    "tools": [
+      {
+        "name": "dbt",
+        "available": true
+      }
+    ]
+  },
+  {
+    "name": "train",
+    "description": "Train your AI teammate on team standards from a document or style guide",
+    "source": "builtin",
+    "location": "builtin:train/SKILL.md",
+    "tools": []
+  },
+  {
+    "name": "training-status",
+    "description": "Show what your AI teammate has learned \u2014 patterns, rules, glossary, and standards",
+    "source": "builtin",
+    "location": "builtin:training-status/SKILL.md",
+    "tools": []
+  }
+]

@@ -1,0 +1,139 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..0f7ec8f 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,22 +1,49 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads shop orders into the local DuckDB warehouse.
+ 
+-The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
+-`daily_revenue` rollup that the finance dashboard reads.
++The shop backend exports every order to data/orders.csv. This DAG loads the
++orders for the scheduled day (handling retries, reruns, and backfills safely),
++and then refreshes the daily_revenue rollup.
++
++Key guarantee: each run is idempotent. The target day ends up with exactly the
++correct rows, even if a previous attempt failed halfway through, and other days
++are never modified.
+ """
+ 
+-from datetime import datetime, timedelta
++from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+ from airflow.decorators import dag, task
++from airflow.operators.python import get_current_context
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ 
+ 
++def get_target_date() -> str:
++    """
++    Derive the target date from the run's scheduled interval.
++    
++    On Airflow 2.x with a @daily schedule (interval timetable):
++    - scheduled run: execution_date is the start of the interval (previous day for @daily)
++    - rerun/clear: recomputes the same day as the original run
++    - backfill: each run processes its own interval like a scheduled run
++    
++    Returns: ISO date string (YYYY-MM-DD)
++    """
++    context = get_current_context()
++    dag_run = context["dag_run"]
++    
++    # On 2.x, execution_date is the start of the interval (previous day for @daily)
++    # This is the same for scheduled runs, reruns, clears, and backfills
++    execution_date = dag_run.execution_date
++    # Convert to UTC and extract the date
++    target_date = pendulum.instance(execution_date).in_tz("UTC").date()
++    return target_date.isoformat()
++
++
+ @dag(
+     dag_id="orders_daily_load",
+     schedule="@daily",
+@@ -28,9 +55,17 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ def orders_daily_load():
+     @task
+     def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++        """
++        Idempotently load orders for the target date.
++        
++        DELETE then INSERT ensures that a rerun, retry, or backfill of any day
++        produces exactly the correct rows for that day without duplication.
++        """
++        day = get_target_date()
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
++        
++        # Create table if it does not exist
+         con.execute(
+             """
+             CREATE TABLE IF NOT EXISTS orders (
+@@ -42,6 +77,12 @@ def orders_daily_load():
+             )
+             """
+         )
++        
++        # Idempotent upsert: delete the target day first, then re-insert it
++        con.execute(
++            "DELETE FROM orders WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -51,17 +92,24 @@ def orders_daily_load():
+                    CAST(amount_usd AS DECIMAL(12, 2)),
+                    now()
+             FROM read_csv_auto('{SOURCE_CSV}')
+-            WHERE CAST(order_ts AS DATE) = ?
++            WHERE CAST(order_ts AS DATE) = CAST(? AS DATE)
+               AND status <> 'cancelled'
+             """,
+             [day],
+         )
+         con.close()
+-        return day.isoformat()
++        return day
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
++        """
++        Idempotently rebuild the daily_revenue rollup for the target date.
++        
++        DELETE then INSERT ensures that a rerun produces the exact same aggregate.
++        """
+         con = duckdb.connect(str(WAREHOUSE))
++        
++        # Create table if it does not exist
+         con.execute(
+             """
+             CREATE TABLE IF NOT EXISTS daily_revenue (
+@@ -71,6 +119,12 @@ def orders_daily_load():
+             )
+             """
+         )
++        
++        # Idempotent refresh: delete the target day first, then re-compute it
++        con.execute(
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
+         con.execute(
+             """
+             INSERT INTO daily_revenue
+diff --git a/data/duckdb.db b/data/duckdb.db
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d671b2262be22a24d75a70e78fb030e0df7f7a2
+Binary files differ (content omitted by sanitize.py)
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..e9ad6ab3fee9205cebe8423002bcb00a425a7746
+Binary files differ (content omitted by sanitize.py)

@@ -1,0 +1,179 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 1.814924,
+  "cost_reported_usd": 1.814924,
+  "wall_s": 1103.9,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-065127/hard-migration-claims-partitions-pg3j2byi/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 1.814924,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 76,
+    "output": 32911,
+    "reasoning": 20129,
+    "cache_read": 2339800,
+    "cache_write": 86055,
+    "total": 2458842
+  },
+  "steps": 38,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 1.814924,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 76,
+      "outputTokens": 32911,
+      "cacheReadInputTokens": 2339800,
+      "cacheCreationInputTokens": 86055,
+      "webSearchRequests": 0,
+      "costUSD": 1.8149239999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 20129,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 38,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 17,
+        "tool": "bash",
+        "path": "<tmp>/af_env.sh",
+        "root": "shared-temp"
+      },
+      {
+        "call": 17,
+        "tool": "bash",
+        "path": "<tmp>/af_env.sh",
+        "root": "shared-temp"
+      },
+      {
+        "call": 17,
+        "tool": "bash",
+        "path": "<tmp>/migrate.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 17,
+        "tool": "bash",
+        "path": "<tmp>/migrate.log",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 24,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd \"$PWD\"; T=$(cd ..; pwd)<tmp>; pkill -f \"airflow standalone\"; pkill -f \"airflow scheduler\"; pkill -f \"airflow api-server\"; pkill -f \"airflow dag-processor\"; pkill -f \"airflow triggerer\"; sleep 5; cat >> $T/af_env.sh <<EOF\nexport AIRFLOW__API__PORT=18089\nexport AIRFLOW__API__BASE_URL=http://localhos",
+        "output": "pkill: signalling pid 30209: Operation not permitted\npkill: signalling pid 44768: Operation not permitted\npkill: signalling pid 93775: Operation not permitted\npkill: signalling pid 94512: Operation no"
+      },
+      {
+        "call": 34,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd \"$PWD\"; pkill -f \"airflow standalone\" 2>/dev/null; sleep 8; pgrep -fl \"airflow (scheduler|api-server|dag-processor|triggerer)\" | head; command rm -rf output; find . -name __pycache__ -prune -exec rm -rf {} +; git status --short; git diff --stat",
+        "output": "30209 /opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python ~/.cache/des-evals/agent-airflow-3.3/bin/airflow sche"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 37,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

@@ -1,0 +1,49 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "dags/ingest_shipments.py: ModuleNotFoundError: No module named 'airflow.datasets'; dags/carrier_scorecard.py: ModuleNotFoundError: No module named 'airflow.datasets'"
+    },
+    {
+      "name": "both DAGs keep their tasks and dependencies",
+      "kind": "primary",
+      "passed": false,
+      "detail": "ingest_shipments: missing; carrier_scorecard: missing"
+    },
+    {
+      "name": "carrier_scorecard is still scheduled on the asset ingest_shipments updates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "DAG missing"
+    },
+    {
+      "name": "dags test succeeds (ingest_shipments, carrier_scorecard)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "DAG missing"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/carrier_scorecard.py:18 AIR311; dags/carrier_scorecard.py:57 AIR311; dags/carrier_scorecard.py:66 AIR001; dags/carrier_scorecard.py:66 AIR312; dags/carrier_scorecard.py:67 AIR312; dags/ingest_shipments.py:22 AIR311; dags/ingest_shipments.py:40 AIR311; dags/ingest_shipments.py:49 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.0,
+  "secondary_score": 0.6666666666666666
+}

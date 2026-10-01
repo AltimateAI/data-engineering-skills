@@ -1,0 +1,226 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..7c7f3d5 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,26 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads the scheduled day's shop orders into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
++day's non-cancelled orders into `orders` and then refreshes the
+ `daily_revenue` rollup that the finance dashboard reads.
++
++Idempotency guarantee
++---------------------
++Each task deletes the target day's rows, then re-inserts them in a single
++transaction, so re-running, retrying or backfilling any day is always safe:
++the day ends up with exactly the right rows even if a previous attempt died
++halfway through, and other days are left alone.
++
++Scheduling
++----------
++`@daily` on Airflow 2.x maps to CronDataIntervalTimetable: the run that fires
++at midnight of day D+1 carries data_interval_start=D and data_interval_end=D+1,
++so `run_window()` returns (D 00:00 UTC, D+1 00:00 UTC) — i.e. "yesterday" for
++the scheduled case.  A backfill or cleared rerun carries the *same* interval
++as the original run, so it always processes the correct day regardless of when
++it actually executes.
+ """
+ 
+-from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import duckdb
+@@ -17,71 +32,140 @@ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ 
+ 
++# ---------------------------------------------------------------------------
++# Date helper (from the verified dates-and-schedules reference)
++# ---------------------------------------------------------------------------
++
++def _prev_day(d):
++    return d.subtract(days=1)
++
++
++def run_window(dag_run, params=None, tz="UTC", prev=_prev_day):
++    """Return the [start, end) window this run processes, as pendulum datetimes.
++
++    • Interval timetable (Airflow 2.x @daily / CronDataIntervalTimetable):
++      uses data_interval_start / data_interval_end directly — the run IS the
++      period, so a scheduled run for 2026-03-02 returns (2026-03-02 00:00,
++      2026-03-03 00:00) regardless of when the worker executes.
++    • Trigger timetable / manual run: falls back to prev(anchor day).
++    • params override: if params["day"] is set (e.g. "2026-03-04"), process
++      that calendar day — useful for ad-hoc reprocessing without a backfill.
++    """
++    day = (params or {}).get("day")
++    if day:
++        start = pendulum.parse(day, tz=tz)
++        return start, start.add(days=1)
++
++    s, e = dag_run.data_interval_start, dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        # Interval timetable — the run owns this window; use it directly.
++        return pendulum.instance(s).in_tz(tz), pendulum.instance(e).in_tz(tz)
++
++    # Trigger timetable or manual run: derive the period from the anchor.
++    anchor = dag_run.logical_date or dag_run.run_after
++    start = prev(pendulum.instance(anchor).in_tz(tz).start_of("day"))
++    return start, start.add(days=1)
++
++
++# ---------------------------------------------------------------------------
++# DAG definition
++# ---------------------------------------------------------------------------
++
+ @dag(
+     dag_id="orders_daily_load",
+     schedule="@daily",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+-    catchup=False,
++    catchup=True,   # allow backfill (e.g. early March); safe because tasks are idempotent
+     default_args={"owner": "data-eng"},
+     tags=["shop", "warehouse"],
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(**context) -> str:
++        """Delete then re-insert orders for the run's day in a single transaction."""
++        start, end = run_window(context["dag_run"], context.get("params"))
++        day = start.date()
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+-        con.execute(
+-            """
+-            CREATE TABLE IF NOT EXISTS orders (
+-                order_id    VARCHAR,
+-                order_date  DATE,
+-                customer_id VARCHAR,
+-                amount_usd  DECIMAL(12, 2),
+-                loaded_at   TIMESTAMP
++        try:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS orders (
++                    order_id    VARCHAR,
++                    order_date  DATE,
++                    customer_id VARCHAR,
++                    amount_usd  DECIMAL(12, 2),
++                    loaded_at   TIMESTAMP
++                )
++                """
++            )
++            con.execute("BEGIN")
++            # Delete any rows already loaded for this day (handles retries / reruns).
++            con.execute(
++                "DELETE FROM orders WHERE order_date = ?",
++                [day],
+             )
+-            """
+-        )
+-        con.execute(
+-            f"""
+-            INSERT INTO orders
+-            SELECT order_id,
+-                   CAST(order_ts AS DATE),
+-                   customer_id,
+-                   CAST(amount_usd AS DECIMAL(12, 2)),
+-                   now()
+-            FROM read_csv_auto('{SOURCE_CSV}')
+-            WHERE CAST(order_ts AS DATE) = ?
+-              AND status <> 'cancelled'
+-            """,
+-            [day],
+-        )
+-        con.close()
++            # Insert the canonical set for the day from the source CSV.
++            con.execute(
++                f"""
++                INSERT INTO orders
++                SELECT order_id,
++                       CAST(order_ts AS DATE),
++                       customer_id,
++                       CAST(amount_usd AS DECIMAL(12, 2)),
++                       now()
++                FROM read_csv_auto('{SOURCE_CSV}')
++                WHERE CAST(order_ts AS DATE) = ?
++                  AND status <> 'cancelled'
++                """,
++                [day],
++            )
++            con.execute("COMMIT")
++        except Exception:
++            con.execute("ROLLBACK")
++            raise
++        finally:
++            con.close()
++
+         return day.isoformat()
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
++        """Delete then re-compute the daily_revenue rollup for the given day."""
+         con = duckdb.connect(str(WAREHOUSE))
+-        con.execute(
+-            """
+-            CREATE TABLE IF NOT EXISTS daily_revenue (
+-                order_date  DATE,
+-                order_count INTEGER,
+-                revenue_usd DECIMAL(14, 2)
++        try:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS daily_revenue (
++                    order_date  DATE,
++                    order_count INTEGER,
++                    revenue_usd DECIMAL(14, 2)
++                )
++                """
++            )
++            con.execute("BEGIN")
++            # Wipe any previous rollup row for this day before recomputing.
++            con.execute(
++                "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++                [day],
++            )
++            con.execute(
++                """
++                INSERT INTO daily_revenue
++                SELECT order_date, count(*), sum(amount_usd)
++                FROM orders
++                WHERE order_date = CAST(? AS DATE)
++                GROUP BY order_date
++                """,
++                [day],
+             )
+-            """
+-        )
+-        con.execute(
+-            """
+-            INSERT INTO daily_revenue
+-            SELECT order_date, count(*), sum(amount_usd)
+-            FROM orders
+-            WHERE order_date = CAST(? AS DATE)
+-            GROUP BY order_date
+-            """,
+-            [day],
+-        )
+-        con.close()
++            con.execute("COMMIT")
++        except Exception:
++            con.execute("ROLLBACK")
++            raise
++        finally:
++            con.close()
+ 
+     build_daily_revenue(load_orders())
+ 
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..a87d14530a0274878ceb553f59fa79df352b165b
+Binary files differ (content omitted by sanitize.py)

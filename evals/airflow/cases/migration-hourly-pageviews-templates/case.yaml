@@ -1,0 +1,28 @@
+id: migration-hourly-pageviews-templates
+area: migration
+split: holdout
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  I ran ruff's Airflow rules on this project but I'm not confident that's all
+  the migration needs. Can you get the hourly_pageviews DAG ready for Airflow
+  3.3? The venv here already has apache-airflow 3.3.2. The dashboard loader
+  depends on the hourly files and the .done markers exactly as described in the
+  README, so their names and contents can't change.
+description: |
+  Airflow 2.11 -> 3.3 migration of an hourly rollup whose behaviour lives in
+  Jinja templates. Pain point P7 (migration beyond ruff) and P2 (schedule
+  semantics). Ruff AIR flags only the imports and `schedule_interval`; it does
+  not look inside templated `op_kwargs`/`bash_command`, which use removed
+  context variables `{{ execution_date }}`, `{{ next_execution_date }}`,
+  `{{ prev_execution_date }}` and `{{ yesterday_ds_nodash }}` (render-time
+  failures on 3.3). The bare cron "0 * * * *" becomes CronTriggerTimetable in
+  Airflow 3, so a straight `execution_date` -> `logical_date` rename processes
+  the hour after the tick, and the midnight run's staging cleanup deletes the
+  wrong day. Primary: imports on 3.3, tasks and order preserved, dags test
+  succeeds, three scheduled runs (10:00, 11:00 and the 00:00 day rollover)
+  replayed in 3.3 from the same seeded staging area write the same hourly
+  rollups, the same .done markers and leave the same staging files as the
+  original replayed in 2.11. Secondary: verification commands, ruff AIR
+  clean, no deprecation warnings.

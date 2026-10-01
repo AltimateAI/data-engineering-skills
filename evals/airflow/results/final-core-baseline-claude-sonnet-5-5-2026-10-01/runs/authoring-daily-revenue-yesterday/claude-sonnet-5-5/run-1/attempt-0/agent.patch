@@ -1,0 +1,3599 @@
+diff --git a/airflow.cfg b/airflow.cfg
+new file mode 100644
+index 0000000..a9566e3
+--- /dev/null
++++ b/airflow.cfg
+@@ -0,0 +1,3527 @@
++[core]
++# The folder where your airflow pipelines live, most likely a
++# subfolder in a code repository. This path must be absolute.
++#
++# Variable: AIRFLOW__CORE__DAGS_FOLDER
++#
++dags_folder = /dags
++
++# Hostname by providing a path to a callable, which will resolve the hostname.
++# The format is "package.function".
++# 
++# For example, default value ``airflow.utils.net.getfqdn`` means that result from patched
++# version of `socket.getfqdn() <https://docs.python.org/3/library/socket.html#socket.getfqdn>`__,
++# see related `CPython Issue <https://github.com/python/cpython/issues/49254>`__.
++# 
++# No argument should be required in the function specified.
++# If using IP address as hostname is preferred, use value ``airflow.utils.net.get_host_ip_address``
++#
++# Variable: AIRFLOW__CORE__HOSTNAME_CALLABLE
++#
++hostname_callable = airflow.utils.net.getfqdn
++
++# A callable to check if a python file has airflow dags defined or not and should
++# return ``True`` if it has dags otherwise ``False``.
++# If this is not provided, Airflow uses its own heuristic rules.
++# 
++# The function should have the following signature
++# 
++# .. code-block:: python
++# 
++#     def func_name(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool: ...
++#
++# Variable: AIRFLOW__CORE__MIGHT_CONTAIN_DAG_CALLABLE
++#
++might_contain_dag_callable = airflow.utils.file.might_contain_dag_via_default_heuristic
++
++# Default timezone in case supplied date times are naive
++# can be `UTC` (default), `system`, or any `IANA <https://www.iana.org/time-zones>`
++# timezone string (e.g. Europe/Amsterdam)
++#
++# Variable: AIRFLOW__CORE__DEFAULT_TIMEZONE
++#
++default_timezone = utc
++
++# The executor class that airflow should use. Choices include
++# ``LocalExecutor``, ``CeleryExecutor``,
++# ``KubernetesExecutor`` or the full import path to the class when using a custom executor.
++#
++# Variable: AIRFLOW__CORE__EXECUTOR
++#
++executor = LocalExecutor
++
++# The ``multiprocessing`` start method used by long-lived components that spawn worker
++# processes (the scheduler's ``LocalExecutor`` and the triggerer). Must be
++# one of the values returned by `multiprocessing.get_all_start_methods()
++# <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.get_all_start_methods>`__
++# on your platform (typically ``fork``, ``forkserver`` or ``spawn``). When unset (the
++# default) the platform default is used.
++# 
++# Python 3.14 changed the Unix default from ``fork`` to ``forkserver``. ``forkserver`` and
++# ``spawn`` children re-import Airflow instead of sharing it copy-on-write, which can sharply
++# increase the resident memory of the scheduler and triggerer. Set this to ``fork`` to restore
++# the pre-3.14 behaviour (note: forking a multi-threaded process is not always safe), or keep
++# ``forkserver`` and set ``[core] mp_forkserver_preload`` to recover most of the sharing.
++# 
++# This can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,
++# ``[triggerer]`` or ``[dag_processor]`` section.
++#
++# Example: mp_start_method = fork
++#
++# Variable: AIRFLOW__CORE__MP_START_METHOD
++#
++# mp_start_method = 
++
++# Comma-separated list of modules the ``forkserver`` process should import up front, so that
++# forked workers inherit them copy-on-write instead of re-importing them. Only used when the
++# effective ``mp_start_method`` is ``forkserver``. See `multiprocessing.set_forkserver_preload
++# <https://docs.python.org/3/library/multiprocessing.html#multiprocessing.set_forkserver_preload>`__.
++#
++# Example: mp_forkserver_preload = airflow,airflow.executors.local_executor
++#
++# Variable: AIRFLOW__CORE__MP_FORKSERVER_PRELOAD
++#
++# mp_forkserver_preload = 
++
++# The auth manager class that airflow should use. Full import path to the auth manager class.
++#
++# Variable: AIRFLOW__CORE__AUTH_MANAGER
++#
++auth_manager = airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager
++
++# The list of users and their associated role in simple auth manager. If the simple auth manager is
++# used in your environment, this list controls who can access the environment.
++# 
++# List of user-role delimited with a comma. Each user-role is a colon delimited couple of username and
++# role. Roles are predefined in simple auth managers: viewer, user, op, admin.
++# 
++# You can also associate users to teams by appending the list of teams (separated by "|") as third item
++# in the user-role definition. Example: ``bob:admin:marketing|hr``.
++# This can only be used if ``[core] multi_team`` is set to True.
++#
++# Example: simple_auth_manager_users = bob:admin,peter:viewer
++#
++# Variable: AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS
++#
++simple_auth_manager_users = admin:admin
++
++# Whether to disable authentication and allow everyone as admin in the environment.
++#
++# Variable: AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS
++#
++simple_auth_manager_all_admins = False
++
++# The json file where the simple auth manager stores passwords for the configured users.
++# By default this is ``AIRFLOW_HOME/simple_auth_manager_passwords.json.generated``.
++#
++# Example: simple_auth_manager_passwords_file = /path/to/passwords.json
++#
++# Variable: AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE
++#
++# simple_auth_manager_passwords_file = 
++
++# This defines the maximum number of task instances that can run concurrently per scheduler in
++# Airflow, regardless of the worker count. Generally this value, multiplied by the number of
++# schedulers in your cluster, is the maximum number of task instances with the running
++# state in the metadata database. The value must be larger or equal 1.
++#
++# Variable: AIRFLOW__CORE__PARALLELISM
++#
++parallelism = 32
++
++# The maximum number of task instances allowed to run concurrently in each dag run.
++# This is also configurable per-dag with ``max_active_tasks``,
++# which is defaulted as ``[core] max_active_tasks_per_dag``.
++# 
++# An example scenario when this would be useful is when you want to stop a new dag run with an early
++# start date from stealing all the executor slots in a cluster.
++#
++# Variable: AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG
++#
++max_active_tasks_per_dag = 16
++
++# Are DAGs paused by default at creation
++#
++# Variable: AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION
++#
++dags_are_paused_at_creation = True
++
++# The maximum number of active DAG runs per DAG. The scheduler will not create more DAG runs
++# if it reaches the limit. This is configurable at the DAG level with ``max_active_runs``,
++# which is defaulted as ``[core] max_active_runs_per_dag``.
++#
++# Variable: AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG
++#
++max_active_runs_per_dag = 16
++
++# (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
++# This is also configurable per DAG level with ``max_consecutive_failed_dag_runs``,
++# which is defaulted as ``[core] max_consecutive_failed_dag_runs_per_dag``.
++# If not specified, then the value is considered as 0,
++# meaning that the dags are never paused out by default.
++#
++# Variable: AIRFLOW__CORE__MAX_CONSECUTIVE_FAILED_DAG_RUNS_PER_DAG
++#
++max_consecutive_failed_dag_runs_per_dag = 0
++
++# Whether to load the Dag examples that ship with Airflow. It's good to
++# get started, but you probably want to set this to ``False`` in a production
++# environment
++# 
++# .. note::
++# 
++#     If you are using the Official Airflow Docker Image, this value is set to ``False`` by default
++#     via the environment variable ``AIRFLOW__CORE__LOAD_EXAMPLES``. To enable example Dags when
++#     using the official image, you must explicitly set ``AIRFLOW__CORE__LOAD_EXAMPLES=True`` in your
++#     environment.
++#
++# Variable: AIRFLOW__CORE__LOAD_EXAMPLES
++#
++load_examples = True
++
++# Path to the folder containing Airflow plugins
++#
++# Variable: AIRFLOW__CORE__PLUGINS_FOLDER
++#
++plugins_folder = /plugins
++
++# Should tasks be executed via forking of the parent process
++# 
++# * ``False``: Execute via forking of the parent process
++# * ``True``: Spawning a new python process, slower than fork, but means plugin changes picked
++#   up by tasks straight away
++#
++# Variable: AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER
++#
++execute_tasks_new_python_interpreter = False
++
++# Secret key to save connection passwords in the db
++#
++# Variable: AIRFLOW__CORE__FERNET_KEY
++#
++fernet_key = <redacted-secret>
++
++# How long before timing out a python file import
++#
++# Variable: AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT
++#
++dagbag_import_timeout = 30.0
++
++# Should a traceback be shown in the UI for dagbag import errors,
++# instead of just the exception message
++#
++# Variable: AIRFLOW__CORE__DAGBAG_IMPORT_ERROR_TRACEBACKS
++#
++dagbag_import_error_tracebacks = True
++
++# If tracebacks are shown, how many entries from the traceback should be shown
++#
++# Variable: AIRFLOW__CORE__DAGBAG_IMPORT_ERROR_TRACEBACK_DEPTH
++#
++dagbag_import_error_traceback_depth = 2
++
++# If set, tasks without a ``run_as_user`` argument will be run with this user
++# Can be used to de-elevate a sudo user running Airflow when executing tasks
++#
++# Variable: AIRFLOW__CORE__DEFAULT_IMPERSONATION
++#
++default_impersonation = 
++
++# What security module to use (for example kerberos)
++#
++# Variable: AIRFLOW__CORE__SECURITY
++#
++security = 
++
++# Turn unit test mode on (overwrites many configuration options with test
++# values at runtime)
++#
++# Variable: AIRFLOW__CORE__UNIT_TEST_MODE
++#
++unit_test_mode = False
++
++# Space-separated list of classes that may be imported during deserialization. Items can be glob
++# expressions. Python built-in classes (like dict) are always allowed.
++#
++# Example: allowed_deserialization_classes = airflow.* my_mod.my_other_mod.TheseClasses*
++#
++# Variable: AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES
++#
++allowed_deserialization_classes = airflow.*
++
++# Space-separated list of classes that may be imported during deserialization. Items are processed
++# as regex expressions and matched against the full classname (``re.fullmatch`` semantics), so a
++# pattern such as ``airflow\.models\.Variable`` does not also admit ``airflow.models.VariableXYZ``.
++# Use ``.*`` (e.g. ``airflow\.models\..*``) to allow a prefix and any suffix. Python built-in
++# classes (like dict) are always allowed.
++# This is a secondary option to ``[core] allowed_deserialization_classes``.
++#
++# Variable: AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES_REGEXP
++#
++allowed_deserialization_classes_regexp = 
++
++# When a task is killed forcefully, this is the amount of time in seconds that
++# it has to cleanup after it is sent a SIGTERM, before it is SIGKILLED
++#
++# Variable: AIRFLOW__CORE__KILLED_TASK_CLEANUP_TIME
++#
++killed_task_cleanup_time = 60
++
++# Whether to override params with dag_run.conf. If you pass some key-value pairs
++# through ``airflow dags backfill -c`` or
++# ``airflow dags trigger -c``, the key-value pairs will override the existing ones in params.
++#
++# Variable: AIRFLOW__CORE__DAG_RUN_CONF_OVERRIDES_PARAMS
++#
++dag_run_conf_overrides_params = True
++
++# If enabled, Airflow only scans files containing both ``DAG`` and ``airflow`` (case-insensitive)
++# when looking for Dags. Set this to ``False`` to scan every Python file instead -- required when
++# your Dags are defined through a wrapper or abstraction whose source does not contain those strings.
++# 
++# This setting is read by the Dag file processor, so it must be configured for that component. In a
++# separate-process deployment (for example the Helm chart) set it on the ``dag-processor`` as well as
++# on anything that runs ``airflow dags reserialize``, and restart the component for a change to take
++# effect. If only some components see ``False``, Dags can appear after a manual reserialize and then
++# be deactivated again on the next processor scan.
++# 
++# As an alternative to scanning every file, set ``[core] might_contain_dag_callable`` to a custom
++# heuristic that recognizes your wrapper.
++#
++# Variable: AIRFLOW__CORE__DAG_DISCOVERY_SAFE_MODE
++#
++dag_discovery_safe_mode = True
++
++# The pattern syntax used in the
++# `.airflowignore
++# <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html#airflowignore>`__
++# files in the DAG directories. Valid values are ``regexp`` or ``glob``.
++#
++# Variable: AIRFLOW__CORE__DAG_IGNORE_FILE_SYNTAX
++#
++dag_ignore_file_syntax = glob
++
++# The number of retries each task is going to have by default. Can be overridden at dag or task level.
++#
++# Variable: AIRFLOW__CORE__DEFAULT_TASK_RETRIES
++#
++default_task_retries = 0
++
++# The number of seconds each task is going to wait by default between retries. Can be overridden at
++# dag or task level.
++#
++# Variable: AIRFLOW__CORE__DEFAULT_TASK_RETRY_DELAY
++#
++default_task_retry_delay = 300
++
++# The maximum delay (in seconds) each task is going to wait by default between retries.
++# This is a global setting and cannot be overridden at task or DAG level.
++#
++# Variable: AIRFLOW__CORE__MAX_TASK_RETRY_DELAY
++#
++max_task_retry_delay = 86400
++
++# The weighting method used for the effective total priority weight of the task
++#
++# Variable: AIRFLOW__CORE__DEFAULT_TASK_WEIGHT_RULE
++#
++default_task_weight_rule = downstream
++
++# Maximum possible time (in seconds) that task will have for execution of auxiliary processes
++# (like listeners, mini scheduler...) after task is marked as success..
++#
++# Variable: AIRFLOW__CORE__TASK_SUCCESS_OVERTIME
++#
++task_success_overtime = 20
++
++# The default task execution_timeout value for the operators. Expected an integer value to
++# be passed into timedelta as seconds. If not specified, then the value is considered as None,
++# meaning that the operators are never timed out by default.
++#
++# Variable: AIRFLOW__CORE__DEFAULT_TASK_EXECUTION_TIMEOUT
++#
++default_task_execution_timeout = 
++
++# Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
++#
++# Variable: AIRFLOW__CORE__MIN_SERIALIZED_DAG_UPDATE_INTERVAL
++#
++min_serialized_dag_update_interval = 30
++
++# If ``True``, serialized DAGs are compressed before writing to DB.
++# 
++# .. note::
++# 
++#     This will disable the DAG dependencies view
++#
++# Variable: AIRFLOW__CORE__COMPRESS_SERIALIZED_DAGS
++#
++compress_serialized_dags = False
++
++# Number of recent dag runs for which Rendered Task Instance Fields are retained.
++# Records from older runs are deleted during task execution.
++# Keeping this number small may cause an error when you try to view ``Rendered`` tab in
++# TaskInstance view for older tasks.
++#
++# Variable: AIRFLOW__CORE__NUM_DAG_RUNS_TO_RETAIN_RENDERED_FIELDS
++#
++num_dag_runs_to_retain_rendered_fields = 30
++
++# Path to custom XCom class that will be used to store and resolve operators results
++#
++# Example: xcom_backend = path.to.CustomXCom
++#
++# Variable: AIRFLOW__CORE__XCOM_BACKEND
++#
++xcom_backend = airflow.sdk.execution_time.xcom.BaseXCom
++
++# By default Airflow plugins are lazily-loaded (only loaded when required). Set it to ``False``,
++# if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
++#
++# Variable: AIRFLOW__CORE__LAZY_LOAD_PLUGINS
++#
++lazy_load_plugins = True
++
++# By default Airflow providers are lazily-discovered (discovery and imports happen only when required).
++# Set it to ``False``, if you want to discover providers whenever 'airflow' is invoked via cli or
++# loaded from module.
++#
++# Variable: AIRFLOW__CORE__LAZY_DISCOVER_PROVIDERS
++#
++lazy_discover_providers = True
++
++# Hide sensitive **Variables** or **Connection extra json keys** from UI
++# and task logs when set to ``True``
++# 
++# .. note::
++# 
++#     Connection passwords are always hidden in logs
++#
++# Variable: AIRFLOW__CORE__HIDE_SENSITIVE_VAR_CONN_FIELDS
++#
++hide_sensitive_var_conn_fields = True
++
++# A comma-separated list of extra sensitive keywords to look for in variables names or connection's
++# extra JSON.
++#
++# Variable: AIRFLOW__CORE__SENSITIVE_VAR_CONN_NAMES
++#
++sensitive_var_conn_names = 
++
++# Task Slot counts for ``default_pool``. This setting would not have any effect in an existing
++# deployment where the ``default_pool`` is already created. For existing deployments, users can
++# change the number of slots using Webserver, API or the CLI
++#
++# Variable: AIRFLOW__CORE__DEFAULT_POOL_TASK_SLOT_COUNT
++#
++default_pool_task_slot_count = 128
++
++# The maximum list/dict length an XCom can push to trigger task mapping. If the pushed list/dict has a
++# length exceeding this value, the task pushing the XCom will be failed automatically to prevent the
++# mapped tasks from clogging the scheduler.
++#
++# Variable: AIRFLOW__CORE__MAX_MAP_LENGTH
++#
++max_map_length = 1024
++
++# Allow ``..`` (consecutive dots) in DAG IDs and run IDs. By default, ``..`` is blocked to prevent
++# path traversal attacks. Set to ``True`` only if you have existing DAGs or runs whose IDs contain
++# ``..`` and cannot be renamed.
++#
++# Variable: AIRFLOW__CORE__ALLOW_DOUBLE_DOT_IN_IDS
++#
++allow_double_dot_in_ids = False
++
++# The default umask to use for process when run in daemon mode (scheduler, worker,  etc.)
++# 
++# This controls the file-creation mode mask which determines the initial value of file permission bits
++# for newly created files.
++# 
++# This value is treated as an octal-integer.
++#
++# Variable: AIRFLOW__CORE__DAEMON_UMASK
++#
++daemon_umask = 0o077
++
++# Class to use as asset manager.
++#
++# Example: asset_manager_class = airflow.assets.manager.AssetManager
++#
++# Variable: AIRFLOW__CORE__ASSET_MANAGER_CLASS
++#
++# asset_manager_class = 
++
++# Kwargs to supply to asset manager.
++#
++# Example: asset_manager_kwargs = {"some_param": "some_value"}
++#
++# Variable: AIRFLOW__CORE__ASSET_MANAGER_KWARGS
++#
++# asset_manager_kwargs = 
++
++# The ability to allow testing connections across Airflow UI, API and CLI.
++# Supported options: ``Disabled``, ``Enabled``, ``Hidden``. Default: Disabled
++# Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
++# Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
++# Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
++# Before setting this to Enabled, make sure that you review the users who are able to add/edit
++# connections and ensure they are trusted. Connection testing can be done maliciously leading to
++# undesired and insecure outcomes.
++# See `Airflow Security Model: Capabilities of authenticated UI users
++# <https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html#capabilities-of-authenticated-ui-users>`__
++# for more details.
++#
++# Variable: AIRFLOW__CORE__TEST_CONNECTION
++#
++test_connection = Disabled
++
++# The maximum length of the rendered template field. If the value to be stored in the
++# rendered template field exceeds this size, it's redacted.
++#
++# Variable: AIRFLOW__CORE__MAX_TEMPLATED_FIELD_LENGTH
++#
++max_templated_field_length = 4096
++
++# The url of the execution api server. Default is ``{BASE_URL}/execution/``
++# where ``{BASE_URL}`` is the base url of the API Server. If ``{BASE_URL}`` is not set,
++# it will use ``http://localhost:8080`` as the default base url.
++#
++# Variable: AIRFLOW__CORE__EXECUTION_API_SERVER_URL
++#
++# execution_api_server_url = 
++
++# Whether to run the Airflow environment in multi-team mode.
++# In this mode, different teams can have scoped access to their own resources while still sharing the
++# same underlying deployment.
++#
++# Variable: AIRFLOW__CORE__MULTI_TEAM
++#
++multi_team = False
++
++# Number of seconds a Dag's owning team (resolved from its bundle) is cached in memory before it
++# is looked up again. The team is read on every Dag authorization check, including the grid
++# endpoints which re-poll continuously, so caching it avoids repeated Team-table joins. A team
++# reassignment takes up to this many seconds to take effect, and different API server workers may
++# briefly disagree during that window. Set to ``0`` to disable caching.
++#
++# Variable: AIRFLOW__CORE__TEAM_NAME_CACHE_TTL
++#
++team_name_cache_ttl = 30
++
++# Default value for whether cleared, rerun, or backfilled tasks should use
++# the latest bundle version. When set to True, reruns and backfills pick up
++# the latest code. When set to False, they use the original bundle version.
++# When unset, the fallback depends on the call site: False for clearing or
++# rerunning tasks, True for creating backfills (preserving the historical
++# defaults for each). Individual DAGs can override this with the
++# ``rerun_with_latest_version`` parameter.
++#
++# Variable: AIRFLOW__CORE__RERUN_WITH_LATEST_VERSION
++#
++# rerun_with_latest_version = 
++
++[database]
++# Path to the ``alembic.ini`` file. You can either provide the file path relative
++# to the Airflow home directory or the absolute path if it is located elsewhere.
++#
++# Variable: AIRFLOW__DATABASE__ALEMBIC_INI_FILE_PATH
++#
++alembic_ini_file_path = alembic.ini
++
++# The SQLAlchemy connection string to the metadata database.
++# SQLAlchemy supports many different database engines.
++# See: `Set up a Database Backend: Database URI
++# <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#database-uri>`__
++# for more details.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
++#
++sql_alchemy_conn = sqlite:////airflow.db
++
++# The SQLAlchemy connection string to the metadata database used for async connections.
++# If this is not set, Airflow automatically derives a string by converting ``sql_alchemy_conn``.
++# Unfortunately, this conversion logic does not always work due to various incompatibilities
++# between sync and async db driver implementations. This sets the connection string directly
++# without any conversion instead.
++#
++# Example: sql_alchemy_conn_async = postgresql+asyncpg://postgres:airflow@postgres/airflow
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_ASYNC
++#
++# sql_alchemy_conn_async = 
++
++# Extra engine specific keyword args passed to SQLAlchemy's create_engine, as a JSON-encoded value
++#
++# Example: sql_alchemy_engine_args = {"arg1": true}
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS
++#
++# sql_alchemy_engine_args = 
++
++# The encoding for the databases
++#
++# Variable: AIRFLOW__DATABASE__SQL_ENGINE_ENCODING
++#
++sql_engine_encoding = utf-8
++
++# Collation for ``dag_id``, ``task_id``, ``key``, ``external_executor_id`` columns
++# in case they have different encoding.
++# By default this collation is the same as the database collation, however for ``mysql`` and ``mariadb``
++# the default is ``utf8mb3_bin`` so that the index sizes of our index keys will not exceed
++# the maximum size of allowed index when collation is set to ``utf8mb4`` variant, see
++# `GitHub Issue Comment <https://github.com/apache/airflow/pull/17603#issuecomment-901121618>`__
++# for more details.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ENGINE_COLLATION_FOR_IDS
++#
++# sql_engine_collation_for_ids = 
++
++# If SQLAlchemy should pool database connections.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED
++#
++sql_alchemy_pool_enabled = True
++
++# The SQLAlchemy pool size is the maximum number of database connections
++# in the pool. 0 indicates no limit.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE
++#
++sql_alchemy_pool_size = 5
++
++# The maximum overflow size of the pool.
++# When the number of checked-out connections reaches the size set in pool_size,
++# additional connections will be returned up to this limit.
++# When those additional connections are returned to the pool, they are disconnected and discarded.
++# It follows then that the total number of simultaneous connections the pool will allow
++# is **pool_size** + **max_overflow**,
++# and the total number of "sleeping" connections the pool will allow is pool_size.
++# max_overflow can be set to ``-1`` to indicate no overflow limit;
++# no limit will be placed on the total number of concurrent connections. Defaults to ``10``.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_OVERFLOW
++#
++sql_alchemy_max_overflow = 10
++
++# The SQLAlchemy pool recycle is the number of seconds a connection
++# can be idle in the pool before it is invalidated. This config does
++# not apply to sqlite. If the number of DB connections is ever exceeded,
++# a lower config value will allow the system to recover faster.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE
++#
++sql_alchemy_pool_recycle = 1800
++
++# Check connection at the start of each connection pool checkout.
++# Typically, this is a simple statement like "SELECT 1".
++# See `SQLAlchemy Pooling: Disconnect Handling - Pessimistic
++# <https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic>`__
++# for more details.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING
++#
++sql_alchemy_pool_pre_ping = True
++
++# The schema to use for the metadata database.
++# SQLAlchemy supports databases with the concept of multiple schemas.
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA
++#
++sql_alchemy_schema = 
++
++# Import path for connect args in SQLAlchemy. Defaults to an empty dict.
++# This is useful when you want to configure db engine args that SQLAlchemy won't parse
++# in connection string. This can be set by passing a dictionary containing the create engine parameters.
++# For more details about passing create engine parameters (keepalives variables, timeout etc)
++# in Postgres DB Backend see `Setting up a PostgreSQL Database
++# <https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database>`__
++# e.g ``connect_args={"timeout":30}`` can be defined in ``airflow_local_settings.py`` and
++# can be imported as shown below
++# 
++# *Changed in 3.1.0*: This configuration is only applied to synchronous engines, such as psycopg2.
++# See ``sql_alchemy_connect_args_async``.
++#
++# Example: sql_alchemy_connect_args = airflow_local_settings.connect_args
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_CONNECT_ARGS
++#
++# sql_alchemy_connect_args = 
++
++# Import path for connect args in SQLAlchemy. Defaults to an empty dict.
++# This is similar to ``sql_alchemy_connect_args``, but only for async connections.
++# 
++# This configuration is only applied to async engines, such as asyncpg.
++#
++# Example: sql_alchemy_connect_args_async = airflow_local_settings.connect_args_async
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_CONNECT_ARGS_ASYNC
++#
++# sql_alchemy_connect_args_async = 
++
++# Important Warning: Use of sql_alchemy_session_maker Highly Discouraged
++# Import path for function which returns 'sqlalchemy.orm.sessionmaker'.
++# Improper configuration of sql_alchemy_session_maker can lead to serious issues,
++# including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
++# documentation for detailed guidance on proper configuration and best practices.
++#
++# Example: sql_alchemy_session_maker = airflow_local_settings._sessionmaker
++#
++# Variable: AIRFLOW__DATABASE__SQL_ALCHEMY_SESSION_MAKER
++#
++# sql_alchemy_session_maker = 
++
++# Number of times the code should be retried in case of DB Operational Errors.
++# Not all transactions will be retried as it can cause undesired state.
++# Currently it is only used in ``DagFileProcessor.process_file`` to retry ``dagbag.sync_to_db``.
++#
++# Variable: AIRFLOW__DATABASE__MAX_DB_RETRIES
++#
++max_db_retries = 3
++
++# Whether to run alembic migrations during Airflow start up. Sometimes this operation can be expensive,
++# and the users can assert the correct version through other means (e.g. through a Helm chart).
++# Accepts ``True`` or ``False``.
++#
++# Variable: AIRFLOW__DATABASE__CHECK_MIGRATIONS
++#
++check_migrations = True
++
++# Additional DB managers to include when migrating external tables in the Airflow
++# database, beyond those automatically discovered from installed providers.
++# The managers must inherit from BaseDBManager.
++#
++# Example: external_db_managers = airflow.providers.fab.auth_manager.models.db.FABDBManager
++#
++# Variable: AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS
++#
++# external_db_managers = 
++
++# The number of rows to process in each batch when performing a migration.
++# This is useful for large tables to avoid locking and failure due to query timeouts.
++#
++# Variable: AIRFLOW__DATABASE__MIGRATION_BATCH_SIZE
++#
++migration_batch_size = 10000
++
++[logging]
++# The folder where airflow should store its log files.
++# This path must be absolute.
++# There are a few existing configurations that assume this is set to the default.
++# If you choose to override this you may need to update the
++# ``[logging] dag_processor_manager_log_location`` and
++# ``[logging] dag_processor_child_process_log_directory settings`` as well.
++#
++# Variable: AIRFLOW__LOGGING__BASE_LOG_FOLDER
++#
++base_log_folder = /logs
++
++# Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
++# Set this to ``True`` if you want to enable remote logging.
++#
++# Variable: AIRFLOW__LOGGING__REMOTE_LOGGING
++#
++remote_logging = False
++
++# Users must supply an Airflow connection id that provides access to the storage
++# location. Depending on your remote logging service, this may only be used for
++# reading logs, not writing them.
++#
++# Variable: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
++#
++remote_log_conn_id = 
++
++# Whether the local log files for GCS, S3, WASB, HDFS and OSS remote logging should be deleted after
++# they are uploaded to the remote location.
++#
++# Variable: AIRFLOW__LOGGING__DELETE_LOCAL_LOGS
++#
++delete_local_logs = False
++
++# Path to Google Credential JSON file. If omitted, authorization based on `the Application Default
++# Credentials
++# <https://cloud.google.com/docs/authentication/application-default-credentials>`__ will
++# be used.
++#
++# Variable: AIRFLOW__LOGGING__GOOGLE_KEY_PATH
++#
++google_key_path = 
++
++# Storage bucket URL for remote logging
++# S3 buckets should start with **s3://**
++# Cloudwatch log groups should start with **cloudwatch://**
++# GCS buckets should start with **gs://**
++# WASB buckets should start with **wasb** just to help Airflow select correct handler
++# Stackdriver logs should start with **stackdriver://**
++#
++# Variable: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
++#
++remote_base_log_folder = 
++
++# The remote_task_handler_kwargs param is loaded into a dictionary and passed to the ``__init__``
++# of remote task handler and it overrides the values provided by Airflow config. For example if you set
++# ``delete_local_logs=False`` and you provide ``{"delete_local_copy": true}``, then the local
++# log files will be deleted after they are uploaded to remote location.
++#
++# Example: remote_task_handler_kwargs = {"delete_local_copy": true}
++#
++# Variable: AIRFLOW__LOGGING__REMOTE_TASK_HANDLER_KWARGS
++#
++remote_task_handler_kwargs = 
++
++# Use server-side encryption for logs stored in S3
++#
++# Variable: AIRFLOW__LOGGING__ENCRYPT_S3_LOGS
++#
++encrypt_s3_logs = False
++
++# Logging level.
++# 
++# Individual loggers can be set at a different level with the :ref:`config:logging__namespace_levels`
++# option.
++# 
++# Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
++#
++# Variable: AIRFLOW__LOGGING__LOGGING_LEVEL
++#
++logging_level = INFO
++
++# Set the log level for individual named loggers.
++# 
++# A very common convention in Python is to use the module name as the name of the logger from which log
++# messages originate. This config option gives us the ability to set log levels for those loggers
++# easily.
++# 
++# The format of this variable is a series of ``<logger>=<level>`` pairs, separated by whitespace or
++# commas.
++# 
++# Each level is one of the possible values to ``logging_level``.
++# 
++# The logger names are viewable in task logs (as the "source" attribute), or in server components by
++# including ``%(name)s`` in your format string, or in the between ``[]`` after the message in the
++# default format.
++#
++# Example: namespace_levels = sqlalchemy=INFO sqlalchemy.engine=DEBUG, botocor
++#
++# Variable: AIRFLOW__LOGGING__NAMESPACE_LEVELS
++#
++# namespace_levels = 
++
++# Logging level for celery. If not set, it uses the value of logging_level
++# 
++# Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
++#
++# Variable: AIRFLOW__LOGGING__CELERY_LOGGING_LEVEL
++#
++celery_logging_level = 
++
++# Logging level for Flask-appbuilder UI.
++# 
++# Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
++#
++# Variable: AIRFLOW__LOGGING__FAB_LOGGING_LEVEL
++#
++fab_logging_level = WARNING
++
++# Enable JSON-structured logging for all output. When ``True``, every log line emitted by
++# the process is a single-line JSON object (including HTTP access logs from the API server).
++# Recommended for production / cloud-native deployments where logs are collected by a log
++# aggregator.
++#
++# Example: json_logs = True
++#
++# Variable: AIRFLOW__LOGGING__JSON_LOGS
++#
++json_logs = False
++
++# Logging level for uvicorn (API server and serve-logs).
++# 
++# Supported values: ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
++#
++# Variable: AIRFLOW__LOGGING__UVICORN_LOGGING_LEVEL
++#
++uvicorn_logging_level = INFO
++
++# Dotted import path to a ``logging.config.dictConfig`` dict. The
++# ``_class`` suffix is historical — the target is a dict, not a class.
++# 
++# Airflow also reads two optional module-level attributes from the
++# enclosing module: ``REMOTE_TASK_LOG`` and ``DEFAULT_REMOTE_CONN_ID``,
++# used to drive remote task-log read-back. See :ref:`write-logs-advanced`.
++#
++# Example: logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
++#
++# Variable: AIRFLOW__LOGGING__LOGGING_CONFIG_CLASS
++#
++logging_config_class = 
++
++# Flag to enable/disable Colored logs in Console
++# Colour the logs when the controlling terminal is a TTY.
++#
++# Variable: AIRFLOW__LOGGING__COLORED_CONSOLE_LOG
++#
++colored_console_log = True
++
++# Format of Log line
++# 
++# *Changed in 3.1.0*: This can now contain color escape sequences ``%(blue)s`` etc which will only
++# result in colours if :ref:`config:logging__colored_console_log` is true.
++#
++# Example: log_format = [%%(asctime)s] {{%%(filename)s:%%(lineno)d}} %%(levelname)s - %%(message)s
++#
++# Variable: AIRFLOW__LOGGING__LOG_FORMAT
++#
++log_format = 
++
++# A comma separated list of information about the callsite (such as line number of filename etc) of
++# logger calls to include in each message.
++# 
++# See :class:`structlog.processors.CallsiteParameter` for the possible values.The values should be the
++# constant names (``FUNC_NAME``) or the values (``func_name``)
++# 
++# Including these in a log message adds a lot to the usability to the logs, but collecting these has a
++# (tiny) cost -- if you are super concerned with eking out every last ounce of performance you could
++# turn these off (by setting this value to an empty string)
++#
++# Variable: AIRFLOW__LOGGING__CALLSITE_PARAMETERS
++#
++callsite_parameters = filename,lineno
++
++# Defines the format of log messages for simple logging configuration
++#
++# Variable: AIRFLOW__LOGGING__SIMPLE_LOG_FORMAT
++#
++simple_log_format = %%(asctime)s %%(levelname)s - %%(message)s
++
++# Where to send dag parser logs. If "file", logs are sent to log files defined by child_process_log_directory.
++#
++# Variable: AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_TARGET
++#
++dag_processor_log_target = file
++
++# Format of Dag Processor Log line
++#
++# Variable: AIRFLOW__LOGGING__DAG_PROCESSOR_LOG_FORMAT
++#
++dag_processor_log_format = [%%(asctime)s] [SOURCE:DAG_PROCESSOR] {%%(filename)s:%%(lineno)d} %%(levelname)s - %%(message)s
++
++# Determines the directory where logs for the child processes of the dag processor will be stored
++#
++# Variable: AIRFLOW__LOGGING__DAG_PROCESSOR_CHILD_PROCESS_LOG_DIRECTORY
++#
++dag_processor_child_process_log_directory = /logs/dag_processor
++
++# Determines the formatter class used by Airflow for structuring its log messages
++# The default formatter class is timezone-aware, which means that timestamps attached to log entries
++# will be adjusted to reflect the local timezone of the Airflow instance.
++# Note: This setting does NOT affect component logs (scheduler, api-server, triggerer, etc.) since
++# those use structlog directly. Use ``log_timestamp_format`` to control timestamps for those logs.
++#
++# Variable: AIRFLOW__LOGGING__LOG_FORMATTER_CLASS
++#
++log_formatter_class = airflow.utils.log.timezone_aware.TimezoneAware
++
++# Timestamp format for component logs (scheduler, api-server, triggerer, etc.).
++# Use ``iso`` for ISO 8601 format (default), or a Python strftime format string
++# such as ``%Y-%m-%d %H:%M:%S``.
++# Note: This setting only applies to component logs rendered via structlog.
++# Task/DAG logs use ``log_format`` instead.
++#
++# Example: log_timestamp_format = %Y-%m-%d %H:%M:%S
++#
++# Variable: AIRFLOW__LOGGING__LOG_TIMESTAMP_FORMAT
++#
++log_timestamp_format = iso
++
++# An import path to a function to add adaptations of each secret added with
++# ``airflow.sdk.execution_time.secrets_masker.mask_secret`` to be masked in log messages.
++# The given function is expected to require a single parameter: the secret to be adapted.
++# It may return a single adaptation of the secret or an iterable of adaptations to each be
++# masked as secrets. The original secret will be masked as well as any adaptations returned.
++#
++# Example: secret_mask_adapter = urllib.parse.quote
++#
++# Variable: AIRFLOW__LOGGING__SECRET_MASK_ADAPTER
++#
++secret_mask_adapter = 
++
++# The minimum length of a secret to be masked in log messages.
++# Secrets shorter than this length will not be masked.
++#
++# Variable: AIRFLOW__LOGGING__MIN_LENGTH_MASKED_SECRET
++#
++min_length_masked_secret = 5
++
++# Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``
++#
++# Example: task_log_prefix_template = {{ti.dag_id}}-{{ti.task_id}}-{{logical_date}}-{{ti.try_number}}
++#
++# Variable: AIRFLOW__LOGGING__TASK_LOG_PREFIX_TEMPLATE
++#
++task_log_prefix_template = 
++
++# Formatting for how airflow generates file names/paths for each task run.
++#
++# Variable: AIRFLOW__LOGGING__LOG_FILENAME_TEMPLATE
++#
++log_filename_template = dag_id={{ ti.dag_id }}/run_id={{ ti.run_id }}/task_id={{ ti.task_id }}/{%% if ti.map_index >= 0 %%}map_index={{ ti.map_index }}/{%% endif %%}attempt={{ try_number|default(ti.try_number) }}.log
++
++# Name of handler to read task instance logs.
++# Defaults to use ``task`` handler.
++#
++# Variable: AIRFLOW__LOGGING__TASK_LOG_READER
++#
++task_log_reader = task
++
++# A comma\-separated list of third-party logger names that will be configured to print messages to
++# consoles\.
++#
++# Example: extra_logger_names = fastapi,sqlalchemy
++#
++# Variable: AIRFLOW__LOGGING__EXTRA_LOGGER_NAMES
++#
++extra_logger_names = 
++
++# When you start an Airflow worker, Airflow starts a tiny web server
++# subprocess to serve the workers local log files to the airflow main
++# web server, who then builds pages and sends them to users. This defines
++# the port on which the logs are served. It needs to be unused, and open
++# visible from the main web server to connect into the workers.
++#
++# Variable: AIRFLOW__LOGGING__WORKER_LOG_SERVER_PORT
++#
++worker_log_server_port = 8793
++
++# Port to serve logs from for triggerer.
++# See ``[logging] worker_log_server_port`` description for more info.
++#
++# Variable: AIRFLOW__LOGGING__TRIGGER_LOG_SERVER_PORT
++#
++trigger_log_server_port = 8794
++
++# We must parse timestamps to interleave logs between trigger and task.  To do so,
++# we need to parse timestamps in log files. In case your log format is non-standard,
++# you may provide import path to callable which takes a string log line and returns
++# the timestamp (datetime.datetime compatible).
++#
++# Example: interleave_timestamp_parser = path.to.my_func
++#
++# Variable: AIRFLOW__LOGGING__INTERLEAVE_TIMESTAMP_PARSER
++#
++# interleave_timestamp_parser = 
++
++# Permissions in the form or of octal string as understood by chmod. The permissions are important
++# when you use impersonation, when logs are written by a different user than airflow. The most secure
++# way of configuring it in this case is to add both users to the same group and make it the default
++# group of both users. Group-writeable logs are default in airflow, but you might decide that you are
++# OK with having the logs other-writeable, in which case you should set it to ``0o777``. You might
++# decide to add more security if you do not use impersonation and change it to ``0o755`` to make it
++# only owner-writeable. You can also make it just readable only for owner by changing it to ``0o700``
++# if all the access (read/write) for your logs happens from the same user.
++#
++# Example: file_task_handler_new_folder_permissions = 0o775
++#
++# Variable: AIRFLOW__LOGGING__FILE_TASK_HANDLER_NEW_FOLDER_PERMISSIONS
++#
++file_task_handler_new_folder_permissions = 0o775
++
++# Permissions in the form or of octal string as understood by chmod. The permissions are important
++# when you use impersonation, when logs are written by a different user than airflow. The most secure
++# way of configuring it in this case is to add both users to the same group and make it the default
++# group of both users. Group-writeable logs are default in airflow, but you might decide that you are
++# OK with having the logs other-writeable, in which case you should set it to ``0o666``. You might
++# decide to add more security if you do not use impersonation and change it to ``0o644`` to make it
++# only owner-writeable. You can also make it just readable only for owner by changing it to ``0o600``
++# if all the access (read/write) for your logs happens from the same user.
++#
++# Example: file_task_handler_new_file_permissions = 0o664
++#
++# Variable: AIRFLOW__LOGGING__FILE_TASK_HANDLER_NEW_FILE_PERMISSIONS
++#
++file_task_handler_new_file_permissions = 0o664
++
++# By default Celery sends all logs into stderr.
++# If enabled any previous logging handlers will get *removed*.
++# With this option AirFlow will create new handlers
++# and send low level logs like INFO and WARNING to stdout,
++# while sending higher severity logs to stderr.
++#
++# Variable: AIRFLOW__LOGGING__CELERY_STDOUT_STDERR_SEPARATION
++#
++celery_stdout_stderr_separation = False
++
++# A comma separated list of keywords related to errors whose presence should display the line in red
++# color in UI
++#
++# Variable: AIRFLOW__LOGGING__COLOR_LOG_ERROR_KEYWORDS
++#
++color_log_error_keywords = error,exception
++
++# A comma separated list of keywords related to warning whose presence should display the line in yellow
++# color in UI
++#
++# Variable: AIRFLOW__LOGGING__COLOR_LOG_WARNING_KEYWORDS
++#
++color_log_warning_keywords = warn
++
++[metrics]
++# `StatsD <https://github.com/statsd/statsd>`__ integration settings.
++
++# Configure an allow list (comma separated regex patterns to match) to send only certain metrics.
++#
++# Example: metrics_allow_list = "scheduler,executor,dagrun,pool,triggerer,celery" or "^scheduler,^executor,heartbeat|timeout"
++#
++# Variable: AIRFLOW__METRICS__METRICS_ALLOW_LIST
++#
++metrics_allow_list = 
++
++# Configure a block list (comma separated regex patterns to match) to block certain metrics
++# from being emitted.
++# If ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` are both configured,
++# ``[metrics] metrics_block_list`` is ignored.
++#
++# Example: metrics_block_list = "scheduler,executor,dagrun,pool,triggerer,celery" or "^scheduler,^executor,heartbeat|timeout"
++#
++# Variable: AIRFLOW__METRICS__METRICS_BLOCK_LIST
++#
++metrics_block_list = 
++
++# If true, it exports both new and legacy metric names.
++# Legacy names contain variables such as dag_id and task_id,
++# while the new names set these variables inside tags.
++#
++# Variable: AIRFLOW__METRICS__LEGACY_NAMES_ON
++#
++legacy_names_on = True
++
++# Enables sending metrics to StatsD.
++#
++# Variable: AIRFLOW__METRICS__STATSD_ON
++#
++statsd_on = False
++
++# Specifies the host address where the StatsD daemon (or server) is running
++#
++# Variable: AIRFLOW__METRICS__STATSD_HOST
++#
++statsd_host = localhost
++
++# Enables the statsd host to be resolved into IPv6 address
++#
++# Variable: AIRFLOW__METRICS__STATSD_IPV6
++#
++statsd_ipv6 = False
++
++# Specifies the port on which the StatsD daemon (or server) is listening to
++#
++# Variable: AIRFLOW__METRICS__STATSD_PORT
++#
++statsd_port = 8125
++
++# Defines the namespace for all metrics sent from Airflow to StatsD
++#
++# Variable: AIRFLOW__METRICS__STATSD_PREFIX
++#
++statsd_prefix = airflow
++
++# A function that validate the StatsD stat name, apply changes to the stat name if necessary and return
++# the transformed stat name.
++# 
++# The function should have the following signature
++# 
++# .. code-block:: python
++# 
++#     def func_name(stat_name: str) -> str: ...
++#
++# Variable: AIRFLOW__METRICS__STAT_NAME_HANDLER
++#
++stat_name_handler = 
++
++# To enable datadog integration to send airflow metrics.
++#
++# Variable: AIRFLOW__METRICS__STATSD_DATADOG_ENABLED
++#
++statsd_datadog_enabled = False
++
++# List of datadog tags attached to all metrics(e.g: ``key1:value1,key2:value2``)
++#
++# Variable: AIRFLOW__METRICS__STATSD_DATADOG_TAGS
++#
++statsd_datadog_tags = 
++
++# Set to ``False`` to disable metadata tags for some of the emitted metrics
++#
++# Variable: AIRFLOW__METRICS__STATSD_DATADOG_METRICS_TAGS
++#
++statsd_datadog_metrics_tags = True
++
++# If you want to utilise your own custom StatsD client set the relevant
++# module path below.
++# Note: The module path must exist on your
++# `PYTHONPATH <https://docs.python.org/3/using/cmdline.html#envvar-PYTHONPATH>`
++# for Airflow to pick it up
++#
++# Variable: AIRFLOW__METRICS__STATSD_CUSTOM_CLIENT_PATH
++#
++# statsd_custom_client_path = 
++
++# If you want to avoid sending all the available metrics tags to StatsD,
++# you can configure a block list of prefixes (comma separated) to filter out metric tags
++# that start with the elements of the list (e.g: ``job_id,run_id``)
++#
++# Example: statsd_disabled_tags = job_id,run_id,dag_id,task_id
++#
++# Variable: AIRFLOW__METRICS__STATSD_DISABLED_TAGS
++#
++statsd_disabled_tags = job_id,run_id
++
++# To enable sending Airflow metrics with StatsD-Influxdb tagging convention.
++#
++# Variable: AIRFLOW__METRICS__STATSD_INFLUXDB_ENABLED
++#
++statsd_influxdb_enabled = False
++
++# Enables sending metrics to OpenTelemetry.
++#
++# Variable: AIRFLOW__METRICS__OTEL_ON
++#
++otel_on = False
++
++# Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
++# metrics and traces.
++#
++# Variable: AIRFLOW__METRICS__OTEL_HOST
++#
++# otel_host = 
++
++# Specifies the port of the OpenTelemetry Collector that is listening to.
++#
++# Variable: AIRFLOW__METRICS__OTEL_PORT
++#
++# otel_port = 
++
++# The prefix for the Airflow metrics.
++#
++# Variable: AIRFLOW__METRICS__OTEL_PREFIX
++#
++otel_prefix = airflow
++
++# Defines the interval, in milliseconds, at which Airflow sends batches of metrics and traces
++# to the configured OpenTelemetry Collector.
++#
++# Variable: AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS
++#
++# otel_interval_milliseconds = 
++
++# If ``True``, all metrics are also emitted to the console. Defaults to ``False``.
++#
++# Variable: AIRFLOW__METRICS__OTEL_DEBUGGING_ON
++#
++# otel_debugging_on = 
++
++# The default service name of traces.
++#
++# Variable: AIRFLOW__METRICS__OTEL_SERVICE
++#
++# otel_service = 
++
++# If ``True``, SSL will be enabled. Defaults to ``False``.
++# To establish an HTTPS connection to the OpenTelemetry collector,
++# you need to configure the SSL certificate and key within the OpenTelemetry collector's
++# ``config.yml`` file.
++#
++# Variable: AIRFLOW__METRICS__OTEL_SSL_ACTIVE
++#
++# otel_ssl_active = 
++
++[traces]
++# Distributed traces integration settings.
++
++# Enables sending traces to OpenTelemetry.
++#
++# Variable: AIRFLOW__TRACES__OTEL_ON
++#
++otel_on = False
++
++# Specifies the hostname or IP address of the OpenTelemetry Collector to which Airflow sends
++# traces.
++#
++# Variable: AIRFLOW__TRACES__OTEL_HOST
++#
++# otel_host = 
++
++# Specifies the port of the OpenTelemetry Collector that is listening to.
++#
++# Variable: AIRFLOW__TRACES__OTEL_PORT
++#
++# otel_port = 
++
++# The default service name of traces.
++#
++# Variable: AIRFLOW__TRACES__OTEL_SERVICE
++#
++# otel_service = 
++
++# If True, all traces are also emitted to the console. Defaults to False.
++#
++# Variable: AIRFLOW__TRACES__OTEL_DEBUGGING_ON
++#
++# otel_debugging_on = 
++
++# If True, SSL will be enabled.  Defaults to False.
++# To establish an HTTPS connection to the OpenTelemetry collector,
++# you need to configure the SSL certificate and key within the OpenTelemetry collector's
++# config.yml file.
++#
++# Variable: AIRFLOW__TRACES__OTEL_SSL_ACTIVE
++#
++# otel_ssl_active = 
++
++# If True, then traces from Airflow internal methods are exported. Defaults to False.
++#
++# Variable: AIRFLOW__TRACES__OTEL_DEBUG_TRACES_ON
++#
++# otel_debug_traces_on = 
++
++# Timeout in milliseconds to wait for the OpenTelemetry span exporter to flush pending spans
++# when a task runner process exits. If the exporter does not finish within this time, any
++# buffered spans may be dropped.
++#
++# Variable: AIRFLOW__TRACES__TASK_RUNNER_FLUSH_TIMEOUT_MILLISECONDS
++#
++task_runner_flush_timeout_milliseconds = 30000
++
++[secrets]
++# Full class name of secrets backend to enable (will precede env vars and metastore in search path)
++#
++# Example: backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
++#
++# Variable: AIRFLOW__SECRETS__BACKEND
++#
++backend = 
++
++# The backend_kwargs param is loaded into a dictionary and passed to ``__init__``
++# of secrets backend class. See documentation for the secrets backend you are using.
++# JSON is expected.
++# 
++# Example for AWS Systems Manager ParameterStore:
++# ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
++# 
++# You can also set individual kwargs via ``AIRFLOW__SECRETS__BACKEND_KWARG__<KEY>=value``
++# environment variables. Per-key variables override the same key in this JSON setting.
++# Values are raw strings (not JSON-parsed).
++#
++# Variable: AIRFLOW__SECRETS__BACKEND_KWARGS
++#
++backend_kwargs = 
++
++# .. note:: |experimental|
++# 
++# Enables local caching of Variables, when parsing DAGs only.
++# Using this option can make dag parsing faster if Variables are used in top level code, at the expense
++# of longer propagation time for changes.
++# Please note that this cache concerns only the DAG parsing step. There is no caching in place when DAG
++# tasks are run.
++#
++# Variable: AIRFLOW__SECRETS__USE_CACHE
++#
++use_cache = False
++
++# .. note:: |experimental|
++# 
++# When the cache is enabled, this is the duration for which we consider an entry in the cache to be
++# valid. Entries are refreshed if they are older than this many seconds.
++# It means that when the cache is enabled, this is the maximum amount of time you need to wait to see a
++# Variable change take effect.
++#
++# Variable: AIRFLOW__SECRETS__CACHE_TTL_SECONDS
++#
++cache_ttl_seconds = 900
++
++[api]
++# Sets a custom homepage heading and site title for all Airflow UI pages.
++# If set, the Dashboard will display this value instead of the default
++# "Welcome" message.
++#
++# Variable: AIRFLOW__API__INSTANCE_NAME
++#
++# instance_name = 
++
++# JSON config to customize the Chakra UI theme.
++# Supports ``brand`` color customization, ``globalCss``, and optional navigation icons ``icon``
++# (for light mode) and ``icon_dark_mode`` (for dark mode). Icons must be SVG files and can be
++# either absolute http(s) URLs or app-relative paths starting with ``/``.
++# 
++# Must supply ``50``-``950`` OKLCH color values for ``brand`` color.
++# 
++# For usage see :ref:`customizing-ui-theme`
++# 
++# .. important::
++#   ``oklch(l c h)`` must follow next format:
++# 
++#   - l (lightness) : ``float`` Must be between 0 and 1
++#   - c (chroma) : ``float`` Must be between 0 and 0.5
++#   - h (hue) : ``float`` Must be between 0 and 360
++# 
++# Note: As shown below, you can split your json config over multiple lines by indenting.
++# See configparser documentation for an example:
++# https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
++#
++# Example: theme = {
++#       "tokens": {
++#         "colors": {
++#           "brand": {
++#             "50": { "value": "oklch(0.971 0.013 17.38)" },
++#             "100": { "value": "oklch(0.936 0.032 17.717)" },
++#             "200": { "value": "oklch(0.885 0.062 18.334)" },
++#             "300": { "value": "oklch(0.808 0.114 19.571)" },
++#             "400": { "value": "oklch(0.704 0.191 22.216)" },
++#             "500": { "value": "oklch(0.637 0.237 25.331)" },
++#             "600": { "value": "oklch(0.577 0.245 27.325)" },
++#             "700": { "value": "oklch(0.505 0.213 27.518)" },
++#             "800": { "value": "oklch(0.444 0.177 26.899)" },
++#             "900": { "value": "oklch(0.396 0.141 25.723)" },
++#             "950": { "value": "oklch(0.258 0.092 26.042)" }
++#           }
++#         }
++#       }
++#     }
++#
++# Variable: AIRFLOW__API__THEME
++#
++# theme = 
++
++# Boolean for running SwaggerUI in the webserver.
++#
++# Variable: AIRFLOW__API__ENABLE_SWAGGER_UI
++#
++enable_swagger_ui = True
++
++# Secret key used to run your api server. It should be as random as possible. However, when running
++# more than 1 instances of the api, make sure all of them use the same ``secret_key`` otherwise
++# one of them will error with "CSRF session token is missing".
++# The api key is also used to authorize requests to Celery workers when logs are retrieved.
++# The token generated using the secret key has a short expiry time though - make sure that time on
++# ALL the machines that you run airflow components on is synchronized (for example using ntpd)
++# otherwise you might get "forbidden" errors when the logs are accessed.
++#
++# Variable: AIRFLOW__API__SECRET_KEY
++#
++secret_key = <redacted-secret>
++
++# Expose the configuration file in the web server. Set to ``True`` to expose configuration with
++# sensitive values always masked. The deprecated value ``non-sensitive-only`` is treated the same as
++# ``True`` for backward compatibility. ``False`` hides the configuration completely.
++#
++# Variable: AIRFLOW__API__EXPOSE_CONFIG
++#
++expose_config = False
++
++# Expose stacktrace in the web server
++#
++# Variable: AIRFLOW__API__EXPOSE_STACKTRACE
++#
++expose_stacktrace = False
++
++# Max number of deserialized SerializedDAG objects the API server keeps in memory.
++# Set to 0 for no size limit, leaving eviction to ``dag_cache_ttl``. Set both this and
++# ``dag_cache_ttl`` to 0 to use an unbounded dict with no eviction, matching the behavior
++# before 3.2.2.
++# 
++# The cache is keyed by Dag version ID, so lookups by Dag ID
++# (e.g., viewing a Dag's details) always query the database for the latest
++# version, but the deserialized result is cached for subsequent
++# version-specific lookups.
++#
++# Variable: AIRFLOW__API__DAG_CACHE_SIZE
++#
++dag_cache_size = 64
++
++# Seconds a deserialized SerializedDAG stays in the API server's cache, applied whether or
++# not ``dag_cache_size`` sets a size limit. After this time the Dag is re-fetched from the
++# database on next access. Set to 0 to disable TTL, leaving eviction to the
++# ``dag_cache_size`` LRU policy.
++# 
++# An entry's TTL is refreshed only when the entry is checked against the database after
++# ``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter
++# than that interval, even frequently requested entries can expire and reload between
++# checks. ``dag_cache_size`` remains the only hard ceiling on memory.
++# 
++# Note: this does not govern staleness. A Dag update that creates a new version is picked
++# up immediately, because the new version is a different cache key. A version rewritten in
++# place is re-checked against its current ``dag_hash`` once
++# ``[core] min_serialized_dag_update_interval`` has elapsed since the entry was last
++# validated, so that option bounds how long a rewritten version can be served stale.
++#
++# Variable: AIRFLOW__API__DAG_CACHE_TTL
++#
++dag_cache_ttl = 3600
++
++# The base url of the API server. Airflow cannot guess what domain or CNAME you are using.
++# If the Airflow console (the front-end) and the API server are on a different domain, this config
++# should contain the API server endpoint.
++#
++# Example: base_url = https://my-airflow.company.com
++#
++# Variable: AIRFLOW__API__BASE_URL
++#
++# base_url = 
++
++# The ip specified when starting the api server
++#
++# Variable: AIRFLOW__API__HOST
++#
++host = 0.0.0.0
++
++# The port on which to run the api server
++#
++# Variable: AIRFLOW__API__PORT
++#
++port = 8080
++
++# Number of workers to run on the API server. Should be roughly equal to the number of cpu cores
++# available. If you need to scale the API server, strongly consider deploying multiple API servers
++# instead of increasing the number of workers; See https://github.com/apache/airflow/issues/52270.
++#
++# Variable: AIRFLOW__API__WORKERS
++#
++workers = 1
++
++# Number of seconds the API server waits before timing out on a worker
++#
++# Variable: AIRFLOW__API__WORKER_TIMEOUT
++#
++worker_timeout = 120
++
++# The server type to use for the API server. Options are:
++# 
++# - ``uvicorn``: Default. Uses uvicorn directly. Simple setup, but does not
++#   support rolling worker restarts with ``worker_refresh_interval`` because
++#   uvicorn's multiprocess mode has no master process when workers=1 and
++#   SIGTTOU kills the newest worker (LIFO), not oldest.
++# 
++# - ``gunicorn``: Uses gunicorn with uvicorn workers. Supports rolling worker
++#   restarts via ``worker_refresh_interval``. Requires ``apache-airflow-core[gunicorn]``
++#   extra. Gunicorn always has master/worker architecture and SIGTTOU kills
++#   the oldest worker (FIFO) which is correct for rolling restarts.
++# 
++# Note: When using gunicorn, workers share memory via copy-on-write after fork,
++# reducing overall memory usage. With uvicorn multiprocess mode, each worker
++# loads everything independently with no memory sharing.
++#
++# Example: server_type = gunicorn
++#
++# Variable: AIRFLOW__API__SERVER_TYPE
++#
++server_type = uvicorn
++
++# Number of seconds between rolling worker refreshes for the API server.
++# When enabled, workers are periodically restarted using a rolling restart
++# pattern (new workers spawn before old ones are killed) to prevent memory
++# accumulation while maintaining zero downtime.
++# 
++# Set to 0 to disable worker refresh (default).
++# 
++# This option only works when ``server_type = gunicorn``. With uvicorn,
++# this setting is ignored because uvicorn's SIGTTOU kills the newest worker
++# (LIFO order) rather than oldest, which defeats rolling restart purposes.
++#
++# Example: worker_refresh_interval = 43200
++#
++# Variable: AIRFLOW__API__WORKER_REFRESH_INTERVAL
++#
++worker_refresh_interval = 0
++
++# Number of workers to refresh at a time during rolling restarts.
++# Higher values refresh faster but temporarily use more resources.
++# 
++# Only used when ``worker_refresh_interval > 0`` and ``server_type = gunicorn``.
++#
++# Variable: AIRFLOW__API__WORKER_REFRESH_BATCH_SIZE
++#
++worker_refresh_batch_size = 1
++
++# Path to the logging configuration file for the uvicorn server.
++# If not set, the default uvicorn logging configuration will be used.
++#
++# Example: log_config = path/to/logging_config.yaml
++#
++# Variable: AIRFLOW__API__LOG_CONFIG
++#
++# log_config = 
++
++# Number of log lines to buffer before flushing to the client when streaming task logs
++# in NDJSON format. Larger values reduce HTTP overhead but increase time-to-first-byte.
++#
++# Variable: AIRFLOW__API__LOG_STREAM_BUFFER_SIZE
++#
++log_stream_buffer_size = 500
++
++# Paths to the SSL certificate and key for the api server. When both are
++# provided SSL will be enabled. This does not change the api server port.
++# The same SSL certificate will also be loaded into the worker to enable
++# it to be trusted when a self-signed certificate is used.
++#
++# Variable: AIRFLOW__API__SSL_CERT
++#
++ssl_cert = 
++
++# Paths to the SSL certificate and key for the api server. When both are
++# provided SSL will be enabled. This does not change the api server port.
++#
++# Variable: AIRFLOW__API__SSL_KEY
++#
++ssl_key = 
++
++# Path to the SSL CA file for the api server. Defaults to None.
++#
++# Variable: AIRFLOW__API__SSL_CA_FILE
++#
++# ssl_ca_file = 
++
++# Enable ssl certificate verification on the api server.
++# See https://docs.python.org/3/library/ssl.html#ssl.SSLContext.verify_mode
++# Valid options are 'none', 'optional' or 'required'
++#
++# Example: ssl_cert_reqs = required
++#
++# Variable: AIRFLOW__API__SSL_CERT_REQS
++#
++ssl_cert_reqs = none
++
++# Used to set the maximum page limit for API requests. If limit passed as param
++# is greater than maximum page limit, it will be ignored and maximum page limit value
++# will be set as the limit
++#
++# Variable: AIRFLOW__API__MAXIMUM_PAGE_LIMIT
++#
++maximum_page_limit = 100
++
++# Used to set the default page limit when limit param is zero or not provided in API
++# requests. Otherwise if positive integer is passed in the API requests as limit, the
++# smallest number of user given limit or maximum page limit is taken as limit.
++#
++# Variable: AIRFLOW__API__FALLBACK_PAGE_LIMIT
++#
++fallback_page_limit = 50
++
++# Used in response to a preflight request to indicate which HTTP
++# headers can be used when making the actual request. This header is
++# the server side response to the browser's
++# Access-Control-Request-Headers header.
++#
++# Variable: AIRFLOW__API__ACCESS_CONTROL_ALLOW_HEADERS
++#
++access_control_allow_headers = 
++
++# Specifies the method or methods allowed when accessing the resource.
++#
++# Variable: AIRFLOW__API__ACCESS_CONTROL_ALLOW_METHODS
++#
++access_control_allow_methods = 
++
++# Indicates whether the response can be shared with requesting code from the given origins.
++# Separate URLs with space. Wildcard (``*``) is not allowed: Airflow's API requires
++# credentialed CORS, which is incompatible with a wildcard origin per the CORS spec, and
++# browsers reject any response that combines the two. List exact origins instead
++# (for example ``https://airflow.mycompany.com``).
++#
++# Variable: AIRFLOW__API__ACCESS_CONTROL_ALLOW_ORIGINS
++#
++access_control_allow_origins = 
++
++# Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
++#
++# Variable: AIRFLOW__API__GRID_VIEW_SORTING_ORDER
++#
++grid_view_sorting_order = topological
++
++# The amount of time (in secs) webserver will wait for initial handshake
++# while fetching logs from other worker machine
++#
++# Variable: AIRFLOW__API__LOG_FETCH_TIMEOUT_SEC
++#
++log_fetch_timeout_sec = 5
++
++# By default, the webserver shows paused DAGs. Flip this to hide paused
++# DAGs by default
++#
++# Variable: AIRFLOW__API__HIDE_PAUSED_DAGS_BY_DEFAULT
++#
++hide_paused_dags_by_default = False
++
++# Default setting for wrap toggle on DAG code and TI log views.
++#
++# Variable: AIRFLOW__API__DEFAULT_WRAP
++#
++default_wrap = False
++
++# How frequently, in seconds, the DAG data will auto-refresh in graph or grid view
++# when auto-refresh is turned on
++#
++# Variable: AIRFLOW__API__AUTO_REFRESH_INTERVAL
++#
++auto_refresh_interval = 3
++
++# Require confirmation when changing a DAG in the web UI. This is to prevent accidental changes
++# to a DAG that may be running on sensitive environments like production.
++# When set to ``True``, confirmation dialog will be shown when a user tries to Pause/Unpause,
++# Trigger a DAG
++#
++# Variable: AIRFLOW__API__REQUIRE_CONFIRMATION_DAG_CHANGE
++#
++require_confirmation_dag_change = False
++
++# Path to a PEM-encoded client SSL certificate to use
++# when the Task SDK connects to the Airflow Execution API.
++# Must be set together with ``client_ssl_key``.
++#
++# Example: client_ssl_cert = /etc/airflow/certs/client.crt
++#
++# Variable: AIRFLOW__API__CLIENT_SSL_CERT
++#
++# client_ssl_cert = 
++
++# Path to the PEM-encoded private key corresponding to ``client_ssl_cert``.
++# Must be set together with ``client_ssl_cert``.
++#
++# Example: client_ssl_key = /etc/airflow/certs/client.key
++#
++# Variable: AIRFLOW__API__CLIENT_SSL_KEY
++#
++# client_ssl_key = 
++
++# Enable loading of public CA certificates from certifi into the client SSL context.
++#
++# Variable: AIRFLOW__API__CLIENT_USE_PUBLIC_CERTS
++#
++client_use_public_certs = True
++
++[workers]
++# Configuration related to workers that run Airflow tasks.
++
++# Full class name of secrets backend to enable for workers (will precede env vars backend)
++#
++# Example: secrets_backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
++#
++# Variable: AIRFLOW__WORKERS__SECRETS_BACKEND
++#
++secrets_backend = 
++
++# The secrets_backend_kwargs param is loaded into a dictionary and passed to ``__init__``
++# of secrets backend class. See documentation for the secrets backend you are using.
++# JSON is expected.
++# 
++# Example for AWS Systems Manager ParameterStore:
++# ``{"connections_prefix": "/airflow/connections", "profile_name": "default"}``
++# 
++# You can also set individual kwargs via ``AIRFLOW__WORKERS__SECRETS_BACKEND_KWARG__<KEY>=value``
++# environment variables. Per-key variables override the same key in this JSON setting.
++# Values are raw strings (not JSON-parsed).
++#
++# Variable: AIRFLOW__WORKERS__SECRETS_BACKEND_KWARGS
++#
++secrets_backend_kwargs = 
++
++# Full class name of a custom worker-side store backend. When set, task store values are
++# routed through this backend so large payloads or credentialed storage stay on worker
++# infrastructure. The Execution API still records a reference string in the database.
++# 
++# Leave empty (default) to use the standard path through the task sdk supervisor.
++#
++# Example: state_store_backend = mypackage.state.S3StateBackend
++#
++# Variable: AIRFLOW__WORKERS__STATE_STORE_BACKEND
++#
++state_store_backend = 
++
++# The minimum interval (in seconds) at which the worker checks the task instance's
++# heartbeat status with the API server to confirm it is still alive.
++#
++# Variable: AIRFLOW__WORKERS__MIN_HEARTBEAT_INTERVAL
++#
++min_heartbeat_interval = 5
++
++# The maximum number of consecutive failed heartbeats before terminating the task instance process.
++#
++# Variable: AIRFLOW__WORKERS__MAX_FAILED_HEARTBEATS
++#
++max_failed_heartbeats = 3
++
++# The maximum number of retry attempts to the execution API server.
++#
++# Variable: AIRFLOW__WORKERS__EXECUTION_API_RETRIES
++#
++execution_api_retries = 5
++
++# The minimum amount of time (in seconds) to wait before retrying a failed API request.
++#
++# Variable: AIRFLOW__WORKERS__EXECUTION_API_RETRY_WAIT_MIN
++#
++execution_api_retry_wait_min = 1.0
++
++# The maximum amount of time (in seconds) to wait before retrying a failed API request.
++#
++# Variable: AIRFLOW__WORKERS__EXECUTION_API_RETRY_WAIT_MAX
++#
++execution_api_retry_wait_max = 90.0
++
++# The timeout (in seconds) for HTTP requests from workers to the Execution API server.
++# This controls how long a worker will wait for a response from the API server before
++# timing out. Increase this value if you experience timeout errors under high load.
++#
++# Variable: AIRFLOW__WORKERS__EXECUTION_API_TIMEOUT
++#
++execution_api_timeout = 5.0
++
++# Number of seconds to wait after a task process exits before forcibly closing any
++# remaining communication sockets. This helps prevent the task supervisor from hanging
++# indefinitely due to missed EOF signals.
++#
++# Variable: AIRFLOW__WORKERS__SOCKET_CLEANUP_TIMEOUT
++#
++socket_cleanup_timeout = 60.0
++
++# Maximum number of times a task will be rescheduled if the worker fails to
++# load the Dag or task definition during startup.
++# 
++# This situation can occur due to transient infrastructure issues such as
++# missing Dag files, temporary filesystem or network problems, or bundle
++# synchronization delays. Rescheduling in this case does not count as a
++# task retry.
++# 
++# Set this value to 0 to disable rescheduling and fail the task immediately
++# on startup failures.
++#
++# Variable: AIRFLOW__WORKERS__MISSING_DAG_RETRIES
++#
++missing_dag_retries = 3
++
++# Delay in seconds before a task is rescheduled after a worker startup
++# failure caused by an inability to load the Dag or task definition.
++# 
++# This delay is applied when the task runner requests the scheduler to
++# reschedule the task instance in UP_FOR_RESCHEDULE state.
++#
++# Variable: AIRFLOW__WORKERS__MISSING_DAG_RETRY_DELAY
++#
++missing_dag_retry_delay = 60
++
++[sdk]
++# Settings for non-Python SDK runtime coordination
++
++# JSON object mapping of coordinator keys to coordinator definitions.
++# 
++# Each value is an object with ``classpath`` and optional ``kwargs``.
++# ``classpath`` is resolved via ``import_string`` and constructed with
++# ``kwargs`` on first use.  Entries are
++# independent instances, so the same ``classpath`` can be configured
++# multiple times under different names with different ``kwargs`` (for
++# example, two ``JavaCoordinator`` instances pinned to different JDK
++# versions).
++# 
++# An entry may also carry an optional ``extra`` object for additional
++# information associated with the coordinator that the coordinator itself
++# does not receive; other components read it as needed. For example,
++# KubernetesExecutor reads ``extra.pod_template_file`` to launch a queue's
++# worker pod from a specific pod template, and
++# ``extra.worker_container_repository`` + ``extra.worker_container_tag`` to
++# override the worker base image for that queue (both are required).
++#
++# Example: coordinators = {
++#   "jdk-17": {
++#     "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
++#     "kwargs": {
++#       "jars_root": ["/opt/airflow/java-bundles"],
++#       "java_executable": "/usr/lib/jvm/java-17-openjdk/bin/java",
++#       "jvm_args": ["-Xmx1024m"]
++#     },
++#     "extra": {
++#       "pod_template_file": "/opt/airflow/pod_templates/java.yaml",
++#       "worker_container_repository": "apache/airflow",
++#       "worker_container_tag": "3.3.0"
++#     }
++#   },
++#   "go-sdk": {
++#     "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
++#     "kwargs": {
++#       "executables_root": ["/opt/airflow/executable-bundles"]
++#     }
++#   }
++# }
++#
++# Variable: AIRFLOW__SDK__COORDINATORS
++#
++# coordinators = 
++
++# JSON mapping of queue names to a coordinator key from
++# ``[sdk] coordinators``.
++# 
++# This mapping is checked to route a task to a configured coordinator
++# instance based on its queue.  An entry in this mapping is needed if
++# tasks of a queue should be handled by a custom coordinator instead of
++# the default Python task-running mechanism.
++#
++# Example: queue_to_coordinator = {"legacy-java": "jdk-11", "modern-java": "jdk-17"}
++#
++# Variable: AIRFLOW__SDK__QUEUE_TO_COORDINATOR
++#
++# queue_to_coordinator = 
++
++[api_auth]
++# Settings relating to authentication on the Airflow APIs
++
++# The audience claim to use when generating and validating JWTs for the API.
++# 
++# This variable can be a single value, or a comma-separated string, in which case the first value is the
++# one that will be used when generating, and the others are accepted at validation time.
++# 
++# Not required, but strongly encouraged.
++# 
++# See also :ref:`config:execution_api__jwt_audience`
++#
++# Example: jwt_audience = my-unique-airflow-id
++#
++# Variable: AIRFLOW__API_AUTH__JWT_AUDIENCE
++#
++# jwt_audience = 
++
++# Number in seconds until the JWTs used for authentication expires. When the token expires,
++# all API calls using this token will fail on authentication.
++# 
++# Make sure that time on ALL the machines that you run airflow components on is synchronized
++# (for example using ntpd) otherwise you might get "forbidden" errors.
++# 
++# See also :ref:`config:execution_api__jwt_expiration_time`
++#
++# Variable: AIRFLOW__API_AUTH__JWT_EXPIRATION_TIME
++#
++jwt_expiration_time = 86400
++
++# Number in seconds until the JWTs used for authentication expires for CLI commands.
++# When the token expires, all CLI calls using this token will fail on authentication.
++# 
++# Make sure that time on ALL the machines that you run airflow components on is synchronized
++# (for example using ntpd) otherwise you might get "forbidden" errors.
++#
++# Variable: AIRFLOW__API_AUTH__JWT_CLI_EXPIRATION_TIME
++#
++jwt_cli_expiration_time = 3600
++
++# Secret key used to encode and decode JWTs to authenticate to public and private APIs.
++# 
++# It should be as random as possible. This key must be consistent across all components that
++# generate or validate JWT tokens (Scheduler, API Server). For improved security, consider
++# using asymmetric keys (``jwt_private_key_path``) instead, which allow you to restrict the
++# signing key to only the components that need to generate tokens.
++# 
++# For security-sensitive deployments, pass this value via environment variable
++# (``AIRFLOW__API_AUTH__JWT_SECRET``) rather than storing it in a configuration file, and
++# restrict it to only the components that need it.
++# 
++# Mutually exclusive with ``jwt_private_key_path``.
++#
++# Variable: AIRFLOW__API_AUTH__JWT_SECRET
++#
++jwt_secret = <redacted-secret>
++
++# The path to a file containing a PEM-encoded private key use when generating Task Identity tokens in
++# the executor.
++# 
++# Mutually exclusive with ``jwt_secret``.
++#
++# Example: jwt_private_key_path = /path/to/private_key.pem
++#
++# Variable: AIRFLOW__API_AUTH__JWT_PRIVATE_KEY_PATH
++#
++# jwt_private_key_path = 
++
++# The algorithm name use when generating and validating JWT Task Identities.
++# 
++# This value must be appropriate for the given private key type.
++# 
++# If this is not specified Airflow makes some guesses as what algorithm is best based on the key type.
++# 
++# ("HS512" if ``jwt_secret`` is set, otherwise a key-type specific guess)
++#
++# Example: jwt_algorithm = "EdDSA" or "HS512"
++#
++# Variable: AIRFLOW__API_AUTH__JWT_ALGORITHM
++#
++# jwt_algorithm = 
++
++# The Key ID to place in header when generating JWTs. Not used in the validation path.
++# 
++# If this is not specified the RFC7638 thumbprint of the private key will be used.
++# 
++# Ignored when ``jwt_secret`` is used.
++#
++# Example: jwt_kid = my-key-id
++#
++# Variable: AIRFLOW__API_AUTH__JWT_KID
++#
++# jwt_kid = 
++
++# The public signing keys of Task Execution token issuers to trust. It must contain the public key
++# related to ``jwt_private_key_path`` else tasks will be unlikely to execute successfully.
++# 
++# Can be a local file path (without the ``file://`` prefix) or an http or https URL.
++# 
++# If a remote URL is given it will be polled periodically for changes.
++# 
++# Mutually exclusive with ``jwt_secret``.
++# 
++# If a ``jwt_private_key_path`` is given but this settings is not set then the private key will be
++# trusted. If this is provided it is your responsibility to ensure that the private key used for
++# generation is in this list.
++#
++# Example: trusted_jwks_url = "/path/to/public-jwks.json" or "https://my-issuer/.well-known/jwks.json"
++#
++# Variable: AIRFLOW__API_AUTH__TRUSTED_JWKS_URL
++#
++# trusted_jwks_url = 
++
++# Issuer of the JWT. This becomes the ``iss`` claim of generated tokens, and is validated on incoming
++# requests.
++# 
++# Ideally this should be unique per individual airflow deployment
++# 
++# Not required, but strongly recommended to be set.
++# 
++# See also :ref:`config:api_auth__jwt_audience`
++#
++# Example: jwt_issuer = http://my-airflow.mycompany.com
++#
++# Variable: AIRFLOW__API_AUTH__JWT_ISSUER
++#
++# jwt_issuer = 
++
++# Number of seconds leeway in validating expiry time of JWTs to account for clock skew between
++# client and server
++#
++# Variable: AIRFLOW__API_AUTH__JWT_LEEWAY
++#
++jwt_leeway = 10
++
++[execution_api]
++# Settings related to the Execution API server.
++# 
++# The ExecutionAPI also uses a lot of settings from the :ref:`config:api_auth` section.
++
++# Number in seconds until the JWT used for authentication expires. When the token expires,
++# all API calls using this token will fail on authentication.
++# 
++# Make sure that time on ALL the machines that you run airflow components on is synchronized
++# (for example using ntpd) otherwise you might get "forbidden" errors.
++#
++# Variable: AIRFLOW__EXECUTION_API__JWT_EXPIRATION_TIME
++#
++jwt_expiration_time = 600
++
++# Controls when W3C trace context (``traceparent``/``tracestate``) is extracted from
++# incoming Execution API requests and attached to the OpenTelemetry context.
++# 
++# ``only-authenticated`` (default): trace context is extracted as a FastAPI dependency
++# on authenticated routes, after JWT verification succeeds. Unauthenticated requests
++# (including probes and attack traffic) cannot inject trace context.
++# 
++# ``unsafe-always``: trace context is extracted on all routes (including unauthenticated ones
++# such as health checks), before JWT verification. Use this when you want trace context
++# propagated even on auth failures. If untrusted traffic can reach your API server this can
++# result in data pollution or load/cost in your OTel trace store.
++# 
++# ``never``: trace context is never extracted. Use this to disable the feature entirely.
++#
++# Variable: AIRFLOW__EXECUTION_API__OTEL_TRACE_PROPAGATION
++#
++otel_trace_propagation = only-authenticated
++
++# The audience claim to use when generating and validating JWTs for the Execution API.
++# 
++# This variable can be a single value, or a comma-separated string, in which case the first value is the
++# one that will be used when generating, and the others are accepted at validation time.
++# 
++# Not required, but strongly encouraged
++# 
++# See also :ref:`config:api_auth__jwt_audience`
++#
++# Variable: AIRFLOW__EXECUTION_API__JWT_AUDIENCE
++#
++jwt_audience = urn:airflow.apache.org:task
++
++[lineage]
++# Maximum number of asset inputs or outputs that can be collected by a single hook lineage collector
++# instance. Input assets and output assets are counted separately. Once the maximum is reached, any
++# additional assets will be dropped.
++#
++# Variable: AIRFLOW__LINEAGE__MAX_ASSETS_PER_COLLECTOR
++#
++max_assets_per_collector = 100
++
++# Maximum number of extra metadata entries that can be collected by a single hook lineage collector
++# instance. Once the maximum is reached, any additional extra metadata will be dropped.
++#
++# Variable: AIRFLOW__LINEAGE__MAX_EXTRAS_PER_COLLECTOR
++#
++max_extras_per_collector = 200
++
++[operators]
++# The default owner assigned to each new operator, unless
++# provided explicitly or passed via ``default_args``
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_OWNER
++#
++default_owner = airflow
++
++# The default value of attribute "deferrable" in operators and sensors.
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE
++#
++default_deferrable = false
++
++# Indicates the default number of CPU units allocated to each operator when no specific CPU request
++# is specified in the operator's configuration
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_CPUS
++#
++default_cpus = 1
++
++# Indicates the default number of RAM allocated to each operator when no specific RAM request
++# is specified in the operator's configuration
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_RAM
++#
++default_ram = 512
++
++# Indicates the default number of disk storage allocated to each operator when no specific disk request
++# is specified in the operator's configuration
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_DISK
++#
++default_disk = 512
++
++# Indicates the default number of GPUs allocated to each operator when no specific GPUs request
++# is specified in the operator's configuration
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_GPUS
++#
++default_gpus = 0
++
++# Default queue that tasks get assigned to and that worker listen on.
++#
++# Variable: AIRFLOW__OPERATORS__DEFAULT_QUEUE
++#
++default_queue = default
++
++[email]
++# Configuration email backend and whether to
++# send email alerts on retry or failure
++
++# Email backend to use
++#
++# Variable: AIRFLOW__EMAIL__EMAIL_BACKEND
++#
++email_backend = airflow.utils.email.send_email_smtp
++
++# Email connection to use
++#
++# Variable: AIRFLOW__EMAIL__EMAIL_CONN_ID
++#
++email_conn_id = smtp_default
++
++# Whether email alerts should be sent when a task is retried
++#
++# Variable: AIRFLOW__EMAIL__DEFAULT_EMAIL_ON_RETRY
++#
++default_email_on_retry = True
++
++# Whether email alerts should be sent when a task failed
++#
++# Variable: AIRFLOW__EMAIL__DEFAULT_EMAIL_ON_FAILURE
++#
++default_email_on_failure = True
++
++# File that will be used as the template for Email subject (which will be rendered using Jinja2).
++# If not set, Airflow uses a base template.
++#
++# Example: subject_template = /path/to/my_subject_template_file
++#
++# Variable: AIRFLOW__EMAIL__SUBJECT_TEMPLATE
++#
++# subject_template = 
++
++# File that will be used as the template for Email content (which will be rendered using Jinja2).
++# If not set, Airflow uses a base template.
++#
++# Example: html_content_template = /path/to/my_html_content_template_file
++#
++# Variable: AIRFLOW__EMAIL__HTML_CONTENT_TEMPLATE
++#
++# html_content_template = 
++
++# Email address that will be used as sender address.
++# It can either be raw email or the complete address in a format ``Sender Name <sender@email.com>``
++#
++# Example: from_email = Airflow <airflow@example.com>
++#
++# Variable: AIRFLOW__EMAIL__FROM_EMAIL
++#
++# from_email = 
++
++# ssl context to use when using SMTP and IMAP SSL connections. By default, the context is "default"
++# which sets it to ``ssl.create_default_context()`` which provides the right balance between
++# compatibility and security, it however requires that certificates in your operating system are
++# updated and that SMTP/IMAP servers of yours have valid certificates that have corresponding public
++# keys installed on your machines. You can switch it to "none" if you want to disable checking
++# of the certificates, but it is not recommended as it allows MITM (man-in-the-middle) attacks
++# if your infrastructure is not sufficiently secured. It should only be set temporarily while you
++# are fixing your certificate configuration. This can be typically done by upgrading to newer
++# version of the operating system you run Airflow components on,by upgrading/refreshing proper
++# certificates in the OS or by updating certificates for your mail servers.
++#
++# Example: ssl_context = default
++#
++# Variable: AIRFLOW__EMAIL__SSL_CONTEXT
++#
++ssl_context = default
++
++[smtp]
++# If you want airflow to send emails on retries, failure, and you want to use
++# the airflow.utils.email.send_email_smtp function, you have to configure an
++# smtp server here
++
++# Specifies the host server address used by Airflow when sending out email notifications via SMTP.
++#
++# Variable: AIRFLOW__SMTP__SMTP_HOST
++#
++smtp_host = localhost
++
++# Determines whether to use the STARTTLS command when connecting to the SMTP server.
++#
++# Variable: AIRFLOW__SMTP__SMTP_STARTTLS
++#
++smtp_starttls = True
++
++# Determines whether to use an SSL connection when talking to the SMTP server.
++#
++# Variable: AIRFLOW__SMTP__SMTP_SSL
++#
++smtp_ssl = False
++
++# Defines the port number on which Airflow connects to the SMTP server to send email notifications.
++#
++# Variable: AIRFLOW__SMTP__SMTP_PORT
++#
++smtp_port = 25
++
++# Specifies the default **from** email address used when Airflow sends email notifications.
++#
++# Variable: AIRFLOW__SMTP__SMTP_MAIL_FROM
++#
++smtp_mail_from = airflow@example.com
++
++# Determines the maximum time (in seconds) the Apache Airflow system will wait for a
++# connection to the SMTP server to be established.
++#
++# Variable: AIRFLOW__SMTP__SMTP_TIMEOUT
++#
++smtp_timeout = 30
++
++# Defines the number of times Airflow will attempt to connect to the SMTP server after the first
++# attempt.
++#
++# Variable: AIRFLOW__SMTP__SMTP_RETRY_LIMIT
++#
++smtp_retry_limit = 5
++
++[sentry]
++# `Sentry <https://docs.sentry.io>`__ integration. Here you can supply
++# additional configuration options based on the Python platform.
++# See `Python / Configuration / Basic Options
++# <https://docs.sentry.io/platforms/python/configuration/options/>`__ for more details.
++# Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``,
++# ``ignore_errors``, ``before_breadcrumb``, ``transport``.
++
++# Enable error reporting to Sentry
++#
++# Variable: AIRFLOW__SENTRY__SENTRY_ON
++#
++sentry_on = false
++
++#
++# Variable: AIRFLOW__SENTRY__SENTRY_DSN
++#
++sentry_dsn = 
++
++# Dotted path to a before_send function that the sentry SDK should be configured to use.
++#
++# Variable: AIRFLOW__SENTRY__BEFORE_SEND
++#
++# before_send = 
++
++[scheduler]
++# Task instances listen for external kill signal (when you clear tasks
++# from the CLI or the UI), this defines the frequency at which they should
++# listen (in seconds).
++#
++# Variable: AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC
++#
++job_heartbeat_sec = 5
++
++# The scheduler constantly tries to trigger new tasks (look at the
++# scheduler section in the docs for more information). This defines
++# how often the scheduler should run (in seconds).
++#
++# Variable: AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC
++#
++scheduler_heartbeat_sec = 5
++
++# The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
++# scheduler to notify it's still alive. If this value is set to 0, the heartbeat interval will default
++# to the value of ``[scheduler] task_instance_heartbeat_timeout``.
++#
++# Variable: AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_SEC
++#
++task_instance_heartbeat_sec = 0
++
++# The number of times to try to schedule each DAG file
++# -1 indicates unlimited number
++#
++# Variable: AIRFLOW__SCHEDULER__NUM_RUNS
++#
++num_runs = -1
++
++# Only count scheduler runs where the scheduler was idle (no tasks queued or finished)
++# toward the run limit set by ``[scheduler] num_runs``. The count resets whenever a task is processed.
++#
++# Variable: AIRFLOW__SCHEDULER__ONLY_IDLE
++#
++only_idle = false
++
++# Controls how long the scheduler will sleep between loops, but if there was nothing to do
++# in the loop. i.e. if it scheduled something then it will start the next loop
++# iteration straight away.
++#
++# Variable: AIRFLOW__SCHEDULER__SCHEDULER_IDLE_SLEEP_TIME
++#
++scheduler_idle_sleep_time = 1
++
++# How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
++# the expected files) which should be deactivated, as well as assets that are no longer
++# referenced and should be marked as orphaned.
++#
++# Variable: AIRFLOW__SCHEDULER__PARSING_CLEANUP_INTERVAL
++#
++parsing_cleanup_interval = 60
++
++# How often (in seconds) should pool usage stats be sent to StatsD (if statsd_on is enabled)
++#
++# Variable: AIRFLOW__SCHEDULER__POOL_METRICS_INTERVAL
++#
++pool_metrics_interval = 5.0
++
++# How often (in seconds) should task instance (scheduled, queued, running and deferred) stats
++# be sent to StatsD (if statsd_on is enabled)
++#
++# Variable: AIRFLOW__SCHEDULER__TI_METRICS_INTERVAL
++#
++ti_metrics_interval = 30.0
++
++# How often (in seconds) the scheduler emits metrics on running DAG runs
++# to StatsD (if statsd_on is enabled)
++#
++# Variable: AIRFLOW__SCHEDULER__DAGRUN_METRICS_INTERVAL
++#
++dagrun_metrics_interval = 30.0
++
++# If the last scheduler heartbeat happened more than ``[scheduler] scheduler_health_check_threshold``
++# ago (in seconds), scheduler is considered unhealthy.
++# This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
++# for SchedulerJob.
++#
++# Variable: AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_THRESHOLD
++#
++scheduler_health_check_threshold = 30
++
++# When you start a scheduler, airflow starts a tiny web server
++# subprocess to serve a health check if this is set to ``True``
++#
++# Variable: AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK
++#
++enable_health_check = False
++
++# When you start a scheduler, airflow starts a tiny web server
++# subprocess to serve a health check on this host
++#
++# Variable: AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_SERVER_HOST
++#
++scheduler_health_check_server_host = 0.0.0.0
++
++# When you start a scheduler, airflow starts a tiny web server
++# subprocess to serve a health check on this port
++#
++# Variable: AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_SERVER_PORT
++#
++scheduler_health_check_server_port = 8974
++
++# How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
++#
++# Variable: AIRFLOW__SCHEDULER__ORPHANED_TASKS_CHECK_INTERVAL
++#
++orphaned_tasks_check_interval = 300.0
++
++# Local task jobs periodically heartbeat to the DB. If the job has
++# not heartbeat in this many seconds, the scheduler will mark the
++# associated task instance as failed and will re-schedule the task.
++#
++# Variable: AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT
++#
++task_instance_heartbeat_timeout = 300
++
++# How often (in seconds) should the scheduler check for task instances whose heartbeats have timed out.
++#
++# Variable: AIRFLOW__SCHEDULER__TASK_INSTANCE_HEARTBEAT_TIMEOUT_DETECTION_INTERVAL
++#
++task_instance_heartbeat_timeout_detection_interval = 10.0
++
++# Turn on scheduler catchup by setting this to ``True``.
++# Default behavior is unchanged and
++# Command Line Backfills still work, but the scheduler
++# will not do scheduler catchup if this is ``False``,
++# however it can be set on a per DAG basis in the
++# DAG definition (catchup)
++#
++# Variable: AIRFLOW__SCHEDULER__CATCHUP_BY_DEFAULT
++#
++catchup_by_default = False
++
++# Setting this to ``True`` will make first task instance of a task
++# ignore depends_on_past setting. A task instance will be considered
++# as the first task instance of a task when there is no task instance
++# in the DB with a logical_date earlier than it., i.e. no manual marking
++# success will be needed for a newly added task to be scheduled.
++#
++# Variable: AIRFLOW__SCHEDULER__IGNORE_FIRST_DEPENDS_ON_PAST_BY_DEFAULT
++#
++ignore_first_depends_on_past_by_default = True
++
++# This determines the number of task instances to be evaluated for scheduling
++# during each scheduler loop.
++# Set this to 0 to use the value of ``[core] parallelism``
++#
++# Variable: AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY
++#
++max_tis_per_query = 16
++
++# Should the scheduler issue ``SELECT ... FOR UPDATE`` in relevant queries.
++# If this is set to ``False`` then you should not run more than a single
++# scheduler at once
++#
++# Variable: AIRFLOW__SCHEDULER__USE_ROW_LEVEL_LOCKING
++#
++use_row_level_locking = True
++
++# Max number of DAGs to create DagRuns for per scheduler loop.
++#
++# Variable: AIRFLOW__SCHEDULER__MAX_DAGRUNS_TO_CREATE_PER_LOOP
++#
++max_dagruns_to_create_per_loop = 10
++
++# How many DagRuns should a scheduler examine (and lock) when scheduling
++# and queuing tasks.
++#
++# Variable: AIRFLOW__SCHEDULER__MAX_DAGRUNS_PER_LOOP_TO_SCHEDULE
++#
++max_dagruns_per_loop_to_schedule = 20
++
++# Maximum number of downstream partition keys produced by a single
++# PartitionMapper invocation, applied to any PartitionMapper that returns
++# multiple keys (e.g. FanOutMapper). When a mapper instance sets a per-instance
++# ``max_downstream_keys`` parameter, that value completely overrides this global
++# cap for that instance — including when the per-mapper value exceeds this
++# global. **Deployment managers cannot enforce this setting as a hard
++# cluster-wide ceiling**; treat this value as a default that user code may
++# override.
++#
++# Variable: AIRFLOW__SCHEDULER__PARTITION_MAPPER_MAX_DOWNSTREAM_KEYS
++#
++partition_mapper_max_downstream_keys = 1000
++
++# Turn off scheduler use of cron intervals by setting this to ``False``.
++# DAGs submitted manually in the web UI or with trigger_dag will still run.
++#
++# Variable: AIRFLOW__SCHEDULER__USE_JOB_SCHEDULE
++#
++use_job_schedule = True
++
++# How often to check for expired trigger requests that have not run yet.
++#
++# Variable: AIRFLOW__SCHEDULER__TRIGGER_TIMEOUT_CHECK_INTERVAL
++#
++trigger_timeout_check_interval = 15
++
++# Amount of time a task can be in the queued state before being retried or set to failed.
++# 
++# This value also sets the lifetime of the workload JWT token that is sent with the task
++# to an executor queue, so a task waiting in the queue can still authenticate to the
++# Execution API until its queue-starvation deadline.
++#
++# Variable: AIRFLOW__SCHEDULER__TASK_QUEUED_TIMEOUT
++#
++task_queued_timeout = 600.0
++
++# How often to check for tasks that have been in the queued state for
++# longer than ``[scheduler] task_queued_timeout``.
++#
++# Variable: AIRFLOW__SCHEDULER__TASK_QUEUED_TIMEOUT_CHECK_INTERVAL
++#
++task_queued_timeout_check_interval = 120.0
++
++# The run_id pattern used to verify the validity of user input to the run_id parameter when
++# triggering a DAG. This pattern cannot change the pattern used by scheduler to generate run_id
++# for scheduled DAG runs or DAG runs triggered without changing the run_id parameter.
++#
++# Variable: AIRFLOW__SCHEDULER__ALLOWED_RUN_ID_PATTERN
++#
++allowed_run_id_pattern = ^[A-Za-z0-9_.~:+-]+$
++
++# Whether to create DAG runs that span an interval or one single point in time for cron schedules, when
++# a cron string is provided to ``schedule`` argument of a DAG.
++# 
++# * ``True``: **CronDataIntervalTimetable** is used, which is suitable
++#   for DAGs with well-defined data interval. You get contiguous intervals from the end of the previous
++#   interval up to the scheduled datetime.
++# * ``False``: **CronTriggerTimetable** is used, which is closer to the behavior of cron itself.
++# 
++# Notably, for **CronTriggerTimetable**, the logical date is the same as the time the DAG Run will
++# try to schedule, while for **CronDataIntervalTimetable**, the logical date is the beginning of
++# the data interval, but the DAG Run will try to schedule at the end of the data interval.
++# 
++# When a DAG is switched from **CronTriggerTimetable** to **CronDataIntervalTimetable** (for example,
++# by flipping this setting from ``False`` to ``True``), the next scheduled run skips one period past
++# the most recent **CronTriggerTimetable** run to avoid colliding with its logical date.
++#
++# Variable: AIRFLOW__SCHEDULER__CREATE_CRON_DATA_INTERVALS
++#
++create_cron_data_intervals = False
++
++# Whether to create DAG runs that span an interval or one single point in time when a timedelta or
++# relativedelta is provided to ``schedule`` argument of a DAG.
++# 
++# * ``True``: **DeltaDataIntervalTimetable** is used, which is suitable for DAGs with well-defined data
++#   interval. You get contiguous intervals from the end of the previous interval up to the scheduled
++#   datetime.
++# * ``False``: **DeltaTriggerTimetable** is used, which is suitable for DAGs that simply want to say
++#   e.g. "run this every day" and do not care about the data interval.
++# 
++# Notably, for **DeltaTriggerTimetable**, the logical date is the same as the time the DAG Run will
++# try to schedule, while for **DeltaDataIntervalTimetable**, the logical date is the beginning of
++# the data interval, but the DAG Run will try to schedule at the end of the data interval.
++#
++# Variable: AIRFLOW__SCHEDULER__CREATE_DELTA_DATA_INTERVALS
++#
++create_delta_data_intervals = False
++
++# Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
++# tracing memory allocation and log the top 10 memory usages at the error level upon receiving the
++# signal SIGUSR1.
++# This is an expensive operation and generally should not be used except for debugging purposes.
++#
++# Variable: AIRFLOW__SCHEDULER__ENABLE_TRACEMALLOC
++#
++enable_tracemalloc = False
++
++[connection_test]
++# Configuration for the deferred connection-test workflow that dispatches
++# test requests to workers via the executor (instead of running them
++# in-process on the API server).
++
++# Maximum number of seconds a worker-dispatched connection test is
++# allowed to run before it is considered timed out. The scheduler
++# reaper uses this value plus a grace period to mark stale tests as
++# failed.
++#
++# Variable: AIRFLOW__CONNECTION_TEST__TIMEOUT
++#
++timeout = 60
++
++# Maximum number of connection tests that can be active
++# (QUEUED + RUNNING) at the same time. Excess tests will remain in
++# PENDING state until slots become available. This cap is enforced
++# per-scheduler, not globally: with N HA schedulers the worst-case
++# per-tick dispatch is ``N * max_concurrency``. Connection tests are
++# user-initiated and rare, so the overshoot self-corrects via the
++# reaper.
++#
++# Variable: AIRFLOW__CONNECTION_TEST__MAX_CONCURRENCY
++#
++max_concurrency = 4
++
++# How often (in seconds) the scheduler should check for stale
++# connection tests (QUEUED or RUNNING past their timeout + grace
++# period) and mark them as failed.
++#
++# Variable: AIRFLOW__CONNECTION_TEST__REAPER_INTERVAL
++#
++reaper_interval = 30.0
++
++[triggerer]
++# How many triggers a single Triggerer will run at once, by default.
++#
++# Variable: AIRFLOW__TRIGGERER__CAPACITY
++#
++capacity = 1000
++
++# How often to heartbeat the Triggerer job to ensure it hasn't been killed.
++#
++# Variable: AIRFLOW__TRIGGERER__JOB_HEARTBEAT_SEC
++#
++job_heartbeat_sec = 5
++
++# If the last triggerer heartbeat happened more than ``[triggerer] triggerer_health_check_threshold``
++# ago (in seconds), triggerer is considered unhealthy.
++# This is used by the health check in the **/health** endpoint and in ``airflow jobs check`` CLI
++# for TriggererJob.
++#
++# Variable: AIRFLOW__TRIGGERER__TRIGGERER_HEALTH_CHECK_THRESHOLD
++#
++triggerer_health_check_threshold = 30
++
++# If the TriggerRunner subprocess's async event loop sends no communication to the parent
++# process for more than this many seconds, the parent stops updating the triggerer's
++# heartbeat in the database. The triggerer then appears unhealthy to the scheduler, which
++# will reassign its triggers. This detects a deadlocked or hung event loop that the normal
++# process-alive check cannot catch. Set to 0 to disable the watchdog.
++#
++# Variable: AIRFLOW__TRIGGERER__RUNNER_HEALTH_CHECK_THRESHOLD
++#
++runner_health_check_threshold = 30
++
++# Threshold in seconds for logging a warning when the Triggerer's async thread appears blocked.
++# Increase this value if your deployment can tolerate longer delays in the Triggerer's async
++# loop before logging a warning.
++#
++# Variable: AIRFLOW__TRIGGERER__BLOCKED_MAIN_THREAD_WARNING_THRESHOLD
++#
++blocked_main_thread_warning_threshold = 0.2
++
++# Maximum number of triggers to select per loop. Set this notably lower than ``[triggerer] capacity``
++# to keep load balanced across triggerers in HA deployments.
++# Benchmarks show that two triggerers can still claim about 1,000 triggers within one second by default.
++#
++# Variable: AIRFLOW__TRIGGERER__MAX_TRIGGER_TO_SELECT_PER_LOOP
++#
++max_trigger_to_select_per_loop = 50
++
++# Maximum number of seconds the triggerer will wait for ``BaseTrigger.on_kill()`` to complete
++# before giving up and logging a warning. Prevents a slow or hung external API call from
++# blocking the triggerer indefinitely when a deferred task is killed by a user.
++#
++# Variable: AIRFLOW__TRIGGERER__ON_KILL_TIMEOUT
++#
++on_kill_timeout = 30
++
++# When set to True, deferred tasks will register triggers with the task queue they originated from,
++# and triggerers can selectively run triggers based on their queue assignment. Only relevant when using
++# executors which support task queue assignment. For more details, refer to the trigger docs.
++#
++# Variable: AIRFLOW__TRIGGERER__QUEUES_ENABLED
++#
++queues_enabled = False
++
++# Per-subscriber buffer size for shared-stream triggers (triggers that opt into a shared poll loop
++# via ``BaseEventTrigger.shared_stream_key``). Each subscribing trigger keeps an in-memory queue of
++# raw events produced by the shared poll; if a slow subscriber fills its queue, only that subscriber
++# fails, sibling subscribers are unaffected. Increase if a slow subscriber must tolerate bursts from
++# a fast upstream.
++#
++# Variable: AIRFLOW__TRIGGERER__SHARED_STREAM_SUBSCRIBER_QUEUE_SIZE
++#
++shared_stream_subscriber_queue_size = 1024
++
++# Per-event ack timeout in seconds for shared-stream triggers running in ack mode (triggers that
++# override ``BaseEventTrigger.create_shared_stream_producer``). A subscriber that has not finished
++# processing an event (moved past it and had its derived trigger events confirmed persisted) within
++# this window is force-failed. Other subscribers in the same group are unaffected; once they
++# resolve, the producer advances normally.
++#
++# Variable: AIRFLOW__TRIGGERER__SHARED_STREAM_ACK_TIMEOUT
++#
++shared_stream_ack_timeout = 300.0
++
++# Seconds to delay the start of polling after a shared-stream group is created, giving triggers
++# that share the same key a window to subscribe before any event is broadcast. The default of 0
++# starts polling immediately (no delay). Set to a small positive value (e.g. 2.0–5.0) to reduce
++# the chance of triggers missing events on triggerer restart, when multiple triggers sharing a key
++# re-subscribe concurrently and the first to arrive would otherwise start the poll before the
++# others have joined. This is a best-effort window: triggers that take longer than the grace period
++# to re-subscribe can still miss events committed after polling starts.
++#
++# Variable: AIRFLOW__TRIGGERER__SHARED_STREAM_COHORT_GRACE_PERIOD
++#
++shared_stream_cohort_grace_period = 0.0
++
++[kerberos]
++# Location of your ccache file once kinit has been performed.
++#
++# Variable: AIRFLOW__KERBEROS__CCACHE
++#
++ccache = <tmp>/airflow_krb5_ccache
++
++# gets augmented with fqdn
++#
++# Variable: AIRFLOW__KERBEROS__PRINCIPAL
++#
++principal = airflow
++
++# Determines the frequency at which initialization or re-initialization processes occur.
++#
++# Variable: AIRFLOW__KERBEROS__REINIT_FREQUENCY
++#
++reinit_frequency = 3600
++
++# Path to the kinit executable
++#
++# Variable: AIRFLOW__KERBEROS__KINIT_PATH
++#
++kinit_path = kinit
++
++# Designates the path to the Kerberos keytab file for the Airflow user
++#
++# Variable: AIRFLOW__KERBEROS__KEYTAB
++#
++keytab = airflow.keytab
++
++# Allow to disable ticket forwardability.
++#
++# Variable: AIRFLOW__KERBEROS__FORWARDABLE
++#
++forwardable = True
++
++# Allow to remove source IP from token, useful when using token behind NATted Docker host.
++#
++# Variable: AIRFLOW__KERBEROS__INCLUDE_IP
++#
++include_ip = True
++
++[sensors]
++# Sensor default timeout, 7 days by default (7 * 24 * 60 * 60).
++#
++# Variable: AIRFLOW__SENSORS__DEFAULT_TIMEOUT
++#
++default_timeout = 604800
++
++[dag_processor]
++# Configuration for the Airflow DAG processor. This includes, for example:
++#   - DAG bundles, which allows Airflow to load DAGs from different sources
++#   - Parsing configuration, like:
++#      - how often to refresh DAGs from those sources
++#      - how many files to parse concurrently
++
++# String path to folder where Airflow bundles can store files locally. Not templated.
++# If no path is provided, Airflow will use ``Path(tempfile.gettempdir()) / "airflow"``.
++# This path must be absolute.
++#
++# Example: dag_bundle_storage_path = <tmp>/some-place
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_STORAGE_PATH
++#
++# dag_bundle_storage_path = 
++
++# List of backend configs.  Must supply name, classpath, and kwargs for each backend.
++# 
++# By default, ``refresh_interval`` is set to ``[dag_processor] refresh_interval``, but that can
++# also be overridden in kwargs if desired.
++# 
++# The default is the dags folder dag bundle.
++# 
++# Note: As shown below, you can split your json config over multiple lines by indenting.
++# See configparser documentation for an example:
++# https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
++#
++# Example: dag_bundle_config_list = [
++#       {
++#         "name": "my-git-repo",
++#         "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
++#         "kwargs": {
++#           "subdir": "dags",
++#           "tracking_ref": "main",
++#           "refresh_interval": 0
++#         }
++#       }
++#     ]
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST
++#
++dag_bundle_config_list = [
++        {
++            "name": "dags-folder",
++            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
++            "kwargs": {}
++        }
++    ]
++
++# How often (in seconds) to refresh, or look for new files, in a DAG bundle.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL
++#
++refresh_interval = 300
++
++# The DAG processor can run multiple processes in parallel to parse dags.
++# This defines how many processes will run.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__PARSING_PROCESSES
++#
++parsing_processes = 2
++
++# One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
++# The DAG processor will list and sort the dag files to decide the parsing order.
++# 
++# * ``modified_time``: Sort by modified time of the files. This is useful on large scale to parse the
++#   recently modified DAGs first.
++# * ``random_seeded_by_host``: Sort randomly across multiple DAG processors but with same order on the
++#   same host, allowing each processor to parse the files in a different order.
++# * ``alphabetical``: Sort by filename
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__FILE_PARSING_SORT_MODE
++#
++file_parsing_sort_mode = modified_time
++
++# The maximum number of callbacks that are fetched during a single loop.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__MAX_CALLBACKS_PER_LOOP
++#
++max_callbacks_per_loop = 20
++
++# Number of seconds after which a DAG file is parsed. The DAG file is parsed every
++# ``[dag_processor] min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
++# this interval. Keeping this number low will increase CPU usage.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__MIN_FILE_PROCESS_INTERVAL
++#
++min_file_process_interval = 30
++
++# How long (in seconds) to wait after we have re-parsed a DAG file before deactivating stale
++# DAGs (DAGs which are no longer present in the expected files). The reason why we need
++# this threshold is to account for the time between when the file is parsed and when the
++# DAG is loaded. The absolute maximum that this could take is
++# ``[dag_processor] dag_file_processor_timeout``, but when you have a long timeout configured,
++# it results in a significant delay in the deactivation of stale dags.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__STALE_DAG_THRESHOLD
++#
++stale_dag_threshold = 50
++
++# How long before timing out a DagFileProcessor, which processes a dag file
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__DAG_FILE_PROCESSOR_TIMEOUT
++#
++dag_file_processor_timeout = 50
++
++# How often should DAG processor stats be printed to the logs. Setting to 0 will disable printing stats
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__PRINT_STATS_INTERVAL
++#
++print_stats_interval = 30
++
++# If the last dag processor heartbeat happened more than
++# ``[dag_processor] health_check_threshold`` ago (in seconds),
++# dag processor is considered unhealthy.
++# This is used by the health check in the **/health** endpoint and in ``airflow jobs check``
++# CLI for DagProcessorJob.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__HEALTH_CHECK_THRESHOLD
++#
++health_check_threshold = 30
++
++# Always run tasks with the latest code.  If set to True, the bundle version will not
++# be stored on the dag run and therefore, the latest code will always be used.
++# 
++# .. note::
++# 
++#   This setting only applies to bundles that support versioning and does not affect
++#   DAG versions displayed in the UI.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__DISABLE_BUNDLE_VERSIONING
++#
++disable_bundle_versioning = False
++
++# How often the DAG processor should check if any DAG bundles are ready for a refresh, either by hitting
++# the bundles refresh_interval or because another DAG processor has seen a newer version of the bundle.
++# A low value means we check more frequently, and have a smaller window of time where DAG processors are
++# out of sync with each other, parsing different versions of the same bundle.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__BUNDLE_REFRESH_CHECK_INTERVAL
++#
++bundle_refresh_check_interval = 5
++
++# On shared workers, bundle copies accumulate in local storage as tasks run
++# and version of the bundle changes.
++# This setting represents the delta in seconds between checks for these stale bundles.
++# Bundles which are older than `stale_bundle_cleanup_age_threshold` may be removed. But
++# we always keep `stale_bundle_cleanup_min_versions` versions locally.
++# Set to 0 or negative to disable.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__STALE_BUNDLE_CLEANUP_INTERVAL
++#
++stale_bundle_cleanup_interval = 1800
++
++# Bundle versions used more recently than this threshold will not be removed.
++# Recency of use is determined by when the task began running on the worker,
++# that age is compared with this setting, given as time delta in seconds.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__STALE_BUNDLE_CLEANUP_AGE_THRESHOLD
++#
++stale_bundle_cleanup_age_threshold = 21600
++
++# Minimum number of local bundle versions to retain on disk.
++# Local bundle versions older than `stale_bundle_cleanup_age_threshold` will
++# only be deleted we have more than `stale_bundle_cleanup_min_versions` versions
++# accumulated on the worker.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__STALE_BUNDLE_CLEANUP_MIN_VERSIONS
++#
++stale_bundle_cleanup_min_versions = 10
++
++# The dag_processor reads dag files to extract the airflow modules that are going to be used,
++# and imports them ahead of time to avoid having to re-do it for each parsing process.
++# This flag can be set to ``False`` to disable this behavior in case an airflow module needs
++# to be freshly imported each time (at the cost of increased DAG parsing time).
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__PARSING_PRE_IMPORT_MODULES
++#
++parsing_pre_import_modules = True
++
++# Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.
++# The check detects detect potential issues such as runtime-varying values in Dag/Task constructors
++# that could cause Dag version inflation.
++# 
++# * ``off``: Disables Dag stability checks entirely. No errors or warnings are generated.
++# * ``warning``: Dags load normally but warnings are displayed in the UI when issues are detected.
++# * ``error``: Treats Dag stability failures as Dag import errors, preventing the Dag from loading.
++# 
++# Default is "warning" to alert users of potential issues without blocking Dag execution.
++#
++# Variable: AIRFLOW__DAG_PROCESSOR__DAG_VERSION_INFLATION_CHECK_LEVEL
++#
++dag_version_inflation_check_level = warning
++
++[state_store]
++# Configuration for task and asset state storage backend.
++
++# Full dotted path to the class that implements state storage for tasks and assets.
++# The class must be a subclass of ``BaseStoreBackend``.
++# The default implementation persists state in the Airflow metadata database.
++#
++# Example: backend = mypackage.state.CustomStoreBackend
++#
++# Variable: AIRFLOW__STATE_STORE__BACKEND
++#
++backend = airflow.state.metastore.MetastoreBackend
++
++# If set to True, all task state keys for a task instance are automatically cleared
++# when that task instance moved to SUCCESS.
++# 
++# Defaults to False so that task state persists after success for observability —
++# operators and the UI can inspect what the task wrote (e.g. submitted job IDs,
++# advanced watermarks) after the run completes.
++# Consider setting to True if you do not need post-success visibility and want automatic
++# cleanup without waiting for the global retention period.
++#
++# Example: clear_on_success = True
++#
++# Variable: AIRFLOW__STATE_STORE__CLEAR_ON_SUCCESS
++#
++clear_on_success = False
++
++# Number of days to retain task state after their last update.
++# Rows older than this are removed when cleanup is triggered.
++# This config does not affect asset_state_store rows.
++# Set to 0 to disable time-based cleanup entirely.
++#
++# Example: default_retention_days = 7
++#
++# Variable: AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS
++#
++default_retention_days = 30
++
++# Number of rows deleted per batch during cleanup. Defaults to 0 (no batching).
++# Tune this on deployments with large task_state_store tables to improve performance per transaction.
++#
++# Example: state_cleanup_batch_size = 10000
++#
++# Variable: AIRFLOW__STATE_STORE__STATE_CLEANUP_BATCH_SIZE
++#
++state_cleanup_batch_size = 0
++
++# Maximum size in bytes that a single task or asset store value may have when written via
++# the public REST API. Values that exceed this limit are rejected with a 422 error.
++# 
++# Workers writing via the execution API are not blocked, they log a warning and the write
++# proceeds, so tasks are never interrupted mid-execution. Set to 0 to disable the limit entirely.
++# 
++# The default of 65535 bytes (64 KB) is a policy default suited for coordination state such as
++# job IDs, cursors, and small status maps — the underlying database column (MEDIUMTEXT on MySQL,
++# unbounded Text on Postgres) does not enforce this limit. For larger payloads, configure a custom
++# [workers] state_store_backend to offload values to external storage.
++#
++# Example: max_value_storage_bytes = 1048576
++#
++# Variable: AIRFLOW__STATE_STORE__MAX_VALUE_STORAGE_BYTES
++#
++max_value_storage_bytes = 65535
++
++[profiling]
++# Configuration for memory profiling in Airflow component.
++# Currently, we provide profiling using Memray and additional tools may be added in the future
++# Also, see the guide in Link (TBD)
++
++# Comma-separated list of Airflow components to profile with memray.
++# Valid components are: scheduler, api, dag_processor, triggerer
++# 
++# This option only takes effect when it is not set to blank (default option).
++# start tracing memory allocation and store the metrics in "$AIRFLOW_HOME/<component>_memory.bin"
++# To generate analyzed view, run this command in base directory where the bin file is generated
++# ```
++# # see also https://bloomberg.github.io/memray/run.html#aggregated-capture-files
++# memray flamegraph $AIRFLOW_HOME/<component>_memory.bin
++# ```
++# This is an expensive operation and generally should not be used except for debugging purposes.
++#
++# Example: memray_trace_components = scheduler,api,dag_processor
++#
++# Variable: AIRFLOW__PROFILING__MEMRAY_TRACE_COMPONENTS
++#
++# memray_trace_components = 
++
++# Whether to enable memray's ``native_traces`` and ``trace_python_allocators`` options
++# when ``memray_trace_components`` is set. Captures C/C++ stack frames for compiled
++# extensions (numpy, pandas, etc.) and small ``pymalloc`` allocations that would
++# otherwise be invisible.
++# 
++# This adds significant runtime overhead and produces much larger profile files, so
++# leave it disabled unless the default trace lacks the detail you need. Native symbol
++# resolution is most accurate on Linux and less precise on macOS. See
++# https://bloomberg.github.io/memray/api.html for the underlying ``Tracker`` options.
++#
++# Variable: AIRFLOW__PROFILING__MEMRAY_DETAILED_TRACING
++#
++memray_detailed_tracing = False
++
++[callbacks]
++# Configuration for callbacks (deadline alerts, etc.).
++
++# Maximum execution time in seconds for deadline callbacks.
++# Set to a positive integer to enable. When a callback exceeds this duration,
++# it is terminated with SIGTERM followed by SIGKILL if it does not exit within 5 seconds.
++# 0 means no timeout (default).
++#
++# Example: callback_execution_timeout = 300
++#
++# Variable: AIRFLOW__CALLBACKS__CALLBACK_EXECUTION_TIMEOUT
++#
++callback_execution_timeout = 0
++
++[common.io]
++# Common IO configuration section
++
++# Path to a location on object storage where XComs can be stored in url format.
++#
++# Example: xcom_objectstorage_path = s3://conn_id@bucket/path
++#
++# Variable: AIRFLOW__COMMON.IO__XCOM_OBJECTSTORAGE_PATH
++#
++xcom_objectstorage_path = 
++
++# Threshold in bytes for storing XComs in object storage. -1 means always store in the
++# database. 0 means always store in object storage. Any positive number means
++# it will be stored in object storage if the size of the value is greater than the threshold.
++#
++# Example: xcom_objectstorage_threshold = 1000000
++#
++# Variable: AIRFLOW__COMMON.IO__XCOM_OBJECTSTORAGE_THRESHOLD
++#
++xcom_objectstorage_threshold = -1
++
++# Compression algorithm to use when storing XComs in object storage. Supported algorithms
++# are a.o.: snappy, zip, gzip, bz2, and lzma. If not specified, no compression will be used.
++# Note that the compression algorithm must be available in the Python installation (e.g.
++# python-snappy for snappy). Zip, gz, bz2 are available by default.
++#
++# Example: xcom_objectstorage_compression = gz
++#
++# Variable: AIRFLOW__COMMON.IO__XCOM_OBJECTSTORAGE_COMPRESSION
++#
++xcom_objectstorage_compression = 
++
++# Base path on object storage for the task/asset state store backend, in URL format.
++# When set, StateStoreObjectStorageBackend will persist task and asset state under this
++# prefix, organized as <dag_id>/<run_id>/<task_id>/<map_index>/<key> for tasks and
++# assets/<asset_identifier>/<key> for assets.
++#
++# Example: state_store_objectstorage_path = s3://conn_id@bucket/task-state/
++#
++# Variable: AIRFLOW__COMMON.IO__STATE_STORE_OBJECTSTORAGE_PATH
++#
++state_store_objectstorage_path = 
++
++# Threshold in bytes for offloading serialized state store values to object storage. 0 means
++# always offload to object storage. Any positive number means values will be offloaded
++# only when their serialized size is at least that many bytes. Must be non-negative.
++#
++# Example: state_store_objectstorage_threshold = 1000000
++#
++# Variable: AIRFLOW__COMMON.IO__STATE_STORE_OBJECTSTORAGE_THRESHOLD
++#
++state_store_objectstorage_threshold = 0
++
++# Compression algorithm to use when writing task/asset state store values to object storage.
++# Supported algorithms are a.o.: ``gzip``, ``bz2``, ``lzma``, and ``xz``. If not specified,
++# no compression will be used. The same algorithm must be available on all workers.
++#
++# Example: state_store_objectstorage_compression = gzip
++#
++# Variable: AIRFLOW__COMMON.IO__STATE_STORE_OBJECTSTORAGE_COMPRESSION
++#
++state_store_objectstorage_compression = 
++
++[standard]
++# Options for the standard provider operators.
++
++# Which python tooling should be used to install the virtual environment.
++# 
++# The following options are available:
++# - ``auto``: Automatically select, use ``uv`` if available, otherwise use ``pip``.
++# - ``pip``: Use pip to install the virtual environment.
++# - ``uv``: Use uv to install the virtual environment. Must be available in environment PATH.
++#
++# Example: venv_install_method = uv
++#
++# Variable: AIRFLOW__STANDARD__VENV_INSTALL_METHOD
++#
++venv_install_method = auto
++
++[atlas]
++#
++# Variable: AIRFLOW__ATLAS__SASL_ENABLED
++#
++sasl_enabled = False
++
++#
++# Variable: AIRFLOW__ATLAS__HOST
++#
++host = 
++
++#
++# Variable: AIRFLOW__ATLAS__PORT
++#
++port = 21000
++
++#
++# Variable: AIRFLOW__ATLAS__USERNAME
++#
++username = 
++
++#
++# Variable: AIRFLOW__ATLAS__PASSWORD
++#
++password = 
++
++[hive]
++#
++# Variable: AIRFLOW__HIVE__DEFAULT_HIVE_MAPRED_QUEUE
++#
++default_hive_mapred_queue = 
++
++[local_kubernetes_executor]
++#
++# Variable: AIRFLOW__LOCAL_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE
++#
++kubernetes_queue = kubernetes
++
++[celery_kubernetes_executor]
++#
++# Variable: AIRFLOW__CELERY_KUBERNETES_EXECUTOR__KUBERNETES_QUEUE
++#
++kubernetes_queue = kubernetes
++
++[celery]
++#
++# Variable: AIRFLOW__CELERY__CELERY_APP_NAME
++#
++celery_app_name = airflow.executors.celery_executor
++
++#
++# Variable: AIRFLOW__CELERY__WORKER_CONCURRENCY
++#
++worker_concurrency = 16
++
++#
++# Variable: AIRFLOW__CELERY__WORKER_PREFETCH_MULTIPLIER
++#
++worker_prefetch_multiplier = 1
++
++#
++# Variable: AIRFLOW__CELERY__WORKER_ENABLE_REMOTE_CONTROL
++#
++worker_enable_remote_control = true
++
++#
++# Variable: AIRFLOW__CELERY__BROKER_URL
++#
++broker_url = redis://redis:6379/0
++
++#
++# Variable: AIRFLOW__CELERY__RESULT_BACKEND_SQLALCHEMY_ENGINE_OPTIONS
++#
++result_backend_sqlalchemy_engine_options = 
++
++#
++# Variable: AIRFLOW__CELERY__FLOWER_HOST
++#
++flower_host = 0.0.0.0
++
++#
++# Variable: AIRFLOW__CELERY__FLOWER_URL_PREFIX
++#
++flower_url_prefix = 
++
++#
++# Variable: AIRFLOW__CELERY__FLOWER_PORT
++#
++flower_port = 5555
++
++#
++# Variable: AIRFLOW__CELERY__FLOWER_BASIC_AUTH
++#
++flower_basic_auth = 
++
++#
++# Variable: AIRFLOW__CELERY__SYNC_PARALLELISM
++#
++sync_parallelism = 0
++
++#
++# Variable: AIRFLOW__CELERY__CELERY_CONFIG_OPTIONS
++#
++celery_config_options = airflow.providers.celery.executors.default_celery.DEFAULT_CELERY_CONFIG
++
++#
++# Variable: AIRFLOW__CELERY__SSL_ACTIVE
++#
++ssl_active = False
++
++#
++# Variable: AIRFLOW__CELERY__SSL_KEY
++#
++ssl_key = 
++
++#
++# Variable: AIRFLOW__CELERY__SSL_CERT
++#
++ssl_cert = 
++
++#
++# Variable: AIRFLOW__CELERY__SSL_CACERT
++#
++ssl_cacert = 
++
++#
++# Variable: AIRFLOW__CELERY__POOL
++#
++pool = prefork
++
++#
++# Variable: AIRFLOW__CELERY__OPERATION_TIMEOUT
++#
++operation_timeout = 1.0
++
++#
++# Variable: AIRFLOW__CELERY__TASK_TRACK_STARTED
++#
++task_track_started = True
++
++#
++# Variable: AIRFLOW__CELERY__TASK_PUBLISH_MAX_RETRIES
++#
++task_publish_max_retries = 3
++
++#
++# Variable: AIRFLOW__CELERY__WORKER_PRECHECK
++#
++worker_precheck = False
++
++[elasticsearch]
++#
++# Variable: AIRFLOW__ELASTICSEARCH__HOST
++#
++host = 
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__LOG_ID_TEMPLATE
++#
++log_id_template = {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__END_OF_LOG_MARK
++#
++end_of_log_mark = end_of_log
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__FRONTEND
++#
++frontend = 
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__WRITE_STDOUT
++#
++write_stdout = False
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__JSON_FORMAT
++#
++json_format = False
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__JSON_FIELDS
++#
++json_fields = asctime, filename, lineno, levelname, message
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__HOST_FIELD
++#
++host_field = host
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__OFFSET_FIELD
++#
++offset_field = offset
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__INDEX_PATTERNS
++#
++index_patterns = _all
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__WRITE_TO_ES
++#
++write_to_es = False
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH__TARGET_INDEX
++#
++target_index = airflow-logs
++
++[elasticsearch_configs]
++#
++# Variable: AIRFLOW__ELASTICSEARCH_CONFIGS__USE_SSL
++#
++use_ssl = False
++
++#
++# Variable: AIRFLOW__ELASTICSEARCH_CONFIGS__VERIFY_CERTS
++#
++verify_certs = True
++
++[opensearch]
++#
++# Variable: AIRFLOW__OPENSEARCH__HOST
++#
++host = 
++
++#
++# Variable: AIRFLOW__OPENSEARCH__PORT
++#
++port = 
++
++#
++# Variable: AIRFLOW__OPENSEARCH__USERNAME
++#
++username = 
++
++#
++# Variable: AIRFLOW__OPENSEARCH__PASSWORD
++#
++password = 
++
++#
++# Variable: AIRFLOW__OPENSEARCH__LOG_ID_TEMPLATE
++#
++log_id_template = {dag_id}-{task_id}-{run_id}-{map_index}-{try_number}
++
++#
++# Variable: AIRFLOW__OPENSEARCH__END_OF_LOG_MARK
++#
++end_of_log_mark = end_of_log
++
++#
++# Variable: AIRFLOW__OPENSEARCH__WRITE_STDOUT
++#
++write_stdout = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH__JSON_FORMAT
++#
++json_format = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH__JSON_FIELDS
++#
++json_fields = asctime, filename, lineno, levelname, message
++
++#
++# Variable: AIRFLOW__OPENSEARCH__HOST_FIELD
++#
++host_field = host
++
++#
++# Variable: AIRFLOW__OPENSEARCH__OFFSET_FIELD
++#
++offset_field = offset
++
++#
++# Variable: AIRFLOW__OPENSEARCH__INDEX_PATTERNS
++#
++index_patterns = _all
++
++#
++# Variable: AIRFLOW__OPENSEARCH__INDEX_PATTERNS_CALLABLE
++#
++index_patterns_callable = 
++
++[opensearch_configs]
++#
++# Variable: AIRFLOW__OPENSEARCH_CONFIGS__HTTP_COMPRESS
++#
++http_compress = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH_CONFIGS__USE_SSL
++#
++use_ssl = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH_CONFIGS__VERIFY_CERTS
++#
++verify_certs = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH_CONFIGS__SSL_ASSERT_HOSTNAME
++#
++ssl_assert_hostname = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH_CONFIGS__SSL_SHOW_WARN
++#
++ssl_show_warn = False
++
++#
++# Variable: AIRFLOW__OPENSEARCH_CONFIGS__CA_CERTS
++#
++ca_certs = 
++
++[kubernetes_executor]
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__API_CLIENT_RETRY_CONFIGURATION
++#
++api_client_retry_configuration = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__LOGS_TASK_METADATA
++#
++logs_task_metadata = False
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__POD_TEMPLATE_FILE
++#
++pod_template_file = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_REPOSITORY
++#
++worker_container_repository = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_CONTAINER_TAG
++#
++worker_container_tag = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
++#
++namespace = default
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS
++#
++delete_worker_pods = True
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_WORKER_PODS_ON_FAILURE
++#
++delete_worker_pods_on_failure = False
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_CREATION_BATCH_SIZE
++#
++worker_pods_creation_batch_size = 1
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__MULTI_NAMESPACE_MODE
++#
++multi_namespace_mode = False
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__MULTI_NAMESPACE_MODE_NAMESPACE_LIST
++#
++multi_namespace_mode_namespace_list = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__IN_CLUSTER
++#
++in_cluster = True
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__KUBE_CLIENT_REQUEST_ARGS
++#
++kube_client_request_args = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__DELETE_OPTION_KWARGS
++#
++delete_option_kwargs = 
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__ENABLE_TCP_KEEPALIVE
++#
++enable_tcp_keepalive = True
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__TCP_KEEP_IDLE
++#
++tcp_keep_idle = 120
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__TCP_KEEP_INTVL
++#
++tcp_keep_intvl = 30
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__TCP_KEEP_CNT
++#
++tcp_keep_cnt = 6
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__VERIFY_SSL
++#
++verify_ssl = True
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__WORKER_PODS_QUEUED_CHECK_INTERVAL
++#
++worker_pods_queued_check_interval = 60
++
++#
++# Variable: AIRFLOW__KUBERNETES_EXECUTOR__SSL_CA_CERT
++#
++ssl_ca_cert = 
++
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..b600cdb
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,60 @@
++"""Write a per-store revenue file for the previous UTC calendar day, daily at 03:00 UTC."""
++
++from __future__ import annotations
++
++import csv
++import os
++from collections import defaultdict
++from datetime import datetime, timedelta
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    # The 03:00 run on 09-02 is the first to report on 09-01.
++    start_date=pendulum.datetime(2026, 9, 2, tz="UTC"),
++    catchup=False,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def report() -> str:
++        ctx = get_current_context()
++        # The run at 03:00 on day N reports on day N-1. Derive it from the
++        # scheduled time (not the wall clock) so reruns and backfills are stable.
++        run_time = ctx["logical_date"] or ctx["dag_run"].run_after
++        day = run_time.in_timezone("UTC").date() - timedelta(days=1)
++        start = datetime(day.year, day.month, day.day)
++        end = start + timedelta(days=1)
++
++        orders: dict[str, int] = defaultdict(int)
++        revenue: dict[str, Decimal] = defaultdict(Decimal)
++        with open(PROJECT_ROOT / "data" / "orders.csv", newline="") as f:
++            for row in csv.DictReader(f):
++                ts = datetime.strptime(row["order_ts"], "%Y-%m-%d %H:%M:%S")  # UTC
++                if start <= ts < end:
++                    orders[row["store_id"]] += 1
++                    revenue[row["store_id"]] += Decimal(row["amount"])
++
++        out = PROJECT_ROOT / "output" / "daily_revenue" / f"{day.isoformat()}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".csv.tmp")
++        with open(tmp, "w", newline="") as f:
++            w = csv.writer(f, lineterminator="\n")
++            w.writerow(["store_id", "orders", "revenue"])
++            for store in sorted(orders):
++                rev = revenue[store].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
++                w.writerow([store, orders[store], rev])
++        os.replace(tmp, out)  # atomic, so reruns overwrite cleanly
++        return str(out)
++
++    report()
++
++
++daily_revenue()

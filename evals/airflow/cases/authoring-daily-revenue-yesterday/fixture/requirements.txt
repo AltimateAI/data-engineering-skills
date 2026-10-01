@@ -1,0 +1,4 @@
+apache-airflow==3.3.2
+apache-airflow-providers-standard==1.19.0
+pandas==3.0.5
+duckdb==1.5.6

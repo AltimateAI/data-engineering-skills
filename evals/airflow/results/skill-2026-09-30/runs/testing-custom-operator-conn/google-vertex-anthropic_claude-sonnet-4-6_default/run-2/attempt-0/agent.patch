@@ -1,0 +1,396 @@
+diff --git a/custom_schema b/custom_schema
+new file mode 100644
+index 0000000000000000000000000000000000000000..f106b7cc015f1e3557f3b47790781e24b8fc4b24
+Binary files differ (content omitted by sanitize.py)
+diff --git a/raw b/raw
+new file mode 100644
+index 0000000000000000000000000000000000000000..64c956735bf1de4703a4440e0c31d25cc61496d0
+Binary files differ (content omitted by sanitize.py)
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..0d3c29d
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,26 @@
++"""Pytest configuration for the Airflow DAG test suite.
++
++Sets all Airflow env vars *before* any airflow import so the process-wide
++config is applied correctly (Airflow reads config once, at first import).
++"""
++from __future__ import annotations
++
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Must be set before the first airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++
++# Make dags/ importable so tests can do: from warehouse.hooks import ...
++sys.path.insert(0, str(DAGS))
+diff --git a/tests/test_warehouse_hook_and_operator.py b/tests/test_warehouse_hook_and_operator.py
+new file mode 100644
+index 0000000..532057e
+--- /dev/null
++++ b/tests/test_warehouse_hook_and_operator.py
+@@ -0,0 +1,350 @@
++"""Unit tests for DuckDBWarehouseHook and CsvPartitionToDuckDBOperator.
++
++Each test exercises a concrete contract the load DAGs depend on:
++
++  Rule 1  Hook reads database_path from connection.host.
++  Rule 2  Hook reads target_schema from connection.schema (falls back to "main").
++  Rule 3  Operator uses the duckdb_conn_id it is given, not a hardcoded default.
++  Rule 4  execute() loads only the rows for partition_date.
++  Rule 5  execute() returns the number of rows loaded.
++  Rule 6  Re-running the same partition replaces that partition's rows (no duplicates).
++  Rule 7  Re-running leaves other dates' rows untouched.
++
++CI requirements met:
++  - Connections are supplied via AIRFLOW_CONN_* env vars (JSON form).
++  - No metadata DB is needed (hook/operator tests call execute() directly).
++  - DuckDB runs against a real temporary file – nothing is mocked away.
++"""
++from __future__ import annotations
++
++import csv
++import json
++from pathlib import Path
++
++import duckdb
++import pytest
++
++
++# ---------------------------------------------------------------------------
++# Helpers
++# ---------------------------------------------------------------------------
++
++def _write_csv(path: Path, rows: list[dict]) -> None:
++    """Write a list-of-dicts to a CSV file (headers from the first row)."""
++    with path.open("w", newline="") as fh:
++        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
++        writer.writeheader()
++        writer.writerows(rows)
++
++
++def _read_table(db_path: Path, schema: str, table: str) -> list[dict]:
++    """Return all rows of schema.table as a list of dicts."""
++    con = duckdb.connect(str(db_path))
++    try:
++        rows = con.execute(f'SELECT * FROM "{schema}"."{table}"').fetchall()
++        cols = [d[0] for d in con.description]
++        return [dict(zip(cols, r)) for r in rows]
++    finally:
++        con.close()
++
++
++# ---------------------------------------------------------------------------
++# Fixtures
++# ---------------------------------------------------------------------------
++
++SAMPLE_ROWS = [
++    {"order_id": "O-1", "order_date": "2026-03-01", "amount": "10.00"},
++    {"order_id": "O-2", "order_date": "2026-03-01", "amount": "20.00"},
++    {"order_id": "O-3", "order_date": "2026-03-02", "amount": "30.00"},
++    {"order_id": "O-4", "order_date": "2026-03-02", "amount": "40.00"},
++    {"order_id": "O-5", "order_date": "2026-03-03", "amount": "50.00"},
++]
++
++TARGET_DATE = "2026-03-02"   # two rows: O-3 and O-4
++OTHER_DATE  = "2026-03-01"   # two rows: O-1 and O-2
++
++
++@pytest.fixture()
++def csv_file(tmp_path: Path) -> Path:
++    """CSV file that contains rows spanning three dates."""
++    p = tmp_path / "orders.csv"
++    _write_csv(p, SAMPLE_ROWS)
++    return p
++
++
++@pytest.fixture()
++def db_path(tmp_path: Path) -> Path:
++    """Path for the DuckDB file (does not exist yet; the operator creates it)."""
++    return tmp_path / "warehouse.duckdb"
++
++
++@pytest.fixture()
++def conn_id() -> str:
++    """Connection id used in tests.
++
++    Intentionally different from the operator's default_conn_name ("duckdb_warehouse")
++    so that an operator that ignores conn_id still fails.
++    """
++    return "test_warehouse"
++
++
++@pytest.fixture()
++def _set_airflow_conn(db_path: Path, conn_id: str, monkeypatch: pytest.MonkeyPatch) -> None:
++    """Register the test connection via an env var (no metadata DB needed)."""
++    env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
++    conn_json = json.dumps({
++        "conn_type": "generic",
++        "host": str(db_path),
++        "schema": "raw",
++    })
++    monkeypatch.setenv(env_key, conn_json)
++
++
++# ---------------------------------------------------------------------------
++# Rule 1 – hook reads database_path from connection.host
++# ---------------------------------------------------------------------------
++
++class TestHookConnectionMapping:
++    def test_database_path_comes_from_host(
++        self, db_path: Path, conn_id: str, monkeypatch: pytest.MonkeyPatch
++    ):
++        """Rule 1: hook.database_path == connection.host."""
++        env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
++        monkeypatch.setenv(env_key, json.dumps({
++            "conn_type": "generic",
++            "host": str(db_path),
++            "schema": "raw",
++        }))
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++        assert hook.database_path == str(db_path)
++
++    # -----------------------------------------------------------------
++    # Rule 2 – hook reads target_schema from connection.schema
++    # -----------------------------------------------------------------
++
++    def test_target_schema_comes_from_schema_field(
++        self, db_path: Path, conn_id: str, monkeypatch: pytest.MonkeyPatch
++    ):
++        """Rule 2a: hook.target_schema == connection.schema when schema is set."""
++        env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
++        monkeypatch.setenv(env_key, json.dumps({
++            "conn_type": "generic",
++            "host": str(db_path),
++            "schema": "landing_zone",
++        }))
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++        assert hook.target_schema == "landing_zone"
++
++    def test_target_schema_defaults_to_main(
++        self, db_path: Path, conn_id: str, monkeypatch: pytest.MonkeyPatch
++    ):
++        """Rule 2b: hook.target_schema falls back to 'main' when schema is absent."""
++        env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
++        monkeypatch.setenv(env_key, json.dumps({
++            "conn_type": "generic",
++            "host": str(db_path),
++        }))
++
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++        assert hook.target_schema == "main"
++
++    # -----------------------------------------------------------------
++    # Rule 3 – hook (and therefore operator) uses the given conn_id
++    # -----------------------------------------------------------------
++
++    def test_hook_uses_the_given_conn_id_not_the_default(
++        self, db_path: Path, conn_id: str, monkeypatch: pytest.MonkeyPatch
++    ):
++        """Rule 3: the hook honours duckdb_conn_id, so a wrong id raises."""
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        # Register under our custom id only; the default id is NOT registered.
++        env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
++        monkeypatch.setenv(env_key, json.dumps({
++            "conn_type": "generic",
++            "host": str(db_path),
++            "schema": "raw",
++        }))
++
++        # Using the correct id works.
++        hook_ok = DuckDBWarehouseHook(duckdb_conn_id=conn_id)
++        assert hook_ok.database_path == str(db_path)
++
++        # Using an unregistered id raises (proves the id is actually used).
++        hook_wrong = DuckDBWarehouseHook(duckdb_conn_id="unregistered_conn")
++        with pytest.raises(Exception, match="isn't defined|not found|AirflowNotFoundException"):
++            _ = hook_wrong.database_path
++
++
++# ---------------------------------------------------------------------------
++# Operator tests – execute() against a real DuckDB file
++# ---------------------------------------------------------------------------
++
++class TestCsvPartitionToDuckDBOperatorExecute:
++    """Tests call operator.execute(context={}) directly against tmp DuckDB files."""
++
++    # -----------------------------------------------------------------
++    # Rule 4 – only rows for partition_date are loaded
++    # Rule 5 – execute() returns the row count
++    # -----------------------------------------------------------------
++
++    def test_loads_only_partition_date_rows_and_returns_count(
++        self,
++        csv_file: Path,
++        db_path: Path,
++        conn_id: str,
++        _set_airflow_conn,            # registers env var for conn_id
++    ):
++        """Rules 4 + 5: only TARGET_DATE rows are in the table; return value == 2."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_file),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id=conn_id,
++        )
++        count = op.execute(context={})
++
++        # Rule 5: return value is the number of loaded rows
++        assert count == 2
++
++        # Rule 4: only TARGET_DATE rows are present in the table
++        rows = _read_table(db_path, "raw", "orders")
++        assert len(rows) == 2
++        assert all(r["order_date"] == TARGET_DATE for r in rows)
++        assert {r["order_id"] for r in rows} == {"O-3", "O-4"}
++
++    # -----------------------------------------------------------------
++    # Rule 3 – operator uses whatever duckdb_conn_id it is given
++    # -----------------------------------------------------------------
++
++    def test_operator_uses_given_conn_id_not_default(
++        self,
++        csv_file: Path,
++        db_path: Path,
++        conn_id: str,
++        _set_airflow_conn,
++    ):
++        """Rule 3: passing a non-default conn_id actually works; wrong id fails."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        # Operator with the registered (non-default) conn_id must succeed.
++        op_ok = CsvPartitionToDuckDBOperator(
++            task_id="t_ok",
++            csv_path=str(csv_file),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id=conn_id,          # non-default id
++        )
++        assert op_ok.execute(context={}) == 2
++
++        # Operator with an unregistered conn_id must raise.
++        op_bad = CsvPartitionToDuckDBOperator(
++            task_id="t_bad",
++            csv_path=str(csv_file),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id="unregistered_conn",
++        )
++        with pytest.raises(Exception, match="isn't defined|not found|AirflowNotFoundException"):
++            op_bad.execute(context={})
++
++    # -----------------------------------------------------------------
++    # Rule 6 – re-running the same partition replaces rows (no duplicates)
++    # Rule 7 – re-running leaves other dates alone
++    # -----------------------------------------------------------------
++
++    def test_rerun_replaces_partition_and_leaves_other_dates_alone(
++        self,
++        csv_file: Path,
++        db_path: Path,
++        conn_id: str,
++        _set_airflow_conn,
++        tmp_path: Path,
++    ):
++        """Rules 6 + 7: second execute() on same date is idempotent; neighbours intact."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        def make_op(partition_date: str) -> CsvPartitionToDuckDBOperator:
++            return CsvPartitionToDuckDBOperator(
++                task_id="t",
++                csv_path=str(csv_file),
++                table="orders",
++                partition_column="order_date",
++                partition_date=partition_date,
++                duckdb_conn_id=conn_id,
++            )
++
++        # First: load OTHER_DATE (2026-03-01) to establish a "neighbour" partition.
++        other_count = make_op(OTHER_DATE).execute(context={})
++        assert other_count == 2  # sanity check
++
++        # Second: load TARGET_DATE (2026-03-02) for the first time.
++        make_op(TARGET_DATE).execute(context={})
++
++        # Third: load TARGET_DATE *again* (re-run / backfill).
++        rerun_count = make_op(TARGET_DATE).execute(context={})
++
++        # Rule 5: return value still matches the real row count.
++        assert rerun_count == 2
++
++        all_rows = _read_table(db_path, "raw", "orders")
++
++        # Rule 6: no duplicates for TARGET_DATE.
++        target_rows = [r for r in all_rows if r["order_date"] == TARGET_DATE]
++        assert len(target_rows) == 2
++        assert {r["order_id"] for r in target_rows} == {"O-3", "O-4"}
++
++        # Rule 7: OTHER_DATE rows are untouched.
++        other_rows = [r for r in all_rows if r["order_date"] == OTHER_DATE]
++        assert len(other_rows) == 2
++        assert {r["order_id"] for r in other_rows} == {"O-1", "O-2"}
++
++    # -----------------------------------------------------------------
++    # Extra: schema from connection is respected in the actual table
++    # -----------------------------------------------------------------
++
++    def test_table_is_written_to_schema_from_connection(
++        self,
++        csv_file: Path,
++        db_path: Path,
++        conn_id: str,
++        monkeypatch: pytest.MonkeyPatch,
++    ):
++        """Rule 2 end-to-end: operator writes to the schema declared on the connection."""
++        custom_schema = "custom_schema"
++        env_key = f"AIRFLOW_CONN_{conn_id.upper()}"
++        monkeypatch.setenv(env_key, json.dumps({
++            "conn_type": "generic",
++            "host": str(db_path),
++            "schema": custom_schema,
++        }))
++
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="t",
++            csv_path=str(csv_file),
++            table="orders",
++            partition_column="order_date",
++            partition_date=TARGET_DATE,
++            duckdb_conn_id=conn_id,
++        )
++        op.execute(context={})
++
++        rows = _read_table(db_path, custom_schema, "orders")
++        assert len(rows) == 2
++        assert all(r["order_date"] == TARGET_DATE for r in rows)

@@ -1,0 +1,160 @@
+{
+  "status": "infra_error",
+  "reason": "success (HTTP 429): You've hit your individual spend limit \u00b7 ask your admin to raise it at claude.ai/admin-settings/usage \u00b7 your session limit resets 2pm (America/Los_Angeles)",
+  "primary_pass": false,
+  "primary_score": null,
+  "secondary_score": null,
+  "cost_usd": 2.989337,
+  "cost_reported_usd": 2.989337,
+  "wall_s": 557.6,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-113901/hard-deferrable-debug-partition-sensor-vwh5xxdt/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 1,
+  "run_cap_usd": 30.0,
+  "cost_list_price_usd": 2.989336,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 678,
+    "output": 34083,
+    "reasoning": 23623,
+    "cache_read": 1195376,
+    "cache_write": 74390,
+    "total": 1304527
+  },
+  "steps": 25,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 2.989337,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 678,
+      "outputTokens": 34083,
+      "cacheReadInputTokens": 1195376,
+      "cacheCreationInputTokens": 74390,
+      "webSearchRequests": 0,
+      "costUSD": 2.9893365000000003,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 23623,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 25,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-fable-5-1",
+    "claude_code_version": "2.1.287",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": true,
+    "hits": [
+      {
+        "call": 16,
+        "tool": "bash",
+        "path": "<tmp>/lake-af-home",
+        "root": "shared-temp"
+      },
+      {
+        "call": 18,
+        "tool": "bash",
+        "path": "<tmp>/lake-af-home/migrate.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 19,
+        "tool": "bash",
+        "path": "<tmp>/lake-af-home",
+        "root": "shared-temp"
+      }
+    ],
+    "denied_hits": [],
+    "kill_commands": [],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": true,
+  "kill_command": false,
+  "termination": {
+    "why_harness_stopped": "error",
+    "why_model_stopped": "stop_sequence",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 24,
+  "edited_files": 0,
+  "errors": [
+    "usage limit reached: rate_limit_event rejected (five_hour, resetsAt 1790888400)",
+    "usage limit reached: rate_limit_event rejected (five_hour, resetsAt 1790888400)",
+    "usage limit reached: rate_limit_event rejected (five_hour, resetsAt 1790888400)",
+    "rate_limit: You've hit your individual spend limit \u00b7 ask your admin to raise it at claude.ai/admin-settings/usage \u00b7 your session limit resets 2pm (America/Los_Angeles)",
+    "success (HTTP 429): You've hit your individual spend limit \u00b7 ask your admin to raise it at claude.ai/admin-settings/usage \u00b7 your session limit resets 2pm (America/Los_Angeles)"
+  ],
+  "trace_path": null
+}

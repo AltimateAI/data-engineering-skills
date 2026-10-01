@@ -1,0 +1,47 @@
+id: debugging-manual-trigger-context
+area: debugging
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  partner_feed has been failing since we upgraded to Airflow 3.3 last week, and
+  it fails differently depending on how it's started:
+
+  - the nightly scheduled run dies in write_manifest with `KeyError: 'execution_date'`
+  - when I trigger it from the UI to get the partner their file (I leave the
+    logical date empty), it dies earlier, in extract_orders, with
+    `KeyError: 'logical_date'`
+
+  The DAG file parses fine and there's no scheduler on my laptop, so I can't
+  just watch it. Can you debug and fix it? Requirements:
+  - a normal run (scheduled, or triggered with a logical date) produces the feed
+    for its logical date, same as before
+  - a manual trigger without a date should produce the feed for the day it was
+    triggered (UTC). If we clear and re-run that run tomorrow it still has to
+    produce the same day's feed, not tomorrow's
+  - keep the output/outbox file names and the extract -> manifest -> deliver
+    steps; ACME's sync depends on them
+description: |
+  Debugging runtime-only failures on Airflow 3.3 without a live scheduler. The
+  fixture DAG parses cleanly but uses the removed `execution_date` context key
+  (fails every run), `context["logical_date"]` (KeyError on manual runs, which
+  have `logical_date=None` in Airflow 3), and a `{{ ds_nodash }}` BashOperator
+  template that is undefined on those runs. That third failure only appears
+  after the first two are fixed. Pain points: P2 logical_date/data-interval
+  semantics, removed context keys, and verifying both trigger paths (ruff AIR301
+  misses keys reached through templates and `**context`).
+  Primary checks: DAGs import; the extract -> manifest -> deliver chain is kept;
+  `airflow dags test partner_feed 2026-03-02` succeeds and delivers exactly the
+  2026-03-02 feed, manifest and outbox copies; a manual run with no logical date
+  (`dag.test(logical_date=None, run_after=2026-03-03T00:30Z)`, executed as a
+  clear-and-re-run the next day: DagRun `start_date` 2026-03-04) succeeds and
+  delivers exactly the 2026-03-03 files. Both runs use TZ=America/Los_Angeles,
+  so a day taken in local time instead of UTC is caught on any grading machine.
+  Mutants: `now_fallback` (wall-clock `now()` when logical_date is missing),
+  `skip_manual_runs` (AirflowSkipException on manual runs), `template_left`
+  (Python fixed, `{{ ds_nodash }}` template left in place), `run_after_always`
+  (uses run_after even when a logical date was given), `data_interval_fallback`
+  (uses `data_interval_start`, which is None on runs without a logical date),
+  `start_date_fallback` (DagRun `start_date`, which moves when the run is
+  cleared), `local_tz_day` (trigger day in the worker's local timezone).

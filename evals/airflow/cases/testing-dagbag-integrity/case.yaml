@@ -1,0 +1,33 @@
+id: testing-dagbag-integrity
+area: testing
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1800
+prompt: |
+  Last week someone merged a DAG into this repo that didn't even import, and we only
+  found out when it vanished from the Airflow UI. We have zero tests right now. Can
+  you add a pytest suite under tests/ that our CI can run with `pytest tests/`? CI is
+  just this Python venv (Airflow 3.3) - no scheduler, webserver or other services.
+
+  The suite should fail when:
+  - any file in dags/ fails to load (import errors, cycles, anything that stops the
+    DAG from parsing)
+  - a DAG breaks our policy: every DAG needs at least one tag and catchup turned
+    off, and every task needs a real owner (not the default "airflow") and at least
+    2 retries
+  - the orders_ingest pipeline order changes: it has to be
+    extract_orders -> validate_orders -> load_orders -> publish_summary
+
+  It needs to pass on the current code. Please don't change the DAGs themselves.
+description: |
+  Area: testing (Airflow 3.3). Pain point P5 (agents do not write real DAG tests)
+  plus the 3.3 DagBag API move: DagBag now lives in airflow.dag_processing.dagbag and
+  no longer accepts include_examples, so Airflow-2-era integrity tests die with a
+  TypeError. Primary checks: the agent's suite passes on the correct project and
+  fails behaviourally (not by collection error) on five hidden planted bugs the agent
+  never sees: a removed-module import error, a dependency cycle, a missing
+  dependency, a task-level retries=0 override (only visible per task, not in
+  default_args) and catchup=True. Mutants: Airflow-2 DagBag(include_examples=False),
+  policy checked on default_args only, and an import-errors-only suite.

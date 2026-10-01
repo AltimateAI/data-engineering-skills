@@ -1,0 +1,28 @@
+name: billing_spend
+team: billing
+tier: standard
+description: Spend pipeline for billing
+schedule:
+  hour: 2
+  days: '*'
+owners:
+- ana
+steps:
+- name: extract
+  table: billing.raw_spend_00
+- name: stage
+  table: billing.stg_spend_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: billing.int_spend_00
+  depends_on:
+  - stage
+- name: snapshot
+  table: billing.int_spend_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: billing.mart_spend_00
+  depends_on:
+  - snapshot

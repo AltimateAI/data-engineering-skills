@@ -1,0 +1,84 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..9a78c67
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,78 @@
++"""Wait for the carrier aggregator's daily shipments file, load it into the warehouse and publish the report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import Variable, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++# The landing directory differs per environment; it is read from the Airflow Variable at run time.
++LANDING_FILE = "{{ var.value.vendor_landing_dir }}/shipments_{{ ds }}.csv"
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=1,
++    default_args={"owner": "logistics-analytics", "retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    # Runs start at 06:00 UTC; give up at the end of the day (18h) so the run fails and pages on-call.
++    # Reschedule mode releases the worker slot between pokes. No retries: they would extend the wait
++    # past the end of the day.
++    wait_for_file = FileSensor(
++        task_id="wait_for_file",
++        filepath=LANDING_FILE,
++        mode="reschedule",
++        poke_interval=timedelta(minutes=10),
++        timeout=timedelta(hours=18),
++        retries=0,
++    )
++
++    @task
++    def load_shipments(ds=None):
++        import duckdb
++
++        path = Path(Variable.get("vendor_landing_dir")) / f"shipments_{ds}.csv"
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                "CREATE TABLE IF NOT EXISTS vendor_shipments ("
++                "shipment_id VARCHAR, carrier VARCHAR, destination VARCHAR, "
++                "weight_kg DOUBLE, shipped_at TIMESTAMP, ship_date DATE)"
++            )
++            con.execute("BEGIN")
++            try:
++                # Replace the day's rows so a rerun never duplicates them.
++                con.execute("DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds])
++                con.execute(
++                    "INSERT INTO vendor_shipments "
++                    "SELECT shipment_id, carrier, destination, CAST(weight_kg AS DOUBLE), "
++                    "CAST(shipped_at AS TIMESTAMP), CAST(? AS DATE) FROM read_csv_auto(?)",
++                    [ds, str(path)],
++                )
++                con.execute("COMMIT")
++            except Exception:
++                con.execute("ROLLBACK")
++                raise
++            return con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            ).fetchone()[0]
++
++    publish_report = BashOperator(
++        task_id="publish_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    wait_for_file >> load_shipments() >> publish_report
++
++
++vendor_shipments()

@@ -1,0 +1,68 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..0ca3652
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,62 @@
++"""Daily revenue per store for the previous calendar day (UTC).
++
++Runs at 03:00 UTC, after late orders have landed (~02:00). The run at 03:00 on
++day D reports on day D-1, midnight to midnight UTC. The day is derived from the
++run's logical date, so reruns and backfills reproduce the same file.
++"""
++
++from __future__ import annotations
++
++import csv
++import os
++from collections import defaultdict
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    # First run (03:00 on 09-02) reports on 2026-09-01.
++    start_date=pendulum.datetime(2026, 9, 2, tz="UTC"),
++    catchup=False,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def report() -> str:
++        ctx = get_current_context()
++        # With a cron-trigger schedule the logical date is the 03:00 run time.
++        run_time = ctx["logical_date"] or ctx["dag_run"].run_after
++        day = run_time.in_timezone("UTC").start_of("day").subtract(days=1)
++        start, end = day.naive(), day.add(days=1).naive()
++
++        orders: dict[str, int] = defaultdict(int)
++        revenue: dict[str, Decimal] = defaultdict(Decimal)
++        with open(PROJECT_ROOT / "data" / "orders.csv", newline="") as f:
++            for row in csv.DictReader(f):
++                ts = pendulum.parse(row["order_ts"], tz=None)
++                if start <= ts < end:
++                    orders[row["store_id"]] += 1
++                    revenue[row["store_id"]] += Decimal(row["amount"])
++
++        out = PROJECT_ROOT / "output" / "daily_revenue" / f"{day:%Y-%m-%d}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".csv.tmp")
++        with open(tmp, "w", newline="") as f:
++            w = csv.writer(f, lineterminator="\n")
++            w.writerow(["store_id", "orders", "revenue"])
++            for store_id in sorted(orders):
++                rev = revenue[store_id].quantize(Decimal("0.01"), ROUND_HALF_UP)
++                w.writerow([store_id, orders[store_id], rev])
++        os.replace(tmp, out)  # atomic: the reporting tool never sees a partial file
++        return str(out)
++
++    report()
++
++
++daily_revenue()

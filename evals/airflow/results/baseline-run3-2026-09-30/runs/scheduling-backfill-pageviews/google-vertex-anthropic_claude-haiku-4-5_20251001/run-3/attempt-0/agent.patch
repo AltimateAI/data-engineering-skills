@@ -1,0 +1,98 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..e9a10a1 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,34 +1,65 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
++at about 01:00 UTC the next morning. This DAG aggregates each day's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++Backfill behavior:
++- Data files exist from 2026-09-01 onward in data/pageviews/
++- When unpaused, catchup=True will schedule all missing days automatically
++- Each task is idempotent (DELETE + INSERT ensures re-runs don't double-count)
++- DuckDB transactions prevent partial writes if concurrent runs collide
+ """
+ 
+ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import dag, task, get_airflow_context
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
++# Backfill start date: data is available from 2026-09-01 onward.
++BACKFILL_START = pendulum.parse("2026-09-01").to_date()
++
+ 
+ @dag(
+     dag_id="pageviews_daily",
+     schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    start_date=BACKFILL_START,
++    catchup=True,  # Enable backfill: when unpaused, will schedule all missing days
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+     def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++        """
++        Load one day of page view data.
++        
++        Uses execution_date from Airflow context to determine which day to load.
++        
++        Returns: Row count inserted/updated for the day
++        
++        Idempotency:
++        - DELETE before INSERT ensures re-runs on the same day don't double-count
++        - Transaction isolation prevents partial writes in concurrent scenarios
++        - Only attempts to load if the CSV file exists
++        """
++        # Get the execution_date from Airflow context
++        # This is the logical date for the task run (when catchup runs, this varies per task instance)
++        context = get_airflow_context()
++        day = context["ds"]  # ds is YYYY-MM-DD format
++        
+         source = RAW_DIR / f"{day}.csv"
++        
++        # Skip if source file doesn't exist (e.g., loading a future day before data arrives)
++        if not source.exists():
++            print(f"No data file for {day}; skipping")
++            return 0
++        
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -43,7 +74,9 @@ def pageviews_daily():
+                 """
+             )
+             con.execute("BEGIN TRANSACTION")
++            # Delete any existing rows for this day (idempotency)
+             con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            # Insert fresh aggregates from the CSV
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+@@ -54,9 +87,11 @@ def pageviews_daily():
+                 [day],
+             )
+             con.execute("COMMIT")
+-            return con.execute(
++            row_count = con.execute(
+                 "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
+             ).fetchone()[0]
++            print(f"Loaded {row_count} pages for {day}")
++            return row_count
+         finally:
+             con.close()
+ 

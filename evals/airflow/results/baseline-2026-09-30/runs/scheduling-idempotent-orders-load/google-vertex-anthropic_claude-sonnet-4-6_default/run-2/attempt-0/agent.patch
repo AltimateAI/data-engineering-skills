@@ -1,0 +1,102 @@
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..af6a023 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,27 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads the scheduled day's shop orders into the local DuckDB warehouse.
+ 
+ The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
++scheduled day's non-cancelled orders into `orders` and then refreshes the
+ `daily_revenue` rollup that the finance dashboard reads.
++
++Idempotency guarantee
++---------------------
++Both tasks delete the target day's rows before re-inserting, so re-running,
++retrying, or backfilling any day always lands exactly the right rows even if a
++previous attempt died halfway through. Other days are never touched.
++
++Scheduled date
++--------------
++The day to load is derived from Airflow's ``logical_date`` (the start of the
++schedule interval, formerly called ``execution_date``), NOT from wall-clock
++time. This means:
++
++* A run scheduled for 2026-03-10 always loads 2026-03-10, whether it runs
++  on time, is retried an hour later, or is backfilled weeks later.
++* Clearing and re-running a historical DAG run is always safe.
+ """
+ 
+-from datetime import datetime, timedelta
++from datetime import date
+ from pathlib import Path
+ 
+ import duckdb
+@@ -27,8 +43,19 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(logical_date=None) -> str:
++        """Load the scheduled day's orders idempotently.
++
++        Uses ``logical_date`` (injected by Airflow) so the day is always the
++        one the run is *scheduled* for, never the wall-clock "yesterday".
++
++        Delete-then-insert within a single connection ensures atomicity at the
++        day grain: either the full day lands, or nothing changes.
++        """
++        # logical_date is a pendulum.DateTime injected by Airflow from the
++        # template context; .date() gives us a plain date object.
++        day: date = logical_date.date()
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+@@ -42,6 +69,14 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # Remove any previously loaded rows for this day before re-inserting
++        # so that retries and backfills are idempotent.
++        con.execute(
++            "DELETE FROM orders WHERE order_date = ?",
++            [day],
++        )
++
+         con.execute(
+             f"""
+             INSERT INTO orders
+@@ -61,6 +96,11 @@ def orders_daily_load():
+ 
+     @task
+     def build_daily_revenue(day: str) -> None:
++        """Refresh the daily_revenue rollup for one day idempotently.
++
++        Deletes the existing row for the target day before inserting the
++        freshly aggregated row, so re-runs never produce duplicate revenue.
++        """
+         con = duckdb.connect(str(WAREHOUSE))
+         con.execute(
+             """
+@@ -71,6 +111,13 @@ def orders_daily_load():
+             )
+             """
+         )
++
++        # Remove the stale rollup row for this day before re-aggregating.
++        con.execute(
++            "DELETE FROM daily_revenue WHERE order_date = CAST(? AS DATE)",
++            [day],
++        )
++
+         con.execute(
+             """
+             INSERT INTO daily_revenue
+diff --git a/warehouse/analytics.duckdb b/warehouse/analytics.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..7915ff538f3c1538f4dbab994d5104f5df88b020
+Binary files differ (content omitted by sanitize.py)

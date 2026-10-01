@@ -1,0 +1,113 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..4d66634 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,6 +3,11 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Schedule: weekdays at 06:00 America/New_York.  Each run reports the *previous
++business day* (Monday's run covers Friday, Tuesday–Friday cover the preceding
++weekday).  The report file name and column layout are unchanged so that the
++desk heads' Excel pull-through keeps working.
+ """
+ 
+ import csv
+@@ -11,11 +16,44 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
++NY = "America/New_York"
++
++
++# ---------------------------------------------------------------------------
++# Date helpers (from the verified dates-and-schedules reference)
++# ---------------------------------------------------------------------------
++
++def _prev_business_day(d: pendulum.DateTime) -> pendulum.DateTime:
++    """Return the previous business day (Mon–Fri, no holiday calendar)."""
++    d = d.subtract(days=1)
++    while d.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
++        d = d.subtract(days=1)
++    return d
++
++
++def _resolve_trade_date(dag_run) -> str:
++    """Return the trade date (YYYY-MM-DD, NY timezone) this run should report.
++
++    Uses the verified run_window pattern from the skill reference:
++    - Interval timetables: use the interval (not applicable here).
++    - Trigger timetables / manual runs (3.x): anchor on logical_date or
++      run_after, convert to NY, then step back to the previous business day.
++    """
++    anchor = dag_run.logical_date or dag_run.run_after
++    anchor_ny = pendulum.instance(anchor).in_tz(NY).start_of("day")
++    trade_day = _prev_business_day(anchor_ny)
++    return trade_day.to_date_string()  # "YYYY-MM-DD"
++
++
++# ---------------------------------------------------------------------------
++# Report writer (file name and columns unchanged)
++# ---------------------------------------------------------------------------
+ 
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+@@ -39,18 +77,23 @@ def write_pnl_report(trade_date: str) -> Path:
+     return out
+ 
+ 
++# ---------------------------------------------------------------------------
++# DAG definition
++# ---------------------------------------------------------------------------
++
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(**context) -> str:
++        trade_date = _resolve_trade_date(context["dag_run"])
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 
+diff --git a/reports/fx_pnl_2026-01-02.csv b/reports/fx_pnl_2026-01-02.csv
+new file mode 100644
+index 0000000..f411fca
+--- /dev/null
++++ b/reports/fx_pnl_2026-01-02.csv
+@@ -0,0 +1 @@
++desk,trades,notional_usd,pnl_usd
+diff --git a/reports/fx_pnl_2026-01-05.csv b/reports/fx_pnl_2026-01-05.csv
+new file mode 100644
+index 0000000..f411fca
+--- /dev/null
++++ b/reports/fx_pnl_2026-01-05.csv
+@@ -0,0 +1 @@
++desk,trades,notional_usd,pnl_usd
+diff --git a/reports/fx_pnl_2026-03-06.csv b/reports/fx_pnl_2026-03-06.csv
+new file mode 100644
+index 0000000..07f4c9a
+--- /dev/null
++++ b/reports/fx_pnl_2026-03-06.csv
+@@ -0,0 +1,4 @@
++desk,trades,notional_usd,pnl_usd
++AMER,1,900000.00,-6128.56
++APAC,3,6900000.00,-18378.54
++EMEA,3,4100000.00,-19766.93

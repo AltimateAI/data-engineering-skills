@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: dags test succeeds (weekly_campaign_report, campaign_sync), scheduled Monday 06:00 runs succeed on 3.3, Monday runs report on the previous week, same output as 2.11, season backfill: scheduler creates the same weekly runs from start_date as 2.11, late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)",
+  "primary_pass": false,
+  "primary_score": 0.2857142857142857,
+  "secondary_score": 0.0,
+  "returncode": 0,
+  "wall_s": 215.3,
+  "cost_usd": 0.709268,
+  "cost_reported_usd": 2.930556,
+  "tokens": {
+    "input": 2221466,
+    "output": 12617,
+    "reasoning": 0,
+    "cache_read": 1852700,
+    "cache_write": 368588,
+    "total": 4455371
+  },
+  "steps": 31,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 21,
+  "edited_files": 3,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d985c2fffeWYeiSRuZQPrIP5.json"
+}

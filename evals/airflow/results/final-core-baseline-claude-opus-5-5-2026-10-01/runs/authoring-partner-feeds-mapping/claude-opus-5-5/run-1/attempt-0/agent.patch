@@ -1,0 +1,116 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..ebc773b
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,110 @@
++"""Daily per-partner order feed processing.
++
++Each partner file dropped in data/partner_drop/<ds>/ is processed by its own
++mapped task instance, so a bad file only fails (and retries) its own work.
++A summary is always written once every file has been processed, including on
++days where no partner sent anything.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++import os
++from datetime import timedelta
++from decimal import Decimal, InvalidOperation
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++from airflow.timetables.interval import CronDataIntervalTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_DIR = PROJECT_ROOT / "data" / "partner_drop"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "partner_feeds"
++SUMMARY_NAME = "summary.json"
++
++
++def _write_json(path: Path, payload: dict) -> None:
++    """Write atomically so a retry never leaves a half-written file behind."""
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_suffix(path.suffix + ".tmp")
++    tmp.write_text(json.dumps(payload, indent=2))
++    os.replace(tmp, path)
++
++
++@dag(
++    # Interval timetable: the run for date D starts once D is over, so the
++    # day's drop folder is complete by the time it is read.
++    schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=4,
++    default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["partners"],
++)
++def partner_feeds():
++    @task
++    def list_files(ds=None) -> list[str]:
++        day_dir = DROP_DIR / ds
++        files = sorted(str(p) for p in day_dir.glob("*.csv")) if day_dir.is_dir() else []
++
++        # Drop outputs from earlier runs of this date for partners that are no
++        # longer present, so reruns leave the date's folder consistent.
++        out_dir = OUTPUT_DIR / ds
++        if out_dir.is_dir():
++            current = {Path(f).stem for f in files}
++            for old in out_dir.glob("*.json"):
++                if old.name != SUMMARY_NAME and old.stem not in current:
++                    old.unlink()
++        return files
++
++    @task(map_index_template="{{ partner }}")
++    def process_file(path: str, ds=None) -> dict:
++        src = Path(path)
++        partner = src.stem
++        get_current_context()["partner"] = partner
++
++        rows = 0
++        total = Decimal("0")
++        with src.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            missing = {"order_id", "amount"} - set(reader.fieldnames or [])
++            if missing:
++                raise ValueError(f"{src}: missing columns {sorted(missing)}")
++            for line_no, record in enumerate(reader, start=2):
++                try:
++                    total += Decimal(record["amount"].strip())
++                except (InvalidOperation, AttributeError) as exc:
++                    raise ValueError(
++                        f"{src}:{line_no}: invalid amount {record['amount']!r}"
++                    ) from exc
++                rows += 1
++
++        result = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": float(total.quantize(Decimal("0.01"))),
++        }
++        _write_json(OUTPUT_DIR / ds / f"{partner}.json", result)
++        return result
++
++    # none_failed: runs when all files succeeded, and also when the mapped task
++    # is skipped because there were zero files that day.
++    @task(trigger_rule="none_failed")
++    def write_summary(results, ds=None) -> dict:
++        results = list(results or [])
++        total = sum((Decimal(str(r["total_amount"])) for r in results), Decimal("0"))
++        summary = {
++            "files": len(results),
++            "rows": sum(r["rows"] for r in results),
++            "total_amount": float(total.quantize(Decimal("0.01"))),
++        }
++        _write_json(OUTPUT_DIR / ds / SUMMARY_NAME, summary)
++        return summary
++
++    processed = process_file.expand(path=list_files())
++    write_summary(processed)
++
++
++partner_feeds()

@@ -1,0 +1,37 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [
+    "optimizing-query-text",
+    "dbt-develop",
+    "dbt-schema-verify"
+  ],
+  "skill_invocations": [
+    {
+      "name": "optimizing-query-text",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [
+    "dbt-develop",
+    "dbt-schema-verify"
+  ],
+  "tools": [
+    "skill",
+    "sql_analyze",
+    "altimate_core_rewrite",
+    "sql_format"
+  ],
+  "returncode": 1,
+  "wall_s": 18.0,
+  "cost_usd": 0.610806,
+  "cost_reported_usd": 1.509234,
+  "steps": 4,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "errors": []
+}

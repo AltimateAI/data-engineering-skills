@@ -1,0 +1,36 @@
+name: growth_prices
+team: growth
+tier: standard
+description: Prices pipeline for growth
+schedule:
+  hour: 6
+  days: '*'
+  minute: 45
+steps:
+- name: extract
+  table: growth.raw_prices_00
+- name: stage
+  table: growth.stg_prices_00
+  depends_on:
+  - extract
+- name: transform
+  table: growth.int_prices_00
+  depends_on:
+  - stage
+- name: enrich
+  table: growth.int_prices_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: growth.int_prices_00
+  depends_on:
+  - enrich
+  - transform
+- name: snapshot
+  table: growth.int_prices_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: growth.mart_prices_00
+  depends_on:
+  - snapshot

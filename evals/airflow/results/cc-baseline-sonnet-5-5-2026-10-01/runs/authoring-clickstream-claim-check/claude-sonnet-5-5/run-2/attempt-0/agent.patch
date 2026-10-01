@@ -1,0 +1,121 @@
+diff --git a/.gitignore b/.gitignore
+index fd6aad7..08e78d2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,3 @@
+ output/
+ __pycache__/
++staging/
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..6e92ce6
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,107 @@
++"""Daily page-level stats (views, unique users, avg load time) from the clickstream export.
++
++Tasks hand each other file paths, not data, so XCom stays tiny and the work
++runs in DuckDB, which streams the gzipped CSV instead of loading it into memory.
++"""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import duckdb
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++RAW_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "staging" / "clickstream_page_stats"
++OUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++def _atomic_write(final: Path, write) -> None:
++    """Call write(tmp_path), then rename over `final` so readers never see a partial file."""
++    final.parent.mkdir(parents=True, exist_ok=True)
++    tmp = final.with_name(final.name + ".tmp")
++    write(tmp)
++    os.replace(tmp, final)
++
++
++@dag(
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["web-analytics"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds=None) -> str:
++        """Keep human, identified hits for the run date; stage them as parquet."""
++        src = RAW_DIR / f"{ds}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(f"no clickstream export for {ds}: {src}")
++        staged = STAGING_DIR / f"{ds}_events.parquet"
++
++        def write(tmp: Path) -> None:
++            duckdb.execute(
++                f"""
++                COPY (
++                    SELECT user_id, page, load_ms
++                    FROM read_csv(?, header = true, columns = {{
++                        'event_id': 'VARCHAR', 'user_id': 'VARCHAR', 'page': 'VARCHAR',
++                        'event_ts': 'VARCHAR', 'load_ms': 'DOUBLE', 'is_bot': 'INTEGER'}})
++                    WHERE coalesce(is_bot, 0) <> 1
++                      AND trim(coalesce(user_id, '')) <> ''
++                ) TO '{tmp}' (FORMAT parquet)
++                """,
++                [str(src)],
++            )
++
++        _atomic_write(staged, write)
++        return str(staged)
++
++    @task
++    def transform(events_path: str, ds=None) -> str:
++        """Aggregate per page; stage the result as parquet."""
++        staged = STAGING_DIR / f"{ds}_page_stats.parquet"
++
++        def write(tmp: Path) -> None:
++            duckdb.execute(
++                f"""
++                COPY (
++                    SELECT page,
++                           count(*) AS views,
++                           count(DISTINCT user_id) AS unique_users,
++                           round(avg(load_ms), 1) AS avg_load_ms
++                    FROM read_parquet(?)
++                    GROUP BY page
++                    ORDER BY page
++                ) TO '{tmp}' (FORMAT parquet)
++                """,
++                [events_path],
++            )
++
++        _atomic_write(staged, write)
++        return str(staged)
++
++    @task
++    def load(stats_path: str, ds=None) -> None:
++        """Replace output/page_stats/<ds>.csv with the day's stats."""
++        out = OUT_DIR / f"{ds}.csv"
++
++        def write(tmp: Path) -> None:
++            duckdb.execute(
++                f"""
++                COPY (SELECT page, views, unique_users, avg_load_ms
++                      FROM read_parquet(?) ORDER BY page)
++                TO '{tmp}' (FORMAT csv, HEADER)
++                """,
++                [stats_path],
++            )
++
++        _atomic_write(out, write)
++
++    load(transform(extract()))
++
++
++clickstream_page_stats()

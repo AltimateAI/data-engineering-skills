@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: DAG files import with no Variables available, DAG warehouse_load is present",
+  "primary_pass": false,
+  "primary_score": 0.0,
+  "secondary_score": 0.3333333333333333,
+  "returncode": 0,
+  "wall_s": 98.6,
+  "cost_usd": 0.966089,
+  "cost_reported_usd": 3.174419,
+  "tokens": {
+    "input": 736122,
+    "output": 3452,
+    "reasoning": 0,
+    "cache_read": 535113,
+    "cache_write": 200997,
+    "total": 1475684
+  },
+  "steps": 11,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 3,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0da2ffd0ffe2DkNR3Dq0y31k0.json"
+}

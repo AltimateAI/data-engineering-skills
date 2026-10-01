@@ -1,0 +1,37 @@
+name: payments_csat
+team: payments
+tier: standard
+description: Csat pipeline for payments
+schedule:
+  hour: 0
+  days: '1'
+retries: 1
+steps:
+- name: extract
+  table: payments.raw_csat_00
+- name: stage
+  table: payments.stg_csat_00
+  depends_on:
+  - extract
+- name: validate
+  table: payments.int_csat_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: payments.int_csat_00
+  depends_on:
+  - validate
+- name: enrich
+  table: payments.int_csat_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: payments.int_csat_00
+  depends_on:
+  - enrich
+  - transform
+- name: publish
+  table: payments.mart_csat_00
+  depends_on:
+  - snapshot

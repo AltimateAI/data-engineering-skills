@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_warehouse.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 2 passed, 14 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection [IOException], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError], tests.test_warehouse.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [IOException]\n, sample_csv_file: Path, temp_duckdb_file: Path\n    ):\n        \"\"\"Operator should respect custom duckdb_conn_id parameter.\"\"\"\n        # Create a custom connection\n>       session = Session()\n                  ^^^^^^^\nE       NameError: name 'Session' is not defined\n\ntests/test_warehouse.py:491: NameError\n______ TestCsvPartitionToDuckDBOperator.test_operator_with_real_dag_data _______\n\nself = <tests.test_warehouse.TestCsvPartitionToDuckDBOperator object at 0x10f65aed0>\ntemp_duckdb_file = PosixPath('<tmp>/tmp6bed_y2b.duckdb')\n\n    def test_operator_with_real_dag_data(\n        self, temp_duckdb_file: Path\n    ):\n        \"\"\"Integration test using actual data from the data/ directory.\"\"\"\n        # Create connection for the test\n>       session = Session()\n                  ^^^^^^^\nE       NameError: name 'Session' is not defined\n\ntests/test_warehouse.py:539: NameError\n=========================== short test summary info ============================\nFAILED tests/test_warehouse.py::TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set\nFAILED tests/test_warehouse.py::TestDuckDBWarehouseHook::test_hook_raises_if_no_host\nFAILED tests/test_warehouse.py::TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection\nFAILED tests/test_warehouse.py::TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_creates_schema_if_not_exists\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_creates_table_if_not_exists\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_idempotent_same_partition_replaces_rows\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_alone\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_without_affecting_others\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_loads_all_columns_as_text\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_with_custom_connection_id\nFAILED tests/test_warehouse.py::TestCsvPartitionToDuckDBOperator::test_operator_with_real_dag_data\n14 failed, 2 passed in 0.51s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 2 passed, 14 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection [IOException], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError], tests.test_warehouse.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [IOException]"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 4 passed, 12 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_reads_database_path_from_connection [AssertionError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError], tests.test_warehouse.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 1 passed, 15 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_reads_schema_from_connection [AssertionError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection [IOException], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 2 passed, 14 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection [IOException], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError], tests.test_warehouse.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 2 passed, 14 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection [IOException], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError], tests.test_warehouse.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [IOException]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator inserts every row of the CSV, not just partition_date -> failed: 2 passed, 14 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_defaults_to_main_schema_if_not_set [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_raises_if_no_host [NameError], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_returns_duckdb_connection [IOException], tests.test_warehouse.TestDuckDBWarehouseHook::test_hook_get_conn_respects_read_only_flag [NameError], tests.test_warehouse.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [IOException]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 1.0
+}

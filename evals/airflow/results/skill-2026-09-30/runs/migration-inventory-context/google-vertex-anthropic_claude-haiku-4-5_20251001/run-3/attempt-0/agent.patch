@@ -1,0 +1,77 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..9050f8c 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -14,8 +14,9 @@ from collections import defaultdict
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ 
+-from airflow import DAG
+-from airflow.operators.python import PythonOperator, get_current_context
++import pendulum
++from airflow.sdk import DAG, DeltaDataIntervalTimetable, get_current_context, macros
++from airflow.providers.standard.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ MOVEMENTS = PROJECT_ROOT / "data" / "stock_movements.csv"
+@@ -35,8 +36,8 @@ def _read_snapshot(day: str) -> dict[str, int]:
+         return {row["sku"]: int(row["on_hand"]) for row in csv.DictReader(fh)}
+ 
+ 
+-def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs):
+-    as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted
++def build_snapshot(ds, logical_date, ti, **kwargs):
++    as_of = logical_date + timedelta(days=1)  # end of the day being snapshotted
+     on_hand: dict[str, int] = defaultdict(int)
+     with MOVEMENTS.open(newline="") as fh:
+         for row in csv.DictReader(fh):
+@@ -44,6 +45,7 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+             if moved_at < as_of:
+                 on_hand[row["sku"]] += int(row["qty"])
+ 
++    prev_ds = macros.ds_add(ds, -1)
+     previous = _read_snapshot(prev_ds)
+     out = _snapshot_path(ds)
+     out.parent.mkdir(parents=True, exist_ok=True)
+@@ -58,14 +60,12 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+     ti.xcom_push(key="low_stock", value=sorted(s for s, q in on_hand.items() if q < LOW_STOCK_THRESHOLD))
+ 
+ 
+-def audit_snapshot(**kwargs):
+-    context = get_current_context()
+-    day = context["execution_date"].strftime("%Y-%m-%d")
+-    ti = kwargs["ti"]
++def audit_snapshot(ds, ti, **kwargs):
++    day = ds
+     record = {
+         "day": day,
+-        "sku_count": ti.xcom_pull(key="sku_count"),
+-        "low_stock": ti.xcom_pull(key="low_stock"),
++        "sku_count": ti.xcom_pull(key="sku_count", task_ids="build_snapshot"),
++        "low_stock": ti.xcom_pull(key="low_stock", task_ids="build_snapshot"),
+     }
+     out = OUTPUT_DIR / "audit" / f"{day}.json"
+     out.parent.mkdir(parents=True, exist_ok=True)
+@@ -74,8 +74,8 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
+-    start_date=datetime(2026, 1, 1),
++    schedule=DeltaDataIntervalTimetable(timedelta(days=1)),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+     tags=["inventory"],
+@@ -83,11 +83,9 @@ with DAG(
+     build = PythonOperator(
+         task_id="build_snapshot",
+         python_callable=build_snapshot,
+-        provide_context=True,
+     )
+     audit = PythonOperator(
+         task_id="audit_snapshot",
+         python_callable=audit_snapshot,
+-        provide_context=True,
+     )
+     build >> audit

@@ -1,0 +1,55 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['inventory_snapshot']"
+    },
+    {
+      "name": "inventory_snapshot keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['audit_snapshot', 'build_snapshot'] deps=[['build_snapshot', 'audit_snapshot']]"
+    },
+    {
+      "name": "dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "manual 2026-03-05: state=failed interval=[None, None] failed=['audit_snapshot', 'build_snapshot']\ndgupta/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/providers/standard/operators/python.py\", line 254, in execute_callable\n    return runner.run(*self.op_args, **self.op_kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/callback_runner.py\", line 97, in run\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"<work>/baseline-2026-09-30-baseline-20260930-045309/migration-inventory-context-d7bi1pp8/grade-ws/dags/inventory_snapshot.py\", line 39, in build_snapshot\n    as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted\n            ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~\nTypeError: unsupported operand type(s) for +: 'NoneType' and 'datetime.timedelta'\n2026-09-30T12:11:37.126298Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T12:11:37.129301Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T12:11:37.152613Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f23a-3929-766f-af49-1616ee3c2f40 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f23a-26c6-7fd6-a3ba-2fb007675c93\n2026-09-30T12:11:37.168042Z [info     ] [DAG TEST] end task task_id=build_snapshot map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T12:11:37.175955Z [info     ] Marking run <DagRun inventory_snapshot @ 2026-03-05 00:00:00+00:00: manual__2026-09-30T12:11:32.349935+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T12:11:37.176476Z [info     ] DagRun Finished: dag_id=inventory_snapshot, logical_date=2026-03-05 00:00:00+00:00, run_id=manual__2026-09-30T12:11:32.349935+00:00, run_start_date=2026-03-05 00:00:00+00:00, run_end_date=2026-09-30 12:11:37.176058+00:00, run_duration=18101497.176058, state=failed, run_type=manual, data_interval_start=2026-03-05 00:00:00+00:00, data_interval_end=2026-03-05 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"manual\": \"2026-03-05\", \"logical_date\": \"2026-03-05T00:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"audit_snapshot\": \"upstream_failed\", \"build_snapshot\": \"failed\"}}], \"error\": null, \"timetable\": \"DeltaTriggerTimetable\"}"
+    },
+    {
+      "name": "consecutive scheduled daily runs succeed on 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "2026-03-05T00:00:00+00:00: state=failed interval=[2026-03-05T00:00:00+00:00, 2026-03-05T00:00:00+00:00] failed=['audit_snapshot', 'build_snapshot']; 2026-03-06T00:00:00+00:00: state=failed interval=[2026-03-06T00:00:00+00:00, 2026-03-06T00:00:00+00:00] failed=['audit_snapshot', 'build_snapshot']\ns/airflow/sdk/execution_time/callback_runner.py\", line 97, in run\n    return func(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"<work>/baseline-2026-09-30-baseline-20260930-045309/migration-inventory-context-d7bi1pp8/grade-ws/dags/inventory_snapshot.py\", line 39, in build_snapshot\n    as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted\n            ~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~\nTypeError: unsupported operand type(s) for +: 'NoneType' and 'datetime.timedelta'\n2026-09-30T12:11:49.526050Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T12:11:49.526315Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T12:11:49.590096Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f23a-6996-7065-9e4a-0eef2112ded7 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f23a-686f-7a69-be81-70c8ad2ef33c\n2026-09-30T12:11:49.634480Z [info     ] [DAG TEST] end task task_id=build_snapshot map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T12:11:49.639492Z [info     ] Marking run <DagRun inventory_snapshot @ 2026-03-06 00:00:00+00:00: manual__2026-03-06T00:00:00+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T12:11:49.639632Z [info     ] DagRun Finished: dag_id=inventory_snapshot, logical_date=2026-03-06 00:00:00+00:00, run_id=manual__2026-03-06T00:00:00+00:00, run_start_date=2026-03-06 00:00:00+00:00, run_end_date=2026-09-30 12:11:49.639573+00:00, run_duration=18015109.639573, state=failed, run_type=manual, data_interval_start=2026-03-06 00:00:00+00:00, data_interval_end=2026-03-06 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"run_after\": \"2026-03-05T00:00:00+00:00\", \"logical_date\": \"2026-03-05T00:00:00+00:00\", \"start\": \"2026-03-05T00:00:00+00:00\", \"end\": \"2026-03-05T00:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"audit_snapshot\": \"upstream_failed\", \"build_snapshot\": \"failed\"}}, {\"run_after\": \"2026-03-06T00:00:00+00:00\", \"logical_date\": \"2026-03-06T00:00:00+00:00\", \"start\": \"2026-03-06T00:00:00+00:00\", \"end\": \"2026-03-06T00:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"audit_snapshot\": \"upstream_failed\", \"build_snapshot\": \"failed\"}}], \"error\": null, \"timetable\": \"DeltaTriggerTimetable\"}"
+    },
+    {
+      "name": "snapshots and audit records match the Airflow 2 output",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'audit/2026-03-04.json': '{\"day\": \"2026-03-04\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'audit/2026-03-05.json': '{\"day\": \"2026-03-05\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'inventory/2026-03-04.csv': 'sku,on_hand,change\\nSKU-1001,-24,\\nSKU-1002,119,\\nSKU-1003,151,\\nSKU-2001,208,\\nSKU-2002,157,\\nSKU-3001,178,', 'inventory/2026-03-05.csv': 'sku,on_hand,change\\nSKU-1001,-24,0\\nSKU-1002,111,-8\\nSKU-1003,160,9\\nSKU-2001,215,7\\nSKU-2002,193,36\\nSKU-3001,178,0'}\n got {}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "5 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/inventory_snapshot.py:62 AIR301; dags/inventory_snapshot.py:75 AIR311; dags/inventory_snapshot.py:83 AIR001; dags/inventory_snapshot.py:83 AIR312; dags/inventory_snapshot.py:87 AIR001; dags/inventory_snapshot.py:87 AIR312"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/inventory_snapshot.py:18 DeprecatedImportWarning: The `airflow.operators.python.PythonOperator` attribute is deprecated. Please use `'airflow.providers.standard.operators; dags/inventory_snapshot.py:18 DeprecatedImportWarning: The `airflow.operators.python.get_current_context` attribute is deprecated. Please use `'airflow.sdk.get_current_context"
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.4,
+  "secondary_score": 0.0
+}

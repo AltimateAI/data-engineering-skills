@@ -1,0 +1,179 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..fce7bbc
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,173 @@
++"""Process daily partner order files and write per-partner JSON + summary.
++
++Period contract
++---------------
++Every run type processes **its own calendar day** (UTC):
++  - Scheduled run at midnight UTC on 2026-09-30  → processes 2026-09-30
++  - Manual trigger (no logical date)              → processes the calendar day of run_after
++  - Rerun / clear of any run                      → re-processes the same day
++  - Backfill of date D                            → processes D
++
++Input:  data/partner_drop/<YYYY-MM-DD>/<partner>.csv   (columns: order_id, amount)
++Output: output/partner_feeds/<YYYY-MM-DD>/<partner>.json
++        output/partner_feeds/<YYYY-MM-DD>/summary.json  (always written, zeros on empty days)
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.sdk import Param
++from airflow.utils.trigger_rule import TriggerRule
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++def _resolve_day(dag_run, params) -> str:
++    """Return the YYYY-MM-DD string this run processes.
++
++    Priority:
++    1. params["day"] explicit override (enables safe reruns via params / backfills)
++    2. data_interval_start when a real (non-zero-width) interval exists
++       (CronDataIntervalTimetable keeps 2.x semantics; we handle both)
++    3. logical_date or run_after (CronTriggerTimetable / 3.x manual run)
++    """
++    day_override = (params or {}).get("day")
++    if day_override:
++        return day_override
++
++    s = dag_run.data_interval_start
++    e = dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        return pendulum.instance(s).in_tz("UTC").to_date_string()
++
++    # Trigger timetable (3.x default for cron strings) or manual run:
++    # process the calendar day of the run's anchor.
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++@dag(
++    dag_id="partner_feeds",
++    # A plain cron string on Airflow 3.x creates a CronTriggerTimetable where
++    # logical_date == run_after == the moment the run fires.  Because we process
++    # the same calendar day as the fire time, this is exactly right.
++    schedule="0 0 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,           # allows backfilling every day since 2026-09-01
++    max_active_runs=4,      # cap concurrent catchup runs
++    params={
++        "day": Param(
++            None,
++            type=["null", "string"],
++            format="date",
++            description="Override the processed date (YYYY-MM-DD). "
++                        "Leave blank for the scheduled / triggered day.",
++        ),
++    },
++    tags=["partners", "finance"],
++)
++def partner_feeds():
++
++    @task
++    def discover_files(**context) -> list[str]:
++        """Return sorted list of CSV paths for the run's day (empty list = no files)."""
++        day = _resolve_day(context["dag_run"], context["params"])
++        drop_dir = PROJECT_ROOT / "data" / "partner_drop" / day
++        if not drop_dir.exists():
++            return []
++        return sorted(str(p) for p in drop_dir.glob("*.csv"))
++
++    @task
++    def process_file(csv_path: str, **context) -> str:
++        """Read one partner CSV and write output/<date>/<partner>.json.
++
++        Each CSV is a separate mapped task instance: a failure here retries
++        only this file and does not block the others.
++
++        Returns the partner name so the summary task can collect without
++        re-reading files (small XCom value).
++        """
++        day = _resolve_day(context["dag_run"], context["params"])
++        path = Path(csv_path)
++        partner = path.stem  # filename without .csv
++
++        rows = 0
++        total_amount = 0.0
++        with path.open(newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                rows += 1
++                total_amount += float(row["amount"])
++
++        result = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": round(total_amount, 2),
++        }
++
++        out_path = PROJECT_ROOT / "output" / "partner_feeds" / day / f"{partner}.json"
++        out_path.parent.mkdir(parents=True, exist_ok=True)
++        # Write atomically: write to a temp file then rename so a retry never
++        # leaves a partial file.
++        tmp = out_path.with_suffix(".tmp")
++        tmp.write_text(json.dumps(result, indent=2))
++        tmp.rename(out_path)
++
++        return partner
++
++    @task(trigger_rule=TriggerRule.ALL_DONE)
++    def write_summary(**context) -> str:
++        """Collect per-partner JSON files from disk and write summary.json.
++
++        Uses TriggerRule.ALL_DONE so this task runs even when zero partner
++        files existed (all mapped process_file instances were skipped).
++        Reads from disk rather than XCom so it is self-healing on reruns.
++        Finance checks this file every morning; it is always produced.
++        """
++        day = _resolve_day(context["dag_run"], context["params"])
++        out_dir = PROJECT_ROOT / "output" / "partner_feeds" / day
++        out_dir.mkdir(parents=True, exist_ok=True)
++
++        partner_files = sorted(p for p in out_dir.glob("*.json")
++                               if p.name != "summary.json")
++
++        total_files = len(partner_files)
++        total_rows = 0
++        total_amount = 0.0
++        for pf in partner_files:
++            data = json.loads(pf.read_text())
++            total_rows += data["rows"]
++            total_amount += data["total_amount"]
++
++        summary = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": round(total_amount, 2),
++        }
++
++        summary_path = out_dir / "summary.json"
++        tmp = summary_path.with_suffix(".tmp")
++        tmp.write_text(json.dumps(summary, indent=2))
++        tmp.rename(summary_path)
++        return str(summary_path)
++
++    # --- wire up the DAG ---
++    file_list = discover_files()
++
++    # Fan-out: each CSV becomes its own task instance (independent failure/retry).
++    # When file_list is empty, expand() creates zero instances (all skipped).
++    processed = process_file.expand(csv_path=file_list)
++
++    # write_summary uses ALL_DONE so it runs regardless of whether any
++    # process_file instances ran or were skipped.
++    # The >> sets execution order (summary runs after all process_file tasks)
++    # without creating an XCom dependency; results are read from disk.
++    processed >> write_summary()
++
++
++partner_feeds()

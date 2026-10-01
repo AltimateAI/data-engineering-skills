@@ -1,0 +1,30 @@
+name: risk_products
+team: risk
+tier: critical
+description: Products pipeline for risk
+schedule:
+  hour: 4
+  days: 1-5
+owners:
+- jo
+- yusuf
+steps:
+- name: extract
+  table: risk.raw_products_00
+- name: enrich
+  table: risk.int_products_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: risk.int_products_00
+  depends_on:
+  - enrich
+  - extract
+- name: snapshot
+  table: risk.int_products_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: risk.mart_products_00
+  depends_on:
+  - snapshot

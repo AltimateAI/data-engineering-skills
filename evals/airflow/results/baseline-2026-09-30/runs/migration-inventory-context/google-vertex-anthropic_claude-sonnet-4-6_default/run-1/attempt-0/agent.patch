@@ -1,0 +1,80 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..9456d05 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -14,8 +14,8 @@ from collections import defaultdict
+ from datetime import datetime, timedelta, timezone
+ from pathlib import Path
+ 
+-from airflow import DAG
+-from airflow.operators.python import PythonOperator, get_current_context
++from airflow.sdk import DAG, get_current_context
++from airflow.providers.standard.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ MOVEMENTS = PROJECT_ROOT / "data" / "stock_movements.csv"
+@@ -35,8 +35,16 @@ def _read_snapshot(day: str) -> dict[str, int]:
+         return {row["sku"]: int(row["on_hand"]) for row in csv.DictReader(fh)}
+ 
+ 
+-def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs):
+-    as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted
++def build_snapshot(**kwargs):
++    context = get_current_context()
++    logical_date = context["logical_date"]
++    ds = context["ds"]
++
++    # Compute previous day's date string the same way Airflow 2 derived prev_ds:
++    # the calendar day before ds (which equals data_interval_start for a daily DAG).
++    prev_ds = (logical_date - timedelta(days=1)).strftime("%Y-%m-%d")
++
++    as_of = logical_date + timedelta(days=1)  # end of the day being snapshotted
+     on_hand: dict[str, int] = defaultdict(int)
+     with MOVEMENTS.open(newline="") as fh:
+         for row in csv.DictReader(fh):
+@@ -54,14 +62,15 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+             change = on_hand[sku] - previous[sku] if sku in previous else ""
+             writer.writerow([sku, on_hand[sku], change])
+ 
++    ti = context["ti"]
+     ti.xcom_push(key="sku_count", value=len(on_hand))
+     ti.xcom_push(key="low_stock", value=sorted(s for s, q in on_hand.items() if q < LOW_STOCK_THRESHOLD))
+ 
+ 
+ def audit_snapshot(**kwargs):
+     context = get_current_context()
+-    day = context["execution_date"].strftime("%Y-%m-%d")
+-    ti = kwargs["ti"]
++    day = context["logical_date"].strftime("%Y-%m-%d")
++    ti = context["ti"]
+     record = {
+         "day": day,
+         "sku_count": ti.xcom_pull(key="sku_count"),
+@@ -74,7 +83,7 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
++    schedule=timedelta(days=1),
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+@@ -83,11 +92,9 @@ with DAG(
+     build = PythonOperator(
+         task_id="build_snapshot",
+         python_callable=build_snapshot,
+-        provide_context=True,
+     )
+     audit = PythonOperator(
+         task_id="audit_snapshot",
+         python_callable=audit_snapshot,
+-        provide_context=True,
+     )
+     build >> audit
+diff --git a/requirements.txt b/requirements.txt
+index cb9ccf0..b1dd561 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1 +1 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2

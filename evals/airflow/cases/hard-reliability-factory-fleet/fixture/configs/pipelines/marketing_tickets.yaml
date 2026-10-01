@@ -1,0 +1,31 @@
+name: marketing_tickets
+team: marketing
+tier: critical
+description: Tickets pipeline for marketing
+schedule:
+  hour: 4
+  days: '*'
+retries: 1
+steps:
+- name: extract
+  table: marketing.raw_tickets_00
+- name: validate
+  table: marketing.int_tickets_00
+  depends_on:
+  - extract
+- name: transform
+  table: marketing.int_tickets_00
+  depends_on:
+  - validate
+- name: enrich
+  table: marketing.int_tickets_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: marketing.int_tickets_00
+  depends_on:
+  - enrich
+- name: publish
+  table: marketing.mart_tickets_00
+  depends_on:
+  - aggregate

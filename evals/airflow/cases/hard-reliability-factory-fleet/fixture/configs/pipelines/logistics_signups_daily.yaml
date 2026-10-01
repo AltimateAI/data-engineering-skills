@@ -1,0 +1,19 @@
+name: logistics_signups_daily
+team: logistics
+tier: standard
+description: Signups pipeline for logistics
+schedule:
+  hour: 0
+  days: '*'
+  minute: 30
+steps:
+- name: extract
+  table: logistics.raw_signups_00
+- name: transform
+  table: logistics.int_signups_00
+  depends_on:
+  - extract
+- name: publish
+  table: logistics.mart_signups_00
+  depends_on:
+  - transform

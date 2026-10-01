@@ -1,0 +1,84 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..db8a2e2
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,78 @@
++"""Daily revenue per store for the previous calendar day (UTC), written at 03:00 UTC.
++
++Late orders arrive until about 02:00 UTC, hence the 03:00 run. The run firing at
++03:00 on day D reports on day D-1 (midnight to midnight UTC). Reruns and backfills
++report the same day as the original run and overwrite its file.
++"""
++
++from __future__ import annotations
++
++import csv
++import os
++from collections import defaultdict
++from datetime import datetime
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import Param, dag, get_current_context, task
++from airflow.timetables.trigger import CronTriggerTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++ORDERS = PROJECT_ROOT / "data" / "orders.csv"
++OUT_DIR = PROJECT_ROOT / "output" / "daily_revenue"
++TZ = "UTC"
++
++
++def run_window(dag_run, params=None, tz=TZ):
++    """[start, end) of the day this run reports on: the day before the run's tick."""
++    day = (params or {}).get("day")  # explicit reprocess wins
++    if day:
++        start = pendulum.parse(day, tz=tz)
++        return start, start.add(days=1)
++    anchor = dag_run.logical_date or dag_run.run_after  # manual runs on 3.x have no logical_date
++    start = pendulum.instance(anchor).in_tz(tz).start_of("day").subtract(days=1)
++    return start, start.add(days=1)
++
++
++@dag(
++    schedule=CronTriggerTimetable("0 3 * * *", timezone=TZ),
++    # First tick (2026-09-02 03:00) reports 2026-09-01, the earliest day we must be able to rerun.
++    start_date=pendulum.datetime(2026, 9, 2, tz=TZ),
++    catchup=False,
++    max_active_runs=1,
++    params={"day": Param(None, type=["null", "string"], format="date")},
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def report() -> str:
++        context = get_current_context()
++        start, end = run_window(context["dag_run"], context["params"])
++        start_naive = datetime.fromisoformat(start.in_tz("UTC").format("YYYY-MM-DD HH:mm:ss"))
++        end_naive = datetime.fromisoformat(end.in_tz("UTC").format("YYYY-MM-DD HH:mm:ss"))
++
++        orders: dict[str, int] = defaultdict(int)
++        revenue: dict[str, Decimal] = defaultdict(Decimal)
++        with ORDERS.open(newline="") as f:
++            for row in csv.DictReader(f):
++                ts = datetime.fromisoformat(row["order_ts"])  # UTC
++                if start_naive <= ts < end_naive:
++                    orders[row["store_id"]] += 1
++                    revenue[row["store_id"]] += Decimal(row["amount"])
++
++        OUT_DIR.mkdir(parents=True, exist_ok=True)
++        out = OUT_DIR / f"{start.to_date_string()}.csv"
++        tmp = out.with_suffix(".csv.tmp")
++        with tmp.open("w", newline="") as f:
++            w = csv.writer(f, lineterminator="\n")
++            w.writerow(["store_id", "orders", "revenue"])
++            for store in sorted(orders):
++                w.writerow([store, orders[store], revenue[store].quantize(Decimal("0.01"), ROUND_HALF_UP)])
++        os.replace(tmp, out)
++        return str(out)
++
++    report()
++
++
++daily_revenue()

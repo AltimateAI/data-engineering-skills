@@ -1,0 +1,193 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 1.336517,
+  "cost_reported_usd": 1.336517,
+  "wall_s": 1188.3,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-050445/hard-deferrable-debug-partition-sensor-9ogphkhf/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 1.336517,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 76,
+    "output": 23460,
+    "reasoning": 7314,
+    "cache_read": 1792306,
+    "cache_write": 63569,
+    "total": 1879411
+  },
+  "steps": 39,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 1.336517,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 76,
+      "outputTokens": 23460,
+      "cacheReadInputTokens": 1792306,
+      "cacheCreationInputTokens": 63569,
+      "webSearchRequests": 0,
+      "costUSD": 1.3365171999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 7314,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 39,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 24,
+        "tool": "bash",
+        "path": "<tmp>/stub1.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 24,
+        "tool": "bash",
+        "path": "<tmp>/stub2.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 24,
+        "tool": "bash",
+        "path": "<tmp>/stub1.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 24,
+        "tool": "bash",
+        "path": "<tmp>/ttest.py",
+        "root": "shared-temp"
+      },
+      {
+        "call": 24,
+        "tool": "bash",
+        "path": "<tmp>/ttest.py",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 31,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f \"airflow dags test\" ; T=$(cd ../tmp && pwd); mkdir -p $T/dags; cp -r dags/lake $T/dags/; rm -rf $T/dags/lake/__pycache__\ncat > $T/dags/scratch.py <<'EOF'\nfrom datetime import datetime, timedelta\nfrom airflow.sdk import dag, task\nfrom lake.sensors import PartitionPublishedSensor\n\n@dag(schedu",
+        "output": "pkill: signalling pid 55701: Operation not permitted\npkill: signalling pid 55705: Operation not permitted\npkill: signalling pid 59629: Operation not permitted\npkill: signalling pid 59630: Operation no"
+      },
+      {
+        "call": 33,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "T=$(cd ../tmp && pwd); P=$(cat $T/p1); rm $T/dags/scratch2.py\ncat > $T/dags/scratch.py <<'EOF'\nfrom datetime import datetime, timedelta\nfrom airflow.sdk import dag, task\nfrom lake.sensors import PartitionPublishedSensor\n\n@dag(schedule=None, start_date=datetime(2026, 9, 1), default_args={\"retries\": 3",
+        "output": "Command did not complete within its 320s timeout and was moved to the background (ID: btxoxf7ts). Output is being written to: <work>/final-hard-baseline-claude-opus-5-"
+      },
+      {
+        "call": 37,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f catalog_stub.py; cd dags && python -c \"import lake_ingest, orders_diff; print('dags import ok')\" 2>&1 | tail -1; cd ..; git status --short; git diff --stat",
+        "output": "pkill: signalling pid 25581: Operation not permitted\npkill: signalling pid 25921: Operation not permitted\npkill: signalling pid 25964: Operation not permitted\npkill: signalling pid 32067: Operation no"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 35,
+  "edited_files": 3,
+  "errors": [],
+  "trace_path": null
+}

@@ -1,0 +1,462 @@
+{
+  "run_name": "final-core-baseline-claude-sonnet-5-5-2026-10-01",
+  "arm": "baseline",
+  "runner": "claude-code",
+  "models": [
+    "claude-sonnet-5-5"
+  ],
+  "runs_per_case": 1,
+  "run_offset": 0,
+  "run_indices": [
+    1
+  ],
+  "split": "all",
+  "argv": [
+    "evals/harness/run_eval.py",
+    "--runner",
+    "claude-code",
+    "--cases",
+    "evals/airflow/cases",
+    "--arm",
+    "baseline",
+    "--models",
+    "claude-sonnet-5-5",
+    "--runs",
+    "1",
+    "--parallel",
+    "4",
+    "--split",
+    "all",
+    "--case",
+    "authoring-airflow2-inventory-snapshot",
+    "--case",
+    "authoring-clickstream-claim-check",
+    "--case",
+    "authoring-daily-revenue-yesterday",
+    "--case",
+    "authoring-partner-feeds-mapping",
+    "--case",
+    "authoring-vendor-shipments-etl",
+    "--case",
+    "debugging-manual-trigger-context",
+    "--case",
+    "debugging-nondeterministic-parse",
+    "--case",
+    "debugging-variable-at-parse",
+    "--case",
+    "migration-hourly-pageviews-templates",
+    "--case",
+    "migration-inventory-context",
+    "--case",
+    "migration-revenue-previous-day",
+    "--case",
+    "migration-shipments-assets",
+    "--case",
+    "migration-weekly-catchup",
+    "--case",
+    "scheduling-backfill-pageviews",
+    "--case",
+    "scheduling-idempotent-orders-load",
+    "--case",
+    "scheduling-weekday-ny-business-day",
+    "--case",
+    "testing-airflow2-ci-suite",
+    "--case",
+    "testing-custom-operator-conn",
+    "--case",
+    "testing-dagbag-integrity",
+    "--case",
+    "testing-taskflow-transforms",
+    "--max-cost-usd",
+    "2000",
+    "--out",
+    "evals/airflow/results/final-core-baseline-claude-sonnet-5-5-2026-10-01"
+  ],
+  "started_at": "2026-10-01T11:35:37+00:00",
+  "altimate_code_version": null,
+  "small_model": null,
+  "envs": {
+    "2.11": {
+      "python": "3.12.8",
+      "airflow": "2.11.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.4.4",
+      "pandas": "2.1.4",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+    },
+    "3.3": {
+      "python": "3.12.8",
+      "airflow": "3.3.2",
+      "pytest": "9.1.1",
+      "duckdb": "1.5.6",
+      "pandas": "3.0.5",
+      "ruff": "0.16.9",
+      "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+    }
+  },
+  "agent_envs": {
+    "2.11": {
+      "python": "~/.cache/des-evals/agent-airflow-2.11/bin/python",
+      "pristine_fingerprint": "e86c7922ffc306b316db649cccf9cf4ba3317f56856da8d79985d5772e7d6aef"
+    },
+    "3.3": {
+      "python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+      "pristine_fingerprint": "37708e57b705c213647354ac1550dbe5183c6b507ba975df571bffdea7e20f86"
+    }
+  },
+  "isolation": {
+    "sandbox": true,
+    "per_attempt_tmpdir": true,
+    "per_attempt_xdg_data": true,
+    "pip_require_virtualenv": true,
+    "signals_same_sandbox_only": true,
+    "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+    "claude_env": {
+      "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+      "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+      "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+      "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+      "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+      "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+      "DISABLE_AUTOUPDATER": "1",
+      "DISABLE_UPDATES": "1",
+      "DISABLE_TELEMETRY": "1",
+      "DISABLE_ERROR_REPORTING": "1",
+      "DISABLE_BUG_COMMAND": "1",
+      "DISABLE_FEEDBACK_COMMAND": "1"
+    },
+    "strict_mcp_config": true,
+    "ancestor_memory_files_disabled": [
+      "~/AGENTS.md",
+      "~/.claude/CLAUDE.md"
+    ],
+    "contamination_suspect_runs": 3,
+    "kill_command_runs": 0,
+    "killed_attempts": 0,
+    "agent_env_restores": {
+      "2.11": 0,
+      "3.3": 0
+    }
+  },
+  "cost_correction": {
+    "claude-sonnet-5-5": false
+  },
+  "cases": {
+    "authoring-airflow2-inventory-snapshot": {
+      "sha256": "ae584c8885a3231aefbda92cbd0e3a71defa32bb3b25c2ee3186fa850283ca0d",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "2.11",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "authoring-clickstream-claim-check": {
+      "sha256": "37a8ae627611237474b83cf5466d569d495cd0f9a685a1378c88484a6ab7e2fe",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "authoring-daily-revenue-yesterday": {
+      "sha256": "4642d8bf21aab04711921f58ecb6a41b1b4ecf154034c7c5530766fa8f3f75d3",
+      "area": "authoring",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "authoring-partner-feeds-mapping": {
+      "sha256": "d980d3caa6e3e9349e444bf1839b5e2b125e0b211599d1d9280b8e136daf8c46",
+      "area": "authoring",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "authoring-vendor-shipments-etl": {
+      "sha256": "a4b4ec3598fde2bdd0861c6ac07d869a4fb9c9cd4f7e11afc1c80d148807cb3f",
+      "area": "authoring",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "debugging-manual-trigger-context": {
+      "sha256": "8338c7cee702b4f7e5fb5aeebb27e86a7e5e3480033c6262d992ca0dfb2e0012",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "debugging-nondeterministic-parse": {
+      "sha256": "4b3b2e785402e02d4e8ece4ac67ec8067cc7ebcb2f6592cc8f23cd8ac53b6ab0",
+      "area": "debugging",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "debugging-variable-at-parse": {
+      "sha256": "436770cb552cd4b75a7f97e40679e325aefe4cfd9ffe3b056e3e7edd3904b7a3",
+      "area": "debugging",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "migration-hourly-pageviews-templates": {
+      "sha256": "eac1e05c242883e2ba514c9a40eada3ca3a3eea85964e1dc941f730c22f471a9",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "migration-inventory-context": {
+      "sha256": "7ceaba6f5bf122cc4ad72f52907a5ca590f2f8fd453510481ee4cd0bfeb2684e",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "migration-revenue-previous-day": {
+      "sha256": "fbe90a176c9b896b2ec0f3bbaa9c8fe31f30b71be896fd21107168867af51e4b",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "migration-shipments-assets": {
+      "sha256": "eb3b442aa66d7ef010f409e021cec3aab4f2ea405b3595e6a59702c2fb08f817",
+      "area": "migration",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "migration-weekly-catchup": {
+      "sha256": "33eb41343603e6636fbedb532f638c14d7344557b72de6453c7b4743b360ef65",
+      "area": "migration",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "scheduling-backfill-pageviews": {
+      "sha256": "21f1a5b92665ac392eee3645c12f5bec695a1bca968e69048e95da056f6a32fd",
+      "area": "scheduling",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "scheduling-idempotent-orders-load": {
+      "sha256": "d7be51f944fc210339eb4ba7af7cddc57a443a4ea1b5bbebaffe7050d55b8b50",
+      "area": "scheduling",
+      "split": "dev",
+      "airflow_version": "2.11",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "scheduling-weekday-ny-business-day": {
+      "sha256": "1b164415c1d78cbbcc41b74b4e8ad603477667f8021035b233d98d374acbbbe6",
+      "area": "scheduling",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "testing-airflow2-ci-suite": {
+      "sha256": "2698fd0e094085cfc1c6a5588a963ec1a24e51dc7df14374015034fcad59afd7",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "2.11",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "testing-custom-operator-conn": {
+      "sha256": "f535f838126249b962dc9b59d030b2e752a41690af0c33c299cc47afa016804e",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "testing-dagbag-integrity": {
+      "sha256": "6bd2af541d6dc7f995c0ac416636477645bd2c5e93e5eae4fe13facf98b32a65",
+      "area": "testing",
+      "split": "dev",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    },
+    "testing-taskflow-transforms": {
+      "sha256": "75b2c5c1c8eebe683f8694e97144eaefcfc7fe7a2f413b0dd86e003ab4c7927d",
+      "area": "testing",
+      "split": "holdout",
+      "airflow_version": "3.3",
+      "timeout_s": 900,
+      "max_turns": 40
+    }
+  },
+  "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+  "airflow_skills_dir": "<repo>/skills/airflow",
+  "airflow_skills_sha256": null,
+  "airflow_skills_dir_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+  "airflow_skill_names": [
+    "authoring-airflow-dags",
+    "migrating-to-airflow-3",
+    "testing-airflow-dags"
+  ],
+  "repo_skill_names": [
+    "altimate-code",
+    "optimizing-databricks-sql",
+    "creating-dbt-models",
+    "debugging-dbt-errors",
+    "developing-incremental-models",
+    "documenting-dbt-models",
+    "migrating-sql-to-dbt",
+    "refactoring-dbt-models",
+    "testing-dbt-models",
+    "finding-expensive-queries",
+    "optimizing-query-by-id",
+    "optimizing-query-text"
+  ],
+  "inventory": [
+    [
+      "altimate-code",
+      "User"
+    ],
+    [
+      "claude-api",
+      "Built-in"
+    ],
+    [
+      "code-review",
+      "Built-in"
+    ],
+    [
+      "creating-dbt-models",
+      "User"
+    ],
+    [
+      "dataviz",
+      "Built-in"
+    ],
+    [
+      "debugging-dbt-errors",
+      "User"
+    ],
+    [
+      "developing-incremental-models",
+      "User"
+    ],
+    [
+      "documenting-dbt-models",
+      "User"
+    ],
+    [
+      "fewer-permission-prompts",
+      "Built-in"
+    ],
+    [
+      "finding-expensive-queries",
+      "User"
+    ],
+    [
+      "init",
+      "Built-in"
+    ],
+    [
+      "keybindings-help",
+      "Built-in"
+    ],
+    [
+      "loop",
+      "Built-in"
+    ],
+    [
+      "migrating-sql-to-dbt",
+      "User"
+    ],
+    [
+      "optimizing-databricks-sql",
+      "User"
+    ],
+    [
+      "optimizing-query-by-id",
+      "User"
+    ],
+    [
+      "optimizing-query-text",
+      "User"
+    ],
+    [
+      "plugin-authoring",
+      "Built-in"
+    ],
+    [
+      "refactoring-dbt-models",
+      "User"
+    ],
+    [
+      "run",
+      "Built-in"
+    ],
+    [
+      "schedule",
+      "Built-in"
+    ],
+    [
+      "security-review",
+      "Built-in"
+    ],
+    [
+      "simplify",
+      "Built-in"
+    ],
+    [
+      "testing-dbt-models",
+      "User"
+    ],
+    [
+      "update-config",
+      "Built-in"
+    ],
+    [
+      "workflow-authoring",
+      "Built-in"
+    ]
+  ],
+  "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+  "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+  "host": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit",
+    "python": "3.12.8"
+  },
+  "budget": {
+    "cap_usd": 2000.0,
+    "per_run_cap_usd": {
+      "claude-sonnet-5-5": 6.0
+    },
+    "spent_usd": 2.6999,
+    "stopped_early": false
+  },
+  "claude_code_version": "2.1.286",
+  "billing": "subscription (Claude Code OAuth); cost_usd = cost_usd_equivalent = API-equivalent total_cost_usd reported by Claude Code",
+  "finished_at": "2026-10-01T11:43:02+00:00",
+  "status_counts": {
+    "ok": 18,
+    "task_fail": 2
+  },
+  "usage_limit": {
+    "stopped": false,
+    "paused_s": 0.0,
+    "events": []
+  }
+}

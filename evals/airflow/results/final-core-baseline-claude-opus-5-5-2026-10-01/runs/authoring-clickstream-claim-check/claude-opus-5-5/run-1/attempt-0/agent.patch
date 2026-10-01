@@ -1,0 +1,152 @@
+diff --git a/.gitignore b/.gitignore
+index fd6aad7..08e78d2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,3 @@
+ output/
+ __pycache__/
++staging/
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..a65e3c6
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,138 @@
++"""Daily per-page stats from the web clickstream export for the BI tool.
++
++Each run processes one UTC day (the run's ``ds``):
++
++- extract:   data/clickstream/<ds>.csv.gz -> staging parquet, minus bots and anonymous hits
++- transform: staging parquet -> per-page views / unique_users / avg_load_ms (staging parquet)
++- load:      staging parquet -> output/page_stats/<ds>.csv, atomically replacing any previous file
++
++Event rows never travel through XCom (only file paths do) and all row-level work
++is done by DuckDB, so volume can grow well past today's ~20k events/day.
++"""
++
++from __future__ import annotations
++
++import csv
++import os
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.timetables.interval import CronDataIntervalTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++EXPORT_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "staging" / "clickstream_page_stats"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++# Explicit types so DuckDB doesn't have to sniff them (and can't guess wrong).
++EXPORT_COLUMNS = {
++    "event_id": "VARCHAR",
++    "user_id": "VARCHAR",
++    "page": "VARCHAR",
++    "event_ts": "VARCHAR",
++    "load_ms": "BIGINT",
++    "is_bot": "INTEGER",
++}
++
++
++def _sql_str(value: Path | str) -> str:
++    return "'" + str(value).replace("'", "''") + "'"
++
++
++def _connect():
++    import duckdb
++
++    return duckdb.connect()
++
++
++@dag(
++    # Interval timetable: the run that fires at 04:00 on D+1 has ds = D, so the
++    # whole UTC day's export is available when it is processed.
++    schedule=CronDataIntervalTimetable("0 4 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=4,
++    default_args={"retries": 2, "retry_delay": pendulum.duration(minutes=15)},
++    tags=["web_analytics", "clickstream"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds=None) -> str:
++        src = EXPORT_DIR / f"{ds}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(f"Clickstream export for {ds} not found: {src}")
++
++        dest = STAGING_DIR / ds / "events.parquet"
++        dest.parent.mkdir(parents=True, exist_ok=True)
++        tmp = dest.with_suffix(".parquet.tmp")
++
++        with _connect() as con:
++            con.execute(
++                f"""
++                COPY (
++                    SELECT user_id, page, load_ms
++                    FROM read_csv(
++                        {_sql_str(src)},
++                        header = true,
++                        columns = {EXPORT_COLUMNS!r},
++                        compression = 'gzip'
++                    )
++                    WHERE coalesce(is_bot, 0) <> 1
++                      AND nullif(trim(user_id), '') IS NOT NULL
++                ) TO {_sql_str(tmp)} (FORMAT parquet)
++                """
++            )
++        os.replace(tmp, dest)
++        return str(dest)
++
++    @task
++    def transform(events_path: str, ds=None) -> str:
++        dest = STAGING_DIR / ds / "page_stats.parquet"
++        tmp = dest.with_suffix(".parquet.tmp")
++
++        with _connect() as con:
++            con.execute(
++                f"""
++                COPY (
++                    SELECT
++                        page,
++                        count(*) AS views,
++                        count(DISTINCT trim(user_id)) AS unique_users,
++                        round(avg(load_ms), 1) AS avg_load_ms
++                    FROM read_parquet({_sql_str(events_path)})
++                    GROUP BY page
++                    ORDER BY page
++                ) TO {_sql_str(tmp)} (FORMAT parquet)
++                """
++            )
++        os.replace(tmp, dest)
++        return str(dest)
++
++    @task
++    def load(stats_path: str, ds=None) -> str:
++        out = OUTPUT_DIR / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".csv.tmp")
++
++        with _connect() as con:
++            rows = con.execute(
++                f"SELECT page, views, unique_users, avg_load_ms "
++                f"FROM read_parquet({_sql_str(stats_path)}) ORDER BY page"
++            ).fetchall()
++
++        with tmp.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["page", "views", "unique_users", "avg_load_ms"])
++            for page, views, unique_users, avg_load_ms in rows:
++                writer.writerow(
++                    [page, views, unique_users, "" if avg_load_ms is None else f"{avg_load_ms:.1f}"]
++                )
++        # Atomic swap: a rerun replaces the day's file, readers never see a partial one.
++        os.replace(tmp, out)
++        return str(out)
++
++    load(transform(extract()))
++
++
++clickstream_page_stats()

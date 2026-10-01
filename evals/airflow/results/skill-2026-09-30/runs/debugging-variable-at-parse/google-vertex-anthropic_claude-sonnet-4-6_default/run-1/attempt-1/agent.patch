@@ -1,0 +1,58 @@
+diff --git a/dags/warehouse_load.py b/dags/warehouse_load.py
+index 69902d5..2c58431 100644
+--- a/dags/warehouse_load.py
++++ b/dags/warehouse_load.py
+@@ -13,19 +13,24 @@ from datetime import datetime
+ from pathlib import Path
+ 
+ import duckdb
+-from airflow.sdk import Variable, dag, task
++import pendulum
++from airflow.sdk import CronDataIntervalTimetable, Variable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "orders.csv"
+ 
+-WAREHOUSE_DIR = Path(Variable.get("warehouse_path"))
+-WAREHOUSE_DB = WAREHOUSE_DIR / "warehouse.duckdb"
++# NOTE: Variable.get() must NOT be called at module level.  The DAG processor
++# parses every DAG file repeatedly, outside of any task execution context.  On
++# Airflow 3 that call hits the metadata-DB/secrets backend at parse time, and
++# if the variable is missing (e.g. in CI, or before the variable is seeded) the
++# whole file raises AirflowRuntimeError and the DAG never appears.
++# The warehouse path is fetched inside each task that needs it instead.
+ 
+ 
+ @dag(
+     dag_id="warehouse_load",
+-    schedule_interval="0 6 * * *",
+-    start_date=datetime(2026, 1, 1),
++    schedule=CronDataIntervalTimetable("0 6 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["warehouse"],
+ )
+@@ -48,8 +53,10 @@ def warehouse_load():
+ 
+     @task
+     def load_warehouse(revenue: dict[str, float], ds=None) -> int:
+-        WAREHOUSE_DIR.mkdir(parents=True, exist_ok=True)
+-        with duckdb.connect(str(WAREHOUSE_DB)) as con:
++        warehouse_dir = Path(Variable.get("warehouse_path"))
++        warehouse_db = warehouse_dir / "warehouse.duckdb"
++        warehouse_dir.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(warehouse_db)) as con:
+             con.execute(
+                 "create table if not exists daily_revenue "
+                 "(revenue_date date, region varchar, revenue decimal(12, 2))"
+@@ -63,7 +70,9 @@ def warehouse_load():
+ 
+     @task
+     def validate_load(expected_rows: int, ds=None) -> None:
+-        with duckdb.connect(str(WAREHOUSE_DB), read_only=True) as con:
++        warehouse_dir = Path(Variable.get("warehouse_path"))
++        warehouse_db = warehouse_dir / "warehouse.duckdb"
++        with duckdb.connect(str(warehouse_db), read_only=True) as con:
+             (loaded,) = con.execute(
+                 "select count(*) from daily_revenue where revenue_date = ?", [ds]
+             ).fetchone()

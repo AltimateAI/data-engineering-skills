@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG fx_pnl_report exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['desk_reference_refresh', 'fx_pnl_report']"
+    },
+    {
+      "name": "runs at 06:00 New York on weekdays only, across DST",
+      "kind": "primary",
+      "passed": false,
+      "detail": "timetable CronTriggerTimetable; run_after (UTC) got [['2026-03-04T11:10:00+00:00', '2026-03-05T11:10:00+00:00', '2026-03-06T11:10:00+00:00', '2026-03-09T11:10:00+00:00', '2026-03-10T11:10:00+00:00', '2026-03-11T11:10:00+00:00'], ['2026-10-28T11:10:00+00:00', '2026-10-29T11:10:00+00:00', '2026-10-30T11:10:00+00:00', '2026-11-02T11:10:00+00:00', '2026-11-03T11:10:00+00:00', '2026-11-04T11:10:00+00:00']], want [['2026-03-04T11:00:00+00:00', '2026-03-05T11:00:00+00:00', '2026-03-06T11:00:00+00:00', '2026-03-09T10:00:00+00:00', '2026-03-10T10:00:00+00:00', '2026-03-11T10:00:00+00:00'], ['2026-10-28T10:00:00+00:00', '2026-10-29T10:00:00+00:00', '2026-10-30T10:00:00+00:00', '2026-11-02T11:00:00+00:00', '2026-11-03T11:00:00+00:00', '2026-11-04T11:00:00+00:00']]"
+    },
+    {
+      "name": "Monday run after DST starts reports Friday",
+      "kind": "primary",
+      "passed": false,
+      "detail": "logical_date 2026-03-09 11:10:00+00:00 interval ['2026-03-09 11:10:00+00:00', '2026-03-09 11:10:00+00:00']; run state failed tasks {'build_report': 'failed'}; reports written [], want [fx_pnl_2026-03-06.csv]"
+    },
+    {
+      "name": "Tuesday run reports Monday",
+      "kind": "primary",
+      "passed": false,
+      "detail": "logical_date 2026-03-10 11:10:00+00:00 interval ['2026-03-10 11:10:00+00:00', '2026-03-10 11:10:00+00:00']; run state failed tasks {'build_report': 'failed'}; reports written [], want [fx_pnl_2026-03-09.csv]"
+    },
+    {
+      "name": "Monday run after DST ends reports Friday",
+      "kind": "primary",
+      "passed": false,
+      "detail": "logical_date 2026-11-02 11:10:00+00:00 interval ['2026-11-02 11:10:00+00:00', '2026-11-02 11:10:00+00:00']; run state failed tasks {'build_report': 'failed'}; reports written [], want [fx_pnl_2026-10-30.csv]"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed tasks ['build_report']: olders/gf/7xvmxq_94q5__51sc5trr6bw0000gn/T/eval-ws-e7sg83fa/ws/dags/fx_pnl_report.py\", line 75, in build_report\n    exec_date_utc = pendulum.parse(data_interval_end, tz=\"UTC\")\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/pendulum/parser.py\", line 36, in parse\n    return _parse(text, **options)\n           ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/pendulum/parser.py\", line 51, in _parse\n    parsed = base_parse(text, **options)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/pendulum/parsing/__init__.py\", line 78, in parse\n    return _normalize(_parse(text, **_options), **_options)\n                      ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/pendulum/parsing/__init__.py\", line 113, in _parse\n    return parse_iso8601(text)\n           ^^^^^^^^^^^^^^^^^^^\nTypeError: argument 'input': 'DateTime' object cannot be cast as 'str'\n2026-09-30T13:11:31.777565Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T13:11:31.779771Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T13:11:31.868740Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f271-12c4-7b8b-aad5-f2e21deddfe0 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f270-fc75-7015-ade4-df5590084518\n2026-09-30T13:11:31.927429Z [info     ] [DAG TEST] end task task_id=build_report map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T13:11:31.928772Z [info     ] Marking run <DagRun fx_pnl_report @ 2026-03-10 00:00:00+00:00: manual__2026-09-30T13:11:26.023434+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T13:11:31.929251Z [info     ] DagRun Finished: dag_id=fx_pnl_report, logical_date=2026-03-10 00:00:00+00:00, run_id=manual__2026-09-30T13:11:26.023434+00:00, run_start_date=2026-03-10 00:00:00+00:00, run_end_date=2026-09-30 13:11:31.928860+00:00, run_duration=17673091.92886, state=failed, run_type=manual, data_interval_start=2026-03-10 00:00:00+00:00, data_interval_end=2026-03-10 00:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n\nDagRun failed\n"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "17 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.2857142857142857,
+  "secondary_score": 0.6666666666666666
+}

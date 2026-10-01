@@ -1,0 +1,24 @@
+name: risk_refunds
+team: risk
+tier: standard
+description: Refunds pipeline for risk
+schedule:
+  hour: 4
+  days: '*'
+  minute: 0
+steps:
+- name: extract
+  table: risk.raw_refunds_00
+- name: stage
+  table: risk.stg_refunds_00
+  depends_on:
+  - extract
+- name: enrich
+  table: risk.int_refunds_00
+  depends_on:
+  - stage
+  - extract
+- name: publish
+  table: risk.mart_refunds_00
+  depends_on:
+  - enrich

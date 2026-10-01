@@ -1,0 +1,38 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: one writer at a time, catchup backfills exactly 09-01..09-29, each run loads a day whose export has already landed, re-running a day repairs it and keeps other days, airflow dags test succeeds",
+  "primary_pass": false,
+  "primary_score": 0.4444444444444444,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 189.3,
+  "cost_usd": 0.471786,
+  "cost_reported_usd": 1.787929,
+  "tokens": {
+    "input": 1316245,
+    "output": 13253,
+    "reasoning": 0,
+    "cache_read": 1078052,
+    "cache_write": 238091,
+    "total": 2645641
+  },
+  "steps": 20,
+  "termination": {
+    "why_model_stopped": "stop",
+    "why_harness_stopped": "none",
+    "done_reason": "none"
+  },
+  "skill_invocations": [
+    {
+      "name": "dbt-develop",
+      "origin": "builtin",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 10,
+  "edited_files": 3,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dbe1eb7ffex7xUpgOhmZbyUm.json"
+}

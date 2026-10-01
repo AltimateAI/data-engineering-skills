@@ -1,0 +1,298 @@
+diff --git a/README.md b/README.md
+index 40ae439..67c3182 100644
+--- a/README.md
++++ b/README.md
+@@ -9,3 +9,129 @@ Airflow 3.3 DAGs that ingest data sent to us by marketplace partners.
+ - `output/`: DAG outputs
+ 
+ Run a DAG locally with `airflow dags test <dag_id> <YYYY-MM-DD>`.
++
++## DAG: `partner_feeds`
++
++Daily Airflow DAG that processes partner order files and produces aggregated JSON outputs for finance reporting.
++
++### Overview
++
++- **Schedule**: Daily at 01:00 UTC
++- **Start Date**: 2026-09-01
++- **Catchup**: Enabled (can rerun any historical date)
++- **Tags**: `partners`
++
++### Inputs
++
++Partner CSV files are expected in:
++```
++data/partner_drop/<YYYY-MM-DD>/<partner>.csv
++```
++
++Each file contains:
++```
++order_id,amount
++GLO-20260903-000,53.24
++GLO-20260903-001,72.30
++...
++```
++
++### Outputs
++
++For each date run, the DAG produces:
++
++**Individual partner outputs:**
++```
++output/partner_feeds/<YYYY-MM-DD>/<partner>.json
++```
++
++Example:
++```json
++{
++  "partner": "acme",
++  "rows": 25,
++  "total_amount": 7502.67
++}
++```
++
++**Daily summary:**
++```
++output/partner_feeds/<YYYY-MM-DD>/summary.json
++```
++
++Example:
++```json
++{
++  "files": 4,
++  "rows": 50,
++  "total_amount": 14467.21
++}
++```
++
++### Behavior
++
++1. **Discovers files** — Scans `data/partner_drop/<date>/` for all `*.csv` files
++2. **Process each file independently** — Each partner's CSV is processed by its own task instance (using Airflow task mapping)
++3. **Calculate aggregates** — For each file:
++   - Count rows (excluding header)
++   - Sum amounts to 2 decimal places
++   - Write `<partner>.json`
++4. **Write summary** — After all files are processed:
++   - Aggregate counts and totals across all partners
++   - Write `summary.json` (always written, even if no files exist)
++
++### Failure Isolation
++
++Because each partner file is processed by its own mapped task instance:
++- If `acme.csv` is corrupt, only that task fails and retries
++- `globex.csv`, `initech.csv`, etc. continue processing
++- Finance still gets a `summary.json` reflecting the successfully processed files
++
++### Empty Dates
++
++If a date has no partner files (folder doesn't exist or is empty):
++- No individual `<partner>.json` files are written
++- A `summary.json` is still written with all zeros:
++  ```json
++  {
++    "files": 0,
++    "rows": 0,
++    "total_amount": 0.0
++  }
++  ```
++
++This ensures finance can rely on checking `summary.json` every morning.
++
++### Precision
++
++Amounts are:
++- Read as strings from CSV
++- Converted to Python `Decimal` for exact arithmetic (no float rounding)
++- Rounded to 2 decimal places in output JSON
++- Serialized as floats in the JSON (e.g., `7502.67` not `"7502.67"`)
++
++### Backfilling
++
++To rerun a historical date:
++```bash
++airflow dags backfill partner_feeds \
++  --start-date 2026-09-15 \
++  --end-date 2026-09-15
++```
++
++Or trigger from the UI. The DAG supports any date from 2026-09-01 onwards.
++
++### Task Mapping Example
++
++For a date with files: `acme.csv`, `globex.csv`, `initech.csv`:
++
++```
++discover_files[1]
++  ├─→ process_file[0] (acme)    → output/acme.json
++  ├─→ process_file[1] (globex)  → output/globex.json
++  ├─→ process_file[2] (initech) → output/initech.json
++  └─→ write_summary ────────────→ output/summary.json
++```
++
++Each `process_file[i]` task is independent. If any task fails, `write_summary` waits for all to complete (or timeout).
++
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..e717584
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,158 @@
++"""
++Daily partner feed processor.
++
++Ingests partner order files from data/partner_drop/<YYYY-MM-DD>/<partner>.csv
++and writes aggregated outputs to output/partner_feeds/<YYYY-MM-DD>/.
++
++Each partner file is processed independently (task mapping) so a broken file
++only fails its own task, not the entire date. A summary.json is always written,
++even on days with no files.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++from decimal import Decimal
++from pathlib import Path
++from typing import Any
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 1 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["partners"],
++)
++def partner_feeds():
++    """
++    Daily DAG to process partner order files.
++    
++    - Discovers all <partner>.csv files in data/partner_drop/<ds>/
++    - Maps each file to an independent task (failures don't cascade)
++    - Writes output/partner_feeds/<ds>/<partner>.json for each file
++    - Aggregates to output/partner_feeds/<ds>/summary.json (always written)
++    """
++
++    @task
++    def discover_files(**context) -> list[dict[str, str]]:
++        """
++        Discover all partner CSV files for the given date.
++        
++        Returns a list of dicts suitable for task_mapping:
++        [{"partner": "acme", "filepath": "/path/to/acme.csv"}, ...]
++        
++        If the date folder doesn't exist, returns empty list.
++        """
++        ds = context["ds"]  # Logical date (YYYY-MM-DD)
++        date_folder = PROJECT_ROOT / "data" / "partner_drop" / ds
++        
++        if not date_folder.exists():
++            return []
++        
++        files = []
++        for csv_file in sorted(date_folder.glob("*.csv")):
++            partner_name = csv_file.stem  # filename without .csv
++            files.append({
++                "partner": partner_name,
++                "filepath": str(csv_file),
++            })
++        
++        return files
++
++    @task
++    def process_file(partner: str, filepath: str, **context) -> dict[str, Any]:
++        """
++        Process a single partner CSV file.
++        
++        Reads CSV, counts rows, sums amounts, and writes output JSON.
++        Returns metadata for summary aggregation.
++        
++        Args:
++            partner: Partner name (e.g., "acme")
++            filepath: Absolute path to partner CSV file
++        
++        Returns:
++            dict with keys: partner, rows, total_amount
++        """
++        ds = context["ds"]  # Logical date (YYYY-MM-DD)
++        row_count = 0
++        total_amount = Decimal("0.00")
++        
++        # Read the CSV and aggregate
++        with open(filepath, "r") as f:
++            reader = csv.DictReader(f)
++            for row in reader:
++                row_count += 1
++                # amount is a string like "53.24", convert to Decimal for precision
++                total_amount += Decimal(row["amount"])
++        
++        # Write individual partner output
++        out_dir = PROJECT_ROOT / "output" / "partner_feeds" / ds
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out_file = out_dir / f"{partner}.json"
++        
++        output = {
++            "partner": partner,
++            "rows": row_count,
++            "total_amount": float(total_amount.quantize(Decimal("0.01"))),
++        }
++        
++        out_file.write_text(json.dumps(output, indent=2))
++        
++        return output
++
++    @task
++    def write_summary(file_results: list[dict[str, Any]], **context) -> str:
++        """
++        Aggregate results from all partner files and write summary.json.
++        
++        Called even if file_results is empty (no files that day).
++        Always writes summary.json with all zeros if needed.
++        
++        Args:
++            file_results: List of dicts from process_file() task
++        
++        Returns:
++            Path to the summary file written
++        """
++        ds = context["ds"]  # Logical date (YYYY-MM-DD)
++        total_files = len(file_results)
++        total_rows = sum(r["rows"] for r in file_results)
++        # Explicitly initialize to Decimal("0.00") to handle empty file_results
++        total_amount = sum(
++            (Decimal(str(r["total_amount"])) for r in file_results),
++            Decimal("0.00")
++        )
++        
++        summary = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": float(total_amount.quantize(Decimal("0.01"))),
++        }
++        
++        out_dir = PROJECT_ROOT / "output" / "partner_feeds" / ds
++        out_dir.mkdir(parents=True, exist_ok=True)
++        summary_file = out_dir / "summary.json"
++        
++        summary_file.write_text(json.dumps(summary, indent=2))
++        
++        return str(summary_file)
++
++    # Task execution
++    discovered = discover_files()
++    
++    # Dynamic task mapping: process each file independently
++    # expand_kwargs unpacks each dict in the list as kwargs to process_file
++    results = process_file.expand_kwargs(discovered)
++    
++    # After all files processed (or empty list), write summary
++    write_summary(file_results=results)
++
++
++partner_feeds()

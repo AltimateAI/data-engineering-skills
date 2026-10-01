@@ -1,0 +1,153 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: provider directory snapshots match",
+  "primary_pass": false,
+  "primary_score": 0.875,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 0.646671,
+  "cost_reported_usd": 0.646671,
+  "wall_s": 325.1,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-022921/hard-migration-claims-partitions-swm0ligj/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 6.0,
+  "cost_list_price_usd": 0.646671,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 58,
+    "output": 19056,
+    "reasoning": 9550,
+    "cache_read": 1256296,
+    "cache_write": 51184,
+    "total": 1326594
+  },
+  "steps": 30,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.646671,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 58,
+      "outputTokens": 19056,
+      "cacheReadInputTokens": 1256296,
+      "cacheCreationInputTokens": 51184,
+      "webSearchRequests": 0,
+      "costUSD": 0.6466711999999999,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 9550,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 30,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 10,
+        "tool": "bash",
+        "path": "<tmp>/af3test",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 22,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f \"airflow\" ; grep -n \"Error\\|error\" ../sched.log | head -8 | cut -c1-250; ps aux | grep -c \"[a]irflow\"",
+        "output": "pkill: signalling pid 22570: Operation not permitted\npkill: signalling pid 22601: Operation not permitted\npkill: signalling pid 28919: Operation not permitted\npkill: signalling pid 28924: Operation no"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 29,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_warehouse_hook_and_operator.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 8 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_on_rerun [AirflowNotFoundException]\nBackendAccessDenied:\n                # Authoritative deny \u2014 must NOT fall through to a less-restrictive backend.\n                raise\n            except Exception:\n                log.debug(\n                    \"Unable to retrieve connection from secrets backend (%s). \"\n                    \"Checking subsequent secrets backend.\",\n                    type(secrets_backend).__name__,\n                    exc_info=True,\n                )\n    \n        # If no backend found the connection, raise an error\n    \n>       raise AirflowNotFoundException(f\"The conn_id `{conn_id}` isn't defined\")\nE       airflow.sdk.exceptions.AirflowNotFoundException: The conn_id `duckdb_warehouse` isn't defined\n\n~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/context.py:231: AirflowNotFoundException\n----------------------------- Captured stdout call -----------------------------\n2026-09-30T16:15:54.239645Z [warning  ] CsvPartitionToDuckDBOperator.execute cannot be called outside of the Task Runner! [airflow.task.operators.dags.warehouse.operators.CsvPartitionToDuckDBOperator] loc=operator.py:456\n=========================== short test summary info ============================\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_on_rerun\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_creates_schema_if_missing\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_creates_table_if_missing\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_handles_special_characters_in_names\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_all_columns_loaded_as_text\nFAILED tests/test_warehouse_hook_and_operator.py::TestCsvPartitionToDuckDBOperator::test_operator_with_default_connection_id\n10 failed, 8 passed in 1.15s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 8 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_on_rerun [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 5 passed, 13 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestDuckDBWarehouseHook::test_database_path_from_host [AssertionError], tests.test_warehouse_hook_and_operator.TestDuckDBWarehouseHook::test_database_path_missing_raises_error [None], tests.test_warehouse_hook_and_operator.TestDuckDBWarehouseHook::test_get_conn_read_only_mode [CatalogException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 7 passed, 11 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestDuckDBWarehouseHook::test_target_schema_custom [AssertionError], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 8 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_on_rerun [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 8 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_on_rerun [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator inserts every row of the CSV, not just partition_date -> failed: 8 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_loads_single_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_returns_row_count [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_is_idempotent_same_partition [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_leaves_other_partitions_untouched [AirflowNotFoundException], tests.test_warehouse_hook_and_operator.TestCsvPartitionToDuckDBOperator::test_operator_replaces_partition_on_rerun [AirflowNotFoundException]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "tests/test_warehouse_hook_and_operator.py:66 AIR311; tests/test_warehouse_hook_and_operator.py:94 AIR311; tests/test_warehouse_hook_and_operator.py:116 AIR311; tests/test_warehouse_hook_and_operator.py:132 AIR311; tests/test_warehouse_hook_and_operator.py:159 AIR311; tests/test_warehouse_hook_and_operator.py:371 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.75
+}

@@ -1,0 +1,146 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 0.460542,
+  "cost_reported_usd": 0.460542,
+  "wall_s": 831.7,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-core-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-075851/scheduling-idempotent-orders-load-7kho5d85/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-2.11/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 0.460542,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 22,
+    "output": 10807,
+    "reasoning": 2342,
+    "cache_read": 268771,
+    "cache_write": 23820,
+    "total": 303420
+  },
+  "steps": 11,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.460542,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 22,
+      "outputTokens": 10807,
+      "cacheReadInputTokens": 268771,
+      "cacheCreationInputTokens": 23820,
+      "webSearchRequests": 0,
+      "costUSD": 0.4605422,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 2342,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 11,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [],
+    "kill_commands": [
+      {
+        "call": 6,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cat \"<work>/final-core-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-075851/scheduling-idempotent-orders-load-7kho5d85/tmp/claude-501/-<home>--cache-des-evals-work-final-core-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-075851-scheduling-id",
+        "output": "dags\ndata\nREADME.md\nrequirements.txt\nwarehouse"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 10,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

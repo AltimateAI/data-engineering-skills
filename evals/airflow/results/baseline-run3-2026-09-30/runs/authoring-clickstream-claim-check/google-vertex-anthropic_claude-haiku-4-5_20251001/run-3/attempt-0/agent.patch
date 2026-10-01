@@ -1,0 +1,88 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..91f9ea8
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,82 @@
++"""Daily page-level stats from web clickstream exports."""
++
++from __future__ import annotations
++
++import csv
++import gzip
++from pathlib import Path
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="30 5 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["analytics"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(ds=None) -> dict:
++        """Read day's clickstream export, filter bots and anonymous users."""
++        clickstream_file = PROJECT_ROOT / "data" / "clickstream" / f"{ds}.csv.gz"
++        
++        # Read gzipped CSV
++        with gzip.open(clickstream_file, "rt") as f:
++            df = pd.read_csv(f)
++        
++        # Filter out bots (is_bot = 1) and anonymous hits (empty user_id)
++        df = df[(df["is_bot"] == 0) & (df["user_id"].notna()) & (df["user_id"] != "")]
++        
++        # Return as list of dicts for flexibility and to avoid passing large DataFrames between tasks
++        records = df.to_dict("records")
++        return {
++            "records": records,
++            "count": len(records),
++        }
++
++    @task
++    def transform(extracted: dict) -> list[dict]:
++        """Per page, compute views, unique_users, and avg_load_ms."""
++        records = extracted["records"]
++        
++        # Create DataFrame from records
++        df = pd.DataFrame(records)
++        
++        # Group by page and aggregate
++        page_stats = df.groupby("page").agg(
++            views=("event_id", "count"),
++            unique_users=("user_id", "nunique"),
++            avg_load_ms=("load_ms", "mean"),
++        ).reset_index()
++        
++        # Round avg_load_ms to 1 decimal place
++        page_stats["avg_load_ms"] = page_stats["avg_load_ms"].round(1)
++        
++        # Sort by page
++        page_stats = page_stats.sort_values("page").reset_index(drop=True)
++        
++        # Return as list of dicts
++        return page_stats.to_dict("records")
++
++    @task
++    def load(stats: list[dict], ds=None) -> None:
++        """Write output to CSV file."""
++        out = PROJECT_ROOT / "output" / "page_stats" / f"{ds}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        
++        with out.open("w", newline="") as fh:
++            writer = csv.DictWriter(fh, fieldnames=["page", "views", "unique_users", "avg_load_ms"])
++            writer.writeheader()
++            writer.writerows(stats)
++
++    extracted = extract()
++    transformed = transform(extracted)
++    load(transformed)
++
++
++clickstream_page_stats()

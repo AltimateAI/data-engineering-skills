@@ -1,0 +1,32 @@
+name: marketing_tickets_hourly_rollup
+team: marketing
+tier: standard
+description: Tickets pipeline for marketing
+schedule:
+  hour: 0
+  days: '*'
+steps:
+- name: extract
+  table: marketing.raw_tickets_00
+- name: stage
+  table: marketing.stg_tickets_00
+  depends_on:
+  - extract
+- name: enrich
+  table: marketing.int_tickets_00
+  depends_on:
+  - stage
+- name: aggregate
+  table: marketing.int_tickets_00
+  depends_on:
+  - enrich
+  - stage
+- name: snapshot
+  table: marketing.int_tickets_00
+  depends_on:
+  - aggregate
+  - enrich
+- name: publish
+  table: marketing.mart_tickets_00
+  depends_on:
+  - snapshot

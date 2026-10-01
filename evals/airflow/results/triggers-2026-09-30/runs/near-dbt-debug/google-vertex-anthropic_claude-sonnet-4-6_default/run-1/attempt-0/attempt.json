@@ -1,0 +1,41 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [
+    "dbt-troubleshoot",
+    "dbt-develop",
+    "dbt-schema-verify"
+  ],
+  "skill_invocations": [
+    {
+      "name": "dbt-troubleshoot",
+      "origin": "builtin",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [
+    "dbt-develop",
+    "dbt-schema-verify"
+  ],
+  "tools": [
+    "skill",
+    "bash",
+    "bash",
+    "read",
+    "read",
+    "read",
+    "read",
+    "write"
+  ],
+  "returncode": 1,
+  "wall_s": 46.1,
+  "cost_usd": 0.883269,
+  "cost_reported_usd": 1.787946,
+  "steps": 4,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "errors": []
+}

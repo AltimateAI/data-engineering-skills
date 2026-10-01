@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: one writer at a time, catchup backfills exactly 09-01..09-29, each run loads a day whose export has already landed, re-running a day repairs it and keeps other days",
+  "primary_pass": false,
+  "primary_score": 0.5555555555555556,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 154.3,
+  "cost_usd": 0.495655,
+  "cost_reported_usd": 1.908566,
+  "tokens": {
+    "input": 1413021,
+    "output": 13327,
+    "reasoning": 0,
+    "cache_read": 1162808,
+    "cache_write": 250103,
+    "total": 2839259
+  },
+  "steps": 21,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 14,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0ca0c6cbffejr75OvUQZkZCrj.json"
+}

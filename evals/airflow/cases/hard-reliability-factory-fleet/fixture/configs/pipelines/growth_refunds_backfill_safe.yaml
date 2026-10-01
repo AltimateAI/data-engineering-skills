@@ -1,0 +1,35 @@
+name: growth_refunds_backfill_safe
+team: growth
+tier: standard
+description: Refunds pipeline for growth
+schedule:
+  hour: 5
+  days: '*'
+retries: 0
+steps:
+- name: extract
+  table: growth.raw_refunds_00
+- name: validate
+  table: growth.int_refunds_00
+  depends_on:
+  - extract
+- name: transform
+  table: growth.int_refunds_00
+  depends_on:
+  - validate
+- name: enrich
+  table: growth.int_refunds_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: growth.int_refunds_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: growth.int_refunds_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: growth.mart_refunds_00
+  depends_on:
+  - snapshot

@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: hourly rollups (previous clock hour, change vs hour before) match 2.11, completion markers match 2.11, staging cleanup keeps and deletes the same files as 2.11",
+  "primary_pass": false,
+  "primary_score": 0.5714285714285714,
+  "secondary_score": 0.3333333333333333,
+  "returncode": 0,
+  "wall_s": 285.6,
+  "cost_usd": 2.086828,
+  "cost_reported_usd": 8.151403,
+  "tokens": {
+    "input": 2021553,
+    "output": 12143,
+    "reasoning": 0,
+    "cache_read": 1645252,
+    "cache_write": 376273,
+    "total": 4055221
+  },
+  "steps": 27,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 26,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dc9e333ffeSSU076Npto2DiV.json"
+}

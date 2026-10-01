@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_duckdb_warehouse.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 11 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 11 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 1 passed, 10 failed, 0 errors, 0 skipped; behavioral failures: tests.test_duckdb_warehouse::test_hook_reads_path_and_schema_from_connection [AssertionError], tests.test_duckdb_warehouse::test_hook_requires_host [None], tests.test_duckdb_warehouse::test_hook_get_conn_opens_the_file [IOException], tests.test_duckdb_warehouse::test_hook_read_only_extra [CatalogException], tests.test_duckdb_warehouse::test_loads_only_requested_partition_and_returns_count [IOException]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": true,
+      "detail": "hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 4 passed, 7 failed, 0 errors, 0 skipped; behavioral failures: tests.test_duckdb_warehouse::test_hook_reads_path_and_schema_from_connection [AssertionError], tests.test_duckdb_warehouse::test_loads_only_requested_partition_and_returns_count [CatalogException], tests.test_duckdb_warehouse::test_uses_the_given_conn_id [CatalogException], tests.test_duckdb_warehouse::test_writes_to_connection_schema [CatalogException], tests.test_duckdb_warehouse::test_rerun_replaces_partition_without_duplicates [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 5 passed, 6 failed, 0 errors, 0 skipped; behavioral failures: tests.test_duckdb_warehouse::test_loads_only_requested_partition_and_returns_count [AirflowNotFoundException], tests.test_duckdb_warehouse::test_uses_the_given_conn_id [AirflowNotFoundException], tests.test_duckdb_warehouse::test_writes_to_connection_schema [AirflowNotFoundException], tests.test_duckdb_warehouse::test_rerun_replaces_partition_without_duplicates [AirflowNotFoundException], tests.test_duckdb_warehouse::test_rerun_replaces_changed_rows_and_keeps_other_dates [AirflowNotFoundException]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 9 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_duckdb_warehouse::test_rerun_replaces_partition_without_duplicates [AssertionError], tests.test_duckdb_warehouse::test_rerun_replaces_changed_rows_and_keeps_other_dates [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": true,
+      "detail": "operator inserts every row of the CSV, not just partition_date -> failed: 5 passed, 6 failed, 0 errors, 0 skipped; behavioral failures: tests.test_duckdb_warehouse::test_loads_only_requested_partition_and_returns_count [AssertionError], tests.test_duckdb_warehouse::test_uses_the_given_conn_id [AssertionError], tests.test_duckdb_warehouse::test_writes_to_connection_schema [AssertionError], tests.test_duckdb_warehouse::test_rerun_replaces_partition_without_duplicates [AssertionError], tests.test_duckdb_warehouse::test_rerun_replaces_changed_rows_and_keeps_other_dates [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

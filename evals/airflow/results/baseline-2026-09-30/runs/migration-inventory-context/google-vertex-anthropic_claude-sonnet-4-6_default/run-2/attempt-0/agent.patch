@@ -1,0 +1,63 @@
+diff --git a/dags/inventory_snapshot.py b/dags/inventory_snapshot.py
+index fffdfd5..4556e06 100644
+--- a/dags/inventory_snapshot.py
++++ b/dags/inventory_snapshot.py
+@@ -35,8 +35,14 @@ def _read_snapshot(day: str) -> dict[str, int]:
+         return {row["sku"]: int(row["on_hand"]) for row in csv.DictReader(fh)}
+ 
+ 
+-def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs):
+-    as_of = execution_date + timedelta(days=1)  # end of the day being snapshotted
++def build_snapshot(**kwargs):
++    context = get_current_context()
++    logical_date = context["logical_date"]  # replaces execution_date (Airflow 3)
++    ds = logical_date.strftime("%Y-%m-%d")
++    prev_ds = (logical_date - timedelta(days=1)).strftime("%Y-%m-%d")
++    ti = context["ti"]
++
++    as_of = logical_date + timedelta(days=1)  # end of the day being snapshotted
+     on_hand: dict[str, int] = defaultdict(int)
+     with MOVEMENTS.open(newline="") as fh:
+         for row in csv.DictReader(fh):
+@@ -60,8 +66,9 @@ def build_snapshot(ds=None, execution_date=None, prev_ds=None, ti=None, **kwargs
+ 
+ def audit_snapshot(**kwargs):
+     context = get_current_context()
+-    day = context["execution_date"].strftime("%Y-%m-%d")
+-    ti = kwargs["ti"]
++    logical_date = context["logical_date"]  # replaces execution_date (Airflow 3)
++    day = logical_date.strftime("%Y-%m-%d")
++    ti = context["ti"]
+     record = {
+         "day": day,
+         "sku_count": ti.xcom_pull(key="sku_count"),
+@@ -74,7 +81,7 @@ def audit_snapshot(**kwargs):
+ 
+ with DAG(
+     dag_id="inventory_snapshot",
+-    schedule_interval=timedelta(days=1),
++    schedule=timedelta(days=1),  # replaces schedule_interval (Airflow 3)
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     default_args={"owner": "warehouse-ops", "retries": 1, "retry_delay": timedelta(minutes=5)},
+@@ -83,11 +90,11 @@ with DAG(
+     build = PythonOperator(
+         task_id="build_snapshot",
+         python_callable=build_snapshot,
+-        provide_context=True,
++        # provide_context removed in Airflow 3 — context is always available via get_current_context()
+     )
+     audit = PythonOperator(
+         task_id="audit_snapshot",
+         python_callable=audit_snapshot,
+-        provide_context=True,
++        # provide_context removed in Airflow 3 — context is always available via get_current_context()
+     )
+     build >> audit
+diff --git a/requirements.txt b/requirements.txt
+index cb9ccf0..b1dd561 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1 +1 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2

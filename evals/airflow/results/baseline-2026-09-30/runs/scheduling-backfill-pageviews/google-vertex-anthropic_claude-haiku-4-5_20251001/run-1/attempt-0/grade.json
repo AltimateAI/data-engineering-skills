@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG pageviews_daily exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['pageviews_daily', 'top_pages_weekly']"
+    },
+    {
+      "name": "catchup enabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "catchup=True"
+    },
+    {
+      "name": "one writer at a time",
+      "kind": "primary",
+      "passed": false,
+      "detail": "max_active_runs=16, max_active_tasks=16 (per run on 3.x), task max_active_tis_per_dag={'load_day': None}"
+    },
+    {
+      "name": "start_date is fixed, not computed from the clock",
+      "kind": "primary",
+      "passed": true,
+      "detail": "start_date 2026-09-01 00:00:00+00:00; with the clock +400 days: 2026-09-01 00:00:00+00:00"
+    },
+    {
+      "name": "catchup backfills exactly 09-01..09-29",
+      "kind": "primary",
+      "passed": false,
+      "detail": "30 runs, first ['2026-09-01 03:00:00+00:00', '2026-09-01 03:00:00+00:00', '2026-09-01 03:00:00+00:00']; failed runs [('2026-09-01 03:00:00+00:00', 'failed'), ('2026-09-02 03:00:00+00:00', 'failed'), ('2026-09-03 03:00:00+00:00', 'failed')]; stopped after 3 failed runsdaily_pageviews unreadable"
+    },
+    {
+      "name": "each run loads a day whose export has already landed",
+      "kind": "primary",
+      "passed": false,
+      "detail": "no run loaded any day"
+    },
+    {
+      "name": "re-running a day repairs it and keeps other days",
+      "kind": "primary",
+      "passed": false,
+      "detail": "needs a clean backfill in which one run loaded 2026-09-15 (run index None)"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed tasks []: 00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:16.506451Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:17.534766Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:18.541751Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:19.560461Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:20.581442Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:21.612972Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:22.626930Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:23.640063Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T12:28:24.657197Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_day manual__2026-09-30T12:23:27.518269+00:00 [up_for_retry] ti_id=01a0f245-27e7-738a-8c80-ea2200cbb187>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n\n\n[timed out after 300s]"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "10 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.4444444444444444,
+  "secondary_score": 0.6666666666666666
+}

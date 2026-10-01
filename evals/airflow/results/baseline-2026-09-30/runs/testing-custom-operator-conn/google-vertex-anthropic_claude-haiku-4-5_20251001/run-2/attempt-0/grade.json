@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_warehouse_hook.py, tests/test_warehouse_operator.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed: 24 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_with_default_schema_main [TypeError]\n    \n        op = CsvPartitionToDuckDBOperator(\n            task_id=\"test_load\",\n            csv_path=temp_csv_file,\n            table=\"test_table\",\n            partition_column=\"date\",\n            partition_date=\"2026-03-01\",\n            duckdb_conn_id=\"no_schema_conn\",\n        )\n>       rows_loaded = op.execute(context={})\n                      ^^^^^^^^^^^^^^^^^^^^^^\n\ntests/test_warehouse_operator.py:408: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n~/.cache/des-evals/airflow-3.3/lib/python3.12/site-packages/airflow/sdk/bases/operator.py:462: in wrapper\n    return func(self, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\ndags/warehouse/operators.py:42: in execute\n    schema = hook.target_schema\n             ^^^^^^^^^^^^^^^^^^\ndags/warehouse/hooks.py:46: in target_schema\n    return self.connection.schema or \"main\"\n           ^^^^^^^^^^^^^^^\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <warehouse.hooks.DuckDBWarehouseHook object at 0x112f9da90>\n\n    @property\n    def connection(self):\n        if self._connection is None:\n>           self._connection = self.get_connection(self.duckdb_conn_id)\n                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE           TypeError: TestCsvPartitionToDuckDBOperator.test_execute_with_default_schema_main.<locals>.mock_get_connection() takes 1 positional argument but 2 were given\n\ndags/warehouse/hooks.py:32: TypeError\n----------------------------- Captured stdout call -----------------------------\n2026-09-30T13:17:10.937448Z [warning  ] CsvPartitionToDuckDBOperator.execute cannot be called outside of the Task Runner! [airflow.task.operators.dags.warehouse.operators.CsvPartitionToDuckDBOperator] loc=operator.py:456\n=========================== short test summary info ============================\nFAILED tests/test_warehouse_operator.py::TestCsvPartitionToDuckDBOperator::test_execute_with_default_schema_main\n1 failed, 24 passed in 2.36s"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; failed: 24 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_with_default_schema_main [TypeError]"
+    },
+    {
+      "name": "suite catches hidden bug: hook_ignores_host",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; hook reads the DuckDB path from extra['path'] (default :memory:), not conn.host -> failed: 12 passed, 13 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook.TestDuckDBWarehouseHook::test_database_path_from_connection_host [AssertionError], tests.test_warehouse_hook.TestDuckDBWarehouseHook::test_database_path_raises_without_host [None], tests.test_warehouse_hook.TestDuckDBWarehouseHook::test_get_conn_opens_read_only_when_specified [CatalogException], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_creates_schema [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_creates_table_if_not_exists [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: schema_from_extra",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; hook reads the target schema from extra['schema'] instead of conn.schema -> failed: 14 passed, 11 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_hook.TestDuckDBWarehouseHook::test_target_schema_from_connection [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_creates_schema [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_creates_table_if_not_exists [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_loads_only_matching_partition [CatalogException], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_idempotent_same_partition_replaces [CatalogException]"
+    },
+    {
+      "name": "suite catches hidden bug: conn_id_ignored",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator builds the hook with the default conn id, ignoring duckdb_conn_id -> failed: 13 passed, 12 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_creates_schema [None], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_creates_table_if_not_exists [None], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_loads_only_matching_partition [None], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_returns_row_count [None], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_idempotent_same_partition_replaces [None]"
+    },
+    {
+      "name": "suite catches hidden bug: rerun_duplicates",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator no longer deletes the partition before inserting (re-runs duplicate) -> failed: 22 passed, 3 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_idempotent_same_partition_replaces [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_overwrites_partition_on_rerun [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_with_default_schema_main [TypeError]"
+    },
+    {
+      "name": "suite catches hidden bug: partition_filter_dropped",
+      "kind": "primary",
+      "passed": false,
+      "detail": "not attributable: the suite does not pass on the correct project; operator inserts every row of the CSV, not just partition_date -> failed: 19 passed, 6 failed, 0 errors, 0 skipped; behavioral failures: tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_loads_only_matching_partition [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_leaves_other_partitions_untouched [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_overwrites_partition_on_rerun [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_handles_empty_partition [AssertionError], tests.test_warehouse_operator.TestCsvPartitionToDuckDBOperator::test_execute_multiple_tables_independent [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "tests/conftest.py:41 AIR311; tests/conftest.py:48 AIR311; tests/conftest.py:71 AIR311; tests/test_warehouse_hook.py:34 AIR311; tests/test_warehouse_hook.py:56 AIR311; tests/test_warehouse_hook.py:100 AIR311; tests/test_warehouse_operator.py:386 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.75
+}

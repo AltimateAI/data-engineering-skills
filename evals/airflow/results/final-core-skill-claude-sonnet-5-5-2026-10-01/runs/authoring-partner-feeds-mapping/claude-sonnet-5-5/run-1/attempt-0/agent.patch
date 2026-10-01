@@ -1,0 +1,87 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..db00f22
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,81 @@
++"""Daily per-partner order file processing, one mapped task instance per file."""
++
++from __future__ import annotations
++
++import csv
++import json
++import os
++from decimal import Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, get_current_context, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_DIR = PROJECT_ROOT / "data" / "partner_drop"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "partner_feeds"
++CENT = Decimal("0.01")
++
++
++def run_day() -> str:
++    """The run's own date (UTC). Manual runs have no logical_date on Airflow 3, so fall back to run_after."""
++    dag_run = get_current_context()["dag_run"]
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++def write_json(path: Path, payload: dict) -> None:
++    """Replace the whole file atomically so a retry or rerun never leaves a partial or appended file."""
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_name(f".{path.name}.tmp")
++    tmp.write_text(json.dumps(payload, indent=2))
++    os.replace(tmp, path)
++
++
++@dag(
++    schedule="0 1 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["partners"],
++)
++def partner_feeds():
++    @task
++    def list_files() -> list[str]:
++        # The folder doesn't exist on days nobody sends anything.
++        day_dir = DROP_DIR / run_day()
++        return [str(p) for p in sorted(day_dir.glob("*.csv"))] if day_dir.is_dir() else []
++
++    @task
++    def process_file(path: str) -> dict:
++        src = Path(path)
++        rows = 0
++        total = Decimal("0")
++        with src.open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                rows += 1
++                total += Decimal(row["amount"])
++        result = {"partner": src.stem, "rows": rows, "total_amount": float(total.quantize(CENT))}
++        write_json(OUTPUT_DIR / src.parent.name / f"{src.stem}.json", result)
++        return result
++
++    # none_failed: with no files the mapped task is skipped, but the summary must still be written.
++    # A failed file still blocks it.
++    @task(trigger_rule="none_failed")
++    def summarize(results: list[dict] | None) -> str:
++        results = list(results or [])
++        total = sum((Decimal(str(r["total_amount"])) for r in results), Decimal("0"))
++        out = OUTPUT_DIR / run_day() / "summary.json"
++        write_json(
++            out,
++            {
++                "files": len(results),
++                "rows": sum(r["rows"] for r in results),
++                "total_amount": float(total.quantize(CENT)),
++            },
++        )
++        return str(out)
++
++    summarize(process_file.expand(path=list_files()))
++
++
++partner_feeds()

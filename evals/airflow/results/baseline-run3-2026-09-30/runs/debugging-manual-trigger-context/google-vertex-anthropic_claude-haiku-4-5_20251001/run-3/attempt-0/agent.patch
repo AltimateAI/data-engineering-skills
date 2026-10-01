@@ -1,0 +1,28 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..e901420 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -30,7 +30,10 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        # In Airflow 3.3, use logical_date. For manual triggers without a logical_date,
++        # fall back to the dag_run's execution_date (which is set to the UTC execution time).
++        logical_date = context.get("logical_date") or context["dag_run"].execution_date
++        day = logical_date.strftime("%Y-%m-%d")
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -47,7 +50,10 @@ def partner_feed():
+ 
+     @task
+     def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++        # In Airflow 3.3, execution_date was removed. Use logical_date instead.
++        # For manual triggers without logical_date, fall back to dag_run.execution_date.
++        logical_date = context.get("logical_date") or context["dag_run"].execution_date
++        day = logical_date.strftime("%Y-%m-%d")
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")

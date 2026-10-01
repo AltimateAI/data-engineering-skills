@@ -1,0 +1,3514 @@
+{
+  "groups": [
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 163662.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 4444.0,
+      "mean_cost_usd": 0.2509,
+      "total_cost_usd": 0.2509,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 54.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 173366.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 3736.0,
+      "mean_cost_usd": 0.1231,
+      "total_cost_usd": 0.1231,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 34.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 339162.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 5578.0,
+      "mean_cost_usd": 0.4537,
+      "total_cost_usd": 0.4537,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 68.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 195660.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 4280.0,
+      "mean_cost_usd": 0.186,
+      "total_cost_usd": 0.186,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 38.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 347773.0,
+      "mean_tokens_input": 24.0,
+      "mean_tokens_output": 8304.0,
+      "mean_cost_usd": 0.438,
+      "total_cost_usd": 0.438,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 701.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 161659.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 4959.0,
+      "mean_cost_usd": 0.1471,
+      "total_cost_usd": 0.1471,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 66.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 1769328.0,
+      "mean_tokens_input": 68.0,
+      "mean_tokens_output": 20932.0,
+      "mean_cost_usd": 1.2336,
+      "total_cost_usd": 1.2336,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 831.0,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 232282.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 4447.0,
+      "mean_cost_usd": 0.1778,
+      "total_cost_usd": 0.1778,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 96.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 198676.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 4540.0,
+      "mean_cost_usd": 0.2334,
+      "total_cost_usd": 0.2334,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 72.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 187331.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 3567.0,
+      "mean_cost_usd": 0.118,
+      "total_cost_usd": 0.118,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 48.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 444773.0,
+      "mean_tokens_input": 24.0,
+      "mean_tokens_output": 6185.0,
+      "mean_cost_usd": 0.4687,
+      "total_cost_usd": 0.4687,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 132.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 135067.0,
+      "mean_tokens_input": 10.0,
+      "mean_tokens_output": 3152.0,
+      "mean_cost_usd": 0.1317,
+      "total_cost_usd": 0.1317,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 52.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 325208.0,
+      "mean_tokens_input": 24.0,
+      "mean_tokens_output": 8728.0,
+      "mean_cost_usd": 0.4153,
+      "total_cost_usd": 0.4153,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 729.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 125283.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 3249.0,
+      "mean_cost_usd": 0.1083,
+      "total_cost_usd": 0.1083,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 50.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 466964.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 8629.0,
+      "mean_cost_usd": 0.5244,
+      "total_cost_usd": 0.5244,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 150.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 232888.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 4693.0,
+      "mean_cost_usd": 0.2063,
+      "total_cost_usd": 0.2063,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 104.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8333,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 282684.0,
+      "mean_tokens_input": 20.0,
+      "mean_tokens_output": 8925.0,
+      "mean_cost_usd": 0.4012,
+      "total_cost_usd": 0.4012,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 126.3,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 80422.0,
+      "mean_tokens_input": 8.0,
+      "mean_tokens_output": 3200.0,
+      "mean_cost_usd": 0.089,
+      "total_cost_usd": 0.089,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 30.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 711172.0,
+      "mean_tokens_input": 32.0,
+      "mean_tokens_output": 9739.0,
+      "mean_cost_usd": 0.6959,
+      "total_cost_usd": 0.6959,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 170.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 235115.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 5121.0,
+      "mean_cost_usd": 0.2086,
+      "total_cost_usd": 0.2086,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 664.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 427338.0,
+      "mean_tokens_input": 32.0,
+      "mean_tokens_output": 6867.0,
+      "mean_cost_usd": 0.3923,
+      "total_cost_usd": 0.3923,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 120.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 173736.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 3079.0,
+      "mean_cost_usd": 0.1186,
+      "total_cost_usd": 0.1186,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 34.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 409161.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 7782.0,
+      "mean_cost_usd": 0.5009,
+      "total_cost_usd": 0.5009,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 128.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 175455.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 3512.0,
+      "mean_cost_usd": 0.1564,
+      "total_cost_usd": 0.1564,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 50.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 484193.0,
+      "mean_tokens_input": 36.0,
+      "mean_tokens_output": 8672.0,
+      "mean_cost_usd": 0.4722,
+      "total_cost_usd": 0.4722,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 168.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 127004.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 2717.0,
+      "mean_cost_usd": 0.0999,
+      "total_cost_usd": 0.0999,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 44.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 481791.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 6508.0,
+      "mean_cost_usd": 0.514,
+      "total_cost_usd": 0.514,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 144.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 306634.0,
+      "mean_tokens_input": 20.0,
+      "mean_tokens_output": 4219.0,
+      "mean_cost_usd": 0.1972,
+      "total_cost_usd": 0.1972,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 279.0,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 284152.0,
+      "mean_tokens_input": 24.0,
+      "mean_tokens_output": 4090.0,
+      "mean_cost_usd": 0.269,
+      "total_cost_usd": 0.269,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 198.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 97865.0,
+      "mean_tokens_input": 10.0,
+      "mean_tokens_output": 1765.0,
+      "mean_cost_usd": 0.0727,
+      "total_cost_usd": 0.0727,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 20.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 351770.0,
+      "mean_tokens_input": 20.0,
+      "mean_tokens_output": 7309.0,
+      "mean_cost_usd": 0.465,
+      "total_cost_usd": 0.465,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 134.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 171766.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 3467.0,
+      "mean_cost_usd": 0.1517,
+      "total_cost_usd": 0.1517,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 56.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 247484.0,
+      "mean_tokens_input": 20.0,
+      "mean_tokens_output": 6175.0,
+      "mean_cost_usd": 0.3357,
+      "total_cost_usd": 0.3357,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 112.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 347602.0,
+      "mean_tokens_input": 28.0,
+      "mean_tokens_output": 6361.0,
+      "mean_cost_usd": 0.2131,
+      "total_cost_usd": 0.2131,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 258.9,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 651943.0,
+      "mean_tokens_input": 30.0,
+      "mean_tokens_output": 11402.0,
+      "mean_cost_usd": 0.7276,
+      "total_cost_usd": 0.7276,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 230.9,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 298106.0,
+      "mean_tokens_input": 20.0,
+      "mean_tokens_output": 4807.0,
+      "mean_cost_usd": 0.1964,
+      "total_cost_usd": 0.1964,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 214.7,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 364872.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 9389.0,
+      "mean_cost_usd": 0.493,
+      "total_cost_usd": 0.493,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 112.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 253479.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 4512.0,
+      "mean_cost_usd": 0.1525,
+      "total_cost_usd": 0.1525,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 58.2,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 630958.0,
+      "mean_tokens_input": 34.0,
+      "mean_tokens_output": 9586.0,
+      "mean_cost_usd": 0.6092,
+      "total_cost_usd": 0.6092,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 188.7,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 688843.0,
+      "mean_tokens_input": 38.0,
+      "mean_tokens_output": 10073.0,
+      "mean_cost_usd": 0.3774,
+      "total_cost_usd": 0.3774,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 393.3,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 496728.0,
+      "mean_tokens_input": 34.0,
+      "mean_tokens_output": 9833.0,
+      "mean_cost_usd": 0.4982,
+      "total_cost_usd": 0.4982,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 164.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 316330.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 6571.0,
+      "mean_cost_usd": 0.1988,
+      "total_cost_usd": 0.1988,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 90.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 853730.0,
+      "mean_tokens_input": 40.0,
+      "mean_tokens_output": 12887.0,
+      "mean_cost_usd": 0.7574,
+      "total_cost_usd": 0.7574,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 214.8,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 439893.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 7330.0,
+      "mean_cost_usd": 0.2803,
+      "total_cost_usd": 0.2803,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 142.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 752230.0,
+      "mean_tokens_input": 42.0,
+      "mean_tokens_output": 17162.0,
+      "mean_cost_usd": 0.7699,
+      "total_cost_usd": 0.7699,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 210.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5714,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 272028.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 5156.0,
+      "mean_cost_usd": 0.1725,
+      "total_cost_usd": 0.1725,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 82.3,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 896846.0,
+      "mean_tokens_input": 40.0,
+      "mean_tokens_output": 330.0,
+      "mean_cost_usd": 0.5945,
+      "total_cost_usd": 0.5945,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 901.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 407790.0,
+      "mean_tokens_input": 24.0,
+      "mean_tokens_output": 5639.0,
+      "mean_cost_usd": 0.2546,
+      "total_cost_usd": 0.2546,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 86.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 996976.0,
+      "mean_tokens_input": 48.0,
+      "mean_tokens_output": 14998.0,
+      "mean_cost_usd": 0.8769,
+      "total_cost_usd": 0.8769,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 200.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 272321.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 4670.0,
+      "mean_cost_usd": 0.1809,
+      "total_cost_usd": 0.1809,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 60.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 369697.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 7780.0,
+      "mean_cost_usd": 0.4784,
+      "total_cost_usd": 0.4784,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 162.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 353327.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 5118.0,
+      "mean_cost_usd": 0.2262,
+      "total_cost_usd": 0.2262,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 80.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 316639.0,
+      "mean_tokens_input": 24.0,
+      "mean_tokens_output": 8559.0,
+      "mean_cost_usd": 0.4168,
+      "total_cost_usd": 0.4168,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 316.7,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 79312.0,
+      "mean_tokens_input": 8.0,
+      "mean_tokens_output": 2714.0,
+      "mean_cost_usd": 0.0835,
+      "total_cost_usd": 0.0835,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 24.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 435662.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 7115.0,
+      "mean_cost_usd": 0.5136,
+      "total_cost_usd": 0.5136,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 536.0,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 259255.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 5971.0,
+      "mean_cost_usd": 0.2406,
+      "total_cost_usd": 0.2406,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 74.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 303420.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 10807.0,
+      "mean_cost_usd": 0.4605,
+      "total_cost_usd": 0.4605,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 831.7,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 172679.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 4660.0,
+      "mean_cost_usd": 0.1317,
+      "total_cost_usd": 0.1317,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 36.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 601586.0,
+      "mean_tokens_input": 34.0,
+      "mean_tokens_output": 317.0,
+      "mean_cost_usd": 0.3931,
+      "total_cost_usd": 0.3931,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 901.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 201963.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 3680.0,
+      "mean_cost_usd": 0.1585,
+      "total_cost_usd": 0.1585,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 48.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 149386.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 4437.0,
+      "mean_cost_usd": 0.221,
+      "total_cost_usd": 0.221,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 54.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 116538.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 2689.0,
+      "mean_cost_usd": 0.0882,
+      "total_cost_usd": 0.0882,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 28.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 409552.0,
+      "mean_tokens_input": 22.0,
+      "mean_tokens_output": 5691.0,
+      "mean_cost_usd": 0.4559,
+      "total_cost_usd": 0.4559,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 154.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 233164.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 3465.0,
+      "mean_cost_usd": 0.1642,
+      "total_cost_usd": 0.1642,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 54.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 517216.0,
+      "mean_tokens_input": 30.0,
+      "mean_tokens_output": 17722.0,
+      "mean_cost_usd": 0.7142,
+      "total_cost_usd": 0.7142,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 250.5,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 214851.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 6194.0,
+      "mean_cost_usd": 0.1791,
+      "total_cost_usd": 0.1791,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 54.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 493660.0,
+      "mean_tokens_input": 26.0,
+      "mean_tokens_output": 12876.0,
+      "mean_cost_usd": 0.6454,
+      "total_cost_usd": 0.6454,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 343.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 238283.0,
+      "mean_tokens_input": 14.0,
+      "mean_tokens_output": 6738.0,
+      "mean_cost_usd": 0.2438,
+      "total_cost_usd": 0.2438,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 96.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 192365.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 7296.0,
+      "mean_cost_usd": 0.3125,
+      "total_cost_usd": 0.3125,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 84.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 107737.0,
+      "mean_tokens_input": 10.0,
+      "mean_tokens_output": 3772.0,
+      "mean_cost_usd": 0.1072,
+      "total_cost_usd": 0.1072,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 32.1,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 296404.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 8889.0,
+      "mean_cost_usd": 0.4577,
+      "total_cost_usd": 0.4577,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 152.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 248211.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 6895.0,
+      "mean_cost_usd": 0.2098,
+      "total_cost_usd": 0.2098,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 102.4,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 230286.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 7632.0,
+      "mean_cost_usd": 0.35,
+      "total_cost_usd": 0.35,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 108.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 186734.0,
+      "mean_tokens_input": 16.0,
+      "mean_tokens_output": 4438.0,
+      "mean_cost_usd": 0.1391,
+      "total_cost_usd": 0.1391,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 46.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 179322.0,
+      "mean_tokens_input": 12.0,
+      "mean_tokens_output": 5661.0,
+      "mean_cost_usd": 0.3765,
+      "total_cost_usd": 0.3765,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 84.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 136620.0,
+      "mean_tokens_input": 10.0,
+      "mean_tokens_output": 3591.0,
+      "mean_cost_usd": 0.1444,
+      "total_cost_usd": 0.1444,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 52.2,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1363035.0,
+      "mean_tokens_input": 66.0,
+      "mean_tokens_output": 24008.0,
+      "mean_cost_usd": 1.1348,
+      "total_cost_usd": 1.1348,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 727.6,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 208990.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 7393.0,
+      "mean_cost_usd": 0.1765,
+      "total_cost_usd": 0.1765,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 74.3,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 412024.0,
+      "mean_tokens_input": 18.0,
+      "mean_tokens_output": 12984.0,
+      "mean_cost_usd": 0.793,
+      "total_cost_usd": 0.793,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 544.0,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 418447.0,
+      "mean_tokens_input": 20.0,
+      "mean_tokens_output": 11921.0,
+      "mean_cost_usd": 0.3656,
+      "total_cost_usd": 0.3656,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 561.9,
+      "statuses": {
+        "ok": 1
+      },
+      "retries": 0
+    }
+  ],
+  "by_split_arm_model": [
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "n_runs": 13,
+      "n_valid": 13,
+      "n_excluded": 0,
+      "pass_rate": 0.9231,
+      "mean_primary_score": 0.9872,
+      "mean_secondary_score": 0.9231,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 365912.1538,
+      "mean_tokens_input": 24.7692,
+      "mean_tokens_output": 8826.4615,
+      "mean_cost_usd": 0.4367,
+      "total_cost_usd": 5.6777,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 231.2692,
+      "statuses": {
+        "ok": 12,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 13,
+      "n_valid": 13,
+      "n_excluded": 0,
+      "pass_rate": 0.9231,
+      "mean_primary_score": 0.9846,
+      "mean_secondary_score": 0.8462,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 179055.1538,
+      "mean_tokens_input": 15.6923,
+      "mean_tokens_output": 4172.6923,
+      "mean_cost_usd": 0.1329,
+      "total_cost_usd": 1.728,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 45.3846,
+      "statuses": {
+        "ok": 12,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "n_runs": 13,
+      "n_valid": 13,
+      "n_excluded": 0,
+      "pass_rate": 0.9231,
+      "mean_primary_score": 0.9846,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 5,
+        "migrating-to-airflow-3": 5,
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 570423.2308,
+      "mean_tokens_input": 28.3077,
+      "mean_tokens_output": 8848.2308,
+      "mean_cost_usd": 0.5787,
+      "total_cost_usd": 7.5227,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 271.9385,
+      "statuses": {
+        "ok": 12,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 13,
+      "n_valid": 13,
+      "n_excluded": 0,
+      "pass_rate": 0.9231,
+      "mean_primary_score": 0.9846,
+      "mean_secondary_score": 0.9231,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 5,
+        "migrating-to-airflow-3": 5,
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 273121.6923,
+      "mean_tokens_input": 17.0769,
+      "mean_tokens_output": 5209.0,
+      "mean_cost_usd": 0.2065,
+      "total_cost_usd": 2.685,
+      "contamination_suspect_runs": 7,
+      "mean_wall_s": 144.2077,
+      "statuses": {
+        "ok": 12,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "claude-opus-5-5",
+      "n_runs": 7,
+      "n_valid": 7,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.9048,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 526780.7143,
+      "mean_tokens_input": 32.8571,
+      "mean_tokens_output": 11120.5714,
+      "mean_cost_usd": 0.5397,
+      "total_cost_usd": 3.7782,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 333.9,
+      "statuses": {
+        "ok": 7
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 7,
+      "n_valid": 7,
+      "n_excluded": 0,
+      "pass_rate": 0.8571,
+      "mean_primary_score": 0.9388,
+      "mean_secondary_score": 0.8571,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 192507.1429,
+      "mean_tokens_input": 16.8571,
+      "mean_tokens_output": 4451.0,
+      "mean_cost_usd": 0.1388,
+      "total_cost_usd": 0.9719,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 83.1714,
+      "statuses": {
+        "ok": 6,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "claude-opus-5-5",
+      "n_runs": 7,
+      "n_valid": 7,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.9524,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 4,
+        "migrating-to-airflow-3": 2,
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 541429.0,
+      "mean_tokens_input": 26.5714,
+      "mean_tokens_output": 7593.2857,
+      "mean_cost_usd": 0.5908,
+      "total_cost_usd": 4.1358,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 377.1143,
+      "statuses": {
+        "ok": 7
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "claude-sonnet-5-5",
+      "n_runs": 7,
+      "n_valid": 7,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.9524,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 4,
+        "migrating-to-airflow-3": 2,
+        "testing-airflow-dags": 1
+      },
+      "mean_tokens_total": 294026.7143,
+      "mean_tokens_input": 17.4286,
+      "mean_tokens_output": 5771.7143,
+      "mean_cost_usd": 0.2275,
+      "total_cost_usd": 1.5924,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 196.1143,
+      "statuses": {
+        "ok": 7
+      },
+      "retries": 0
+    }
+  ],
+  "paired_deltas": [
+    {
+      "model": "claude-opus-5-5",
+      "split": "dev",
+      "n_cases": 13,
+      "mean_delta_pass_rate": 0.0,
+      "ci95_delta_pass_rate": [
+        -0.2308,
+        0.2308
+      ],
+      "mean_delta_primary_score": -0.0026,
+      "ci95_delta_primary_score": [
+        -0.0462,
+        0.0385
+      ],
+      "cases": [
+        {
+          "case": "authoring-airflow2-inventory-snapshot",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-clickstream-claim-check",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-vendor-shipments-etl",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.1667
+        },
+        {
+          "case": "debugging-manual-trigger-context",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-variable-at-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-inventory-context",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": -1.0,
+          "delta_primary_score": -0.2
+        },
+        {
+          "case": "migration-revenue-previous-day",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-weekly-catchup",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "scheduling-idempotent-orders-load",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "scheduling-weekday-ny-business-day",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-airflow2-ci-suite",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-custom-operator-conn",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-dagbag-integrity",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    },
+    {
+      "model": "claude-opus-5-5",
+      "split": "holdout",
+      "n_cases": 7,
+      "mean_delta_pass_rate": 0.0,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.0
+      ],
+      "mean_delta_primary_score": 0.0,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.0
+      ],
+      "cases": [
+        {
+          "case": "authoring-daily-revenue-yesterday",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-partner-feeds-mapping",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-nondeterministic-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-hourly-pageviews-templates",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-shipments-assets",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "scheduling-backfill-pageviews",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-taskflow-transforms",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "split": "dev",
+      "n_cases": 13,
+      "mean_delta_pass_rate": 0.0,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.0
+      ],
+      "mean_delta_primary_score": 0.0,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.0
+      ],
+      "cases": [
+        {
+          "case": "authoring-airflow2-inventory-snapshot",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-clickstream-claim-check",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-vendor-shipments-etl",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-manual-trigger-context",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-variable-at-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-inventory-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-revenue-previous-day",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-weekly-catchup",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "scheduling-idempotent-orders-load",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "scheduling-weekday-ny-business-day",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-airflow2-ci-suite",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-custom-operator-conn",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-dagbag-integrity",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    },
+    {
+      "model": "claude-sonnet-5-5",
+      "split": "holdout",
+      "n_cases": 7,
+      "mean_delta_pass_rate": 0.1429,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.4286
+      ],
+      "mean_delta_primary_score": 0.0612,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.1837
+      ],
+      "cases": [
+        {
+          "case": "authoring-daily-revenue-yesterday",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-partner-feeds-mapping",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-nondeterministic-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-hourly-pageviews-templates",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-shipments-assets",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.4286
+        },
+        {
+          "case": "scheduling-backfill-pageviews",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-taskflow-transforms",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    }
+  ],
+  "pooled_deltas": [
+    {
+      "split": "dev",
+      "n_cases": 13,
+      "n_pairs": 26,
+      "models": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5"
+      ],
+      "mean_delta_pass_rate": 0.0,
+      "ci95_delta_pass_rate": [
+        -0.1154,
+        0.1154
+      ],
+      "mean_delta_primary_score": -0.0013,
+      "ci95_delta_primary_score": [
+        -0.0231,
+        0.0192
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    },
+    {
+      "split": "holdout",
+      "n_cases": 7,
+      "n_pairs": 14,
+      "models": [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5"
+      ],
+      "mean_delta_pass_rate": 0.0714,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.2143
+      ],
+      "mean_delta_primary_score": 0.0306,
+      "ci95_delta_primary_score": [
+        0.0,
+        0.0918
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    }
+  ],
+  "failure_classes": {
+    "ok": 75,
+    "task_fail": 5
+  },
+  "total_cost_usd": 28.0917,
+  "isolation": {
+    "contamination_suspects": [
+      {
+        "case": "authoring-airflow2-inventory-snapshot",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 4,
+            "tool": "bash",
+            "path": "<tmp>/af_home",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/final-core-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 3,
+            "tool": "bash",
+            "path": "<tmp>/af3",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-hourly-pageviews-templates",
+        "arm": "baseline",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-baseline-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 7,
+            "tool": "bash",
+            "path": "<work>/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "authoring-clickstream-claim-check",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "migration-hourly-pageviews-templates",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.claude/skills/migrating-to-airflow-3",
+            "root": "user-skills"
+          }
+        ]
+      },
+      {
+        "case": "debugging-nondeterministic-parse",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          },
+          {
+            "call": 3,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "migration-revenue-previous-day",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 9,
+            "tool": "bash",
+            "path": "<tmp>/edit.py",
+            "root": "shared-temp"
+          },
+          {
+            "call": 9,
+            "tool": "bash",
+            "path": "<tmp>/edit.py",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 3,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-weekday-ny-business-day",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 3,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          },
+          {
+            "call": 4,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "testing-custom-operator-conn",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          },
+          {
+            "call": 4,
+            "tool": "bash",
+            "path": "<work>/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 4,
+            "tool": "bash",
+            "path": "<tmp>/land",
+            "root": "shared-temp"
+          },
+          {
+            "call": 4,
+            "tool": "bash",
+            "path": "<tmp>/land/",
+            "root": "shared-temp"
+          },
+          {
+            "call": 4,
+            "tool": "bash",
+            "path": "<tmp>/land",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-taskflow-transforms",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 2,
+            "tool": "bash",
+            "path": "~/.cache/des-evals/work/",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "debugging-variable-at-parse",
+        "arm": "skill",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/final-core-skill-claude-opus-5-5-2026-10-01",
+        "hits": [
+          {
+            "call": 3,
+            "tool": "bash",
+            "path": "<tmp>/wh",
+            "root": "shared-temp"
+          }
+        ]
+      }
+    ],
+    "kill_command_runs": [
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "pkill -f replay_runs; cat <work>/final-core-skill-claude-sonnet-5-5-2026-10-01-skill-20261001-044302/authoring-vendor-sh"
+        ]
+      },
+      {
+        "case": "testing-taskflow-transforms",
+        "arm": "skill",
+        "model": "claude-sonnet-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "sleep 60; cat \"<work>/final-core-skill-claude-sonnet-5-5-2026-10-01-skill-20261001-044302/testing-taskflow-transforms-3b"
+        ]
+      },
+      {
+        "case": "authoring-partner-feeds-mapping",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "cd <work>/final-core-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-075851/authoring-partner-feeds-mapping-58kori"
+        ]
+      },
+      {
+        "case": "scheduling-backfill-pageviews",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "cd <work>/final-core-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-075851/scheduling-backfill-pageviews-s0w_1zf8"
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "baseline",
+        "model": "claude-opus-5-5",
+        "run": 1,
+        "status": "ok",
+        "commands": [
+          "cat \"<work>/final-core-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-075851/scheduling-idempotent-orders-load-7k"
+        ]
+      }
+    ],
+    "agent_env_restored_runs": [],
+    "agent_env_restore_failed_runs": []
+  },
+  "sources": [
+    {
+      "dir": "evals/airflow/results/final-core-baseline-claude-sonnet-5-5-2026-10-01",
+      "run_name": "final-core-baseline-claude-sonnet-5-5-2026-10-01",
+      "arm": "baseline",
+      "runner": "claude-code",
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T11:35:37+00:00",
+      "finished_at": "2026-10-01T11:43:02+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "2.11": {
+          "python": "3.12.8",
+          "airflow": "2.11.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.4.4",
+          "pandas": "2.1.4",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+        },
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": null,
+      "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-sonnet-5-5": 6.0
+        },
+        "spent_usd": 2.6999,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 18,
+        "task_fail": 2
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 3,
+        "kill_command_runs": 0,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "2.11": 0,
+          "3.3": 0
+        }
+      }
+    },
+    {
+      "dir": "evals/airflow/results/final-core-skill-claude-sonnet-5-5-2026-10-01",
+      "run_name": "final-core-skill-claude-sonnet-5-5-2026-10-01",
+      "arm": "skill",
+      "runner": "claude-code",
+      "models": [
+        "claude-sonnet-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T11:43:04+00:00",
+      "finished_at": "2026-10-01T12:04:45+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "2.11": {
+          "python": "3.12.8",
+          "airflow": "2.11.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.4.4",
+          "pandas": "2.1.4",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+        },
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+      "staged_skills_sha256": "45fa68a50442686473230d5f88f3825d3652a30ed9c04372429216257627d553",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-sonnet-5-5": 6.0
+        },
+        "spent_usd": 4.2775,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 19,
+        "task_fail": 1
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 10,
+        "kill_command_runs": 2,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "2.11": 0,
+          "3.3": 0
+        }
+      }
+    },
+    {
+      "dir": "evals/airflow/results/final-core-baseline-claude-opus-5-5-2026-10-01",
+      "run_name": "final-core-baseline-claude-opus-5-5-2026-10-01",
+      "arm": "baseline",
+      "runner": "claude-code",
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T14:58:56+00:00",
+      "finished_at": "2026-10-01T15:29:02+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "2.11": {
+          "python": "3.12.8",
+          "airflow": "2.11.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.4.4",
+          "pandas": "2.1.4",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+        },
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": null,
+      "staged_skills_sha256": "ca2b482d4ec517502521a5686cd32137c1da615ed31db7a7fa543f031b4050f0",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-opus-5-5": 12.0
+        },
+        "spent_usd": 9.4559,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 19,
+        "task_fail": 1
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 0,
+        "kill_command_runs": 3,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "2.11": 0,
+          "3.3": 0
+        }
+      }
+    },
+    {
+      "dir": "evals/airflow/results/final-core-skill-claude-opus-5-5-2026-10-01",
+      "run_name": "final-core-skill-claude-opus-5-5-2026-10-01",
+      "arm": "skill",
+      "runner": "claude-code",
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "split": "all",
+      "started_at": "2026-10-01T15:29:07+00:00",
+      "finished_at": "2026-10-01T16:01:41+00:00",
+      "altimate_code_version": null,
+      "claude_code_version": "2.1.286",
+      "envs": {
+        "2.11": {
+          "python": "3.12.8",
+          "airflow": "2.11.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.4.4",
+          "pandas": "2.1.4",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-2.11/bin/python"
+        },
+        "3.3": {
+          "python": "3.12.8",
+          "airflow": "3.3.2",
+          "pytest": "9.1.1",
+          "duckdb": "1.5.6",
+          "pandas": "3.0.5",
+          "ruff": "0.16.9",
+          "python_path": "~/.cache/des-evals/airflow-3.3/bin/python"
+        }
+      },
+      "airflow_skills_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+      "staged_skills_sha256": "45fa68a50442686473230d5f88f3825d3652a30ed9c04372429216257627d553",
+      "harness_sha256": "3dcc0519b17a62f654173a6408d55c4bc84981b8d987234aac9444688f2ce8e5",
+      "repo_head": "705c68b706ffdd667e7f205af2cacac655806669",
+      "budget": {
+        "cap_usd": 2000.0,
+        "per_run_cap_usd": {
+          "claude-opus-5-5": 12.0
+        },
+        "spent_usd": 11.6585,
+        "stopped_early": false
+      },
+      "status_counts": {
+        "ok": 19,
+        "task_fail": 1
+      },
+      "isolation": {
+        "sandbox": true,
+        "per_attempt_tmpdir": true,
+        "per_attempt_xdg_data": true,
+        "pip_require_virtualenv": true,
+        "signals_same_sandbox_only": true,
+        "claude_config_dir": "fresh per attempt (<scratch>/claude-config, skills in skills/<name>/)",
+        "claude_env": {
+          "CLAUDE_CODE_DISABLE_CLAUDE_MDS": "1",
+          "CLAUDE_CODE_DISABLE_AUTO_MEMORY": "1",
+          "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+          "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1",
+          "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": "1",
+          "CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL": "1",
+          "DISABLE_AUTOUPDATER": "1",
+          "DISABLE_UPDATES": "1",
+          "DISABLE_TELEMETRY": "1",
+          "DISABLE_ERROR_REPORTING": "1",
+          "DISABLE_BUG_COMMAND": "1",
+          "DISABLE_FEEDBACK_COMMAND": "1"
+        },
+        "strict_mcp_config": true,
+        "ancestor_memory_files_disabled": [
+          "~/AGENTS.md",
+          "~/.claude/CLAUDE.md"
+        ],
+        "contamination_suspect_runs": 1,
+        "kill_command_runs": 0,
+        "killed_attempts": 0,
+        "agent_env_restores": {
+          "2.11": 0,
+          "3.3": 0
+        }
+      }
+    }
+  ],
+  "consistency_warnings": [],
+  "superseded_placeholders": []
+}

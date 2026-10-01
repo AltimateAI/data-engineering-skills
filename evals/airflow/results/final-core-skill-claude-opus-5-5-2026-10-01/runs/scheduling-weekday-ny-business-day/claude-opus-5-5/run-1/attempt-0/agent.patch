@@ -1,0 +1,76 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..2c3807f 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,6 +3,10 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Runs every weekday at 06:00 New York time and reports the previous business
++day (Monday's run reports Friday). Bank holidays are not skipped. To reprocess
++a specific trade date, trigger with params {"day": "YYYY-MM-DD"}.
+ """
+ 
+ import csv
+@@ -10,11 +14,34 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.sdk import dag, task
++from airflow.sdk import CronTriggerTimetable, Param, dag, get_current_context, task
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
++NY_TZ = "America/New_York"
++
++
++def prev_business_day(d: pendulum.DateTime) -> pendulum.DateTime:
++    """Previous Mon-Fri day (no holiday calendar)."""
++    d = d.subtract(days=1)
++    while d.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
++        d = d.subtract(days=1)
++    return d
++
++
++def report_trade_date(dag_run, params=None) -> str:
++    """New York trade date (YYYY-MM-DD) this run reports on.
++
++    An explicit ``day`` param wins; otherwise the previous business day before
++    the run's tick (manual runs without a logical date use the trigger time).
++    """
++    day = (params or {}).get("day")
++    if day:
++        return pendulum.parse(day, tz=NY_TZ).to_date_string()
++    anchor = dag_run.logical_date or dag_run.run_after
++    run_day = pendulum.instance(anchor).in_tz(NY_TZ).start_of("day")
++    return prev_business_day(run_day).to_date_string()
+ 
+ 
+ def write_pnl_report(trade_date: str) -> Path:
+@@ -41,16 +68,20 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY_TZ),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY_TZ),
+     catchup=False,
++    max_active_runs=1,
++    params={"day": Param(None, type=["null", "string"], format="date")},
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report() -> str:
++        context = get_current_context()
++        trade_date = report_trade_date(context["dag_run"], context["params"])
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 

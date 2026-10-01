@@ -1,0 +1,154 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..3432bb9 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,11 +8,11 @@ from __future__ import annotations
+ 
+ import csv
+ import json
+-from datetime import datetime
+ from pathlib import Path
+ 
++import pendulum
+ from airflow.providers.standard.operators.bash import BashOperator
+-from airflow.sdk import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "partner_orders.csv"
+@@ -21,16 +21,52 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def _feed_day(context: dict) -> str:
++    """Return the calendar date (UTC, YYYY-MM-DD) this run should produce a feed for.
++
++    Decision rules (in priority order):
++    1. Scheduled / backfill run with an interval timetable: use data_interval_start.
++       Under CronDataIntervalTimetable the interval start is the logical_date, which
++       is the period that *just ended* — identical to 2.x behaviour.
++    2. Manual trigger with an explicit logical date: use logical_date (dag_run carries
++       the date the operator selected, which stays fixed even if the run is cleared
++       and re-run later).
++    3. Manual trigger with NO logical date (logical_date is None on Airflow 3.x):
++       use dag_run.run_after — the UTC timestamp of when the trigger button was
++       pressed.  run_after is immutable, so clearing and re-running tomorrow still
++       produces today's feed.
++
++    dag_run.* datetimes are stdlib datetime objects; wrap with pendulum.instance()
++    before calling pendulum methods.
++    """
++    dag_run = context["dag_run"]
++
++    # Case 1 & 2: logical_date is set (scheduled runs and manual runs with a date).
++    logical_date = context.get("logical_date")
++    if logical_date is not None:
++        return pendulum.instance(logical_date).in_tz("UTC").strftime("%Y-%m-%d")
++
++    # Case 3: manual trigger with no logical date — fall back to run_after (UTC).
++    return pendulum.instance(dag_run.run_after).in_tz("UTC").strftime("%Y-%m-%d")
++
++
+ @dag(
+-    schedule="0 4 * * *",
+-    start_date=datetime(2026, 1, 1),
++    # CronDataIntervalTimetable preserves Airflow 2.x interval semantics:
++    # the run that fires at 04:00 on day D has logical_date = D-1 04:00
++    # and data_interval_start = D-1 04:00 -> data_interval_end = D 04:00.
++    # ds / logical_date therefore refer to D-1, matching the previous behaviour.
++    schedule=CronDataIntervalTimetable("0 4 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["partner", "acme"],
++    # Expose a 'day' param so operators can reprocess a specific date without
++    # creating a duplicate logical_date in the metadata DB.
++    params={},
+ )
+ def partner_feed():
+     @task
+     def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++        day = _feed_day(context)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -47,7 +83,7 @@ def partner_feed():
+ 
+     @task
+     def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++        day = _feed_day(context)
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -56,19 +92,29 @@ def partner_feed():
+         )
+         return str(manifest)
+ 
++    @task
++    def get_day(**context) -> str:
++        """Push the feed day as an XCom so the BashOperator can use it."""
++        return _feed_day(context)
++
++    day_str = get_day()
++
+     deliver = BashOperator(
+         task_id="deliver",
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+             " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='get_day') | replace('-', '') }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='get_day') | replace('-', '') }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )
+ 
+-    write_manifest(extract_orders()) >> deliver
++    feed_path = extract_orders()
++    manifest_path = write_manifest(feed_path)
++    day_str >> deliver
++    manifest_path >> deliver
+ 
+ 
+ partner_feed()
+diff --git a/outbox/acme/acme_orders_20260930.csv b/outbox/acme/acme_orders_20260930.csv
+new file mode 100644
+index 0000000..f8e1b35
+--- /dev/null
++++ b/outbox/acme/acme_orders_20260930.csv
+@@ -0,0 +1 @@
++order_id,sku,qty,amount
+diff --git a/outbox/acme/acme_orders_20260930.manifest.json b/outbox/acme/acme_orders_20260930.manifest.json
+new file mode 100644
+index 0000000..8ff9f05
+--- /dev/null
++++ b/outbox/acme/acme_orders_20260930.manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-09-30",
++  "row_count": 0
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-09-30/manifest.json b/output/partner_feed/2026-09-30/manifest.json
+new file mode 100644
+index 0000000..8ff9f05
+--- /dev/null
++++ b/output/partner_feed/2026-09-30/manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-09-30",
++  "row_count": 0
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-09-30/orders.csv b/output/partner_feed/2026-09-30/orders.csv
+new file mode 100644
+index 0000000..f8e1b35
+--- /dev/null
++++ b/output/partner_feed/2026-09-30/orders.csv
+@@ -0,0 +1 @@
++order_id,sku,qty,amount

@@ -1,0 +1,9 @@
+I added `dags/daily_revenue.py`, which runs at 03:00 UTC and reports on the previous UTC calendar day.
+
+I ran it with `airflow dags test` for the 03:00 run on 2026-09-29. It wrote `output/daily_revenue/2026-09-28.csv` with S01–S04 and 32 orders in total. That matches the 32 rows for 09-28 in `orders.csv`. I deleted that test output and the scratch Airflow setup afterwards. `output/` is empty and the new DAG file is the only change.
+
+- **Which day it reports:** the day comes from the run's logical date, which is the 03:00 run time under Airflow's cron schedule. It takes that date minus one day, so the 03:00 run on the 29th reports the 28th. Reruns and backfills read the same logical date, so they rebuild the same file. If a run has no logical date, such as a manual trigger without one, it falls back to the run's `run_after` time.
+- **What's in the file:** orders with `order_ts` from 00:00 up to, but not including, the next 00:00. The columns are `store_id,orders,revenue`, sorted by `store_id`. Revenue is summed as exact decimals and rounded to 2 places.
+- **Reruns:** the file is written to a temp name and then swapped in, so the reporting tool never sees a half-written file.
+- **Rerun window:** `start_date` is 2026-09-02, so the first scheduled run reports 2026-09-01. `catchup=False`, so the scheduler won't fire all the missed days itself. To fill or redo any day since 09-01, use an Airflow backfill or clear that day's run.
+- **Quiet days:** a store with no orders on a day gets no row, rather than a row of zeros. Tell me if Finance wants zero rows for every store in `stores.csv`.

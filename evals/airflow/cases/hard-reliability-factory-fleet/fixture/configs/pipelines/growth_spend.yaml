@@ -1,0 +1,28 @@
+name: growth_spend
+team: growth
+tier: standard
+description: Spend pipeline for growth
+schedule:
+  hour: 1
+  days: 1-5
+steps:
+- name: extract
+  table: growth.raw_spend_00
+- name: stage
+  table: growth.stg_spend_00
+  depends_on:
+  - extract
+- name: transform
+  table: growth.int_spend_00
+  depends_on:
+  - stage
+  - extract
+- name: snapshot
+  table: growth.int_spend_00
+  depends_on:
+  - transform
+  - stage
+- name: publish
+  table: growth.mart_spend_00
+  depends_on:
+  - snapshot

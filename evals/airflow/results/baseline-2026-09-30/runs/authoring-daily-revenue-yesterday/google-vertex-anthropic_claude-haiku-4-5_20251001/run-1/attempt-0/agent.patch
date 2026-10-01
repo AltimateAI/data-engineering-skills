@@ -1,0 +1,101 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..8245467
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,95 @@
++"""Generate daily revenue reports per store from the previous calendar day.
++
++Runs at 03:00 UTC daily and reports on the previous calendar day (midnight to
++midnight UTC). Late orders trickle in until about 2am UTC, so the 03:00 run
++ensures all orders for a day are captured.
++
++For example: The run on 2026-09-29 03:00 UTC reports on 2026-09-28 (all orders
++between 2026-09-28 00:00:00 and 2026-09-29 00:00:00 UTC).
++
++Output: output/daily_revenue/<YYYY-MM-DD>.csv with columns:
++  - store_id
++  - orders (count of orders)
++  - revenue (sum of amounts, rounded to 2 decimals)
++  Sorted by store_id.
++"""
++
++from __future__ import annotations
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task
++from pathlib import Path
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["finance", "daily"],
++)
++def daily_revenue():
++    """Generate daily revenue report for the previous calendar day."""
++
++    @task
++    def compute_daily_revenue(ds: str) -> str:
++        """
++        Compute daily revenue for the previous calendar day.
++
++        Args:
++            ds: The DAG run's logical date (YYYY-MM-DD). We report on the day
++                before this date (ds - 1 day).
++
++        Returns:
++            Path to the output CSV file.
++        """
++        # Parse the logical date and compute the report date (previous day)
++        logical_date = pendulum.parse(ds)
++        report_date = logical_date.subtract(days=1)
++
++        # Define the time window: entire UTC day
++        window_start = report_date.start_of("day")
++        window_end = report_date.end_of("day").add(microseconds=1)
++
++        # Load orders
++        orders_path = PROJECT_ROOT / "data" / "orders.csv"
++        df = pd.read_csv(orders_path)
++
++        # Convert order_ts to datetime
++        df["order_ts"] = pd.to_datetime(df["order_ts"], utc=True)
++
++        # Filter to the report day (previous calendar day, midnight to midnight UTC)
++        df_day = df[
++            (df["order_ts"] >= window_start) & (df["order_ts"] < window_end)
++        ]
++
++        # Aggregate by store_id
++        summary = (
++            df_day.groupby("store_id", as_index=False)
++            .agg(
++                orders=("order_id", "count"),
++                revenue=("amount", "sum"),
++            )
++            .sort_values("store_id")
++            .reset_index(drop=True)
++        )
++
++        # Round revenue to 2 decimals
++        summary["revenue"] = summary["revenue"].round(2)
++
++        # Create output directory
++        output_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        output_dir.mkdir(parents=True, exist_ok=True)
++
++        # Write to CSV with the date (report_date) in the filename
++        output_path = output_dir / f"{report_date.format('YYYY-MM-DD')}.csv"
++        summary.to_csv(output_path, index=False)
++
++        return str(output_path)
++
++    compute_daily_revenue()
++
++
++daily_revenue()

@@ -1,0 +1,267 @@
+diff --git a/dags/claims_intake_hourly.py b/dags/claims_intake_hourly.py
+index a3d04a0..3018655 100644
+--- a/dags/claims_intake_hourly.py
++++ b/dags/claims_intake_hourly.py
+@@ -12,17 +12,19 @@ import csv
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
++from airflow.timetables.interval import CronDataIntervalTimetable as CoreCronDataIntervalTimetable
+ 
+ from claims_lib import LAKE
+ from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_dataset
+ from claims_lib.hooks import ClaimsExportHook
+ 
++CRON = "0 * * * *"  # @hourly
+ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "received_at"]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable(CRON, timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -31,7 +33,11 @@ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "
+ )
+ def claims_intake_hourly():
+     @task(outlets=[CLAIMS_BY_SERVICE_DATE])
+-    def land_claims(data_interval_start=None, data_interval_end=None, outlet_events=None) -> int:
++    def land_claims(data_interval_start=None, data_interval_end=None, dag_run=None, outlet_events=None) -> int:
++        if data_interval_start is None:  # manual trigger: latest closed hour, as on Airflow 2
++            interval = CoreCronDataIntervalTimetable(CRON, timezone="UTC").infer_manual_data_interval(
++                run_after=pendulum.instance(dag_run.run_after))
++            data_interval_start, data_interval_end = interval.start, interval.end
+         lo = data_interval_start.strftime("%Y-%m-%d %H:%M:%S")
+         hi = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         by_day: dict[str, list[dict]] = defaultdict(list)
+diff --git a/dags/claims_reprocess.py b/dags/claims_reprocess.py
+index 4a4bceb..3afef29 100644
+--- a/dags/claims_reprocess.py
++++ b/dags/claims_reprocess.py
+@@ -12,9 +12,8 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+-from airflow.models.param import Param
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import Param, dag, task
+ 
+ from claims_lib import LAKE, MARTS
+ from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_dataset
+@@ -33,8 +32,9 @@ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "
+ )
+ def claims_reprocess():
+     @task(outlets=[CLAIMS_BY_SERVICE_DATE])
+-    def recheck_partition(params=None, logical_date=None, outlet_events=None) -> int:
++    def recheck_partition(params=None, dag_run=None, outlet_events=None) -> int:
+         day = params["service_date"]
++        logical_date = pendulum.instance(dag_run.logical_date or dag_run.run_after)  # trigger time
+         cutoff = logical_date.strftime("%Y-%m-%d %H:%M:%S")
+         part = LAKE / "claims" / f"service_date={day}"
+         landed = set()
+@@ -55,7 +55,7 @@ def claims_reprocess():
+     log_recheck = BashOperator(
+         task_id="log_recheck",
+         bash_command=(
+-            "echo \"{{ params.service_date }} rechecked at {{ ts }}: "
++            "echo \"{{ params.service_date }} rechecked at {{ (dag_run.logical_date or dag_run.run_after) | ts }}: "
+             "{{ ti.xcom_pull(task_ids='recheck_partition') }} claim(s) recovered\" "
+             f">> {MARTS}/_RECHECK_LOG"
+         ),
+diff --git a/dags/claims_service_date_marts.py b/dags/claims_service_date_marts.py
+index 6cecf88..0d531a6 100644
+--- a/dags/claims_service_date_marts.py
++++ b/dags/claims_service_date_marts.py
+@@ -15,8 +15,8 @@ import json
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import dag, task
+ 
+ from claims_lib import LAKE, MARTS
+ from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_of
+@@ -50,10 +50,11 @@ def rebuild_mart(day: str) -> None:
+ )
+ def claims_service_date_marts():
+     @task
+-    def rebuild_partitions(triggering_dataset_events=None) -> list[str]:
++    def rebuild_partitions(triggering_asset_events=None) -> list[str]:
+         new_claims: dict[str, int] = defaultdict(int)
+-        for uri, events in triggering_dataset_events.items():
+-            new_claims[partition_of(uri)] += sum(event.extra.get("claims", 0) for event in events)
++        # Each event is listed under its partition asset and again under the alias; read it once via the alias.
++        for event in triggering_asset_events[CLAIMS_BY_SERVICE_DATE]:
++            new_claims[partition_of(event.asset.uri)] += event.extra.get("claims", 0)
+         days = sorted(new_claims)
+         for day in days:
+             rebuild_mart(day)
+@@ -63,14 +64,14 @@ def claims_service_date_marts():
+         record.write_text(json.dumps({"new_claims": new_claims}, indent=2, sort_keys=True) + "\n")
+         return days
+ 
+-    publish = BashOperator(
++    publish_ready = BashOperator(
+         task_id="publish_ready",
+         bash_command=(
+             "echo \"{{ ti.xcom_pull(task_ids='rebuild_partitions') | join(',') }}\" "
+             f">> {MARTS}/_READY_PARTITIONS"
+         ),
+     )
+-    rebuild_partitions() >> publish
++    rebuild_partitions() >> publish_ready
+ 
+ 
+ claims_service_date_marts()
+diff --git a/dags/denials_digest_daily.py b/dags/denials_digest_daily.py
+index 2d92a6a..dbe0448 100644
+--- a/dags/denials_digest_daily.py
++++ b/dags/denials_digest_daily.py
+@@ -10,22 +10,47 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ from claims_lib import LAKE, MARTS, PROJECT_ROOT
++from claims_lib.assets import PROVIDERS
++
++
++def directory_version_as_of(provider_events, as_of: pendulum.DateTime) -> str | None:
++    """Version published by the latest provider_directory_daily run dated at or before ``as_of``.
++
++    Same lookup as the Airflow 2 ``xcom_pull(dag_id="provider_directory_daily", include_prior_dates=True)``;
++    a run's date is its logical date, or its trigger time for a manual run.
++    """
++    candidates = []
++    for event in provider_events:
++        if event.source_dag_id != "provider_directory_daily" or event.source_task_id != "sync_providers":
++            continue
++        run = event.source_dag_run
++        if run is not None:
++            run_date = pendulum.instance(run.logical_date or run.run_after)
++            if run_date <= as_of:
++                candidates.append((run_date, event))
++    for _, event in sorted(candidates, key=lambda c: c[0], reverse=True):
++        version = event.source_task_instance.xcom_pull()
++        if version is not None:
++            return version
++    return None
+ 
+ 
+ @dag(
+-    schedule_interval="0 7 * * *",
++    schedule=CronDataIntervalTimetable("0 7 * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "claims-ops"},
+     tags=["claims", "reporting"],
+ )
+ def denials_digest_daily():
+-    @task
+-    def build_digest(ds=None, ti=None) -> str:
+-        version = ti.xcom_pull(dag_id="provider_directory_daily", task_ids="sync_providers", include_prior_dates=True)
++    @task(inlets=[PROVIDERS])
++    def build_digest(dag_run=None, inlet_events=None) -> str:
++        as_of = pendulum.instance(dag_run.logical_date or dag_run.run_after)  # manual run: trigger time
++        ds = as_of.to_date_string()
++        version = directory_version_as_of(inlet_events[PROVIDERS], as_of)
+         with (LAKE / "providers" / f"{version}.csv").open(newline="") as fh:
+             directory = {r["provider_id"]: r for r in csv.DictReader(fh)}
+         mart = MARTS / "claims_by_service_date" / f"{ds}.csv"
+diff --git a/dags/provider_directory_daily.py b/dags/provider_directory_daily.py
+index 533c4b1..aac0971 100644
+--- a/dags/provider_directory_daily.py
++++ b/dags/provider_directory_daily.py
+@@ -11,7 +11,7 @@ import csv
+ import hashlib
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ from claims_lib import LAKE
+ from claims_lib.assets import PROVIDERS
+@@ -21,7 +21,7 @@ COLUMNS = ("provider_id", "name", "network")
+ 
+ 
+ @dag(
+-    schedule_interval="0 3 * * *",
++    schedule=CronDataIntervalTimetable("0 3 * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "claims-data", "retries": 1},
+@@ -29,7 +29,8 @@ COLUMNS = ("provider_id", "name", "network")
+ )
+ def provider_directory_daily():
+     @task(outlets=[PROVIDERS])
+-    def sync_providers(ds=None, ti=None) -> str:
++    def sync_providers(dag_run=None, ti=None) -> str:
++        ds = pendulum.instance(dag_run.logical_date or dag_run.run_after).to_date_string()  # manual: trigger date
+         rows = [r for r in ClaimsExportHook().read("providers_export.csv") if r["valid_from"] == ds]
+         out = LAKE / "providers" / f"{ds}.csv"
+         out.parent.mkdir(parents=True, exist_ok=True)
+@@ -41,7 +42,7 @@ def provider_directory_daily():
+ 
+         fingerprint = hashlib.sha256(
+             "\n".join(",".join(r[k] for k in COLUMNS) for r in rows).encode()).hexdigest()
+-        previous = ti.xcom_pull(task_ids="sync_providers", key="fingerprint", include_prior_dates=True)
++        previous = ti.xcom_pull(task_ids="sync_providers", key="fingerprint", include_prior_dates=True, map_indexes=-1)
+         status = "first snapshot" if previous is None else ("unchanged" if previous == fingerprint else "changed")
+         (LAKE / "providers" / f"{ds}.status").write_text(status + "\n")
+         ti.xcom_push(key="fingerprint", value=fingerprint)
+diff --git a/plugins/claims_lib/assets.py b/plugins/claims_lib/assets.py
+index 728dc64..1513ee9 100644
+--- a/plugins/claims_lib/assets.py
++++ b/plugins/claims_lib/assets.py
+@@ -7,15 +7,15 @@ not need to know the partitions in advance.
+ 
+ from __future__ import annotations
+ 
+-from airflow.datasets import Dataset, DatasetAlias
++from airflow.sdk import Asset, AssetAlias
+ 
+-CLAIMS_BY_SERVICE_DATE = DatasetAlias("claims-by-service-date")
+-PROVIDERS = Dataset("lake://claims/providers")
++CLAIMS_BY_SERVICE_DATE = AssetAlias("claims-by-service-date")
++PROVIDERS = Asset("lake://claims/providers")
+ PARTITION_PREFIX = "lake://claims/service_date="
+ 
+ 
+-def partition_dataset(service_date: str) -> Dataset:
+-    return Dataset(f"{PARTITION_PREFIX}{service_date}")
++def partition_dataset(service_date: str) -> Asset:
++    return Asset(f"{PARTITION_PREFIX}{service_date}")
+ 
+ 
+ def partition_of(uri: str) -> str:
+diff --git a/plugins/claims_lib/hooks.py b/plugins/claims_lib/hooks.py
+index 02b963c..4c66951 100644
+--- a/plugins/claims_lib/hooks.py
++++ b/plugins/claims_lib/hooks.py
+@@ -5,7 +5,7 @@ from __future__ import annotations
+ import csv
+ from pathlib import Path
+ 
+-from airflow.hooks.base import BaseHook
++from airflow.sdk import BaseHook
+ 
+ 
+ class ClaimsExportHook(BaseHook):
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..c5d277a 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ pendulum==3.2.0

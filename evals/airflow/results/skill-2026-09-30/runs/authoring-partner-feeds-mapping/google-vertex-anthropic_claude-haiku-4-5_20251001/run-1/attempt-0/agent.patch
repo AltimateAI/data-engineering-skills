@@ -1,0 +1,134 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..ba33c7f
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,128 @@
++"""Daily processing of partner order files with dynamic task mapping per file."""
++
++from __future__ import annotations
++
++import json
++from pathlib import Path
++from typing import Any
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 2 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["partners"],
++)
++def partner_feeds():
++    """
++    Process daily partner order files.
++
++    For each file in data/partner_drop/<date>/<partner>.csv:
++    - Parse CSV (columns: order_id, amount)
++    - Write JSON output/partner_feeds/<date>/<partner>.json with:
++      {"partner": <name>, "rows": <count>, "total_amount": <sum to 2dp>}
++
++    Then write summary: output/partner_feeds/<date>/summary.json with:
++      {"files": <count>, "rows": <total>, "total_amount": <total to 2dp>}
++
++    Always writes summary, even if no files exist that day.
++    """
++
++    @task
++    def discover_files(ds: str) -> list[dict[str, str]]:
++        """
++        Discover all partner CSV files for the run date.
++
++        Returns list of dicts with 'partner', 'file_path', and 'ds' keys.
++        Returns empty list if the date folder doesn't exist.
++        """
++        date_folder = PROJECT_ROOT / "data" / "partner_drop" / ds
++        files = []
++
++        if not date_folder.exists():
++            # No files for this date; summary task will handle it
++            return files
++
++        # Collect all .csv files in the date folder
++        for csv_file in sorted(date_folder.glob("*.csv")):
++            partner_name = csv_file.stem  # filename without .csv
++            files.append({
++                "partner": partner_name,
++                "file_path": str(csv_file),
++                "ds": ds,
++            })
++
++        return files
++
++    @task
++    def process_partner_file(file_info: dict[str, str]) -> dict[str, Any]:
++        """
++        Process a single partner CSV file.
++
++        Reads CSV, calculates metrics, and writes output JSON in one task.
++        Returns dict: {"partner": <name>, "rows": <count>, "total_amount": <sum>}
++        """
++        partner = file_info["partner"]
++        file_path = Path(file_info["file_path"])
++        ds = file_info["ds"]
++
++        # Read CSV and calculate metrics
++        df = pd.read_csv(file_path)
++        row_count = len(df)
++        total_amount = round(float(df["amount"].sum()), 2)
++
++        # Write partner output
++        output_dir = PROJECT_ROOT / "output" / "partner_feeds" / ds
++        output_dir.mkdir(parents=True, exist_ok=True)
++
++        output_file = output_dir / f"{partner}.json"
++        metrics = {
++            "partner": partner,
++            "rows": row_count,
++            "total_amount": total_amount,
++        }
++        output_file.write_text(json.dumps(metrics, indent=2))
++
++        return metrics
++
++    @task
++    def write_summary(ds: str, partner_results: list[dict[str, Any]]) -> str:
++        """
++        Write summary JSON aggregating all partner files for the date.
++
++        Runs even if partner_results is empty (handles days with no files).
++        """
++        output_dir = PROJECT_ROOT / "output" / "partner_feeds" / ds
++        output_dir.mkdir(parents=True, exist_ok=True)
++
++        summary = {
++            "files": len(partner_results),
++            "rows": sum(r["rows"] for r in partner_results),
++            "total_amount": round(
++                sum(r["total_amount"] for r in partner_results), 2
++            ),
++        }
++
++        output_file = output_dir / "summary.json"
++        output_file.write_text(json.dumps(summary, indent=2))
++
++        return str(output_file)
++
++    # Execution flow
++    files = discover_files(ds="{{ ds }}")
++
++    # Dynamically process each file
++    # expand() creates one task instance per item in files
++    partner_results = process_partner_file.expand(file_info=files)
++
++    # Write summary, collecting all partner outputs
++    write_summary(ds="{{ ds }}", partner_results=partner_results)
++
++
++partner_feeds()

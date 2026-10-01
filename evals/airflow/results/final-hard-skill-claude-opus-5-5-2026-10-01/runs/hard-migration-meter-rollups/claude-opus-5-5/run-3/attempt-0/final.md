@@ -1,0 +1,1 @@
+The readings replay (144 hourly runs per side) is still running. When it finishes I'll run the rollup harness on both sides, then the second plan: tariffs, billing and registry scheduled runs plus the runbook manual triggers.

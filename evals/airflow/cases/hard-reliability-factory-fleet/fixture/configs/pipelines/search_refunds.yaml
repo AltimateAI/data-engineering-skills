@@ -1,0 +1,27 @@
+name: search_refunds
+team: search
+tier: standard
+description: Refunds pipeline for search
+schedule:
+  hour: 1
+  days: 1-5
+steps:
+- name: extract
+  table: search.raw_refunds_00
+- name: validate
+  table: search.int_refunds_00
+  depends_on:
+  - extract
+- name: enrich
+  table: search.int_refunds_00
+  depends_on:
+  - validate
+  - extract
+- name: aggregate
+  table: search.int_refunds_00
+  depends_on:
+  - enrich
+- name: publish
+  table: search.mart_refunds_00
+  depends_on:
+  - aggregate

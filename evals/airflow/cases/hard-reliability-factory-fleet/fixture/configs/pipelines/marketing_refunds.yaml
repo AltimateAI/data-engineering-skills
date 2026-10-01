@@ -1,0 +1,18 @@
+name: marketing_refunds
+team: marketing
+tier: standard
+description: Refunds pipeline for marketing
+schedule:
+  hour: 3
+  days: '1'
+steps:
+- name: extract
+  table: marketing.raw_refunds_00
+- name: aggregate
+  table: marketing.int_refunds_00
+  depends_on:
+  - extract
+- name: publish
+  table: marketing.mart_refunds_00
+  depends_on:
+  - aggregate

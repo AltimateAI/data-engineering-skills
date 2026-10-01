@@ -1,0 +1,24 @@
+name: marketing_queries
+team: marketing
+tier: standard
+description: Queries pipeline for marketing
+schedule:
+  hour: 1
+  days: '*'
+owners:
+- dara
+steps:
+- name: extract
+  table: marketing.raw_queries_00
+- name: transform
+  table: marketing.int_queries_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: marketing.int_queries_00
+  depends_on:
+  - transform
+- name: publish
+  table: marketing.mart_queries_00
+  depends_on:
+  - aggregate

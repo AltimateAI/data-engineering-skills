@@ -1,0 +1,146 @@
+diff --git a/dags/carrier_scorecard.py b/dags/carrier_scorecard.py
+index 2d4f784..aa34305 100644
+--- a/dags/carrier_scorecard.py
++++ b/dags/carrier_scorecard.py
+@@ -7,18 +7,17 @@ from collections import defaultdict
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.datasets import Dataset
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, Asset
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+ SCORECARD_DIR = PROJECT_ROOT / "output" / "scorecard"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ 
+ 
+-def build_scorecard(ti, **_):
++def write_scorecard(ti, **_):
+     latest: dict[str, dict] = {}
+     for batch in sorted(BATCH_DIR.glob("batch_*.csv")):
+         with batch.open(newline="") as fh:
+@@ -57,13 +56,13 @@ with DAG(
+     params={"scorecard_dir": str(SCORECARD_DIR)},
+     tags=["logistics", "reporting"],
+ ) as dag:
+-    build = PythonOperator(task_id="build_scorecard", python_callable=build_scorecard)
++    build_scorecard = PythonOperator(task_id="build_scorecard", python_callable=write_scorecard)
+     mark_ready = BashOperator(
+         task_id="mark_ready",
+         bash_command=(
+-            "echo 'carriers={{ ti.xcom_pull(key=\"carriers\") }} "
+-            "shipments={{ ti.xcom_pull(key=\"shipments\") }}' "
++            "echo 'carriers={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"carriers\") }} "
++            "shipments={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"shipments\") }}' "
+             "> {{ params.scorecard_dir }}/_READY"
+         ),
+     )
+-    build >> mark_ready
++    build_scorecard >> mark_ready
+diff --git a/dags/ingest_shipments.py b/dags/ingest_shipments.py
+index d5050e6..6dec4c6 100644
+--- a/dags/ingest_shipments.py
++++ b/dags/ingest_shipments.py
+@@ -3,7 +3,7 @@
+ Each run appends one batch file with every event that arrived since the
+ previous run's high-water mark (the largest ``updated_at`` it loaded, kept in
+ XCom) up to the end of the run's interval. Publishing the batch updates the
+-``shipments`` dataset, which triggers ``carrier_scorecard``.
++``shipments`` asset, which triggers ``carrier_scorecard``.
+ """
+ 
+ from __future__ import annotations
+@@ -12,36 +12,34 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.datasets import Dataset
+-from airflow.decorators import dag, task
+-from airflow.models import XCom
+-from airflow.utils.session import provide_session
++from airflow.sdk import Asset, CronDataIntervalTimetable, dag, task
++from airflow.timetables.interval import CronDataIntervalTimetable as CoreCronDataIntervalTimetable
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ SOURCE = PROJECT_ROOT / "data" / "carrier_events.csv"
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ FIELDS = ["event_id", "shipment_id", "carrier", "status", "promised_date", "updated_at"]
++CRON = "0 * * * *"  # @hourly
+ 
+ 
+-@provide_session
+-def previous_watermark(session=None) -> str | None:
++def previous_watermark(ti) -> str | None:
+     """High-water mark stored by the most recent load."""
+-    row = (
+-        session.query(XCom)
+-        .filter(
+-            XCom.dag_id == "ingest_shipments",
+-            XCom.task_id == "load_batch",
+-            XCom.key == "watermark",
+-        )
+-        .order_by(XCom.timestamp.desc())
+-        .first()
++    return ti.xcom_pull(task_ids="load_batch", key="watermark", include_prior_dates=True, map_indexes=-1)
++
++
++def interval_end(data_interval_end, dag_run) -> pendulum.DateTime:
++    """End of the run's interval; manual triggers get the latest closed hour, as on Airflow 2."""
++    if data_interval_end is not None:
++        return pendulum.instance(data_interval_end)
++    manual = CoreCronDataIntervalTimetable(CRON, timezone="UTC").infer_manual_data_interval(
++        run_after=pendulum.instance(dag_run.run_after)
+     )
+-    return row.value if row else None
++    return manual.end
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable(CRON, timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -50,21 +48,25 @@ def previous_watermark(session=None) -> str | None:
+ )
+ def ingest_shipments():
+     @task(outlets=[SHIPMENTS])
+-    def load_batch(data_interval_end=None, ti=None) -> int:
+-        watermark = previous_watermark()
+-        upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
++    def load_batch(data_interval_end=None, dag_run=None, ti=None) -> int:
++        watermark = previous_watermark(ti)
++        end = interval_end(data_interval_end, dag_run)
++        upper = end.strftime("%Y-%m-%d %H:%M:%S")
+         with SOURCE.open(newline="") as fh:
+             rows = [
+                 r
+                 for r in csv.DictReader(fh)
+                 if r["updated_at"] <= upper and (watermark is None or r["updated_at"] > watermark)
+             ]
+-        out = BATCH_DIR / f"batch_{data_interval_end.strftime('%Y%m%dT%H%M')}.csv"
++        out = BATCH_DIR / f"batch_{end.strftime('%Y%m%dT%H%M')}.csv"
+         out.parent.mkdir(parents=True, exist_ok=True)
+-        with out.open("w", newline="") as fh:
+-            writer = csv.DictWriter(fh, fieldnames=FIELDS)
+-            writer.writeheader()
+-            writer.writerows(rows)
++        # A manual trigger or re-run of an hour that is already loaded finds no new
++        # events; never replace a loaded batch with an empty one.
++        if rows or not out.exists():
++            with out.open("w", newline="") as fh:
++                writer = csv.DictWriter(fh, fieldnames=FIELDS)
++                writer.writeheader()
++                writer.writerows(rows)
+         ti.xcom_push(key="watermark", value=max((r["updated_at"] for r in rows), default=watermark))
+         return len(rows)
+ 

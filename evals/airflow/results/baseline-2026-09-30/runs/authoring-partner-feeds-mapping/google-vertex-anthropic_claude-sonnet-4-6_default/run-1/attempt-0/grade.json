@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG partner_feeds exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['partner_feeds', 'partner_registry_export']"
+    },
+    {
+      "name": "task set is independent of files present at parse time",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"fixture data\": [\"list_partners\", \"process_partner\", \"write_summary\"], \"no partner_drop dir\": [\"list_partners\", \"process_partner\", \"write_summary\"], \"extra files\": [\"list_partners\", \"process_partner\", \"write_summary\"]}"
+    },
+    {
+      "name": "uses dynamic task mapping",
+      "kind": "primary",
+      "passed": true,
+      "detail": "mapped tasks: ['process_partner']"
+    },
+    {
+      "name": "airflow dags test succeeds for 0, 1 and N files",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "one mapped task instance per file (0/1/N)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'2026-09-01': 0, '2026-09-02': 1, '2026-09-03': 4}; expanded instances per mapped task: {'2026-09-01': {}, '2026-09-02': {'process_partner': 1}, '2026-09-03': {'process_partner': 4}}"
+    },
+    {
+      "name": "per-partner result files are correct",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "summary is correct, including the day with no files",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "rerun of a day reproduces the same outputs",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-09-03: summary expected {'files': 4, 'rows': 30, 'total_amount': 7988.86} got {'files': 4, 'rows': 30, 'total_amount': 7988.86}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "12 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

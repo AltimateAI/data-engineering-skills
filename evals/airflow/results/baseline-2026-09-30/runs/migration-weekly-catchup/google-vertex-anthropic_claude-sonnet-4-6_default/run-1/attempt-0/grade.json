@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['campaign_sync', 'weekly_campaign_report']"
+    },
+    {
+      "name": "weekly_campaign_report keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['publish_manifest', 'summarize_week'] deps=[['summarize_week', 'publish_manifest']]"
+    },
+    {
+      "name": "dags test succeeds (weekly_campaign_report, campaign_sync)",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "scheduled Monday 06:00 runs succeed on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-03-09T06:00:00+00:00: state=success interval=[2026-03-09T06:00:00+00:00, 2026-03-09T06:00:00+00:00] failed=[]; 2026-03-16T06:00:00+00:00: state=success interval=[2026-03-16T06:00:00+00:00, 2026-03-16T06:00:00+00:00] failed=[]"
+    },
+    {
+      "name": "Monday runs report on the previous week, same output as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'manifests/2026-03-02.json': '{\"campaigns\": 4, \"week_end\": \"2026-03-09\", \"week_start\": \"2026-03-02\"}', 'manifests/2026-03-09.json': '{\"campaigns\": 4, \"week_end\": \"2026-03-16\", \"week_start\": \"2026-03-09\"}', 'weekly/2026-03-02.csv': 'campaign_id,spend,conversions,cost_per_conversion\\nC-101,4379.65,31,141.28\\nC-102,2985.82,44,67.86\\nC-205,3595.97,36,99.89\\nC-310,4849.46,32,151.55', 'weekly/2026-03-09.csv': 'campaign_id,spend,conversions,cost_per_conversion\\nC-101,5938.62,70,84.84\\nC-102,2937.86,42,69.95\\nC-205,1016.85,28,36.32\\nC-310,3803.94,23,165.39'}\n got {'manifests/2026-03-09.json': '{\"campaigns\": 0, \"week_end\": \"2026-03-09\", \"week_start\": \"2026-03-09\"}', 'manifests/2026-03-16.json': '{\"campaigns\": 0, \"week_end\": \"2026-03-16\", \"week_start\": \"2026-03-16\"}', 'weekly/2026-03-09.csv': 'campaign_id,spend,conversions,cost_per_conversion', 'weekly/2026-03-16.csv': 'campaign_id,spend,conversions,cost_per_conversion'}"
+    },
+    {
+      "name": "season backfill: scheduler creates the same weekly runs from start_date as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected run_afters ['2026-01-12T06:00:00+00:00', '2026-01-19T06:00:00+00:00', '2026-01-26T06:00:00+00:00', '2026-02-02T06:00:00+00:00', '2026-02-09T06:00:00+00:00', '2026-02-16T06:00:00+00:00', '2026-02-23T06:00:00+00:00', '2026-03-02T06:00:00+00:00', '2026-03-09T06:00:00+00:00', '2026-03-16T06:00:00+00:00']\n got {'catchup': False, 'timetable': 'CronTriggerTimetable', 'run_afters': []}"
+    },
+    {
+      "name": "late-report alert still fires at 09:00 UTC for the Monday run (Deadline Alert)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "alerts=[{'reference': 'DagRunLogicalDateDeadline', 'interval': '3:00:00', 'callback': 'unusual_prefix_e343ec1bb8e7260c899de9ccd883ae2dd0d7dc1b_weekly_campaign_report.notify_growth_oncall', 'due': '2026-03-09T09:00:00+00:00'}] found_run=True"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b', '\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.7142857142857143,
+  "secondary_score": 1.0
+}

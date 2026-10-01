@@ -1,0 +1,37 @@
+name: people_csat
+team: people
+tier: standard
+description: Csat pipeline for people
+schedule:
+  hour: 1
+  days: 1-5
+retries: 0
+steps:
+- name: extract
+  table: people.raw_csat_00
+- name: stage
+  table: people.stg_csat_00
+  depends_on:
+  - extract
+- name: transform
+  table: people.int_csat_00
+  depends_on:
+  - stage
+- name: enrich
+  table: people.int_csat_00
+  depends_on:
+  - transform
+  - stage
+- name: aggregate
+  table: people.int_csat_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: people.int_csat_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: people.mart_csat_00
+  depends_on:
+  - snapshot
+  - aggregate

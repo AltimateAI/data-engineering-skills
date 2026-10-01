@@ -1,0 +1,2162 @@
+{
+  "run_name": "final-triggers-2026-10-01",
+  "airflow_skill_names": [
+    "authoring-airflow-dags",
+    "migrating-to-airflow-3",
+    "testing-airflow-dags"
+  ],
+  "models": [
+    "claude-sonnet-5-5",
+    "claude-opus-5-5",
+    "claude-fable-5-1"
+  ],
+  "n_queries": 30,
+  "n_should_fire": 18,
+  "n_near_miss": 12,
+  "meta": {
+    "runs_per_query": 2,
+    "max_turns": 4,
+    "airflow_skills_sha256": "d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0",
+    "airflow_skills_unchanged": true,
+    "spent_usd": 40.0995,
+    "cap_usd": 150.0
+  },
+  "overall": {
+    "scored_runs": 180,
+    "unscored_runs": {},
+    "per_skill": {
+      "authoring-airflow-dags": {
+        "should_fire_runs": 36,
+        "fired_when_expected": 31,
+        "recall": 0.861,
+        "runs_where_fired": 31,
+        "precision": 1.0,
+        "wrong_airflow_skill_on_own_queries": 0,
+        "confusion_rate": 0.0,
+        "fired_on_other_airflow_queries": 0,
+        "near_miss_false_fires": 0,
+        "near_miss_false_fire_rate": 0.0
+      },
+      "migrating-to-airflow-3": {
+        "should_fire_runs": 36,
+        "fired_when_expected": 36,
+        "recall": 1.0,
+        "runs_where_fired": 36,
+        "precision": 1.0,
+        "wrong_airflow_skill_on_own_queries": 0,
+        "confusion_rate": 0.0,
+        "fired_on_other_airflow_queries": 0,
+        "near_miss_false_fires": 0,
+        "near_miss_false_fire_rate": 0.0
+      },
+      "testing-airflow-dags": {
+        "should_fire_runs": 36,
+        "fired_when_expected": 35,
+        "recall": 0.972,
+        "runs_where_fired": 35,
+        "precision": 1.0,
+        "wrong_airflow_skill_on_own_queries": 0,
+        "confusion_rate": 0.0,
+        "fired_on_other_airflow_queries": 0,
+        "near_miss_false_fires": 0,
+        "near_miss_false_fire_rate": 0.0
+      }
+    },
+    "near_miss": {
+      "runs": 72,
+      "any_airflow_false_fires": 0,
+      "false_fire_rate": 0.0
+    },
+    "confusion_matrix": {
+      "authoring-airflow-dags": {
+        "authoring-airflow-dags": 31,
+        "migrating-to-airflow-3": 0,
+        "testing-airflow-dags": 0,
+        "(no airflow skill)": 5,
+        "runs": 36
+      },
+      "migrating-to-airflow-3": {
+        "authoring-airflow-dags": 0,
+        "migrating-to-airflow-3": 36,
+        "testing-airflow-dags": 0,
+        "(no airflow skill)": 0,
+        "runs": 36
+      },
+      "testing-airflow-dags": {
+        "authoring-airflow-dags": 0,
+        "migrating-to-airflow-3": 0,
+        "testing-airflow-dags": 35,
+        "(no airflow skill)": 1,
+        "runs": 36
+      },
+      "None": {
+        "authoring-airflow-dags": 0,
+        "migrating-to-airflow-3": 0,
+        "testing-airflow-dags": 0,
+        "(no airflow skill)": 72,
+        "runs": 72
+      }
+    },
+    "outcomes": {
+      "hit": 102,
+      "miss": 6,
+      "quiet": 72
+    }
+  },
+  "by_model": {
+    "claude-sonnet-5-5": {
+      "scored_runs": 60,
+      "unscored_runs": {},
+      "per_skill": {
+        "authoring-airflow-dags": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 7,
+          "recall": 0.583,
+          "runs_where_fired": 7,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        },
+        "migrating-to-airflow-3": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        },
+        "testing-airflow-dags": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 11,
+          "recall": 0.917,
+          "runs_where_fired": 11,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        }
+      },
+      "near_miss": {
+        "runs": 24,
+        "any_airflow_false_fires": 0,
+        "false_fire_rate": 0.0
+      },
+      "confusion_matrix": {
+        "authoring-airflow-dags": {
+          "authoring-airflow-dags": 7,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 5,
+          "runs": 12
+        },
+        "migrating-to-airflow-3": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 12,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "testing-airflow-dags": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 11,
+          "(no airflow skill)": 1,
+          "runs": 12
+        },
+        "None": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 24,
+          "runs": 24
+        }
+      },
+      "outcomes": {
+        "hit": 30,
+        "miss": 6,
+        "quiet": 24
+      }
+    },
+    "claude-opus-5-5": {
+      "scored_runs": 60,
+      "unscored_runs": {},
+      "per_skill": {
+        "authoring-airflow-dags": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        },
+        "migrating-to-airflow-3": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        },
+        "testing-airflow-dags": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        }
+      },
+      "near_miss": {
+        "runs": 24,
+        "any_airflow_false_fires": 0,
+        "false_fire_rate": 0.0
+      },
+      "confusion_matrix": {
+        "authoring-airflow-dags": {
+          "authoring-airflow-dags": 12,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "migrating-to-airflow-3": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 12,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "testing-airflow-dags": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 12,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "None": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 24,
+          "runs": 24
+        }
+      },
+      "outcomes": {
+        "hit": 36,
+        "quiet": 24
+      }
+    },
+    "claude-fable-5-1": {
+      "scored_runs": 60,
+      "unscored_runs": {},
+      "per_skill": {
+        "authoring-airflow-dags": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        },
+        "migrating-to-airflow-3": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        },
+        "testing-airflow-dags": {
+          "should_fire_runs": 12,
+          "fired_when_expected": 12,
+          "recall": 1.0,
+          "runs_where_fired": 12,
+          "precision": 1.0,
+          "wrong_airflow_skill_on_own_queries": 0,
+          "confusion_rate": 0.0,
+          "fired_on_other_airflow_queries": 0,
+          "near_miss_false_fires": 0,
+          "near_miss_false_fire_rate": 0.0
+        }
+      },
+      "near_miss": {
+        "runs": 24,
+        "any_airflow_false_fires": 0,
+        "false_fire_rate": 0.0
+      },
+      "confusion_matrix": {
+        "authoring-airflow-dags": {
+          "authoring-airflow-dags": 12,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "migrating-to-airflow-3": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 12,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "testing-airflow-dags": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 12,
+          "(no airflow skill)": 0,
+          "runs": 12
+        },
+        "None": {
+          "authoring-airflow-dags": 0,
+          "migrating-to-airflow-3": 0,
+          "testing-airflow-dags": 0,
+          "(no airflow skill)": 24,
+          "runs": 24
+        }
+      },
+      "outcomes": {
+        "hit": 36,
+        "quiet": 24
+      }
+    }
+  },
+  "per_query": [
+    {
+      "query_id": "author-01",
+      "expected": "authoring-airflow-dags",
+      "context": "airflow3",
+      "query": "Add a DAG that picks up yesterday's orders CSV from the vendor drop folder every morning at 6am New York time and loads it into the staging table.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "author-02",
+      "expected": "authoring-airflow-dags",
+      "context": "airflow2",
+      "query": "customer_sync doesn't show up in the UI anymore, I think it has an import error. Can you fix it?",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "miss"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "author-03",
+      "expected": "authoring-airflow-dags",
+      "context": "airflow3",
+      "query": "The daily_revenue job is processing the wrong day. When it runs on the 5th it should aggregate the 4th, but it's aggregating the 5th. Please fix.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "author-04",
+      "expected": "authoring-airflow-dags",
+      "context": "airflow2",
+      "query": "Make the partner load wait until the partner's file for that day actually lands in S3 before it runs, and give up after 3 hours.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "author-05",
+      "expected": "authoring-airflow-dags",
+      "context": "airflow3",
+      "query": "Every time we rerun the events job it duplicates rows in analytics.events. Make it safe to rerun and backfill.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "miss"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "miss"
+        }
+      ]
+    },
+    {
+      "query_id": "author-06",
+      "expected": "authoring-airflow-dags",
+      "context": "airflow3",
+      "query": "In the orders pipeline, pass the number of rows loaded from the load step to the notify step so the message says how many orders came in.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "authoring-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "miss"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "miss"
+        }
+      ]
+    },
+    {
+      "query_id": "migrate-01",
+      "expected": "migrating-to-airflow-3",
+      "context": "airflow2",
+      "query": "We're moving to Airflow 3.3 next month. Port the DAGs in this repo so they work there.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "migrate-02",
+      "expected": "migrating-to-airflow-3",
+      "context": "airflow2",
+      "query": "Platform team says the new cluster runs Airflow 3.x only. What do I have to change in dags/ so nothing breaks when we switch? Go ahead and make the changes.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "migrate-03",
+      "expected": "migrating-to-airflow-3",
+      "context": "airflow2",
+      "query": "After bumping apache-airflow to 3.0 the scheduler logs TypeError: DAG.__init__() got an unexpected keyword argument 'schedule_interval'. Fix the DAGs.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "migrate-04",
+      "expected": "migrating-to-airflow-3",
+      "context": "airflow2",
+      "query": "Since the upgrade last week weekly_report covers the wrong week, and the SLA emails stopped. It worked fine on 2.11. Help me fix it.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "migrate-05",
+      "expected": "migrating-to-airflow-3",
+      "context": "airflow2",
+      "query": "Get this project running on the new 3.x virtualenv without changing which dates each run processes.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "migrate-06",
+      "expected": "migrating-to-airflow-3",
+      "context": "airflow2",
+      "query": "Remove everything in these DAGs that won't exist in Airflow 3: execution_date, next_ds, DummyOperator, provide_context, the sla argument.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "migrating-to-airflow-3"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "near-cron",
+      "expected": null,
+      "context": "python",
+      "query": "Set up a Linux cron job that runs scripts/cleanup.sh every night at 2am and logs output to /var/log/invoicer-cleanup.log.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-dagster",
+      "expected": null,
+      "context": "python",
+      "query": "Rewrite flows/etl.py as a Dagster job with a daily schedule at 04:00 UTC.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-databricks-job",
+      "expected": null,
+      "context": "dbt",
+      "query": "Create a Databricks job definition (JSON for the Jobs API) that runs dbt build for this project every day at 5am on a job cluster.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-dbt-debug",
+      "expected": null,
+      "context": "dbt",
+      "query": "dbt run fails with: Compilation Error: Model 'model.shop_analytics.orders' depends on a node named 'stg_customers' which was not found. Fix it.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "debugging-dbt-errors"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "debugging-dbt-errors"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "debugging-dbt-errors"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "debugging-dbt-errors"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "debugging-dbt-errors"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "debugging-dbt-errors"
+          ],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-dbt-model",
+      "expected": null,
+      "context": "dbt",
+      "query": "Add a new model fct_daily_orders that aggregates stg_orders to one row per day with order count and revenue.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "creating-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "creating-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "creating-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "creating-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "creating-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "creating-dbt-models"
+          ],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-dbt-test",
+      "expected": null,
+      "context": "dbt",
+      "query": "Add not_null and unique tests on order_id in the orders model, and a relationships test on customer_id.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-dbt-models"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-dbt-models"
+          ],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-gha",
+      "expected": null,
+      "context": "python",
+      "query": "Add a GitHub Actions workflow that runs scripts/nightly_report.py every day at 06:00 UTC and on manual dispatch.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-prefect",
+      "expected": null,
+      "context": "python",
+      "query": "Turn flows/etl.py into a Prefect flow with extract, transform and load as tasks, 3 retries each, deployed to run every hour.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-pytest",
+      "expected": null,
+      "context": "python",
+      "query": "Add pytest unit tests for invoice_total and line_total in src/invoicer/totals.py, including discount and rounding edge cases.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-snowflake",
+      "expected": null,
+      "context": "dbt",
+      "query": "This Snowflake query takes 4 minutes, can you make it faster? SELECT c.region, SUM(o.amount) FROM raw.orders o JOIN raw.customers c ON o.customer_id = c.id WHERE TO_DATE(o.ordered_at) >= DATEADD(day, -30, CURRENT_DATE) GROUP BY 1 ORDER BY 2 DESC",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "optimizing-query-text"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "optimizing-query-text"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "optimizing-query-text"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "optimizing-query-text"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "optimizing-query-text"
+          ],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "optimizing-query-text"
+          ],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-what-dag",
+      "expected": null,
+      "context": "python",
+      "query": "Quick question: what is a DAG, and why do data engineering people keep talking about them?",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "near-wrong-day-script",
+      "expected": null,
+      "context": "python",
+      "query": "scripts/nightly_report.py sometimes reports on the wrong day around daylight saving changes. Fix the date logic so it always reports on yesterday in local time.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [],
+          "outcome": "quiet"
+        }
+      ]
+    },
+    {
+      "query_id": "test-01",
+      "expected": "testing-airflow-dags",
+      "context": "airflow3",
+      "query": "Add a pytest suite for our dags.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "test-02",
+      "expected": "testing-airflow-dags",
+      "context": "airflow2",
+      "query": "Make CI fail when any file in dags/ doesn't import.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "test-03",
+      "expected": "testing-airflow-dags",
+      "context": "airflow3",
+      "query": "Write tests that check every task has 2 retries and that orders_pipeline only runs on weekdays.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "test-04",
+      "expected": "testing-airflow-dags",
+      "context": "airflow2",
+      "query": "Add unit tests for WarehouseHook and WarehouseSqlOperator in plugins/. CI has no connections configured.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "test-05",
+      "expected": "testing-airflow-dags",
+      "context": "airflow3",
+      "query": "tests/test_dags.py passes but I doubt it would catch a real bug. Strengthen it.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    },
+    {
+      "query_id": "test-06",
+      "expected": "testing-airflow-dags",
+      "context": "airflow3",
+      "query": "I want a test that runs the orders pipeline end to end on the sample data in tests/data and checks the output.",
+      "runs": [
+        {
+          "model": "claude-fable-5-1",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-fable-5-1",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-opus-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 1,
+          "status": "ran",
+          "fired": [],
+          "outcome": "miss"
+        },
+        {
+          "model": "claude-sonnet-5-5",
+          "run": 2,
+          "status": "ran",
+          "fired": [
+            "testing-airflow-dags"
+          ],
+          "outcome": "hit"
+        }
+      ]
+    }
+  ],
+  "misfires": [
+    {
+      "query_id": "author-02",
+      "model": "claude-sonnet-5-5",
+      "run": 1,
+      "outcome": "miss",
+      "expected": "authoring-airflow-dags",
+      "fired": [],
+      "query": "customer_sync doesn't show up in the UI anymore, I think it has an import error. Can you fix it?"
+    },
+    {
+      "query_id": "author-05",
+      "model": "claude-sonnet-5-5",
+      "run": 1,
+      "outcome": "miss",
+      "expected": "authoring-airflow-dags",
+      "fired": [],
+      "query": "Every time we rerun the events job it duplicates rows in analytics.events. Make it safe to rerun and backfill."
+    },
+    {
+      "query_id": "author-05",
+      "model": "claude-sonnet-5-5",
+      "run": 2,
+      "outcome": "miss",
+      "expected": "authoring-airflow-dags",
+      "fired": [],
+      "query": "Every time we rerun the events job it duplicates rows in analytics.events. Make it safe to rerun and backfill."
+    },
+    {
+      "query_id": "author-06",
+      "model": "claude-sonnet-5-5",
+      "run": 1,
+      "outcome": "miss",
+      "expected": "authoring-airflow-dags",
+      "fired": [],
+      "query": "In the orders pipeline, pass the number of rows loaded from the load step to the notify step so the message says how many orders came in."
+    },
+    {
+      "query_id": "author-06",
+      "model": "claude-sonnet-5-5",
+      "run": 2,
+      "outcome": "miss",
+      "expected": "authoring-airflow-dags",
+      "fired": [],
+      "query": "In the orders pipeline, pass the number of rows loaded from the load step to the notify step so the message says how many orders came in."
+    },
+    {
+      "query_id": "test-06",
+      "model": "claude-sonnet-5-5",
+      "run": 1,
+      "outcome": "miss",
+      "expected": "testing-airflow-dags",
+      "fired": [],
+      "query": "I want a test that runs the orders pipeline end to end on the sample data in tests/data and checks the output."
+    }
+  ]
+}

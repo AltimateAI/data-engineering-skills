@@ -1,0 +1,21 @@
+name: people_carriers
+team: people
+tier: critical
+description: Carriers pipeline for people
+schedule:
+  hour: 6
+  days: '1'
+  minute: 30
+retries: 0
+steps:
+- name: extract
+  table: people.raw_carriers_00
+- name: transform
+  table: people.int_carriers_00
+  depends_on:
+  - extract
+- name: publish
+  table: people.mart_carriers_00
+  depends_on:
+  - transform
+  - extract

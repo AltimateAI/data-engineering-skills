@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG orders_daily_load exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['customers_snapshot', 'orders_daily_load']"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "scheduled runs load exactly their own day",
+      "kind": "primary",
+      "passed": false,
+      "detail": "runs: {'state': 'success', 'logical_date': '2026-03-09T00:00:00+00:00', 'start': '2026-03-09T00:00:00+00:00', 'end': '2026-03-10T00:00:00+00:00', 'run_after': '2026-03-10T00:00:00+00:00'}, {'state': 'success', 'logical_date': '2026-03-10T00:00:00+00:00', 'start': '2026-03-10T00:00:00+00:00', 'end': '2026-03-11T00:00:00+00:00', 'run_after': '2026-03-11T00:00:00+00:00'}; rows for unexpected days ['2026-03-11']; 2026-03-09: orders differ (missing ['O-100063', 'O-100064', 'O-100066', 'O-100067', 'O-100068'], unexpected [], wrong values []); 2026-03-09: daily_revenue [] != [['2026-03-09', 8, '866.09']]"
+    },
+    {
+      "name": "re-running a day creates no duplicates and keeps the previous day",
+      "kind": "primary",
+      "passed": false,
+      "detail": "rows for unexpected days ['2026-03-11']; 2026-03-09: orders differ (missing ['O-100063', 'O-100064', 'O-100066', 'O-100067', 'O-100068'], unexpected [], wrong values []); 2026-03-09: daily_revenue [] != [['2026-03-09', 8, '866.09']]"
+    },
+    {
+      "name": "re-run repairs a partially written day",
+      "kind": "primary",
+      "passed": false,
+      "detail": "rows for unexpected days ['2026-03-11']; 2026-03-09: orders differ (missing ['O-100063', 'O-100064', 'O-100066', 'O-100067', 'O-100068'], unexpected [], wrong values []); 2026-03-09: daily_revenue [] != [['2026-03-09', 8, '866.09']]; 2026-03-10: orders differ (missing ['O-100071', 'O-100072'], unexpected [], wrong values ['O-100074', 'O-100075', 'O-100076', 'O-100077', 'O-100078']); 2026-03-10: daily_revenue [['2026-03-10', 1, '1.00']] != [['2026-03-10', 10, '999.42']]"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.5,
+  "secondary_score": 1.0
+}

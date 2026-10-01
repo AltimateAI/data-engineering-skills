@@ -1,0 +1,39 @@
+name: logistics_promotions
+team: logistics
+tier: standard
+description: Promotions pipeline for logistics
+schedule:
+  hour: 5
+  days: '1'
+  minute: 15
+owners:
+- tara
+retries: 0
+steps:
+- name: extract
+  table: logistics.raw_promotions_00
+- name: stage
+  table: logistics.stg_promotions_00
+  depends_on:
+  - extract
+- name: validate
+  table: logistics.int_promotions_00
+  depends_on:
+  - stage
+- name: transform
+  table: logistics.int_promotions_00
+  depends_on:
+  - validate
+  - stage
+- name: aggregate
+  table: logistics.int_promotions_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: logistics.int_promotions_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: logistics.mart_promotions_00
+  depends_on:
+  - snapshot

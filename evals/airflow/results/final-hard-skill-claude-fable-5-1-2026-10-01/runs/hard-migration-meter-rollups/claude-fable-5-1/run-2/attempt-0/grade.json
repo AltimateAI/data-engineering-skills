@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "all 6 DAGs import on Airflow 3.3 (dags/ + plugins/)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing: []"
+    },
+    {
+      "name": "every DAG keeps its tasks and dependencies (added helper tasks allowed)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "readings_east_hourly: tasks=['land_readings'] deps=[]; readings_west_hourly: tasks=['land_readings'] deps=[]; usage_rollup: tasks=['rollup'] deps=[]; tariffs_daily: tasks=['sync_tariffs'] deps=[]; billing_daily: tasks=['bill', 'publish_invoices'] deps=[['bill', 'publish_invoices']]; meter_registry_daily: tasks=['export_registry'] deps=[]"
+    },
+    {
+      "name": "schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tariffs_daily scheduled 2026-03-05T01:00:00+00:00: state=success failed=[]; tariffs_daily scheduled 2026-03-06T01:00:00+00:00: state=success failed=[]; meter_registry_daily scheduled 2026-03-06T00:00:00+00:00: state=success failed=[]; readings_east_hourly scheduled 2026-03-05T01:00:00+00:00: state=success failed=[]; readings_east_hourly scheduled 2026-03-05T02:00:00+00:00: state=success failed=[]; readings_west_hourly scheduled 2026-03-05T01:00:00+00:00: state=success failed=[]; usage_rollup asset-triggered 2026-03-05T02:10:00+00:00: state=success failed=[]; readings_west_hourly scheduled 2026-03-05T02:00:00+00:00: state=success failed=[]; readings_west_hourly scheduled 2026-03-05T03:00:00+00:00: state=success failed=[]; readings_east_hourly scheduled 2026-03-05T03:00:00+00:00: state=success failed=[]; usage_rollup asset-triggered 2026-03-05T03:10:00+00:00: state=success failed=[]; billing_daily scheduled 2026-03-06T02:30:00+00:00: state=success failed=[]; readings_east_hourly scheduled 2026-03-05T04:00:00+00:00: state=success failed=[]; readings_west_hourly scheduled 2026-03-05T04:00:00+00:00: state=success failed=[]; usage_rollup asset-triggered 2026-03-05T04:10:00+00:00: state=success failed=[]; tariffs_daily CLI trigger 2026-03-06T09:20:00+00:00: state=success failed=[]; billing_daily CLI trigger 2026-03-07T01:15:00+00:00: state=success failed=[]"
+    },
+    {
+      "name": "hourly regional loads land the same readings files",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "tariff syncs (scheduled and the CLI-triggered correction) write the same files",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "asset-triggered rollups cover the same hours with the same manifests",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "billing and invoice publication (scheduled and the CLI-triggered re-bill) match",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "registry snapshot matches",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b', '\\\\bruff\\\\b.*\\\\bAIR\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

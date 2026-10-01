@@ -1,0 +1,247 @@
+diff --git a/dags/partners/hooks.py b/dags/partners/hooks.py
+index 74b3ef7..a776c7c 100644
+--- a/dags/partners/hooks.py
++++ b/dags/partners/hooks.py
+@@ -7,6 +7,7 @@ GET /v1/partners/<partner>/manifests/<ds>
+ 
+ from __future__ import annotations
+ 
++import httpx
+ import requests
+ from airflow.sdk import BaseHook
+ 
+@@ -43,3 +44,15 @@ class ManifestHook(BaseHook):
+         if resp.status_code != 200:
+             raise ManifestApiError(f"GET {url} -> HTTP {resp.status_code}")
+         return resp.json()
++
++    async def aget_manifest(self, partner: str, ds: str) -> dict:
++        """Async variant of :meth:`get_manifest` for triggers; never blocks the event loop."""
++        url, headers = self.url_and_headers(await self.aget_connection(self.manifest_conn_id), partner, ds)
++        try:
++            async with httpx.AsyncClient(timeout=self.request_timeout) as client:
++                resp = await client.get(url, headers=headers)
++        except httpx.HTTPError as exc:
++            raise ManifestApiError(f"GET {url} failed: {exc!r}") from exc
++        if resp.status_code != 200:
++            raise ManifestApiError(f"GET {url} -> HTTP {resp.status_code}")
++        return resp.json()
+diff --git a/dags/partners/sensors.py b/dags/partners/sensors.py
+index c7084fb..b69bec2 100644
+--- a/dags/partners/sensors.py
++++ b/dags/partners/sensors.py
+@@ -3,38 +3,129 @@
+ from __future__ import annotations
+ 
+ from collections.abc import Sequence
+-from typing import Any
++from datetime import datetime, timedelta, timezone
++from typing import Any, NoReturn
+ 
+ from airflow.sdk import BaseSensorOperator, PokeReturnValue
++from airflow.sdk.exceptions import AirflowSensorTimeout, AirflowSkipException
+ 
+-from partners.hooks import ManifestHook
++from partners.hooks import ManifestApiError, ManifestHook
++from partners.triggers import PartnerManifestTrigger
++
++# Extra time the scheduler gives the trigger past the deadline (for its final API call) before it
++# times the deferral out itself. Only matters when the triggerer is down at the deadline.
++DEFERRAL_GRACE = timedelta(minutes=2)
+ 
+ 
+ class PartnerManifestSensor(BaseSensorOperator):
+     """Wait until the partner has published the manifest for ``ds`` and return its file list.
+ 
++    ``timeout`` is the total wait budget for the DAG run, counted from the first time this task
++    started waiting in the run. The start time is kept in ``task_state_store``, which retries
++    share, so neither retries nor triggerer restarts reset or extend it. When the budget is used
++    up the task fails without retrying, or is skipped when ``soft_fail=True``. API errors fail the
++    current try, so the task's retries apply, even when ``soft_fail=True``.
++
+     :param partner: partner key, e.g. ``acme``
+     :param ds: manifest date (templated, usually ``{{ ds }}``)
+     :param manifest_conn_id: connection to the manifest API
++    :param deferrable: wait in the triggerer instead of holding a worker slot
+     """
+ 
+     template_fields: Sequence[str] = ("partner", "ds")
+ 
++    started_at_key = "manifest_wait_started_at"
++
+     def __init__(
+         self,
+         *,
+         partner: str,
+         ds: str = "{{ ds }}",
+         manifest_conn_id: str = ManifestHook.default_conn_name,
++        deferrable: bool = True,
+         **kwargs: Any,
+     ) -> None:
+         super().__init__(**kwargs)
+         self.partner = partner
+         self.ds = ds
+         self.manifest_conn_id = manifest_conn_id
++        self.deferrable = deferrable
++        self._deadline: datetime | None = None
++
++    def _get_deadline(self, context) -> datetime:
++        """Deadline for this DAG run: first start of waiting (persisted across retries) + ``timeout``."""
++        now = datetime.now(timezone.utc)
++        store = context.get("task_state_store")
++        if store is None:
++            self.log.warning("task_state_store unavailable; timeout counts from this try only")
++            return now + timedelta(seconds=self.timeout)
++        started_raw = store.get(self.started_at_key)
++        if started_raw is None:
++            started_at = now
++            store.set(
++                self.started_at_key,
++                started_at.isoformat(),
++                retention=timedelta(seconds=self.timeout) + timedelta(days=7),
++            )
++        else:
++            started_at = datetime.fromisoformat(started_raw)
++        deadline = started_at + timedelta(seconds=self.timeout)
++        self.log.info("Waiting for %s/%s since %s; giving up at %s", self.partner, self.ds, started_at, deadline)
++        return deadline
++
++    def _timed_out(self) -> NoReturn:
++        message = f"Manifest {self.partner}/{self.ds} not published within timeout of {self.timeout}s"
++        if self.soft_fail:
++            raise AirflowSkipException(message)
++        # AirflowSensorTimeout fails the task without retrying.
++        raise AirflowSensorTimeout(message)
++
++    def execute(self, context) -> Any:
++        self._deadline = self._get_deadline(context)
++        if not self.deferrable:
++            if not self.reschedule:
++                # Base class's per-try budget must not outlast the run-wide one.
++                self.timeout = max(0.0, (self._deadline - datetime.now(timezone.utc)).total_seconds())
++            return super().execute(context)
++
++        remaining = (self._deadline - datetime.now(timezone.utc)).total_seconds()
++        if remaining <= 0:
++            self._timed_out()
++        # One check from the worker first: returns immediately if already published, and an API
++        # error here fails the try directly.
++        manifest = ManifestHook(self.manifest_conn_id).get_manifest(self.partner, self.ds)
++        if manifest["status"] == "PUBLISHED":
++            return manifest["files"]
++        self.defer(
++            trigger=PartnerManifestTrigger(
++                partner=self.partner,
++                ds=self.ds,
++                manifest_conn_id=self.manifest_conn_id,
++                poke_interval=self.poke_interval,
++                deadline=self._deadline.isoformat(),
++            ),
++            method_name="execute_complete",
++            timeout=self._deadline - datetime.now(timezone.utc) + DEFERRAL_GRACE,
++        )
++
++    def execute_complete(self, context, event: dict[str, Any]) -> Any:
++        status = event["status"]
++        if status == "published":
++            self.log.info("Manifest %s/%s published", self.partner, self.ds)
++            return event["files"]
++        if status == "timeout":
++            self._timed_out()
++        # ManifestApiError is not an AirflowException, so BaseSensorOperator.resume_execution does not
++        # turn it into a soft_fail skip: the try fails and the task's retries take over.
++        if self.never_fail:
++            raise AirflowSkipException("Skipping due to never_fail is set to True.")
++        raise ManifestApiError(event.get("message", f"unexpected trigger event {event!r}"))
+ 
+     def poke(self, context) -> PokeReturnValue | bool:
+         manifest = ManifestHook(self.manifest_conn_id).get_manifest(self.partner, self.ds)
+         if manifest["status"] == "PUBLISHED":
+             return PokeReturnValue(is_done=True, xcom_value=manifest["files"])
++        # Non-deferrable path: enforce the run-wide deadline (reschedule mode has no other check).
++        if self._deadline is not None and datetime.now(timezone.utc) >= self._deadline:
++            self._timed_out()
+         return False
+diff --git a/dags/partners/triggers.py b/dags/partners/triggers.py
+new file mode 100644
+index 0000000..98a8650
+--- /dev/null
++++ b/dags/partners/triggers.py
+@@ -0,0 +1,77 @@
++"""Trigger that polls the manifest API from the triggerer."""
++
++from __future__ import annotations
++
++import asyncio
++from collections.abc import AsyncIterator
++from datetime import datetime, timezone
++from typing import Any
++
++from airflow.triggers.base import BaseTrigger, TriggerEvent
++
++from partners.hooks import ManifestHook
++
++
++class PartnerManifestTrigger(BaseTrigger):
++    """Poll until the manifest is published or ``deadline`` passes, then fire exactly one event.
++
++    ``deadline`` is an absolute UTC ISO timestamp, so a triggerer restart (which re-creates the
++    trigger from these kwargs) resumes against the same deadline instead of starting a new one.
++
++    Events (``status``):
++      - ``published``: ``files`` holds the manifest's file list
++      - ``timeout``: still not published when the deadline passed
++      - ``error``: the API failed (5xx, connection error, ...); ``message`` describes it.
++        Reported as an event rather than raised, because a crashed trigger reaches the
++        sensor as a TaskDeferralError, which soft_fail would turn into a skip.
++    """
++
++    def __init__(
++        self,
++        *,
++        partner: str,
++        ds: str,
++        manifest_conn_id: str,
++        poke_interval: float,
++        deadline: str,
++    ) -> None:
++        super().__init__()
++        self.partner = partner
++        self.ds = ds
++        self.manifest_conn_id = manifest_conn_id
++        self.poke_interval = poke_interval
++        self.deadline = deadline
++
++    def serialize(self) -> tuple[str, dict[str, Any]]:
++        return (
++            f"{type(self).__module__}.{type(self).__qualname__}",
++            {
++                "partner": self.partner,
++                "ds": self.ds,
++                "manifest_conn_id": self.manifest_conn_id,
++                "poke_interval": self.poke_interval,
++                "deadline": self.deadline,
++            },
++        )
++
++    async def run(self) -> AsyncIterator[TriggerEvent]:
++        deadline = datetime.fromisoformat(self.deadline)
++        hook = ManifestHook(self.manifest_conn_id)
++        while True:
++            try:
++                manifest = await hook.aget_manifest(self.partner, self.ds)
++            except Exception as exc:  # noqa: BLE001 - any failure must reach the sensor as a retryable error
++                yield TriggerEvent({"status": "error", "message": f"{type(exc).__name__}: {exc}"})
++                return
++            if manifest.get("status") == "PUBLISHED":
++                yield TriggerEvent({"status": "published", "files": manifest["files"]})
++                return
++            remaining = (deadline - datetime.now(timezone.utc)).total_seconds()
++            if remaining <= 0:
++                yield TriggerEvent({"status": "timeout"})
++                return
++            self.log.info(
++                "Manifest %s/%s not published yet; %.0fs left before timeout", self.partner, self.ds, remaining
++            )
++            # Last sleep ends exactly at the deadline, so the final check happens at the deadline.
++            await asyncio.sleep(min(self.poke_interval, remaining))

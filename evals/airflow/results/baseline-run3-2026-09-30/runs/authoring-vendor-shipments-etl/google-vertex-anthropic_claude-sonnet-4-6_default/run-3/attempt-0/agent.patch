@@ -1,0 +1,119 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..b545a96
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,113 @@
++"""Load the daily vendor shipments file into the warehouse and publish the carrier report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.models import Variable
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++# The file usually arrives before 09:00 UTC but can be late.
++# We start polling at 06:00 UTC and give it until midnight UTC (18 hours)
++# before failing so on-call gets paged.
++_SENSOR_TIMEOUT_SECONDS = 18 * 60 * 60  # 18 hours
++_SENSOR_POKE_INTERVAL_SECONDS = 5 * 60  # check every 5 minutes
++
++
++@dag(
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={
++        "owner": "logistics-analytics",
++        "retries": 2,
++        "retry_delay": timedelta(minutes=5),
++    },
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    # ------------------------------------------------------------------
++    # 1. Wait for today's file.
++    #    mode="reschedule" releases the worker slot between pokes so we
++    #    don't tie up one of the limited worker slots while waiting.
++    #    timeout causes the sensor (and therefore the run) to fail if the
++    #    file still isn't present after 18 hours (i.e. past midnight UTC).
++    # ------------------------------------------------------------------
++    wait_for_file = FileSensor(
++        task_id="wait_for_file",
++        # Resolve the landing directory at runtime from the Airflow Variable.
++        filepath="{{ var.value.vendor_landing_dir }}/shipments_{{ ds }}.csv",
++        mode="reschedule",
++        poke_interval=_SENSOR_POKE_INTERVAL_SECONDS,
++        timeout=_SENSOR_TIMEOUT_SECONDS,
++        soft_fail=False,
++    )
++
++    # ------------------------------------------------------------------
++    # 2. Load the file into the vendor_shipments DuckDB table.
++    #    Delete-then-insert ensures a rerun never duplicates rows.
++    # ------------------------------------------------------------------
++    @task
++    def load_shipments(ds=None):
++        import duckdb
++
++        landing_dir = Variable.get("vendor_landing_dir")
++        csv_path = Path(landing_dir) / f"shipments_{ds}.csv"
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS vendor_shipments (
++                    shipment_id  VARCHAR,
++                    carrier      VARCHAR,
++                    destination  VARCHAR,
++                    weight_kg    DOUBLE,
++                    shipped_at   TIMESTAMP,
++                    ship_date    DATE
++                )
++                """
++            )
++            # Remove this day's rows so a rerun never duplicates them.
++            con.execute(
++                "DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)", [ds]
++            )
++            con.execute(
++                """
++                INSERT INTO vendor_shipments
++                SELECT
++                    shipment_id,
++                    carrier,
++                    destination,
++                    weight_kg,
++                    CAST(shipped_at AS TIMESTAMP),
++                    CAST(? AS DATE) AS ship_date
++                FROM read_csv_auto(?)
++                """,
++                [ds, str(csv_path)],
++            )
++            row_count = con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)",
++                [ds],
++            ).fetchone()[0]
++            return row_count
++
++    # ------------------------------------------------------------------
++    # 3. Publish the carrier report for that date.
++    # ------------------------------------------------------------------
++    publish_report = BashOperator(
++        task_id="publish_shipments_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh {{{{ ds }}}}",
++    )
++
++    wait_for_file >> load_shipments() >> publish_report
++
++
++vendor_shipments()

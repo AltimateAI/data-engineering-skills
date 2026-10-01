@@ -1,0 +1,56 @@
+id: debugging-nondeterministic-parse
+area: debugging
+split: holdout
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  Something is off with warehouse_ingest since we moved to Airflow 3.3:
+
+  - the version dropdown in the UI shows a new DAG version for it almost every
+    time the dag-processor runs (hundreds by now, and it's the only DAG doing that)
+  - in the graph view the load_* tasks show up in a different order between versions
+  - the dag-processor logs say dags/warehouse_ingest.py takes 4-5 seconds to
+    parse, and the platform team asked us to stop hitting their catalog service
+    from the parser, it gets a request from every parse on every processor
+
+  The DAG warnings panel also shows this for the file:
+
+      This Dag uses runtime-variable values in Dag construction.
+      It causes the Dag version to increase as values change on every Dag parse.
+      Line 65, Col 5 ... Issue: Don't use runtime-varying value as argument in Dag constructor
+
+  Can you fix it so it stops creating new versions and parses fast? Keep one
+  load_<table> task per catalog table (on-call reads the grid by table name),
+  keep the loads running one after another (DuckDB only allows one writer), and
+  keep it nightly at 01:30 UTC. There's no scheduler running locally, only the
+  airflow CLI.
+description: |
+  Debugging a DAG whose parse is slow and non-deterministic on Airflow 3.3, where
+  every serialization change creates a new DAG version. The fixture calls a
+  catalog HTTP service at module level (with retries and sleeps), iterates a
+  `set` of table names (order depends on PYTHONHASHSEED, so the chain order
+  changes per process), and uses `datetime.now()` in `start_date` and
+  `description`. Airflow's own inflation warning only points at the
+  `datetime.now()` arguments; the set ordering and the network call are hidden
+  layers. The deployed snapshot `config/tables.json` is the intended source.
+  Pain point: P3 (top-level code, parse cost, non-deterministic DAGs / Airflow 3
+  versioning).
+  Primary checks: DAG files import; tasks start, done and load_<table> for all 8
+  catalog tables with the loads strictly sequential (not mapped); four fresh
+  parses with different PYTHONHASHSEED and TZ (the last with the clock moved 3
+  days 7 hours ahead) give the same Airflow `dag_hash`;
+  the file parses in <= 3.0s (grader's catalog stand-in answers after 4s);
+  parsing makes zero requests to the catalog; still 01:30 UTC daily (trigger or
+  data-interval timetable) with catchup off and a fixed past start_date; the
+  load tasks follow `config/tables.json` (a table added to a copy of the
+  snapshot, plus a duplicate entry, yields one more sequential load task);
+  `airflow dags test` succeeds and loads every raw table with the right row
+  counts.
+  Mutants: `set_order` (snapshot but unsorted `set`), `now_start_date`
+  (`datetime.now()` start_date left), `description_date` (date stamp left in the
+  description), `catalog_at_parse` (catalog still fetched at parse, 1s timeout,
+  sorted), `parallel_loads` (`start >> loads >> done`), `hardcoded_tables`
+  (table list pasted into the DAG file, no longer follows the catalog),
+  `utc_today_start_date` (`pendulum.today("UTC").add(days=-1)`, the `days_ago`
+  replacement: stable within a UTC day, new version every day).

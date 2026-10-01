@@ -1,0 +1,159 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 2.480638,
+  "cost_reported_usd": 2.480638,
+  "wall_s": 1154.0,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-opus-5-5-2026-10-01-baseline-20261001-062054/hard-migration-ledger-close-wn2jn8lj/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 2.480638,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 110,
+    "output": 39445,
+    "reasoning": 22092,
+    "cache_read": 4215570,
+    "cache_write": 106023,
+    "total": 4361148
+  },
+  "steps": 56,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 2.480638,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-opus-5-5": {
+      "inputTokens": 110,
+      "outputTokens": 39445,
+      "cacheReadInputTokens": 4215570,
+      "cacheCreationInputTokens": 106023,
+      "webSearchRequests": 0,
+      "costUSD": 2.4806379999999995,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 22092,
+      "canonicalModel": "claude-opus-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 56,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 23,
+        "tool": "bash",
+        "path": "<tmp>/mig.py",
+        "root": "shared-temp"
+      },
+      {
+        "call": 23,
+        "tool": "bash",
+        "path": "<tmp>/mig.py",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 33,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "T=$(cd ../tmp && pwd); pkill -f \"sim.py\" ; grep -B30 \"not supported between\" $T/sim33.log | grep -v \"^\\s*$\" | head -40; SP=~/.cache/des-evals/agent-airflow-3.3/lib/python3.12/site-packages; sed -n 535,575p $SP/airflow/sdk/execution_time/task_runner.py",
+        "output": "  File \"~/.cache/des-evals/agent-airflow-3.3/lib/python3.12/site-packages/airflow/sdk/execution_time/task_runner.py\", line 2234, in _execute_task\n    result = _run_execute_callable(con"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 55,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

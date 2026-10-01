@@ -1,0 +1,86 @@
+diff --git a/dags/carrier_scorecard.py b/dags/carrier_scorecard.py
+index 2d4f784..1403952 100644
+--- a/dags/carrier_scorecard.py
++++ b/dags/carrier_scorecard.py
+@@ -8,14 +8,14 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow import DAG
+-from airflow.datasets import Dataset
++from airflow.sdk import Asset
+ from airflow.operators.bash import BashOperator
+ from airflow.operators.python import PythonOperator
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+ SCORECARD_DIR = PROJECT_ROOT / "output" / "scorecard"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ 
+ 
+ def build_scorecard(ti, **_):
+@@ -61,8 +61,8 @@ with DAG(
+     mark_ready = BashOperator(
+         task_id="mark_ready",
+         bash_command=(
+-            "echo 'carriers={{ ti.xcom_pull(key=\"carriers\") }} "
+-            "shipments={{ ti.xcom_pull(key=\"shipments\") }}' "
++            "echo 'carriers={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"carriers\") }} "
++            "shipments={{ ti.xcom_pull(task_ids=\"build_scorecard\", key=\"shipments\") }}' "
+             "> {{ params.scorecard_dir }}/_READY"
+         ),
+     )
+diff --git a/dags/ingest_shipments.py b/dags/ingest_shipments.py
+index d5050e6..8d1d3b8 100644
+--- a/dags/ingest_shipments.py
++++ b/dags/ingest_shipments.py
+@@ -12,36 +12,17 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.datasets import Dataset
+-from airflow.decorators import dag, task
+-from airflow.models import XCom
+-from airflow.utils.session import provide_session
++from airflow.sdk import Asset, CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ SOURCE = PROJECT_ROOT / "data" / "carrier_events.csv"
+ BATCH_DIR = PROJECT_ROOT / "output" / "warehouse" / "shipments"
+-SHIPMENTS = Dataset("warehouse://shipments/batches")
++SHIPMENTS = Asset("warehouse://shipments/batches")
+ FIELDS = ["event_id", "shipment_id", "carrier", "status", "promised_date", "updated_at"]
+ 
+ 
+-@provide_session
+-def previous_watermark(session=None) -> str | None:
+-    """High-water mark stored by the most recent load."""
+-    row = (
+-        session.query(XCom)
+-        .filter(
+-            XCom.dag_id == "ingest_shipments",
+-            XCom.task_id == "load_batch",
+-            XCom.key == "watermark",
+-        )
+-        .order_by(XCom.timestamp.desc())
+-        .first()
+-    )
+-    return row.value if row else None
+-
+-
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -51,7 +32,8 @@ def previous_watermark(session=None) -> str | None:
+ def ingest_shipments():
+     @task(outlets=[SHIPMENTS])
+     def load_batch(data_interval_end=None, ti=None) -> int:
+-        watermark = previous_watermark()
++        # Retrieve watermark from the previous task instance (current DAG)
++        watermark = ti.xcom_pull(task_ids="load_batch", key="watermark", default=None)
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with SOURCE.open(newline="") as fh:
+             rows = [

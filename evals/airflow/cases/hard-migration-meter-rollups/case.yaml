@@ -1,0 +1,33 @@
+id: hard-migration-meter-rollups
+area: migration
+suite: hard
+split: dev
+airflow_version: "3.3"
+max_turns: 80
+timeout_s: 3600
+prompt: |
+  This repo is our metering project (DAGs in dags/, shared code and macros in
+  plugins/). It runs on Airflow 2.11 today; please migrate the whole project to
+  Airflow 3.3 (the local venv already has 3.3.2) so we can cut production over.
+  Finance reconciles invoices against the rollups, so nothing may change in
+  behaviour: every scheduled run, every dataset/asset-triggered rollup and the
+  manual runs in the README's runbook must produce exactly the same files as
+  they do on 2.11.
+description: |
+  Hard whole-project Airflow 2.11 -> 3.3 migration (6 DAGs, plugin operator,
+  plugin macros, .sh templates, custom config section). Pain points P7
+  (migration beyond ruff) and P3 (dates/run types). Traps that only show at
+  runtime on 3.3: (1) the east&west dataset-triggered rollup uses its run's
+  data interval, which 2.x derived from the triggering events' source runs
+  (min start .. max end) and 3.x leaves empty, so the window must come from
+  triggering_asset_events[*].source_dag_run; (2) triggering/outlet event
+  accessors no longer accept URI strings (TypeError); (3) `conf` is gone from
+  the Jinja context (publish script); (4) `tomorrow_ds`/`execution_date`
+  removed; (5) runbook CLI triggers have no logical date or interval on 3.x:
+  billing must re-bill the latest closed day (the SDK timetable has no
+  infer_manual_data_interval), tariffs must sync today; (6) bare cron/preset
+  schedules become trigger timetables, and tariffs_daily relied on 2.x's
+  catchup default. Primary: imports with plugins, task graphs, schedules
+  (first runs, intervals, catchup, asset condition), a replay of scheduled,
+  batched asset-triggered and CLI-triggered runs under the Airflow 3 worker
+  DB block, with every output file equal to the original replayed in 2.11.

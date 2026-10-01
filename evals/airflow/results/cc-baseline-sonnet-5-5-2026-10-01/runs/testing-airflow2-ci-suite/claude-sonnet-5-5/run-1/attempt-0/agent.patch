@@ -1,0 +1,189 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..230fb99
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,30 @@
++import os
++import tempfile
++from pathlib import Path
++
++# Isolate Airflow from any real installation. Must happen before airflow is imported.
++_AIRFLOW_HOME = tempfile.mkdtemp(prefix="airflow_tests_")
++os.environ["AIRFLOW_HOME"] = _AIRFLOW_HOME
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_AIRFLOW_HOME}/airflow.db"
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(Path(__file__).resolve().parents[1] / "dags")
++
++import pytest  # noqa: E402
++
++ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = ROOT / "dags"
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    from airflow.models import DagBag
++
++    return DagBag(dag_folder=str(DAGS_DIR), include_examples=False)
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    from airflow.utils import db
++
++    db.initdb()
+diff --git a/tests/test_dags.py b/tests/test_dags.py
+new file mode 100644
+index 0000000..dab44cc
+--- /dev/null
++++ b/tests/test_dags.py
+@@ -0,0 +1,147 @@
++import ast
++import csv
++import importlib.util
++from datetime import date, datetime, timezone
++from pathlib import Path
++
++import pytest
++from croniter import croniter
++
++from conftest import DAGS_DIR, ROOT
++
++DAG_FILES = sorted(DAGS_DIR.glob("*.py"))
++
++
++def _load_module(path: Path):
++    spec = importlib.util.spec_from_file_location(f"_dagmod_{path.stem}", path)
++    mod = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(mod)
++    return mod
++
++
++@pytest.fixture(scope="module")
++def shipments_mod():
++    return _load_module(DAGS_DIR / "shipments_daily.py")
++
++
++# --- imports -----------------------------------------------------------------
++
++def test_dag_files_exist():
++    assert DAG_FILES, "no DAG files found in dags/"
++
++
++@pytest.mark.parametrize("path", DAG_FILES, ids=lambda p: p.name)
++def test_dag_file_imports(path):
++    _load_module(path)
++
++
++def test_dagbag_has_no_import_errors(dagbag):
++    assert dagbag.import_errors == {}
++
++
++# --- schedule ----------------------------------------------------------------
++
++def test_shipments_daily_schedule(dagbag):
++    dag = dagbag.dags["shipments_daily"]
++    assert dag is not None
++    assert dag.timetable.summary == "30 7 * * 1-5"
++    assert str(dag.timezone) == "UTC"
++
++    # Next 14 firings: all 07:30 UTC, Mon-Fri only, and every weekday is hit.
++    it = croniter(dag.timetable.summary, datetime(2026, 3, 1, tzinfo=timezone.utc))
++    fires = [it.get_next(datetime) for _ in range(10)]
++    assert all((f.hour, f.minute, f.second) == (7, 30, 0) for f in fires)
++    assert all(f.weekday() < 5 for f in fires)
++    assert [f.date() for f in fires[:5]] == [date(2026, 3, d) for d in (2, 3, 4, 5, 6)]
++
++
++# --- retries -----------------------------------------------------------------
++
++def test_every_task_has_at_least_two_retries(dagbag):
++    assert dagbag.dags, "no DAGs loaded"
++    too_few = {
++        f"{dag.dag_id}.{t.task_id}": t.retries
++        for dag in dagbag.dags.values()
++        for t in dag.tasks
++        if t.retries is None or t.retries < 2
++    }
++    assert too_few == {}
++
++
++# --- dependencies ------------------------------------------------------------
++
++def test_report_is_downstream_of_extract(dagbag):
++    dag = dagbag.dags["shipments_daily"]
++    extract = dag.get_task("extract_shipments")
++    report = dag.get_task("build_report")
++    assert report.task_id in extract.get_flat_relative_ids(upstream=False)
++    assert extract.task_id in report.get_flat_relative_ids(upstream=True)
++
++
++# --- late-shipment rules -----------------------------------------------------
++
++def _row(sid, promised, delivered="", ship="2026-02-01", carrier="DHL"):
++    return {
++        "shipment_id": sid,
++        "ship_date": ship,
++        "carrier": carrier,
++        "promised_date": promised,
++        "delivered_date": delivered,
++    }
++
++
++def _late(mod, rows, as_of="2026-03-03"):
++    return {r["shipment_id"]: r["days_late"] for r in mod.find_late_shipments(rows, as_of)}
++
++
++def test_delivered_today_after_promise_is_late(shipments_mod):
++    assert _late(shipments_mod, [_row("A", "2026-03-01", "2026-03-03")]) == {"A": 2}
++
++
++def test_delivered_today_on_or_before_promise_is_not_late(shipments_mod):
++    rows = [_row("A", "2026-03-03", "2026-03-03"), _row("B", "2026-03-04", "2026-03-03")]
++    assert _late(shipments_mod, rows) == {}
++
++
++def test_delivered_on_another_day_is_not_reported(shipments_mod):
++    rows = [_row("A", "2026-02-24", "2026-03-02"), _row("B", "2026-02-24", "2026-03-04")]
++    assert _late(shipments_mod, rows) == {}
++
++
++def test_undelivered_past_promise_is_late_counted_to_run_date(shipments_mod):
++    assert _late(shipments_mod, [_row("A", "2026-02-28")]) == {"A": 3}
++
++
++def test_undelivered_promised_on_or_after_run_date_is_not_late(shipments_mod):
++    rows = [_row("A", "2026-03-03"), _row("B", "2026-03-10")]
++    assert _late(shipments_mod, rows) == {}
++
++
++def test_late_shipments_sorted_worst_first(shipments_mod):
++    rows = [_row("B", "2026-03-02"), _row("A", "2026-03-02"), _row("C", "2026-02-20")]
++    result = shipments_mod.find_late_shipments(rows, "2026-03-03")
++    assert [r["shipment_id"] for r in result] == ["C", "A", "B"]
++
++
++# --- end to end --------------------------------------------------------------
++
++def test_shipments_daily_end_to_end(dagbag, airflow_db, tmp_path):
++    dag = dagbag.dags["shipments_daily"]
++    # Redirect output away from the repo; the callables read OUTPUT_DIR from their module globals.
++    module_globals = dag.get_task("build_report").python_callable.__globals__
++    original = module_globals["OUTPUT_DIR"]
++    module_globals["OUTPUT_DIR"] = tmp_path
++    try:
++        run = dag.test(execution_date=datetime(2026, 3, 3, tzinfo=timezone.utc))
++    finally:
++        module_globals["OUTPUT_DIR"] = original
++
++    assert run.state == "success"
++    with (tmp_path / "2026-03-03.csv").open(newline="") as fh:
++        rows = list(csv.DictReader(fh))
++    assert [(r["shipment_id"], r["days_late"]) for r in rows] == [
++        ("SH-1009", "5"),
++        ("SH-1003", "3"),
++        ("SH-1007", "2"),
++        ("SH-1001", "1"),
++    ]

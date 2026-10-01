@@ -1,0 +1,82 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..90801d0 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,8 +1,19 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
+-the `daily_pageviews` table (views and unique visitors per page).
++at about 01:00 UTC the next morning. This DAG aggregates that file into the
++`daily_pageviews` table (views and unique visitors per page).
++
++Scheduling notes
++----------------
++* start_date = 2026-09-01: the earliest file that exists; Airflow will not
++  schedule any run before this date.
++* catchup = True: when the DAG is unpaused, the scheduler creates one run per
++  missed UTC day from 2026-09-01 onward and fills the gap automatically.
++* max_active_runs = 1: DuckDB only allows one writer at a time.  Serialising
++  all runs (both backfill and ongoing) prevents "database is locked" errors.
++* Idempotency: each run does DELETE-then-INSERT for its own date, so re-running
++  any day later is safe and will not double-count.
+ """
+ 
+ from pathlib import Path
+@@ -19,16 +30,27 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ @dag(
+     dag_id="pageviews_daily",
+     schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    # Oldest file available – the scheduler will not create runs before this.
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,           # backfill every missed day automatically
++    max_active_runs=1,      # DuckDB is single-writer; run days one at a time
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(data_interval_start=None) -> int:
++        # Use the scheduler's logical date for this run, not wall-clock "yesterday".
++        # During a backfill Airflow sets data_interval_start to the start of the
++        # interval being processed (e.g. 2026-09-01T00:00:00Z for the Sept-1 run).
++        day = pendulum.instance(data_interval_start).to_date_string()
+         source = RAW_DIR / f"{day}.csv"
++
++        if not source.exists():
++            # File not yet delivered – skip gracefully rather than failing.
++            print(f"Source file {source} not found, skipping.")
++            return 0
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -42,8 +64,12 @@ def pageviews_daily():
+                 )
+                 """
+             )
++            # DELETE + INSERT inside one transaction makes every run idempotent:
++            # re-running a day wipes the old rows first, so counts never double.
+             con.execute("BEGIN TRANSACTION")
+-            con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            con.execute(
++                "DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
++            )
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+@@ -55,7 +81,8 @@ def pageviews_daily():
+             )
+             con.execute("COMMIT")
+             return con.execute(
+-                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
++                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)",
++                [day],
+             ).fetchone()[0]
+         finally:
+             con.close()

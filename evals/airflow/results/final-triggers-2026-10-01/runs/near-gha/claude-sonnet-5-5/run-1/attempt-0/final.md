@@ -1,0 +1,4 @@
+I added `.github/workflows/nightly-report.yml`. It runs `scripts/nightly_report.py` daily at 06:00 UTC (`cron: "0 6 * * *"`) and on manual dispatch (`workflow_dispatch`). It checks out the repo, sets up Python 3.12 (the project needs 3.10 or newer), and runs the script. There's no dependency install step because the script only uses the standard library. I haven't run the workflow.
+
+- **Email:** The script's docstring says it emails the report, but right now it only prints a line. If the real version sends email, you'll need to add SMTP credentials as repository secrets and pass them in through `env:`.
+- **Scheduling:** GitHub scheduled runs can start a few minutes late, and they only fire from the default branch (`main`).

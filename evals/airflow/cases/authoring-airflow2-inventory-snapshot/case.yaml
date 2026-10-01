@@ -1,0 +1,38 @@
+id: authoring-airflow2-inventory-snapshot
+area: authoring
+split: dev
+airflow_version: "2.11"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1500
+prompt: |
+  Can you add a DAG called `inventory_snapshot`? It should run every day at
+  02:30 UTC and do two things for the run's date:
+
+  1. Work out the end-of-day stock on hand per warehouse and SKU as of that
+     date, i.e. the sum of qty_change over every movement in
+     data/inventory_movements.csv up to and including that date. Write it to
+     output/inventory_snapshot/<date>.csv with the columns
+     warehouse_id,sku,on_hand.
+  2. After that, write output/low_stock/<date>.csv with the rows
+     (warehouse_id,sku,on_hand,reorder_point) where on_hand is below the SKU's
+     reorder point from data/reorder_points.csv.
+
+  Sort both files by warehouse_id then sku. We need to be able to rerun any
+  date since 2026-09-01, but the DAG must not backfill old dates on its own
+  when it gets deployed. Keep it consistent with the existing DAG.
+description: |
+  Version-aware authoring for a project pinned to Airflow 2.11 (only
+  requirements.txt and the existing DAG's imports reveal the version). Pain
+  point P1 in reverse: agents write Airflow 3 idioms (`airflow.sdk`,
+  `airflow.providers.standard.*`) that do not exist in 2.11, and forget that
+  2.11 defaults `catchup` to True. Primary (all in the 2.11 env): DAG imports;
+  timetable probe shows runs at 02:30 UTC daily; catchup is False; `airflow dags
+  test` for two logical dates writes the correct snapshot and low-stock files
+  (zero-stock snapshot rows may be omitted); a rerun is idempotent. The grader
+  swaps in grader_data/inventory_movements.csv: the sample movements plus a
+  warehouse whose stock sits exactly at the reorder point and moves on the run
+  date.
+  Mutants: `from airflow.sdk import dag, task`, standard-provider operator
+  import, catchup omitted, strict `<` date filter that drops the run date's
+  movements, low stock flagged with <= instead of <.

@@ -1,0 +1,27 @@
+name: people_chargebacks
+team: people
+tier: standard
+description: Chargebacks pipeline for people
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: people.raw_chargebacks_00
+- name: validate
+  table: people.int_chargebacks_00
+  depends_on:
+  - extract
+- name: transform
+  table: people.int_chargebacks_00
+  depends_on:
+  - validate
+- name: enrich
+  table: people.int_chargebacks_00
+  depends_on:
+  - transform
+  - validate
+- name: publish
+  table: people.mart_chargebacks_00
+  depends_on:
+  - enrich

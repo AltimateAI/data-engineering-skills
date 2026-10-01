@@ -1,0 +1,100 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..af4483b 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,6 +3,12 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Schedule: every weekday at 06:00 America/New_York.
++Each run reports the *previous business day*:
++  - Monday   06:00 NY  ->  Friday's trades
++  - Tuesday  06:00 NY  ->  Monday's trades
++  - ...and so on (no holiday calendar; weekends only).
+ """
+ 
+ import csv
+@@ -11,11 +17,36 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
++NY_TZ = "America/New_York"
++
++
++def prev_business_day(d: pendulum.DateTime) -> pendulum.DateTime:
++    """Return the previous business day (Monday→Friday; no holiday calendar)."""
++    d = d.subtract(days=1)
++    while d.day_of_week in (pendulum.SATURDAY, pendulum.SUNDAY):
++        d = d.subtract(days=1)
++    return d
++
++
++def resolve_trade_date(dag_run) -> str:
++    """Return the YYYY-MM-DD trade date this run should report.
++
++    Works for scheduled runs, manual triggers (no logical_date on 3.x),
++    re-runs and backfills.  The day is always derived from the immutable
++    run_after timestamp so a cleared/retried run processes the same date.
++    """
++    # dag_run.* datetimes are stdlib datetime; wrap in pendulum before arithmetic.
++    anchor = dag_run.logical_date or dag_run.run_after
++    anchor_ny = pendulum.instance(anchor).in_tz(NY_TZ)
++    trade_day = prev_business_day(anchor_ny.start_of("day"))
++    return trade_day.to_date_string()   # "YYYY-MM-DD"
++
+ 
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+@@ -41,16 +72,17 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    schedule=CronTriggerTimetable("0 6 * * 1-5", timezone=NY_TZ),
++    start_date=pendulum.datetime(2026, 1, 1, tz=NY_TZ),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(**context) -> str:
++        trade_date = resolve_trade_date(context["dag_run"])
++        return str(write_pnl_report(trade_date))
+ 
+     build_report()
+ 
+diff --git a/reports/fx_pnl_2026-01-02.csv b/reports/fx_pnl_2026-01-02.csv
+new file mode 100644
+index 0000000..f411fca
+--- /dev/null
++++ b/reports/fx_pnl_2026-01-02.csv
+@@ -0,0 +1 @@
++desk,trades,notional_usd,pnl_usd
+diff --git a/reports/fx_pnl_2026-01-08.csv b/reports/fx_pnl_2026-01-08.csv
+new file mode 100644
+index 0000000..f411fca
+--- /dev/null
++++ b/reports/fx_pnl_2026-01-08.csv
+@@ -0,0 +1 @@
++desk,trades,notional_usd,pnl_usd
+diff --git a/reports/fx_pnl_2026-03-06.csv b/reports/fx_pnl_2026-03-06.csv
+new file mode 100644
+index 0000000..07f4c9a
+--- /dev/null
++++ b/reports/fx_pnl_2026-03-06.csv
+@@ -0,0 +1,4 @@
++desk,trades,notional_usd,pnl_usd
++AMER,1,900000.00,-6128.56
++APAC,3,6900000.00,-18378.54
++EMEA,3,4100000.00,-19766.93

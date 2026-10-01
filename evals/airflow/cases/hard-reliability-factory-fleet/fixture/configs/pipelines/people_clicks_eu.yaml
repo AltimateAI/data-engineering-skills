@@ -1,0 +1,23 @@
+name: people_clicks_eu
+team: people
+tier: standard
+description: Clicks pipeline for people
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: people.raw_clicks_00
+- name: stage
+  table: people.stg_clicks_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: people.int_clicks_00
+  depends_on:
+  - stage
+- name: publish
+  table: people.mart_clicks_00
+  depends_on:
+  - snapshot
+  - stage

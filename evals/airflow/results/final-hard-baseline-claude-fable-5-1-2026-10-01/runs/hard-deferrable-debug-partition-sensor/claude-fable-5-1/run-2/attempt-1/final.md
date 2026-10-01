@@ -1,0 +1,1 @@
+You've hit your individual spend limit · ask your admin to raise it at claude.ai/admin-settings/usage · your session limit resets 2pm (America/Los_Angeles)

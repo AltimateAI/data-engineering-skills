@@ -1,0 +1,57 @@
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..f1923a4 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,6 +3,10 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Schedule: 06:00 America/New_York, Monday-Friday only.
++Each run reports the *previous* business day (Monday's run covers Friday,
++Tuesday-Friday runs cover the immediately preceding calendar day).
+ """
+ 
+ import csv
+@@ -17,6 +21,18 @@ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+ REPORTS_DIR = PROJECT_DIR / "reports"
+ 
+ 
++def _previous_business_day(dt: pendulum.DateTime) -> pendulum.Date:
++    """Return the previous business day (Mon-Fri) relative to *dt*.
++
++    *dt* is the logical date of the DAG run expressed in New York time.
++    Weekday integers: Monday=0 … Sunday=6.
++    """
++    ny_date = dt.in_timezone("America/New_York").date()
++    # Monday (0) -> step back 3 days to Friday; any other weekday -> 1 day.
++    days_back = 3 if ny_date.day_of_week == pendulum.MONDAY else 1
++    return ny_date.subtract(days=days_back)
++
++
+ def write_pnl_report(trade_date: str) -> Path:
+     """Aggregate the trades booked on ``trade_date`` (YYYY-MM-DD) per desk."""
+     totals: dict[str, list[float]] = defaultdict(lambda: [0, 0.0, 0.0])
+@@ -41,16 +57,18 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
++    # 06:00 New York time, Monday-Friday only.
++    schedule="0 6 * * 1-5",
++    start_date=pendulum.datetime(2026, 1, 1, tz="America/New_York"),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+     tags=["treasury", "reports"],
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(logical_date=None) -> str:
++        trade_date = _previous_business_day(logical_date)
++        return str(write_pnl_report(str(trade_date)))
+ 
+     build_report()
+ 

@@ -1,0 +1,129 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 0.594494,
+  "cost_reported_usd": 0.0,
+  "wall_s": 901.5,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-core-skill-claude-opus-5-5-2026-10-01-skill-20261001-082903/migration-shipments-assets-37cz_h3h/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 143,
+  "run_cap_usd": 12.0,
+  "cost_list_price_usd": 0.594494,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 40,
+    "output": 330,
+    "reasoning": 0,
+    "cache_read": 844112,
+    "cache_write": 52364,
+    "total": 896846
+  },
+  "steps": 20,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.594494,
+  "cost_source": "estimate",
+  "model_usage": null,
+  "num_turns": null,
+  "result_subtype": null,
+  "subagent_stats": {
+    "spawned": null,
+    "completed": null,
+    "failed": null
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "authoring-airflow-dags",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "migrating-to-airflow-3",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-airflow-dags",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-opus-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [],
+    "kill_commands": [],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": false,
+  "termination": {},
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": null,
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 18,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": null
+}

@@ -1,0 +1,152 @@
+diff --git a/dags/vendor_shipments.py b/dags/vendor_shipments.py
+new file mode 100644
+index 0000000..ade8b70
+--- /dev/null
++++ b/dags/vendor_shipments.py
+@@ -0,0 +1,146 @@
++"""Wait for the daily carrier-aggregator shipments file, load it into the warehouse,
++and publish the per-carrier report."""
++
++from __future__ import annotations
++
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.sensors.filesystem import FileSensor
++from airflow.sdk import CronTriggerTimetable, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++WAREHOUSE = PROJECT_ROOT / "warehouse" / "analytics.duckdb"
++
++# ── date helper ──────────────────────────────────────────────────────────────
++# This DAG processes the same calendar day the scheduled run fires on.
++# CronTriggerTimetable with prev=lambda d: d means:
++#   scheduled run  → ds (the fire date) = the day's file we expect
++#   manual run     → run_after date = the day the operator wants to reprocess
++
++
++def _ship_date(dag_run, params=None) -> str:
++    """Return YYYY-MM-DD for the date this run should process."""
++    override = (params or {}).get("day")
++    if override:
++        return override
++    # For interval runs the interval gives us the window; for trigger/manual,
++    # logical_date or run_after is the fire time which is already the target day.
++    s = dag_run.data_interval_start
++    e = dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        return pendulum.instance(s).in_tz("UTC").to_date_string()
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++# ── DAG ──────────────────────────────────────────────────────────────────────
++
++@dag(
++    schedule=CronTriggerTimetable("0 6 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    default_args={
++        "owner": "logistics-analytics",
++        "retries": 2,
++        "retry_delay": timedelta(minutes=5),
++    },
++    tags=["shipments", "warehouse"],
++)
++def vendor_shipments():
++    # ── 1. Wait for the file (reschedule mode so no worker slot is held) ───
++    # The FileSensor path is templated via user_defined_macros so it resolves
++    # once per run and uses the correct day.  We read the Variable inside the
++    # macro so it never runs at parse time.
++    wait_for_file = FileSensor(
++        task_id="wait_for_file",
++        # filepath is a Jinja template; the macro reads the Variable at run time.
++        filepath="{{ shipment_file_path(dag_run, params) }}",
++        fs_conn_id="fs_default",
++        mode="reschedule",          # releases the worker slot between pokes
++        poke_interval=5 * 60,       # check every 5 minutes
++        # Timeout: 06:00 UTC + 18 h = midnight UTC = end of the day
++        timeout=18 * 60 * 60,
++        soft_fail=False,            # exceeded timeout → task fails → on-call alert
++    )
++
++    # ── 2. Load the file into DuckDB ─────────────────────────────────────────
++    @task
++    def load_shipments(*, dag_run=None, params=None):
++        import duckdb
++        from airflow.models import Variable
++
++        day = _ship_date(dag_run, params)
++        landing_dir = Variable.get("vendor_landing_dir")
++        file_path = Path(landing_dir) / f"shipments_{day}.csv"
++
++        WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
++        with duckdb.connect(str(WAREHOUSE)) as con:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS vendor_shipments (
++                    shipment_id VARCHAR,
++                    carrier     VARCHAR,
++                    destination VARCHAR,
++                    weight_kg   DOUBLE,
++                    shipped_at  TIMESTAMP,
++                    ship_date   DATE
++                )
++                """
++            )
++            # Delete + re-insert makes reruns safe (no duplicates).
++            con.execute(
++                "DELETE FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)",
++                [day],
++            )
++            con.execute(
++                """
++                INSERT INTO vendor_shipments
++                SELECT
++                    shipment_id,
++                    carrier,
++                    destination,
++                    CAST(weight_kg   AS DOUBLE),
++                    CAST(shipped_at  AS TIMESTAMP),
++                    CAST(? AS DATE) AS ship_date
++                FROM read_csv_auto(?)
++                """,
++                [day, str(file_path)],
++            )
++            count = con.execute(
++                "SELECT count(*) FROM vendor_shipments WHERE ship_date = CAST(? AS DATE)",
++                [day],
++            ).fetchone()[0]
++        return count
++
++    # ── 3. Publish the carrier report ────────────────────────────────────────
++    publish_report = BashOperator(
++        task_id="publish_report",
++        bash_command=f"{PROJECT_ROOT}/scripts/publish_shipments_report.sh "
++                     "{{ shipment_ds(dag_run, params) }}",
++    )
++
++    wait_for_file >> load_shipments() >> publish_report
++
++
++# Register user_defined_macros on the DAG object after it is created.
++_dag = vendor_shipments()
++
++
++def _shipment_ds(dag_run, params=None):
++    return _ship_date(dag_run, params)
++
++
++def _shipment_file_path(dag_run, params=None):
++    from airflow.models import Variable
++    day = _ship_date(dag_run, params)
++    landing_dir = Variable.get("vendor_landing_dir")
++    return str(Path(landing_dir) / f"shipments_{day}.csv")
++
++
++_dag.user_defined_macros = {
++    "shipment_ds": _shipment_ds,
++    "shipment_file_path": _shipment_file_path,
++}

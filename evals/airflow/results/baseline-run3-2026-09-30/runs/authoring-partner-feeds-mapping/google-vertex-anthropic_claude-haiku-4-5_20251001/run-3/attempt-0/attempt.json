@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: airflow dags test succeeds for 0, 1 and N files, one mapped task instance per file (0/1/N), per-partner result files are correct, summary is correct, including the day with no files, rerun of a day reproduces the same outputs",
+  "primary_pass": false,
+  "primary_score": 0.4444444444444444,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 136.3,
+  "cost_usd": 0.738871,
+  "cost_reported_usd": 2.238175,
+  "tokens": {
+    "input": 1499427,
+    "output": 10201,
+    "reasoning": 0,
+    "cache_read": 1031641,
+    "cache_write": 467663,
+    "total": 3008932
+  },
+  "steps": 22,
+  "termination": {
+    "why_model_stopped": "stop",
+    "why_harness_stopped": "none",
+    "done_reason": "none"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 21,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d0ba4a4ffem3KSqBCaI8xHsj.json"
+}

@@ -1,0 +1,338 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..3b93d3d
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,180 @@
++"""Process partner order files and generate summary reports.
++
++Each partner uploads daily CSV files to data/partner_drop/<YYYY-MM-DD>/<partner>.csv
++with columns: order_id, amount. This DAG:
++1. Discovers all partner files for the run date
++2. Processes each file independently (one file = one task, failures are isolated)
++3. Writes partner JSON output to output/partner_feeds/<YYYY-MM-DD>/<partner>.json
++4. Aggregates summary to output/partner_feeds/<YYYY-MM-DD>/summary.json (always, even if no files)
++
++Schedule: Daily at 02:00 UTC, processing the previous calendar day (Monday files on Tuesday 02:00).
++Backfill-safe: Can rerun any date since 2026-09-01 via clear/backfill.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task, get_current_context
++from airflow.timetables.interval import CronDataIntervalTimetable
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DROP = PROJECT_ROOT / "data" / "partner_drop"
++OUTPUT_BASE = PROJECT_ROOT / "output" / "partner_feeds"
++
++
++def get_run_date() -> str:
++    """Extract the business date for the run.
++    
++    For scheduled runs on an interval timetable, returns the start of the
++    data interval (the "processed" day). For reruns/backfills, uses the
++    same interval.
++    
++    Returns YYYY-MM-DD string in UTC.
++    """
++    context = get_current_context()
++    dag_run = context["dag_run"]
++    # On Airflow 3.x interval timetable, data_interval_start is the processed date
++    if dag_run.data_interval_start:
++        return dag_run.data_interval_start.strftime("%Y-%m-%d")
++    # Should not reach here with CronDataIntervalTimetable, but be safe
++    raise RuntimeError("Could not determine run date from dag_run context")
++
++
++@dag(
++    dag_id="partner_feeds",
++    schedule=CronDataIntervalTimetable("0 2 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=1,
++    tags=["partners"],
++    description="Process daily partner order files and generate summaries",
++)
++def partner_feeds():
++    """Main DAG."""
++
++    @task
++    def list_partner_files() -> list:
++        """Discover all partner CSV files for the run date.
++        
++        Returns:
++            List of (partner_name, file_path, run_date) tuples, or empty list if no files.
++        """
++        run_date = get_run_date()
++        date_dir = DATA_DROP / run_date
++
++        result = []
++        if date_dir.exists() and date_dir.is_dir():
++            for csv_file in sorted(date_dir.glob("*.csv")):
++                partner_name = csv_file.stem
++                result.append((partner_name, str(csv_file), run_date))
++
++        return result
++
++    @task
++    def process_partner_file(file_info: tuple) -> dict:
++        """Process a single partner CSV file and write JSON output.
++        
++        Args:
++            file_info: (partner_name, file_path, run_date) tuple
++            
++        Returns:
++            dict with keys: partner, rows, total_amount
++        """
++        partner_name, file_path, run_date = file_info
++        file_path = Path(file_path)
++
++        # Read and aggregate CSV
++        row_count = 0
++        total_amount = 0.0
++
++        try:
++            with open(file_path, encoding="utf-8") as f:
++                reader = csv.DictReader(f)
++                if reader.fieldnames != ["order_id", "amount"]:
++                    raise ValueError(
++                        f"Expected columns [order_id, amount], got {reader.fieldnames}"
++                    )
++                for row in reader:
++                    row_count += 1
++                    total_amount += float(row["amount"])
++        except Exception as e:
++            raise RuntimeError(
++                f"Failed to process {partner_name} ({file_path}): {e}"
++            ) from e
++
++        # Write partner JSON output
++        output_dir = OUTPUT_BASE / run_date
++        output_dir.mkdir(parents=True, exist_ok=True)
++        output_file = output_dir / f"{partner_name}.json"
++
++        output_data = {
++            "partner": partner_name,
++            "rows": row_count,
++            "total_amount": round(total_amount, 2),
++        }
++        output_file.write_text(json.dumps(output_data))
++
++        return output_data
++
++    @task
++    def write_summary() -> str:
++        """Aggregate partner results and write summary JSON.
++        
++        Always writes summary.json even if no partner files exist.
++        Reads partner JSON files directly from output directory to determine totals.
++        
++        Returns:
++            Path to summary file
++        """
++        run_date = get_run_date()
++        output_dir = OUTPUT_BASE / run_date
++        
++        # Count partner files and aggregate totals
++        total_files = 0
++        total_rows = 0
++        total_amount = 0.0
++        
++        if output_dir.exists():
++            for partner_json in sorted(output_dir.glob("partner_*.json")):
++                try:
++                    with open(partner_json) as f:
++                        data = json.load(f)
++                        total_files += 1
++                        total_rows += data["rows"]
++                        total_amount += data["total_amount"]
++                except Exception as e:
++                    # Log but don't fail; missing file might be in-progress
++                    pass
++        
++        # Write summary (even if no files)
++        output_dir.mkdir(parents=True, exist_ok=True)
++        summary_file = output_dir / "summary.json"
++
++        summary_data = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": round(total_amount, 2),
++        }
++        summary_file.write_text(json.dumps(summary_data))
++
++        return str(summary_file)
++
++    # Task chain
++    file_list = list_partner_files()
++    
++    # Dynamic task mapping: expand process_partner_file over file list
++    partner_results = process_partner_file.expand(file_info=file_list)
++    
++    # Write summary unconditionally after list_partner_files completes.
++    # Using file_list as the trigger (not partner_results) ensures summary runs
++    # even when the file list is empty (so mapped task produces zero expansions).
++    summary = write_summary()
++    
++    file_list >> summary
++
++
++partner_feeds()
+diff --git a/data/partner_drop/2026-09-02/acme.csv b/data/partner_drop/2026-09-02/acme.csv
+deleted file mode 100644
+index b57ef34..0000000
+--- a/data/partner_drop/2026-09-02/acme.csv
++++ /dev/null
+@@ -1,11 +0,0 @@
+-order_id,amount
+-ACM-20260902-000,298.36
+-ACM-20260902-001,69.56
+-ACM-20260902-002,458.39
+-ACM-20260902-003,239.66
+-ACM-20260902-004,292.52
+-ACM-20260902-005,304.77
+-ACM-20260902-006,454.87
+-ACM-20260902-007,237.27
+-ACM-20260902-008,277.64
+-ACM-20260902-009,99.91
+diff --git a/data/partner_drop/2026-09-03/acme.csv b/data/partner_drop/2026-09-03/acme.csv
+deleted file mode 100644
+index ab18a04..0000000
+--- a/data/partner_drop/2026-09-03/acme.csv
++++ /dev/null
+@@ -1,26 +0,0 @@
+-order_id,amount
+-ACM-20260903-000,237.78
+-ACM-20260903-001,419.05
+-ACM-20260903-002,240.79
+-ACM-20260903-003,321.34
+-ACM-20260903-004,79.56
+-ACM-20260903-005,319.26
+-ACM-20260903-006,434.68
+-ACM-20260903-007,263.97
+-ACM-20260903-008,371.92
+-ACM-20260903-009,337.35
+-ACM-20260903-010,36.70
+-ACM-20260903-011,380.32
+-ACM-20260903-012,297.59
+-ACM-20260903-013,154.13
+-ACM-20260903-014,20.35
+-ACM-20260903-015,433.44
+-ACM-20260903-016,239.01
+-ACM-20260903-017,360.82
+-ACM-20260903-018,440.01
+-ACM-20260903-019,358.49
+-ACM-20260903-020,460.94
+-ACM-20260903-021,200.51
+-ACM-20260903-022,401.45
+-ACM-20260903-023,225.09
+-ACM-20260903-024,468.12
+diff --git a/data/partner_drop/2026-09-03/globex.csv b/data/partner_drop/2026-09-03/globex.csv
+deleted file mode 100644
+index be2c052..0000000
+--- a/data/partner_drop/2026-09-03/globex.csv
++++ /dev/null
+@@ -1,15 +0,0 @@
+-order_id,amount
+-GLO-20260903-000,53.24
+-GLO-20260903-001,72.30
+-GLO-20260903-002,112.41
+-GLO-20260903-003,482.91
+-GLO-20260903-004,220.90
+-GLO-20260903-005,315.19
+-GLO-20260903-006,154.01
+-GLO-20260903-007,256.09
+-GLO-20260903-008,196.00
+-GLO-20260903-009,178.70
+-GLO-20260903-010,294.61
+-GLO-20260903-011,294.20
+-GLO-20260903-012,452.58
+-GLO-20260903-013,342.58
+diff --git a/data/partner_drop/2026-09-03/initech.csv b/data/partner_drop/2026-09-03/initech.csv
+deleted file mode 100644
+index 8fd1ae6..0000000
+--- a/data/partner_drop/2026-09-03/initech.csv
++++ /dev/null
+@@ -1,4 +0,0 @@
+-order_id,amount
+-INI-20260903-000,428.92
+-INI-20260903-001,495.54
+-INI-20260903-002,337.28
+diff --git a/data/partner_drop/2026-09-03/umbrella.csv b/data/partner_drop/2026-09-03/umbrella.csv
+deleted file mode 100644
+index 67d19f7..0000000
+--- a/data/partner_drop/2026-09-03/umbrella.csv
++++ /dev/null
+@@ -1,9 +0,0 @@
+-order_id,amount
+-UMB-20260903-000,350.81
+-UMB-20260903-001,166.56
+-UMB-20260903-002,273.17
+-UMB-20260903-003,288.12
+-UMB-20260903-004,56.52
+-UMB-20260903-005,329.48
+-UMB-20260903-006,318.32
+-UMB-20260903-007,494.10
+diff --git a/data/partner_drop/2026-09-04/globex.csv b/data/partner_drop/2026-09-04/globex.csv
+deleted file mode 100644
+index b85bb9e..0000000
+--- a/data/partner_drop/2026-09-04/globex.csv
++++ /dev/null
+@@ -1,12 +0,0 @@
+-order_id,amount
+-GLO-20260904-000,146.05
+-GLO-20260904-001,36.41
+-GLO-20260904-002,427.70
+-GLO-20260904-003,494.95
+-GLO-20260904-004,48.82
+-GLO-20260904-005,401.29
+-GLO-20260904-006,208.18
+-GLO-20260904-007,79.63
+-GLO-20260904-008,150.48
+-GLO-20260904-009,385.55
+-GLO-20260904-010,437.02
+diff --git a/data/partner_drop/2026-09-04/hooli.csv b/data/partner_drop/2026-09-04/hooli.csv
+deleted file mode 100644
+index ec16db2..0000000
+--- a/data/partner_drop/2026-09-04/hooli.csv
++++ /dev/null
+@@ -1,5 +0,0 @@
+-order_id,amount
+-HOO-20260904-000,304.47
+-HOO-20260904-001,382.01
+-HOO-20260904-002,192.01
+-HOO-20260904-003,295.26
+diff --git a/data/partner_drop/2026-09-27/partner_a.csv b/data/partner_drop/2026-09-27/partner_a.csv
+new file mode 100644
+index 0000000..0eda215
+--- /dev/null
++++ b/data/partner_drop/2026-09-27/partner_a.csv
+@@ -0,0 +1,4 @@
++order_id,amount
++O001,100.50
++O002,250.75
++O003,50.25
+diff --git a/data/partner_drop/2026-09-27/partner_b.csv b/data/partner_drop/2026-09-27/partner_b.csv
+new file mode 100644
+index 0000000..4e479fe
+--- /dev/null
++++ b/data/partner_drop/2026-09-27/partner_b.csv
+@@ -0,0 +1,3 @@
++order_id,amount
++O101,500.00
++O102,1000.00
+diff --git a/data/partner_drop/2026-09-29/partner_single.csv b/data/partner_drop/2026-09-29/partner_single.csv
+new file mode 100644
+index 0000000..ebf3313
+--- /dev/null
++++ b/data/partner_drop/2026-09-29/partner_single.csv
+@@ -0,0 +1,3 @@
++order_id,amount
++101,250.50
++102,749.50

@@ -1,0 +1,385 @@
+diff --git a/README.md b/README.md
+index 5063754..8a7708a 100644
+--- a/README.md
++++ b/README.md
+@@ -1,6 +1,6 @@
+ # claims-pipelines
+ 
+-Health-claims intake and service-date marts. Deployed with
++Health-claims intake and service-date marts (Apache Airflow 3.3). Deployed with
+ `dags_folder=dags/` and `plugins_folder=plugins/` (locally:
+ `export AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/plugins`). The clearing-house drop is
+ the `claims_export` connection (`fs` type, `{"export_dir": ...}` extra);
+@@ -12,8 +12,8 @@ production defines it as
+ |---|---|---|
+ | `claims_intake_hourly` | hourly | Appends the claims received during the hour to their service-date partition, `output/lake/claims/service_date=<day>/`, and attaches each touched partition to the `claims-by-service-date` alias with its new-claim count |
+ | `claims_service_date_marts` | on the `claims-by-service-date` alias | Rebuilds `output/marts/claims_by_service_date/<day>.csv` for exactly the partitions in the triggering events, writes a numbered rebuild record (new claims per partition) to `output/marts/rebuilds/`, and appends the partition list to `output/marts/_READY_PARTITIONS` |
+-| `provider_directory_daily` | 03:00 | Snapshots the previous day's provider directory to `output/lake/providers/<day>.csv`, with `<day>.status` saying whether it changed since the previous snapshot; its XCom is the directory version |
+-| `denials_digest_daily` | 07:00 | Denied claims of the previous service date per provider, named from the latest directory snapshot at or before that date: `output/digests/<day>.csv` |
++| `provider_directory_daily` | 03:00 | Snapshots the previous day's provider directory to `output/lake/providers/<day>.csv`, with `<day>.status` saying whether it changed since the previous snapshot; the snapshot name (`<day>`) is the directory version |
++| `denials_digest_daily` | 07:00 | Denied claims of the previous service date per provider, named from the latest directory snapshot (`output/lake/providers/`) at or before that date: `output/digests/<day>.csv` |
+ | `claims_reprocess` | manual | See runbook |
+ 
+ ## Ops runbook
+diff --git a/dags/claims_intake_hourly.py b/dags/claims_intake_hourly.py
+index a3d04a0..02be86d 100644
+--- a/dags/claims_intake_hourly.py
++++ b/dags/claims_intake_hourly.py
+@@ -12,17 +12,19 @@ import csv
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+-from claims_lib import LAKE
+-from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_dataset
++from claims_lib import LAKE, manual_interval
++from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_asset
+ from claims_lib.hooks import ClaimsExportHook
+ 
+ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "received_at"]
++CRON = "@hourly"
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    # Interval timetable: each run still covers the hour *before* it fires, as on Airflow 2.
++    schedule=CronDataIntervalTimetable(CRON, timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -31,7 +33,9 @@ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "
+ )
+ def claims_intake_hourly():
+     @task(outlets=[CLAIMS_BY_SERVICE_DATE])
+-    def land_claims(data_interval_start=None, data_interval_end=None, outlet_events=None) -> int:
++    def land_claims(data_interval_start=None, data_interval_end=None, dag_run=None, outlet_events=None) -> int:
++        if data_interval_start is None:  # manual trigger: the latest closed hour, as on Airflow 2
++            data_interval_start, data_interval_end = manual_interval(CRON, dag_run)
+         lo = data_interval_start.strftime("%Y-%m-%d %H:%M:%S")
+         hi = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         by_day: dict[str, list[dict]] = defaultdict(list)
+@@ -45,7 +49,7 @@ def claims_intake_hourly():
+                 writer = csv.DictWriter(fh, fieldnames=FIELDS)
+                 writer.writeheader()
+                 writer.writerows(rows)
+-            outlet_events[CLAIMS_BY_SERVICE_DATE].add(partition_dataset(day), extra={"claims": len(rows)})
++            outlet_events[CLAIMS_BY_SERVICE_DATE].add(partition_asset(day), extra={"claims": len(rows)})
+         return sum(len(r) for r in by_day.values())
+ 
+     land_claims()
+diff --git a/dags/claims_reprocess.py b/dags/claims_reprocess.py
+index 4a4bceb..248e947 100644
+--- a/dags/claims_reprocess.py
++++ b/dags/claims_reprocess.py
+@@ -12,12 +12,11 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+-from airflow.models.param import Param
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import Param, dag, task
+ 
+-from claims_lib import LAKE, MARTS
+-from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_dataset
++from claims_lib import LAKE, MARTS, trigger_time
++from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_asset
+ from claims_lib.hooks import ClaimsExportHook
+ 
+ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "received_at"]
+@@ -33,9 +32,11 @@ FIELDS = ["claim_id", "provider_id", "service_date", "billed_cents", "status", "
+ )
+ def claims_reprocess():
+     @task(outlets=[CLAIMS_BY_SERVICE_DATE])
+-    def recheck_partition(params=None, logical_date=None, outlet_events=None) -> int:
++    def recheck_partition(params=None, dag_run=None, outlet_events=None) -> int:
+         day = params["service_date"]
+-        cutoff = logical_date.strftime("%Y-%m-%d %H:%M:%S")
++        # A manual trigger has no logical date on Airflow 3; its trigger time is run_after.
++        triggered_at = trigger_time(dag_run)
++        cutoff = triggered_at.strftime("%Y-%m-%d %H:%M:%S")
+         part = LAKE / "claims" / f"service_date={day}"
+         landed = set()
+         for path in part.glob("*.csv"):
+@@ -45,17 +46,18 @@ def claims_reprocess():
+                    if r["service_date"] == day and r["received_at"] < cutoff and r["claim_id"] not in landed]
+         if missing:
+             part.mkdir(parents=True, exist_ok=True)
+-            with (part / f"received_reprocess_{logical_date.strftime('%Y%m%dT%H%M')}.csv").open("w", newline="") as fh:
++            with (part / f"received_reprocess_{triggered_at.strftime('%Y%m%dT%H%M')}.csv").open("w", newline="") as fh:
+                 writer = csv.DictWriter(fh, fieldnames=FIELDS)
+                 writer.writeheader()
+                 writer.writerows(missing)
+-        outlet_events[CLAIMS_BY_SERVICE_DATE].add(partition_dataset(day), extra={"claims": len(missing)})
++        outlet_events[CLAIMS_BY_SERVICE_DATE].add(partition_asset(day), extra={"claims": len(missing)})
+         return len(missing)
+ 
+     log_recheck = BashOperator(
+         task_id="log_recheck",
+         bash_command=(
+-            "echo \"{{ params.service_date }} rechecked at {{ ts }}: "
++            "echo \"{{ params.service_date }} rechecked at "
++            "{{ (dag_run.logical_date or dag_run.run_after) | ts }}: "
+             "{{ ti.xcom_pull(task_ids='recheck_partition') }} claim(s) recovered\" "
+             f">> {MARTS}/_RECHECK_LOG"
+         ),
+diff --git a/dags/claims_service_date_marts.py b/dags/claims_service_date_marts.py
+index 6cecf88..f096c27 100644
+--- a/dags/claims_service_date_marts.py
++++ b/dags/claims_service_date_marts.py
+@@ -15,8 +15,8 @@ import json
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import dag, task
+ 
+ from claims_lib import LAKE, MARTS
+ from claims_lib.assets import CLAIMS_BY_SERVICE_DATE, partition_of
+@@ -50,10 +50,12 @@ def rebuild_mart(day: str) -> None:
+ )
+ def claims_service_date_marts():
+     @task
+-    def rebuild_partitions(triggering_dataset_events=None) -> list[str]:
++    def rebuild_partitions(triggering_asset_events=None) -> list[str]:
+         new_claims: dict[str, int] = defaultdict(int)
+-        for uri, events in triggering_dataset_events.items():
+-            new_claims[partition_of(uri)] += sum(event.extra.get("claims", 0) for event in events)
++        # Airflow 3 lists an alias-delivered event under its asset *and* under the alias;
++        # reading through the alias sees each event exactly once (as Airflow 2 did).
++        for event in triggering_asset_events[CLAIMS_BY_SERVICE_DATE]:
++            new_claims[partition_of(event.asset.uri)] += event.extra.get("claims", 0)
+         days = sorted(new_claims)
+         for day in days:
+             rebuild_mart(day)
+@@ -63,14 +65,14 @@ def claims_service_date_marts():
+         record.write_text(json.dumps({"new_claims": new_claims}, indent=2, sort_keys=True) + "\n")
+         return days
+ 
+-    publish = BashOperator(
++    publish_ready = BashOperator(
+         task_id="publish_ready",
+         bash_command=(
+             "echo \"{{ ti.xcom_pull(task_ids='rebuild_partitions') | join(',') }}\" "
+             f">> {MARTS}/_READY_PARTITIONS"
+         ),
+     )
+-    rebuild_partitions() >> publish
++    rebuild_partitions() >> publish_ready
+ 
+ 
+ claims_service_date_marts()
+diff --git a/dags/denials_digest_daily.py b/dags/denials_digest_daily.py
+index 2d92a6a..9f8909d 100644
+--- a/dags/denials_digest_daily.py
++++ b/dags/denials_digest_daily.py
+@@ -1,8 +1,9 @@
+ """Daily digest of denied claims for the previous service date, by provider.
+ 
+ Provider names and networks come from the latest provider-directory snapshot
+-taken at or before this run's date (its version is published in XCom by
+-provider_directory_daily). Output: output/digests/<service date>.csv
++taken at or before this run's date (the snapshot written by
++provider_directory_daily, output/lake/providers/<version>.csv).
++Output: output/digests/<service date>.csv
+ """
+ 
+ from __future__ import annotations
+@@ -10,13 +11,26 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+-from claims_lib import LAKE, MARTS, PROJECT_ROOT
++from claims_lib import LAKE, MARTS, PROJECT_ROOT, run_day
++
++
++def latest_directory_version(day: str) -> str | None:
++    """Version of the latest provider-directory snapshot taken at or before ``day``.
++
++    On Airflow 2 this was a cross-DAG XCom pull with include_prior_dates (the
++    snapshot of the latest provider_directory_daily run dated at or before this
++    run); Airflow 3 matches such pulls on this run's run_id, so the snapshots
++    themselves are consulted instead.
++    """
++    versions = sorted(p.stem for p in (LAKE / "providers").glob("*.csv") if p.stem <= day)
++    return versions[-1] if versions else None
+ 
+ 
+ @dag(
+-    schedule_interval="0 7 * * *",
++    # Interval timetable: the run at 07:00 still carries the previous day's ds, as on Airflow 2.
++    schedule=CronDataIntervalTimetable("0 7 * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "claims-ops"},
+@@ -24,8 +38,9 @@ from claims_lib import LAKE, MARTS, PROJECT_ROOT
+ )
+ def denials_digest_daily():
+     @task
+-    def build_digest(ds=None, ti=None) -> str:
+-        version = ti.xcom_pull(dag_id="provider_directory_daily", task_ids="sync_providers", include_prior_dates=True)
++    def build_digest(ds=None, dag_run=None) -> str:
++        ds = run_day(ds, dag_run)
++        version = latest_directory_version(ds)
+         with (LAKE / "providers" / f"{version}.csv").open(newline="") as fh:
+             directory = {r["provider_id"]: r for r in csv.DictReader(fh)}
+         mart = MARTS / "claims_by_service_date" / f"{ds}.csv"
+diff --git a/dags/provider_directory_daily.py b/dags/provider_directory_daily.py
+index 533c4b1..ab8a375 100644
+--- a/dags/provider_directory_daily.py
++++ b/dags/provider_directory_daily.py
+@@ -11,9 +11,9 @@ import csv
+ import hashlib
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+-from claims_lib import LAKE
++from claims_lib import LAKE, run_day
+ from claims_lib.assets import PROVIDERS
+ from claims_lib.hooks import ClaimsExportHook
+ 
+@@ -21,7 +21,8 @@ COLUMNS = ("provider_id", "name", "network")
+ 
+ 
+ @dag(
+-    schedule_interval="0 3 * * *",
++    # Interval timetable: the run at 03:00 still carries the previous day's ds, as on Airflow 2.
++    schedule=CronDataIntervalTimetable("0 3 * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "claims-data", "retries": 1},
+@@ -29,7 +30,8 @@ COLUMNS = ("provider_id", "name", "network")
+ )
+ def provider_directory_daily():
+     @task(outlets=[PROVIDERS])
+-    def sync_providers(ds=None, ti=None) -> str:
++    def sync_providers(ds=None, dag_run=None, ti=None) -> str:
++        ds = run_day(ds, dag_run)
+         rows = [r for r in ClaimsExportHook().read("providers_export.csv") if r["valid_from"] == ds]
+         out = LAKE / "providers" / f"{ds}.csv"
+         out.parent.mkdir(parents=True, exist_ok=True)
+@@ -41,11 +43,13 @@ def provider_directory_daily():
+ 
+         fingerprint = hashlib.sha256(
+             "\n".join(",".join(r[k] for k in COLUMNS) for r in rows).encode()).hexdigest()
+-        previous = ti.xcom_pull(task_ids="sync_providers", key="fingerprint", include_prior_dates=True)
++        # map_indexes=-1: the latest earlier value. Without it Airflow 3 returns a list of
++        # every earlier fingerprint from the third run on, and the status would always be "changed".
++        previous = ti.xcom_pull(task_ids="sync_providers", key="fingerprint", include_prior_dates=True, map_indexes=-1)
+         status = "first snapshot" if previous is None else ("unchanged" if previous == fingerprint else "changed")
+         (LAKE / "providers" / f"{ds}.status").write_text(status + "\n")
+         ti.xcom_push(key="fingerprint", value=fingerprint)
+-        return ds  # directory version consumed by denials_digest_daily
++        return ds  # directory version, also the snapshot file name read by denials_digest_daily
+ 
+     sync_providers()
+ 
+diff --git a/plugins/claims_lib/__init__.py b/plugins/claims_lib/__init__.py
+index a96afa0..759f9c8 100644
+--- a/plugins/claims_lib/__init__.py
++++ b/plugins/claims_lib/__init__.py
+@@ -1,7 +1,38 @@
+ """Shared code for the claims DAGs (on sys.path via the plugins folder)."""
+ 
++from __future__ import annotations
++
++from datetime import datetime
+ from pathlib import Path
+ 
++import pendulum
++
+ PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ LAKE = PROJECT_ROOT / "output" / "lake"
+ MARTS = PROJECT_ROOT / "output" / "marts"
++
++
++def trigger_time(dag_run) -> pendulum.DateTime:
++    """When this run was triggered.
++
++    Scheduled runs keep their logical date. A manual trigger (``airflow dags
++    trigger`` / UI / API) has no logical date on Airflow 3, so its trigger time
++    is ``run_after``, which is what ``logical_date`` was for such runs on
++    Airflow 2.
++    """
++    return pendulum.instance(dag_run.logical_date or dag_run.run_after)
++
++
++def run_day(ds: str | None, dag_run) -> str:
++    """``ds`` of a scheduled run; the trigger date of a manual run (as on Airflow 2)."""
++    return ds if ds is not None else trigger_time(dag_run).to_date_string()
++
++
++def manual_interval(cron: str, dag_run) -> tuple[datetime, datetime]:
++    """Data interval Airflow 2 gave a manual trigger: the latest closed period before run_after."""
++    from airflow.timetables.interval import CronDataIntervalTimetable
++
++    interval = CronDataIntervalTimetable(cron, timezone="UTC").infer_manual_data_interval(
++        run_after=pendulum.instance(dag_run.run_after)
++    )
++    return interval.start, interval.end
+diff --git a/plugins/claims_lib/assets.py b/plugins/claims_lib/assets.py
+index 728dc64..f2933c4 100644
+--- a/plugins/claims_lib/assets.py
++++ b/plugins/claims_lib/assets.py
+@@ -1,4 +1,4 @@
+-"""Datasets of the claims lake.
++"""Assets of the claims lake.
+ 
+ Claims land in one partition per service date. The intake attaches each
+ partition it touched to the ``claims-by-service-date`` alias, so consumers do
+@@ -7,17 +7,17 @@ not need to know the partitions in advance.
+ 
+ from __future__ import annotations
+ 
+-from airflow.datasets import Dataset, DatasetAlias
++from airflow.sdk import Asset, AssetAlias
+ 
+-CLAIMS_BY_SERVICE_DATE = DatasetAlias("claims-by-service-date")
+-PROVIDERS = Dataset("lake://claims/providers")
++CLAIMS_BY_SERVICE_DATE = AssetAlias("claims-by-service-date")
++PROVIDERS = Asset("lake://claims/providers")
+ PARTITION_PREFIX = "lake://claims/service_date="
+ 
+ 
+-def partition_dataset(service_date: str) -> Dataset:
+-    return Dataset(f"{PARTITION_PREFIX}{service_date}")
++def partition_asset(service_date: str) -> Asset:
++    return Asset(f"{PARTITION_PREFIX}{service_date}")
+ 
+ 
+ def partition_of(uri: str) -> str:
+-    """Service date of a partition dataset URI."""
++    """Service date of a partition asset URI."""
+     return uri[len(PARTITION_PREFIX):]
+diff --git a/plugins/claims_lib/hooks.py b/plugins/claims_lib/hooks.py
+index 02b963c..4c66951 100644
+--- a/plugins/claims_lib/hooks.py
++++ b/plugins/claims_lib/hooks.py
+@@ -5,7 +5,7 @@ from __future__ import annotations
+ import csv
+ from pathlib import Path
+ 
+-from airflow.hooks.base import BaseHook
++from airflow.sdk import BaseHook
+ 
+ 
+ class ClaimsExportHook(BaseHook):
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..c5d277a 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ pendulum==3.2.0

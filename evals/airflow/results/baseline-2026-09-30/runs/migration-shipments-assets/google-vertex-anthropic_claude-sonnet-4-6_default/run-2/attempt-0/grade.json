@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['carrier_scorecard', 'ingest_shipments']"
+    },
+    {
+      "name": "both DAGs keep their tasks and dependencies",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ingest_shipments: tasks=['load_batch'] deps=[]; carrier_scorecard: tasks=['build_scorecard', 'mark_ready'] deps=[['build_scorecard', 'mark_ready']]"
+    },
+    {
+      "name": "carrier_scorecard is still scheduled on the asset ingest_shipments updates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{'outlets': ['name:warehouse://shipments/batches', 'uri:warehouse://shipments/batches'], 'schedule_assets': ['name:warehouse://shipments/batches', 'uri:warehouse://shipments/batches'], 'timetable': 'AssetTriggeredTimetable'}"
+    },
+    {
+      "name": "dags test succeeds (ingest_shipments, carrier_scorecard)",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "three hourly loads and the scorecard run succeed on 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "ingest_shipments: 2026-03-05T01:00:00+00:00: state=success interval=[2026-03-05T01:00:00+00:00, 2026-03-05T01:00:00+00:00] failed=[]; 2026-03-05T02:00:00+00:00: state=success interval=[2026-03-05T02:00:00+00:00, 2026-03-05T02:00:00+00:00] failed=[]; 2026-03-05T03:00:00+00:00: state=failed interval=[2026-03-05T03:00:00+00:00, 2026-03-05T03:00:00+00:00] failed=['load_batch']\ncarrier_scorecard: manual 2026-03-05T03:30:00+00:00: state=success interval=[None, None] failed=[]\ndgupta/.cache/des-evals/work/baseline-2026-09-30-baseline-20260930-045309/migration-shipments-assets-93ust5x5/grade-ws/dags/ingest_shipments.py\", line 57, in load_batch\n    if r[\"updated_at\"] <= upper and (watermark is None or r[\"updated_at\"] > watermark)\n                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: '>' not supported between instances of 'str' and 'list'\n2026-09-30T13:03:15.311180Z [info     ] ::group::Post Execute          [task] loc=task_runner.py:1677\n2026-09-30T13:03:15.313536Z [info     ] ::endgroup::                   [task] loc=task_runner.py:2379\n2026-09-30T13:03:15.340232Z [info     ] Task instance state updated    [airflow.api_fastapi.execution_api.routes.task_instances] correlation_id=01a0f269-7f71-794e-b2fb-fcd5d5c825a2 loc=task_instances.py:485 new_state=failed rows_affected=1 ti_id=01a0f269-7e77-7c50-903f-5c0c4f83560c\n2026-09-30T13:03:15.347093Z [info     ] [DAG TEST] end task task_id=load_batch map_index=-1 [airflow.sdk.definitions.dag] loc=dag.py:1563\n2026-09-30T13:03:15.348291Z [info     ] Marking run <DagRun ingest_shipments @ 2026-03-05 03:00:00+00:00: manual__2026-03-05T03:00:00+00:00, state:running, queued_at: None. run_type: manual> failed [airflow.models.dagrun.DagRun] loc=dagrun.py:1219\n2026-09-30T13:03:15.348400Z [info     ] DagRun Finished: dag_id=ingest_shipments, logical_date=2026-03-05 03:00:00+00:00, run_id=manual__2026-03-05T03:00:00+00:00, run_start_date=2026-03-05 03:00:00+00:00, run_end_date=2026-09-30 13:03:15.348354+00:00, run_duration=18093795.348354, state=failed, run_type=manual, data_interval_start=2026-03-05 03:00:00+00:00, data_interval_end=2026-03-05 03:00:00+00:00, [airflow.models.dagrun.DagRun] loc=dagrun.py:1315\n__MIGSIM_RESULT__{\"airflow_version\": \"3.3.2\", \"runs\": [{\"run_after\": \"2026-03-05T01:00:00+00:00\", \"logical_date\": \"2026-03-05T01:00:00+00:00\", \"start\": \"2026-03-05T01:00:00+00:00\", \"end\": \"2026-03-05T01:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"load_batch\": \"success\"}}, {\"run_after\": \"2026-03-05T02:00:00+00:00\", \"logical_date\": \"2026-03-05T02:00:00+00:00\", \"start\": \"2026-03-05T02:00:00+00:00\", \"end\": \"2026-03-05T02:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"load_batch\": \"success\"}}, {\"run_after\": \"2026-03-05T03:00:00+00:00\", \"logical_date\": \"2026-03-05T03:00:00+00:00\", \"start\": \"2026-03-05T03:00:00+00:00\", \"end\": \"2026-03-05T03:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"load_batch\": \"failed\"}}], \"error\": null, \"timetable\": \"CronTriggerTimetable\"}"
+    },
+    {
+      "name": "every carrier event is loaded exactly once, in the same batches as 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected batches ['warehouse/shipments/batch_20260305T0100.csv', 'warehouse/shipments/batch_20260305T0200.csv', 'warehouse/shipments/batch_20260305T0300.csv'] (rows [140, 5, 6])\n got ['warehouse/shipments/batch_20260305T0100.csv', 'warehouse/shipments/batch_20260305T0200.csv'] (rows [140, 5])"
+    },
+    {
+      "name": "scorecard and _READY marker match 2.11",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'scorecard/_READY': 'carriers=4 shipments=63', 'scorecard/carrier_scorecard.csv': 'carrier,shipments,delivered,on_time,on_time_rate\\nDHLX,13,9,7,0.778\\nFEDX,19,9,8,0.889\\nUPSX,12,8,7,0.875\\nUSPX,19,11,8,0.727'}\n got {'scorecard/_READY': 'carriers=4 shipments=62', 'scorecard/carrier_scorecard.csv': 'carrier,shipments,delivered,on_time,on_time_rate\\nDHLX,13,7,6,0.857\\nFEDX,19,8,8,1.000\\nUPSX,12,7,6,0.857\\nUSPX,18,10,7,0.700'}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/carrier_scorecard.py:70 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.5714285714285714,
+  "secondary_score": 0.6666666666666666
+}

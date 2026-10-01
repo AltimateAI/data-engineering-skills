@@ -1,0 +1,5246 @@
+{
+  "groups": [
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2181044.0,
+      "mean_tokens_input": 1087424.6667,
+      "mean_tokens_output": 6285.0,
+      "mean_cost_usd": 0.3499,
+      "total_cost_usd": 1.0498,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 92.4,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1174723.0,
+      "mean_tokens_input": 585698.3333,
+      "mean_tokens_output": 3335.3333,
+      "mean_cost_usd": 0.7217,
+      "total_cost_usd": 2.1651,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 84.4,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3917650.0,
+      "mean_tokens_input": 1953553.3333,
+      "mean_tokens_output": 10690.6667,
+      "mean_cost_usd": 0.6908,
+      "total_cost_usd": 2.0723,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 171.7,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-airflow2-inventory-snapshot",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 2666065.0,
+      "mean_tokens_input": 1330012.6667,
+      "mean_tokens_output": 6056.3333,
+      "mean_cost_usd": 1.311,
+      "total_cost_usd": 3.933,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 116.8667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.9048,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3346429.3333,
+      "mean_tokens_input": 1667308.3333,
+      "mean_tokens_output": 11945.6667,
+      "mean_cost_usd": 0.9238,
+      "total_cost_usd": 2.7713,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 193.0,
+      "statuses": {
+        "task_fail": 2,
+        "ok": 1
+      },
+      "retries": 1
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2497066.3333,
+      "mean_tokens_input": 1245344.0,
+      "mean_tokens_output": 6397.0,
+      "mean_cost_usd": 1.3607,
+      "total_cost_usd": 4.082,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 150.0,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8095,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3115526.3333,
+      "mean_tokens_input": 1553145.0,
+      "mean_tokens_output": 9355.0,
+      "mean_cost_usd": 0.6453,
+      "total_cost_usd": 1.9359,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 126.3333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-clickstream-claim-check",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3810044.0,
+      "mean_tokens_input": 1900734.3333,
+      "mean_tokens_output": 8598.3333,
+      "mean_cost_usd": 2.5605,
+      "total_cost_usd": 7.6816,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 180.4,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8889,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4008946.3333,
+      "mean_tokens_input": 1999834.6667,
+      "mean_tokens_output": 9435.0,
+      "mean_cost_usd": 0.814,
+      "total_cost_usd": 2.4421,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 192.9667,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.7778,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2547843.3333,
+      "mean_tokens_input": 1270822.0,
+      "mean_tokens_output": 6218.0,
+      "mean_cost_usd": 2.5449,
+      "total_cost_usd": 7.6347,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 165.7333,
+      "statuses": {
+        "ok": 1,
+        "task_fail": 1,
+        "cost_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.8333,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 3804984.3333,
+      "mean_tokens_input": 1896807.6667,
+      "mean_tokens_output": 11513.6667,
+      "mean_cost_usd": 1.0002,
+      "total_cost_usd": 3.0007,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 151.7333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-daily-revenue-yesterday",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 2919397.0,
+      "mean_tokens_input": 1456704.3333,
+      "mean_tokens_output": 6007.0,
+      "mean_cost_usd": 3.6571,
+      "total_cost_usd": 10.9713,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 160.3333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 1
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.4444,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4851110.6667,
+      "mean_tokens_input": 2417172.0,
+      "mean_tokens_output": 16957.6667,
+      "mean_cost_usd": 0.8155,
+      "total_cost_usd": 2.4465,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 245.9333,
+      "statuses": {
+        "turn_limit": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.5556,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2201060.6667,
+      "mean_tokens_input": 1097202.0,
+      "mean_tokens_output": 6673.3333,
+      "mean_cost_usd": 1.7917,
+      "total_cost_usd": 5.3752,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 177.4333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 1
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.6667,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 5343871.3333,
+      "mean_tokens_input": 2660900.6667,
+      "mean_tokens_output": 22267.0,
+      "mean_cost_usd": 1.136,
+      "total_cost_usd": 3.4079,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 241.8667,
+      "statuses": {
+        "task_fail": 1,
+        "turn_limit": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-partner-feeds-mapping",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 4314617.0,
+      "mean_tokens_input": 2152584.6667,
+      "mean_tokens_output": 9472.3333,
+      "mean_cost_usd": 3.2137,
+      "total_cost_usd": 9.6411,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 215.1667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.9444,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4774489.6667,
+      "mean_tokens_input": 2379971.3333,
+      "mean_tokens_output": 14735.0,
+      "mean_cost_usd": 0.6048,
+      "total_cost_usd": 1.8143,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 211.1667,
+      "statuses": {
+        "ok": 1,
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.5,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3092601.0,
+      "mean_tokens_input": 1543025.5,
+      "mean_tokens_output": 6572.5,
+      "mean_cost_usd": 1.431,
+      "total_cost_usd": 2.8619,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 184.15,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.8611,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.3333,
+      "skills_used": {
+        "authoring-airflow-dags": 1
+      },
+      "mean_tokens_total": 4055158.0,
+      "mean_tokens_input": 2021327.0,
+      "mean_tokens_output": 13611.0,
+      "mean_cost_usd": 0.704,
+      "total_cost_usd": 2.112,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 235.8,
+      "statuses": {
+        "ok": 1,
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "authoring-vendor-shipments-etl",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "authoring",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3231194.0,
+      "mean_tokens_input": 1611493.0,
+      "mean_tokens_output": 8227.3333,
+      "mean_cost_usd": 2.2869,
+      "total_cost_usd": 6.8606,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 263.2,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7143,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1987527.6667,
+      "mean_tokens_input": 991131.6667,
+      "mean_tokens_output": 5340.6667,
+      "mean_cost_usd": 0.3924,
+      "total_cost_usd": 1.1771,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 81.7,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7619,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1367355.6667,
+      "mean_tokens_input": 681477.0,
+      "mean_tokens_output": 4412.6667,
+      "mean_cost_usd": 0.816,
+      "total_cost_usd": 2.448,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 100.6,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9048,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 3987580.0,
+      "mean_tokens_input": 1988030.3333,
+      "mean_tokens_output": 11666.6667,
+      "mean_cost_usd": 0.6065,
+      "total_cost_usd": 1.8196,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 143.6333,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-manual-trigger-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.9048,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 3146989.0,
+      "mean_tokens_input": 1569931.3333,
+      "mean_tokens_output": 7145.3333,
+      "mean_cost_usd": 1.5151,
+      "total_cost_usd": 4.5454,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 151.6,
+      "statuses": {
+        "task_fail": 2,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9667,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3316231.0,
+      "mean_tokens_input": 1652526.6667,
+      "mean_tokens_output": 11305.3333,
+      "mean_cost_usd": 0.7105,
+      "total_cost_usd": 2.1316,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 168.1667,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1171259.0,
+      "mean_tokens_input": 583511.6667,
+      "mean_tokens_output": 4245.3333,
+      "mean_cost_usd": 0.8629,
+      "total_cost_usd": 2.5888,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 99.0667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9667,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 1,
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 2904388.3333,
+      "mean_tokens_input": 1447815.6667,
+      "mean_tokens_output": 8862.3333,
+      "mean_cost_usd": 0.5251,
+      "total_cost_usd": 1.5754,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 116.9333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-nondeterministic-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9667,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1912694.3333,
+      "mean_tokens_input": 954439.6667,
+      "mean_tokens_output": 3828.0,
+      "mean_cost_usd": 0.8633,
+      "total_cost_usd": 2.5899,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 83.4667,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2600769.0,
+      "mean_tokens_input": 1297275.0,
+      "mean_tokens_output": 6320.5,
+      "mean_cost_usd": 0.4441,
+      "total_cost_usd": 0.8881,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 140.8,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.0,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1248596.6667,
+      "mean_tokens_input": 622768.3333,
+      "mean_tokens_output": 3070.3333,
+      "mean_cost_usd": 1.0002,
+      "total_cost_usd": 3.0005,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 80.3667,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 1318139.5,
+      "mean_tokens_input": 657368.5,
+      "mean_tokens_output": 3448.0,
+      "mean_cost_usd": 0.3753,
+      "total_cost_usd": 0.7506,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 46.1,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "debugging-variable-at-parse",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "debugging",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 1644664.0,
+      "mean_tokens_input": 820097.5,
+      "mean_tokens_output": 4481.0,
+      "mean_cost_usd": 0.8201,
+      "total_cost_usd": 1.6401,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 87.2,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.4286,
+      "mean_secondary_score": 0.2222,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3891013.6667,
+      "mean_tokens_input": 1938064.6667,
+      "mean_tokens_output": 15034.0,
+      "mean_cost_usd": 0.6625,
+      "total_cost_usd": 1.9874,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 200.9667,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5714,
+      "mean_secondary_score": 0.4444,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3999267.3333,
+      "mean_tokens_input": 1994081.6667,
+      "mean_tokens_output": 11132.0,
+      "mean_cost_usd": 2.1353,
+      "total_cost_usd": 6.406,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 246.5,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-hourly-pageviews-templates",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 1,
+      "n_valid": 1,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.2857,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 1
+      },
+      "mean_tokens_total": 4635817.0,
+      "mean_tokens_input": 2312903.0,
+      "mean_tokens_output": 10183.0,
+      "mean_cost_usd": 0.8192,
+      "total_cost_usd": 0.8192,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 130.3,
+      "statuses": {
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5333,
+      "mean_secondary_score": 0.2222,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3253703.6667,
+      "mean_tokens_input": 1620560.0,
+      "mean_tokens_output": 12716.0,
+      "mean_cost_usd": 0.5715,
+      "total_cost_usd": 1.7144,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 162.7,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8,
+      "mean_secondary_score": 0.4444,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3057943.3333,
+      "mean_tokens_input": 1525473.3333,
+      "mean_tokens_output": 7018.3333,
+      "mean_cost_usd": 1.4796,
+      "total_cost_usd": 4.4388,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 160.7667,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 4281023.0,
+      "mean_tokens_input": 2134509.3333,
+      "mean_tokens_output": 12163.3333,
+      "mean_cost_usd": 0.6986,
+      "total_cost_usd": 2.0959,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 151.6333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-inventory-context",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 6511381.5,
+      "mean_tokens_input": 3248997.0,
+      "mean_tokens_output": 13427.0,
+      "mean_cost_usd": 2.2284,
+      "total_cost_usd": 4.4569,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 252.5,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.4762,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5878320.3333,
+      "mean_tokens_input": 2930642.0,
+      "mean_tokens_output": 17265.6667,
+      "mean_cost_usd": 0.7551,
+      "total_cost_usd": 2.2652,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 267.4333,
+      "statuses": {
+        "turn_limit": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7619,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 6104477.0,
+      "mean_tokens_input": 3046252.0,
+      "mean_tokens_output": 12012.6667,
+      "mean_cost_usd": 2.413,
+      "total_cost_usd": 7.2389,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 292.0667,
+      "statuses": {
+        "turn_limit": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-revenue-previous-day",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 5265089.3333,
+      "mean_tokens_input": 2626082.0,
+      "mean_tokens_output": 13120.3333,
+      "mean_cost_usd": 0.6816,
+      "total_cost_usd": 2.0447,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 151.6667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.0,
+      "mean_secondary_score": 0.5556,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3382552.0,
+      "mean_tokens_input": 1684993.3333,
+      "mean_tokens_output": 12698.3333,
+      "mean_cost_usd": 0.4741,
+      "total_cost_usd": 1.4222,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 171.5667,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5714,
+      "mean_secondary_score": 0.5556,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5673125.6667,
+      "mean_tokens_input": 2829871.3333,
+      "mean_tokens_output": 13420.0,
+      "mean_cost_usd": 2.5848,
+      "total_cost_usd": 7.7545,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 307.5333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 0.4444,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 5589411.6667,
+      "mean_tokens_input": 2786729.6667,
+      "mean_tokens_output": 16157.3333,
+      "mean_cost_usd": 0.809,
+      "total_cost_usd": 2.4269,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 199.7333,
+      "statuses": {
+        "task_fail": 2,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-shipments-assets",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.8571,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 6553546.0,
+      "mean_tokens_input": 3270860.6667,
+      "mean_tokens_output": 11864.0,
+      "mean_cost_usd": 2.6164,
+      "total_cost_usd": 7.8493,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 233.7667,
+      "statuses": {
+        "turn_limit": 1,
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.3333,
+      "mean_secondary_score": 0.3333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 5389009.0,
+      "mean_tokens_input": 2686409.3333,
+      "mean_tokens_output": 16401.3333,
+      "mean_cost_usd": 0.8271,
+      "total_cost_usd": 2.4814,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 249.8333,
+      "statuses": {
+        "task_fail": 2,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7143,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 6104354.6667,
+      "mean_tokens_input": 3046435.3333,
+      "mean_tokens_output": 11525.0,
+      "mean_cost_usd": 2.7417,
+      "total_cost_usd": 8.225,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 316.8667,
+      "statuses": {
+        "turn_limit": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 3
+      },
+      "mean_tokens_total": 4453910.3333,
+      "mean_tokens_input": 2221128.3333,
+      "mean_tokens_output": 11818.3333,
+      "mean_cost_usd": 0.7281,
+      "total_cost_usd": 2.1844,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 237.1333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "migration-weekly-catchup",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "migration",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "migrating-to-airflow-3": 2
+      },
+      "mean_tokens_total": 6052756.5,
+      "mean_tokens_input": 3020207.5,
+      "mean_tokens_output": 12378.0,
+      "mean_cost_usd": 2.6509,
+      "total_cost_usd": 5.3017,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 239.5,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.6111,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1990823.0,
+      "mean_tokens_input": 991262.0,
+      "mean_tokens_output": 8376.0,
+      "mean_cost_usd": 0.3948,
+      "total_cost_usd": 0.7895,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 129.85,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.7778,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1818863.6667,
+      "mean_tokens_input": 907147.6667,
+      "mean_tokens_output": 4581.3333,
+      "mean_cost_usd": 1.118,
+      "total_cost_usd": 3.3541,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 107.8333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.6296,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 3026350.6667,
+      "mean_tokens_input": 1506925.3333,
+      "mean_tokens_output": 12615.0,
+      "mean_cost_usd": 0.5554,
+      "total_cost_usd": 1.6661,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 144.9333,
+      "statuses": {
+        "task_fail": 2,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-backfill-pageviews",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3569779.3333,
+      "mean_tokens_input": 1780953.3333,
+      "mean_tokens_output": 7895.0,
+      "mean_cost_usd": 1.8833,
+      "total_cost_usd": 5.6498,
+      "contamination_suspect_runs": 3,
+      "mean_wall_s": 160.3,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.6111,
+      "mean_secondary_score": 0.8889,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3885827.0,
+      "mean_tokens_input": 1933925.3333,
+      "mean_tokens_output": 18127.0,
+      "mean_cost_usd": 0.7777,
+      "total_cost_usd": 2.333,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 225.1667,
+      "statuses": {
+        "task_fail": 2,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.7778,
+      "mean_secondary_score": 0.7778,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1743515.6667,
+      "mean_tokens_input": 869117.3333,
+      "mean_tokens_output": 5294.3333,
+      "mean_cost_usd": 0.9925,
+      "total_cost_usd": 2.9774,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 134.0333,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 2
+      },
+      "mean_tokens_total": 4200411.0,
+      "mean_tokens_input": 2094730.5,
+      "mean_tokens_output": 11109.5,
+      "mean_cost_usd": 0.6018,
+      "total_cost_usd": 1.2036,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 142.4,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-idempotent-orders-load",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3641256.3333,
+      "mean_tokens_input": 1816170.0,
+      "mean_tokens_output": 8938.6667,
+      "mean_cost_usd": 1.8291,
+      "total_cost_usd": 5.4873,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 171.0333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.3333,
+      "mean_primary_score": 0.4286,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3275582.0,
+      "mean_tokens_input": 1632436.0,
+      "mean_tokens_output": 10835.0,
+      "mean_cost_usd": 0.505,
+      "total_cost_usd": 1.5151,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 153.5,
+      "statuses": {
+        "task_fail": 2,
+        "ok": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.6667,
+      "mean_secondary_score": 0.6667,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 1171232.0,
+      "mean_tokens_input": 583887.0,
+      "mean_tokens_output": 3467.6667,
+      "mean_cost_usd": 0.8437,
+      "total_cost_usd": 2.531,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 83.7333,
+      "statuses": {
+        "ok": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 1716857.3333,
+      "mean_tokens_input": 855214.0,
+      "mean_tokens_output": 6491.3333,
+      "mean_cost_usd": 0.3704,
+      "total_cost_usd": 1.1112,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 86.9,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "scheduling-weekday-ny-business-day",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "scheduling",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 3
+      },
+      "mean_tokens_total": 3006424.6667,
+      "mean_tokens_input": 1499916.3333,
+      "mean_tokens_output": 6611.0,
+      "mean_cost_usd": 1.5832,
+      "total_cost_usd": 4.7496,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 141.0,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4750311.6667,
+      "mean_tokens_input": 2366086.6667,
+      "mean_tokens_output": 18311.6667,
+      "mean_cost_usd": 0.7134,
+      "total_cost_usd": 2.1401,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 226.3667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3606247.0,
+      "mean_tokens_input": 1796701.0,
+      "mean_tokens_output": 12870.0,
+      "mean_cost_usd": 2.0389,
+      "total_cost_usd": 6.1167,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 250.6,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.7083,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 5279550.6667,
+      "mean_tokens_input": 2628000.6667,
+      "mean_tokens_output": 23743.6667,
+      "mean_cost_usd": 0.8906,
+      "total_cost_usd": 2.6718,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 249.9,
+      "statuses": {
+        "turn_limit": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-airflow2-ci-suite",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "2.11",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 3734954.3333,
+      "mean_tokens_input": 1861290.3333,
+      "mean_tokens_output": 12395.6667,
+      "mean_cost_usd": 2.2487,
+      "total_cost_usd": 6.7461,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 235.2,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.125,
+      "mean_secondary_score": 0.8333,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4753905.3333,
+      "mean_tokens_input": 2369198.0,
+      "mean_tokens_output": 15689.3333,
+      "mean_cost_usd": 0.762,
+      "total_cost_usd": 2.286,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 223.8333,
+      "statuses": {
+        "turn_limit": 2,
+        "task_fail": 1
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3199189.5,
+      "mean_tokens_input": 1594765.5,
+      "mean_tokens_output": 9682.0,
+      "mean_cost_usd": 1.7393,
+      "total_cost_usd": 3.4786,
+      "contamination_suspect_runs": 2,
+      "mean_wall_s": 240.45,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 3386412.5,
+      "mean_tokens_input": 1687008.0,
+      "mean_tokens_output": 12525.0,
+      "mean_cost_usd": 0.6626,
+      "total_cost_usd": 1.3252,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 142.25,
+      "statuses": {
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-custom-operator-conn",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 3158432.0,
+      "mean_tokens_input": 1574377.6667,
+      "mean_tokens_output": 9697.0,
+      "mean_cost_usd": 1.5568,
+      "total_cost_usd": 4.6704,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 157.0333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.7083,
+      "mean_secondary_score": 0.75,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4539845.0,
+      "mean_tokens_input": 2263375.0,
+      "mean_tokens_output": 13267.6667,
+      "mean_cost_usd": 0.7303,
+      "total_cost_usd": 2.191,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 223.7,
+      "statuses": {
+        "turn_limit": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2242228.3333,
+      "mean_tokens_input": 1117914.0,
+      "mean_tokens_output": 6417.3333,
+      "mean_cost_usd": 1.306,
+      "total_cost_usd": 3.918,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 153.4,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.6667,
+      "mean_primary_score": 0.9583,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 3467477.6667,
+      "mean_tokens_input": 1729058.3333,
+      "mean_tokens_output": 10344.3333,
+      "mean_cost_usd": 0.5968,
+      "total_cost_usd": 1.7904,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 132.2667,
+      "statuses": {
+        "task_fail": 1,
+        "ok": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-dagbag-integrity",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 2368378.6667,
+      "mean_tokens_input": 1181231.6667,
+      "mean_tokens_output": 5931.0,
+      "mean_cost_usd": 1.4462,
+      "total_cost_usd": 4.3385,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 122.2333,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.5417,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 4584002.6667,
+      "mean_tokens_input": 2279746.3333,
+      "mean_tokens_output": 24678.6667,
+      "mean_cost_usd": 0.7666,
+      "total_cost_usd": 2.2999,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 265.1333,
+      "statuses": {
+        "task_fail": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 2,
+      "n_valid": 2,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.875,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3298667.5,
+      "mean_tokens_input": 1642369.0,
+      "mean_tokens_output": 13953.0,
+      "mean_cost_usd": 1.7015,
+      "total_cost_usd": 3.403,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 281.45,
+      "statuses": {
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 0.0,
+      "mean_primary_score": 0.25,
+      "mean_secondary_score": 0.9167,
+      "trigger_rate": 0.6667,
+      "skills_used": {
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 6091146.0,
+      "mean_tokens_input": 3032558.0,
+      "mean_tokens_output": 27575.3333,
+      "mean_cost_usd": 0.9306,
+      "total_cost_usd": 2.7918,
+      "contamination_suspect_runs": 0,
+      "mean_wall_s": 270.6667,
+      "statuses": {
+        "turn_limit": 3
+      },
+      "retries": 0
+    },
+    {
+      "case": "testing-taskflow-transforms",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "area": "testing",
+      "airflow_version": "3.3",
+      "n_runs": 3,
+      "n_valid": 3,
+      "n_excluded": 0,
+      "pass_rate": 1.0,
+      "mean_primary_score": 1.0,
+      "mean_secondary_score": 1.0,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 4621712.3333,
+      "mean_tokens_input": 2303189.6667,
+      "mean_tokens_output": 15360.6667,
+      "mean_cost_usd": 2.6001,
+      "total_cost_usd": 7.8003,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 618.1667,
+      "statuses": {
+        "ok": 3
+      },
+      "retries": 0
+    }
+  ],
+  "by_split_arm_model": [
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 38,
+      "n_valid": 38,
+      "n_excluded": 0,
+      "pass_rate": 0.3421,
+      "mean_primary_score": 0.6555,
+      "mean_secondary_score": 0.6952,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3927619.0,
+      "mean_tokens_input": 1957367.2368,
+      "mean_tokens_output": 13036.8684,
+      "mean_cost_usd": 0.6481,
+      "total_cost_usd": 24.6268,
+      "contamination_suspect_runs": 18,
+      "mean_wall_s": 189.8421,
+      "statuses": {
+        "ok": 13,
+        "task_fail": 18,
+        "turn_limit": 7
+      },
+      "retries": 1
+    },
+    {
+      "split": "dev",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 37,
+      "n_valid": 37,
+      "n_excluded": 0,
+      "pass_rate": 0.5405,
+      "mean_primary_score": 0.7959,
+      "mean_secondary_score": 0.7117,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2798291.8919,
+      "mean_tokens_input": 1395642.8378,
+      "mean_tokens_output": 7026.2432,
+      "mean_cost_usd": 1.4455,
+      "total_cost_usd": 53.482,
+      "contamination_suspect_runs": 7,
+      "mean_wall_s": 169.4514,
+      "statuses": {
+        "ok": 20,
+        "task_fail": 12,
+        "turn_limit": 5
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 36,
+      "n_valid": 36,
+      "n_excluded": 0,
+      "pass_rate": 0.8056,
+      "mean_primary_score": 0.9249,
+      "mean_secondary_score": 0.9167,
+      "trigger_rate": 0.9167,
+      "skills_used": {
+        "authoring-airflow-dags": 12,
+        "migrating-to-airflow-3": 14,
+        "testing-airflow-dags": 7
+      },
+      "mean_tokens_total": 3789705.3889,
+      "mean_tokens_input": 1889121.0833,
+      "mean_tokens_output": 11754.9722,
+      "mean_cost_usd": 0.6422,
+      "total_cost_usd": 23.1178,
+      "contamination_suspect_runs": 12,
+      "mean_wall_s": 158.9556,
+      "statuses": {
+        "ok": 29,
+        "task_fail": 6,
+        "turn_limit": 1
+      },
+      "retries": 0
+    },
+    {
+      "split": "dev",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 33,
+      "n_valid": 33,
+      "n_excluded": 0,
+      "pass_rate": 0.9394,
+      "mean_primary_score": 0.9913,
+      "mean_secondary_score": 0.9293,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 15,
+        "migrating-to-airflow-3": 9,
+        "testing-airflow-dags": 9
+      },
+      "mean_tokens_total": 3476024.7879,
+      "mean_tokens_input": 1733759.8788,
+      "mean_tokens_output": 8526.4848,
+      "mean_cost_usd": 1.8306,
+      "total_cost_usd": 60.4112,
+      "contamination_suspect_runs": 16,
+      "mean_wall_s": 174.9727,
+      "statuses": {
+        "ok": 31,
+        "task_fail": 2
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 20,
+      "n_valid": 20,
+      "n_excluded": 0,
+      "pass_rate": 0.2,
+      "mean_primary_score": 0.5516,
+      "mean_secondary_score": 0.7167,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 3804160.75,
+      "mean_tokens_input": 1894976.85,
+      "mean_tokens_output": 14353.95,
+      "mean_cost_usd": 0.676,
+      "total_cost_usd": 13.5193,
+      "contamination_suspect_runs": 10,
+      "mean_wall_s": 199.695,
+      "statuses": {
+        "ok": 4,
+        "turn_limit": 2,
+        "task_fail": 14
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "baseline",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 20,
+      "n_valid": 20,
+      "n_excluded": 0,
+      "pass_rate": 0.35,
+      "mean_primary_score": 0.7923,
+      "mean_secondary_score": 0.65,
+      "trigger_rate": 0.0,
+      "skills_used": {},
+      "mean_tokens_total": 2941579.7,
+      "mean_tokens_input": 1466632.35,
+      "mean_tokens_output": 8335.8,
+      "mean_cost_usd": 1.8258,
+      "total_cost_usd": 36.5163,
+      "contamination_suspect_runs": 1,
+      "mean_wall_s": 193.76,
+      "statuses": {
+        "ok": 7,
+        "task_fail": 12,
+        "cost_limit": 1
+      },
+      "retries": 1
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "n_runs": 19,
+      "n_valid": 19,
+      "n_excluded": 0,
+      "pass_rate": 0.2632,
+      "mean_primary_score": 0.6787,
+      "mean_secondary_score": 0.8289,
+      "trigger_rate": 0.7895,
+      "skills_used": {
+        "authoring-airflow-dags": 7,
+        "migrating-to-airflow-3": 7,
+        "testing-airflow-dags": 2
+      },
+      "mean_tokens_total": 4469277.5789,
+      "mean_tokens_input": 2226742.8421,
+      "mean_tokens_output": 16166.0526,
+      "mean_cost_usd": 0.8257,
+      "total_cost_usd": 15.6879,
+      "contamination_suspect_runs": 6,
+      "mean_wall_s": 184.6263,
+      "statuses": {
+        "ok": 5,
+        "task_fail": 8,
+        "turn_limit": 6
+      },
+      "retries": 0
+    },
+    {
+      "split": "holdout",
+      "arm": "skill",
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "n_runs": 18,
+      "n_valid": 18,
+      "n_excluded": 0,
+      "pass_rate": 0.7778,
+      "mean_primary_score": 0.9706,
+      "mean_secondary_score": 0.963,
+      "trigger_rate": 1.0,
+      "skills_used": {
+        "authoring-airflow-dags": 12,
+        "migrating-to-airflow-3": 3,
+        "testing-airflow-dags": 3
+      },
+      "mean_tokens_total": 3981957.6667,
+      "mean_tokens_input": 1986455.3889,
+      "mean_tokens_output": 9071.1667,
+      "mean_cost_usd": 2.4723,
+      "total_cost_usd": 44.5016,
+      "contamination_suspect_runs": 8,
+      "mean_wall_s": 245.2,
+      "statuses": {
+        "ok": 14,
+        "turn_limit": 1,
+        "task_fail": 3
+      },
+      "retries": 1
+    }
+  ],
+  "paired_deltas": [
+    {
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "dev",
+      "n_cases": 13,
+      "mean_delta_pass_rate": 0.4616,
+      "ci95_delta_pass_rate": [
+        0.2051,
+        0.6923
+      ],
+      "mean_delta_primary_score": 0.2664,
+      "ci95_delta_primary_score": [
+        0.0855,
+        0.4491
+      ],
+      "cases": [
+        {
+          "case": "authoring-airflow2-inventory-snapshot",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-clickstream-claim-check",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.3334,
+          "delta_primary_score": -0.0953
+        },
+        {
+          "case": "authoring-vendor-shipments-etl",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 0.3333,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": -0.0833
+        },
+        {
+          "case": "debugging-manual-trigger-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.1905
+        },
+        {
+          "case": "debugging-variable-at-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-inventory-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.4667
+        },
+        {
+          "case": "migration-revenue-previous-day",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.5238
+        },
+        {
+          "case": "migration-weekly-catchup",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.6667
+        },
+        {
+          "case": "scheduling-idempotent-orders-load",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.3889
+        },
+        {
+          "case": "scheduling-weekday-ny-business-day",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.5714
+        },
+        {
+          "case": "testing-airflow2-ci-suite",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": -0.3333,
+          "delta_primary_score": -0.2917
+        },
+        {
+          "case": "testing-custom-operator-conn",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.875
+        },
+        {
+          "case": "testing-dagbag-integrity",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.25
+        }
+      ]
+    },
+    {
+      "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+      "split": "holdout",
+      "n_cases": 7,
+      "mean_delta_pass_rate": 0.0476,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.1428
+      ],
+      "mean_delta_primary_score": 0.0868,
+      "ci95_delta_primary_score": [
+        -0.1295,
+        0.3647
+      ],
+      "cases": [
+        {
+          "case": "authoring-daily-revenue-yesterday",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": -0.0556
+        },
+        {
+          "case": "authoring-partner-feeds-mapping",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.2223
+        },
+        {
+          "case": "debugging-nondeterministic-parse",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "migration-hourly-pageviews-templates",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": -0.1429
+        },
+        {
+          "case": "migration-shipments-assets",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.8571
+        },
+        {
+          "case": "scheduling-backfill-pageviews",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.3333,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.0185
+        },
+        {
+          "case": "testing-taskflow-transforms",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": -0.2917
+        }
+      ]
+    },
+    {
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "dev",
+      "n_cases": 12,
+      "mean_delta_pass_rate": 0.3333,
+      "ci95_delta_pass_rate": [
+        0.1111,
+        0.5833
+      ],
+      "mean_delta_primary_score": 0.182,
+      "ci95_delta_primary_score": [
+        0.0571,
+        0.3608
+      ],
+      "cases": [
+        {
+          "case": "authoring-airflow2-inventory-snapshot",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-clickstream-claim-check",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "authoring-vendor-shipments-etl",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-manual-trigger-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.3333,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.1429
+        },
+        {
+          "case": "debugging-variable-at-parse",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 1.0
+        },
+        {
+          "case": "migration-inventory-context",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.2
+        },
+        {
+          "case": "migration-weekly-catchup",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.2857
+        },
+        {
+          "case": "scheduling-idempotent-orders-load",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.2222
+        },
+        {
+          "case": "scheduling-weekday-ny-business-day",
+          "baseline_pass_rate": 0.6667,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.3333,
+          "delta_primary_score": 0.3333
+        },
+        {
+          "case": "testing-airflow2-ci-suite",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-custom-operator-conn",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "testing-dagbag-integrity",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        }
+      ]
+    },
+    {
+      "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+      "split": "holdout",
+      "n_cases": 6,
+      "mean_delta_pass_rate": 0.3889,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.7778
+      ],
+      "mean_delta_primary_score": 0.137,
+      "ci95_delta_primary_score": [
+        0.0412,
+        0.2275
+      ],
+      "cases": [
+        {
+          "case": "authoring-daily-revenue-yesterday",
+          "baseline_pass_rate": 0.3333,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.6667,
+          "delta_primary_score": 0.2222
+        },
+        {
+          "case": "authoring-partner-feeds-mapping",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.0
+        },
+        {
+          "case": "debugging-nondeterministic-parse",
+          "baseline_pass_rate": 1.0,
+          "skill_pass_rate": 0.6667,
+          "delta_pass_rate": -0.3333,
+          "delta_primary_score": -0.0333
+        },
+        {
+          "case": "migration-shipments-assets",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 0.0,
+          "delta_pass_rate": 0.0,
+          "delta_primary_score": 0.2857
+        },
+        {
+          "case": "scheduling-backfill-pageviews",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.2222
+        },
+        {
+          "case": "testing-taskflow-transforms",
+          "baseline_pass_rate": 0.0,
+          "skill_pass_rate": 1.0,
+          "delta_pass_rate": 1.0,
+          "delta_primary_score": 0.125
+        }
+      ]
+    }
+  ],
+  "pooled_deltas": [
+    {
+      "split": "dev",
+      "n_cases": 13,
+      "n_pairs": 25,
+      "models": [
+        "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "google-vertex-anthropic/claude-sonnet-4-6@default"
+      ],
+      "mean_delta_pass_rate": 0.4,
+      "ci95_delta_pass_rate": [
+        0.2,
+        0.6061
+      ],
+      "mean_delta_primary_score": 0.2259,
+      "ci95_delta_primary_score": [
+        0.1013,
+        0.3483
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    },
+    {
+      "split": "holdout",
+      "n_cases": 7,
+      "n_pairs": 13,
+      "models": [
+        "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "google-vertex-anthropic/claude-sonnet-4-6@default"
+      ],
+      "mean_delta_pass_rate": 0.2051,
+      "ci95_delta_pass_rate": [
+        0.0,
+        0.4286
+      ],
+      "mean_delta_primary_score": 0.11,
+      "ci95_delta_primary_score": [
+        -0.0266,
+        0.2822
+      ],
+      "ci_method": "percentile bootstrap over cases; a resampled case carries all its models"
+    }
+  ],
+  "failure_classes": {
+    "ok": 123,
+    "task_fail": 75,
+    "turn_limit": 22,
+    "cost_limit": 1
+  },
+  "total_cost_usd": 271.8629,
+  "isolation": {
+    "contamination_suspects": [
+      {
+        "case": "authoring-daily-revenue-yesterday",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "read",
+            "path": "<work>/baseline-2026-09-30-baseline-20260930-yesterday-pyn34e58/ws/README.md",
+            "root": "work-root"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/second_run.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/second_run.csv",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-manual-trigger-context",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/partner_feed_before.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/partner_feed_after.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/partner_feed_before.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/partner_feed_after.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/SOLUTION.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/SOLUTION.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow-test-",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "///<tmp>/airflow-test-",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_verification.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_verification.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-nondeterministic-parse",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse_ingest_fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse_ingest_fix_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-variable-at-parse",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-hourly-pageviews-templates",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/detailed_changes.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/detailed_changes.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/inv_test",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-revenue-previous-day",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "turn_limit",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "read",
+            "path": "<work>/baseline-2026-09-30-baseline-20260930-45309/migration-revenue-previous-day-hfc9t_wx/ws/dags/sql/daily_revenue.sql",
+            "root": "work-root"
+          },
+          {
+            "tool": "read",
+            "path": "<work>/baseline-2026-09-30-baseline-20260930-45309/migration-revenue-previous-day-hfc9t_wx/ws/data/orders.csv",
+            "root": "work-root"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/MIGRATION_CHECKLIST.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/MIGRATION_CHECKLIST.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-weekly-catchup",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-weekday-ny-business-day",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/CHANGES_SUMMARY.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/CHANGES_SUMMARY.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/SCHEDULE_DIAGRAM.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/SCHEDULE_DIAGRAM.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/CHANGES.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/CHANGES.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-airflow2-ci-suite",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/analyze_shipments.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/analyze_shipments.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_summary.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-custom-operator-conn",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test.db",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test.db",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test.db",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/testdb.duckdb",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/testdb.duckdb",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/testdb.duckdb",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/testdb2.duckdb",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-custom-operator-conn",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "turn_limit",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "write",
+            "path": "<work>/baseline-2026-09-30-baseline-20260930-baseline-20260930-045309/testing-custom-operator-conn-z5v0yj2h/ws/conftest.py",
+            "root": "work-root"
+          },
+          {
+            "tool": "bash",
+            "path": "<work>/baseline-2026-09-30-baseline-20260930-baseline-20260930-045309/testing-custom-operator-conn-z5v0yj2h/ws/conftest.py",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "authoring-daily-revenue-yesterday",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/summary.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/landing",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-manual-trigger-context",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-variable-at-parse",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "read",
+            "path": "<work>/baseline-2026-09-30-baseline-20260930-baseline-20260930-045309/debugging-variable-at-parse-y19jdpne/ws/dags/warehouse_load.py",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "debugging-nondeterministic-parse",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse_ingest_fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse_ingest_fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before_after.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before_after.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-hourly-pageviews-templates",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/verification.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/verification.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow-test-",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow-test-idempotent",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow-test-idempotent",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow-test-idempotent",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow-test-idempotent",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-custom-operator-conn",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test.duckdb",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-clickstream-claim-check",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test2",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-clickstream-claim-check",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/dag_summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/dag_summary.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-daily-revenue-yesterday",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<work>/baseline-run3-2026-09-30-baseline-20260930-baseline-20260930-082417/authoring-daily-revenue-yesterday-ew4q6g1i/ws",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-manual-trigger-context",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "read",
+            "path": "<work>/baseline-run3-2026-09-30-baseline-20260930-baseline-20260930-082417/debugging-manual-trigger-context-1x63tzof/ws/dags/partner_feed.py",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "debugging-nondeterministic-parse",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fix_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/upgrade_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/upgrade_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<work>/baseline-run3-2026-09-30-baseline-20260930-182417/migration-inventory-context-im02tn8a/ws/dags/inventory_snapshot.py",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "read",
+            "path": "<work>/baseline-run3-2026-09-30-baseline-20260930-baseline-20260930-082417/migration-shipments-assets-bz1624jc/ws/dags/carrier_scorecard.py",
+            "root": "work-root"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/dag_fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/dag_fix_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-weekday-ny-business-day",
+        "arm": "baseline",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/baseline-run3-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/fx_pnl_changes_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/fx_pnl_changes_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-clickstream-claim-check",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_csp",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_csp",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_csp",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_csp",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-daily-revenue-yesterday",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_dr",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_dr",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_dr2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_dr2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_dr2",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-manual-trigger-context",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/deployment_guide.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/deployment_guide.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "///<tmp>/airflow_vendor_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_vendor_home_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "///<tmp>/airflow_vendor_test2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_vendor_home2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "///<tmp>/airflow_vendor_test2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_vendor_home2_",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-variable-at-parse",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_warehouse",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-hourly-pageviews-templates",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "turn_limit",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_notes.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_notes.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before_baseline.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before_baseline.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after_verification.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after_verification.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/FINAL_MIGRATION_REPORT.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/FINAL_MIGRATION_REPORT.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-weekly-catchup",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-weekly-catchup",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-backfill-pageviews",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_pv_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_pv_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_pv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_pv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_pv2",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-weekday-ny-business-day",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-custom-operator-conn",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 1,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_airflow",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-clickstream-claim-check",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_1",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run_2026-09-27.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run_2026-09-27.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run_2026-09-27.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_rerun_test",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run_2026-09-27.csv",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-partner-feeds-mapping",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "turn_limit",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/verify_dag_structure.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/verify_dag_structure.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/verify_dag_structure.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.py",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp><tmp>.nymKSGkNb1",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-manual-trigger-context",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-variable-at-parse",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-nondeterministic-parse",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse_ingest_fix_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/warehouse_ingest_fix_summary.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-vendor-shipments-etl",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/vendor_shipments_summary.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/requirements_checklist.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/requirements_checklist.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/usage_guide.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/usage_guide.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/DELIVERY_SUMMARY.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/DELIVERY_SUMMARY.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-revenue-previous-day",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-weekly-catchup",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-backfill-pageviews",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_pv_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_pv_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_pv_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_pv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_pv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_pv2",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.sh",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.sh",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.sh",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.sh",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag.sh",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag_idempotent.sh",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_dag_idempotent.sh",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-weekly-catchup",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-airflow2-inventory-snapshot",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_test_inv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_inv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_inv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/snap_before.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/low_before.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/airflow_inv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/snap_before.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/low_before.csv",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "authoring-clickstream-claim-check",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run_2026-09-29.csv",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/first_run_2026-09-29.csv",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "testing-taskflow-transforms",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 2,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/orders_enrichment.py.bak",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "debugging-variable-at-parse",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-inventory-context",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-revenue-previous-day",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/migration_summary.txt",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-shipments-assets",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "migration-weekly-catchup",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/before.json",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/after.json",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-backfill-pageviews",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_test2_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_pgv_",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_pgv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_pgv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_pgv2",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/af_pgv2",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-backfill-pageviews",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-haiku-4-5@20251001",
+        "run": 3,
+        "status": "task_fail",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_pageviews_backfill.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_pageviews_backfill.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/BACKFILL_SETUP_SUMMARY.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/BACKFILL_SETUP_SUMMARY.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_idempotency.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/test_idempotency.py",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/VERIFICATION.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/VERIFICATION.txt",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/CONCERN_ANALYSIS.md",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp>/CONCERN_ANALYSIS.md",
+            "root": "shared-temp"
+          }
+        ]
+      },
+      {
+        "case": "scheduling-idempotent-orders-load",
+        "arm": "skill",
+        "model": "google-vertex-anthropic/claude-sonnet-4-6@default",
+        "run": 3,
+        "status": "ok",
+        "_source": "evals/airflow/results/skill-2026-09-30",
+        "hits": [
+          {
+            "tool": "bash",
+            "path": "<tmp><tmp>.IKuqtA2Qn0",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp><tmp>.IKuqtA2Qn0",
+            "root": "shared-temp"
+          },
+          {
+            "tool": "bash",
+            "path": "<tmp><tmp>.IKuqtA2Qn0",
+            "root": "shared-temp"
+          }
+        ]
+      }
+    ],
+    "kill_command_runs": [],
+    "agent_env_restored_runs": [],
+    "agent_env_restore_failed_runs": []
+  },
+  "sources": [
+    {
+      "dir": "evals/airflow/results/baseline-2026-09-30"
+    },
+    {
+      "dir": "evals/airflow/results/baseline-run3-2026-09-30"
+    },
+    {
+      "dir": "evals/airflow/results/skill-2026-09-30"
+    }
+  ],
+  "n_runs": 221
+}

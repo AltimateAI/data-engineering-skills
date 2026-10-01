@@ -1,0 +1,23 @@
+name: people_sessions
+team: people
+tier: standard
+description: Sessions pipeline for people
+schedule:
+  hour: 0
+  days: 1-5
+retries: 1
+steps:
+- name: extract
+  table: people.raw_sessions_00
+- name: transform
+  table: people.int_sessions_00
+  depends_on:
+  - extract
+- name: aggregate
+  table: people.int_sessions_00
+  depends_on:
+  - transform
+- name: publish
+  table: people.mart_sessions_00
+  depends_on:
+  - aggregate

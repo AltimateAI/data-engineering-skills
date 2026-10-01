@@ -1,0 +1,32 @@
+{
+  "status": "ran",
+  "reason": "model steps completed",
+  "fired": [
+    "dbt-develop",
+    "dbt-schema-verify"
+  ],
+  "skill_invocations": [],
+  "auto_loaded_skills": [
+    "dbt-develop",
+    "dbt-schema-verify"
+  ],
+  "tools": [
+    "bash",
+    "read",
+    "read",
+    "bash",
+    "read",
+    "write"
+  ],
+  "returncode": 1,
+  "wall_s": 18.0,
+  "cost_usd": 0.204722,
+  "cost_reported_usd": 0.500991,
+  "steps": 4,
+  "termination": {
+    "why_model_stopped": "tool-call",
+    "why_harness_stopped": "budget-exhausted",
+    "done_reason": "none"
+  },
+  "errors": []
+}

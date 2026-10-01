@@ -1,0 +1,10 @@
+`pageviews_daily` is set up to backfill from Sept 1 and then run daily. I only checked that the file compiles. I haven't run it in Airflow or loaded any data, so the backfill itself is untested. The change is in `dags/pageviews_daily.py`.
+
+- **Backfill:** `start_date` is now 2026-09-01 UTC and `catchup=True`. When you unpause, the scheduler creates a run for every day from Sept 1 up to the latest finished interval, then continues daily. Nothing before Sept 1 is attempted.
+- **Which day each run loads:** Each run now loads the day its data interval starts on, not `now() - 1 day`. The old logic would have loaded yesterday's file for every backfill run. I used `CronDataIntervalTimetable("0 3 * * *")`, so the run at 03:00 on D+1 loads day D. That's still after the 01:00 export lands, and the daily schedule is unchanged.
+- **One writer at a time:** `max_active_runs=1` and `max_active_tasks=1` make the backfill go one day at a time, so the DuckDB lock isn't contended.
+- **Re-running a day:** The load already deleted that day's rows and inserted fresh ones in a single transaction, so clearing and re-running any day replaces its rows instead of adding to them. I kept that logic.
+- **Missing files:** The task now raises a clear `FileNotFoundError` if a day's export is missing. Before, it surfaced as a less obvious CSV read error.
+
+- **`top_pages_weekly`:** It opens `web.duckdb` read-only on Mondays at 06:00. If the backfill is still running then, that read can hit the lock and fail. The backfill should be done well before then. If you want it fully protected, put both DAGs' warehouse tasks in a one-slot Airflow pool.
+- **`data/pageviews/`:** It has files through Sept 29. Sept 30 should arrive at about 01:00 UTC on Oct 1, so that run will fail and retry if it fires before the file exists.

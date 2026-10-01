@@ -1,0 +1,65 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..5f7e87e
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,59 @@
++"""Write a per-store revenue file for the previous UTC calendar day, daily at 03:00 UTC.
++
++Runs at 03:00 so late orders (uploaded up to ~02:00 UTC) are included. The cron
++trigger's logical date is the moment the run starts, so the run at 03:00 on the
++29th reports on the 28th. Output is overwritten atomically, so reruns are idempotent.
++"""
++
++from __future__ import annotations
++
++import os
++from pathlib import Path
++
++import pandas as pd
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    # First run is 2026-09-02 03:00, which reports on 2026-09-01.
++    start_date=pendulum.datetime(2026, 9, 2, tz="UTC"),
++    catchup=False,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def report(logical_date=None) -> str:
++        day = logical_date.in_timezone("UTC").start_of("day").subtract(days=1)
++        next_day = day.add(days=1)
++
++        orders = pd.read_csv(
++            PROJECT_ROOT / "data" / "orders.csv", parse_dates=["order_ts"]
++        )
++        ts = orders["order_ts"].dt.tz_localize(None)
++        in_day = orders[
++            (ts >= day.naive()) & (ts < next_day.naive())
++        ]
++
++        summary = (
++            in_day.groupby("store_id")
++            .agg(orders=("order_id", "count"), revenue=("amount", "sum"))
++            .reset_index()
++            .sort_values("store_id")
++        )
++        summary["revenue"] = summary["revenue"].round(2)
++
++        out = PROJECT_ROOT / "output" / "daily_revenue" / f"{day.format('YYYY-MM-DD')}.csv"
++        out.parent.mkdir(parents=True, exist_ok=True)
++        tmp = out.with_suffix(".csv.tmp")
++        summary.to_csv(tmp, index=False, float_format="%.2f")
++        os.replace(tmp, out)
++        return str(out)
++
++    report()
++
++
++daily_revenue()

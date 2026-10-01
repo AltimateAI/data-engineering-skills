@@ -1,0 +1,109 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..4cadd16 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -29,8 +29,12 @@ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ )
+ def partner_feed():
+     @task
+-    def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++    def extract_orders(logical_date=None, dag_run=None, **context) -> str:
++        # On scheduled runs, logical_date is provided.
++        # On manual triggers without a logical date, use dag_run.run_after.
++        if logical_date is None:
++            logical_date = dag_run.run_after
++        day = logical_date.strftime("%Y-%m-%d")
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -46,8 +50,12 @@ def partner_feed():
+         return str(out)
+ 
+     @task
+-    def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++    def write_manifest(feed_path: str, logical_date=None, dag_run=None, **context) -> str:
++        # On scheduled runs, logical_date is provided.
++        # On manual triggers without a logical date, use dag_run.run_after.
++        if logical_date is None:
++            logical_date = dag_run.run_after
++        day = logical_date.strftime("%Y-%m-%d")
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+diff --git a/outbox/acme/acme_orders_20260301.csv b/outbox/acme/acme_orders_20260301.csv
+new file mode 100644
+index 0000000..a35705d
+--- /dev/null
++++ b/outbox/acme/acme_orders_20260301.csv
+@@ -0,0 +1,10 @@
++order_id,sku,qty,amount
++5002,SKU-2040,5,193.61
++5003,SKU-1001,5,66.92
++5004,SKU-1002,4,54.51
++5005,SKU-1001,4,229.28
++5006,SKU-3300,5,57.65
++5007,SKU-1002,2,47.54
++5008,SKU-2040,2,75.15
++5009,SKU-1002,2,55.98
++5010,SKU-1001,5,202.85
+diff --git a/outbox/acme/acme_orders_20260301.manifest.json b/outbox/acme/acme_orders_20260301.manifest.json
+new file mode 100644
+index 0000000..593f2d3
+--- /dev/null
++++ b/outbox/acme/acme_orders_20260301.manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-03-01",
++  "row_count": 9
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-03-01/manifest.json b/output/partner_feed/2026-03-01/manifest.json
+new file mode 100644
+index 0000000..593f2d3
+--- /dev/null
++++ b/output/partner_feed/2026-03-01/manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-03-01",
++  "row_count": 9
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-03-01/orders.csv b/output/partner_feed/2026-03-01/orders.csv
+new file mode 100644
+index 0000000..a35705d
+--- /dev/null
++++ b/output/partner_feed/2026-03-01/orders.csv
+@@ -0,0 +1,10 @@
++order_id,sku,qty,amount
++5002,SKU-2040,5,193.61
++5003,SKU-1001,5,66.92
++5004,SKU-1002,4,54.51
++5005,SKU-1001,4,229.28
++5006,SKU-3300,5,57.65
++5007,SKU-1002,2,47.54
++5008,SKU-2040,2,75.15
++5009,SKU-1002,2,55.98
++5010,SKU-1001,5,202.85
+diff --git a/output/partner_feed/2026-09-30/manifest.json b/output/partner_feed/2026-09-30/manifest.json
+new file mode 100644
+index 0000000..8ff9f05
+--- /dev/null
++++ b/output/partner_feed/2026-09-30/manifest.json
+@@ -0,0 +1,5 @@
++{
++  "partner": "acme",
++  "partition": "2026-09-30",
++  "row_count": 0
++}
+\ No newline at end of file
+diff --git a/output/partner_feed/2026-09-30/orders.csv b/output/partner_feed/2026-09-30/orders.csv
+new file mode 100644
+index 0000000..f8e1b35
+--- /dev/null
++++ b/output/partner_feed/2026-09-30/orders.csv
+@@ -0,0 +1 @@
++order_id,sku,qty,amount

@@ -1,0 +1,28 @@
+name: support_payroll
+team: support
+tier: standard
+description: Payroll pipeline for support
+schedule:
+  hour: 2
+  days: '*'
+steps:
+- name: extract
+  table: support.raw_payroll_00
+- name: validate
+  table: support.int_payroll_00
+  depends_on:
+  - extract
+- name: transform
+  table: support.int_payroll_00
+  depends_on:
+  - validate
+  - extract
+- name: aggregate
+  table: support.int_payroll_00
+  depends_on:
+  - transform
+- name: publish
+  table: support.mart_payroll_00
+  depends_on:
+  - aggregate
+  - transform

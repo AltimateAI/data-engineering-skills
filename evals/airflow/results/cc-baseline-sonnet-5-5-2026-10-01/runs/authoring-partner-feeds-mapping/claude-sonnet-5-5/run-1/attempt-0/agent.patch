@@ -1,0 +1,85 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..eb0a44e
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,79 @@
++"""Daily processing of partner order files, one mapped task instance per file."""
++
++from __future__ import annotations
++
++import csv
++import json
++import os
++from decimal import Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.utils.trigger_rule import TriggerRule
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_DIR = PROJECT_ROOT / "data" / "partner_drop"
++OUT_DIR = PROJECT_ROOT / "output" / "partner_feeds"
++
++TWO_DP = Decimal("0.01")
++
++
++def _write_json(path: Path, payload: dict) -> None:
++    """Atomic write so a retry or rerun never leaves a half-written file."""
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_suffix(".json.tmp")
++    tmp.write_text(json.dumps(payload, indent=2))
++    os.replace(tmp, path)
++
++
++@dag(
++    schedule="@daily",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,  # any date since start_date can be backfilled / cleared and rerun
++    max_active_runs=4,
++    tags=["partners"],
++)
++def partner_feeds():
++    @task
++    def list_partners(ds=None) -> list[str]:
++        # The date folder is absent on days nobody uploads -> no files.
++        day_dir = DROP_DIR / ds
++        if not day_dir.is_dir():
++            return []
++        return sorted(p.stem for p in day_dir.glob("*.csv"))
++
++    @task
++    def process_file(partner: str, ds=None) -> dict:
++        total = Decimal("0")
++        rows = 0
++        with (DROP_DIR / ds / f"{partner}.csv").open(newline="") as f:
++            for row in csv.DictReader(f):
++                total += Decimal(row["amount"])
++                rows += 1
++        result = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": float(total.quantize(TWO_DP)),
++        }
++        _write_json(OUT_DIR / ds / f"{partner}.json", result)
++        return result
++
++    # Zero mapped instances are skipped, so the summary must tolerate skipped
++    # upstreams; it still does not run if any file task failed.
++    @task(trigger_rule=TriggerRule.NONE_FAILED)
++    def summarize(results: list[dict], ds=None) -> dict:
++        results = list(results or [])
++        total = sum((Decimal(str(r["total_amount"])) for r in results), Decimal("0"))
++        summary = {
++            "files": len(results),
++            "rows": sum(r["rows"] for r in results),
++            "total_amount": float(total.quantize(TWO_DP)),
++        }
++        _write_json(OUT_DIR / ds / "summary.json", summary)
++        return summary
++
++    summarize(process_file.expand(partner=list_partners()))
++
++
++partner_feeds()

@@ -1,0 +1,140 @@
+diff --git a/dags/FX_PNL_REPORT_README.md b/dags/FX_PNL_REPORT_README.md
+new file mode 100644
+index 0000000..f8704e2
+--- /dev/null
++++ b/dags/FX_PNL_REPORT_README.md
+@@ -0,0 +1,71 @@
++# FX P&L Report DAG - Quick Reference
++
++## What Changed?
++
++The `fx_pnl_report` DAG has been updated to better serve the treasury desk's needs:
++
++### Old Behavior
++- ❌ Ran at midnight UTC every day (including weekends)
++- ❌ Reported on the same day as execution
++- ✅ Report filename: `fx_pnl_<execution-date>.csv`
++
++### New Behavior
++- ✅ Runs at **6:00 AM New York time, Monday–Friday only**
++- ✅ **Reports the previous business day**
++- ✅ Report filename: `fx_pnl_<trade-date>.csv` (unchanged format)
++
++## Daily Execution Schedule
++
++| Day | Execution Time | Reports |
++|-----|---|---|
++| **Monday** | 6:00 AM EST | Friday's trades |
++| **Tuesday** | 6:00 AM EST | Monday's trades |
++| **Wednesday** | 6:00 AM EST | Tuesday's trades |
++| **Thursday** | 6:00 AM EST | Wednesday's trades |
++| **Friday** | 6:00 AM EST | Thursday's trades |
++| Saturday | _(no run)_ | — |
++| Sunday | _(no run)_ | — |
++
++## Example File Outputs
++
++```
++Friday morning (Mon 6am):    fx_pnl_2026-02-20.csv
++Monday morning (Tue 6am):    fx_pnl_2026-02-23.csv
++Tuesday morning (Wed 6am):   fx_pnl_2026-02-24.csv
++Wednesday morning (Thu 6am): fx_pnl_2026-02-25.csv
++Thursday morning (Fri 6am):  fx_pnl_2026-02-26.csv
++```
++
++## Excel Integration
++
++**Good news:** No changes needed to your Excel imports!
++
++- ✅ Filename format unchanged: `fx_pnl_YYYY-MM-DD.csv`
++- ✅ Column structure unchanged: `[desk, trades, notional_usd, pnl_usd]`
++- ✅ Column order unchanged
++- ✅ Data format unchanged
++
++Your existing power queries and data imports will continue to work as-is.
++
++## Timezone Handling
++
++The DAG automatically handles daylight saving time transitions. At 6:00 AM New York time:
++- **Winter (EST, UTC-5)**: Runs at 11:00 AM UTC
++- **Summer (EDT, UTC-4)**: Runs at 10:00 AM UTC
++
++The timezone conversion is handled transparently by Airflow.
++
++## Troubleshooting
++
++### "Why didn't I get a Saturday report?"
++The DAG only runs Monday–Friday, so there are no weekend reports. If you need Friday's data, it's available Monday morning at 6:00 AM.
++
++### "Why is today's date not in the report?"
++The DAG reports on the *previous* business day, not the current day. This gives traders time to book closing trades before the overnight report.
++
++### "The report date is from last week—is that right?"
++Yes, if it's Monday morning and you're seeing Friday's date, that's correct. This is the previous business day.
++
++## Questions?
++
++Contact the data engineering team or review the DAG source code in `dags/fx_pnl_report.py`.
+diff --git a/dags/fx_pnl_report.py b/dags/fx_pnl_report.py
+index 6008045..d249950 100644
+--- a/dags/fx_pnl_report.py
++++ b/dags/fx_pnl_report.py
+@@ -3,6 +3,9 @@
+ Reads the booked trades export (data/fx_trades.csv, one row per trade with the
+ New York trade date) and writes one CSV per trading day to
+ reports/fx_pnl_<trade date>.csv with per-desk totals.
++
++Runs every weekday at 6am New York time, reporting on the previous business day.
++Monday 6am reports Friday trades, Tuesday 6am reports Monday trades, etc.
+ """
+ 
+ import csv
+@@ -11,6 +14,7 @@ from pathlib import Path
+ 
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.timetables.cron import CronScheduleExpression
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ TRADES_CSV = PROJECT_DIR / "data" / "fx_trades.csv"
+@@ -41,7 +45,7 @@ def write_pnl_report(trade_date: str) -> Path:
+ 
+ @dag(
+     dag_id="fx_pnl_report",
+-    schedule="@daily",
++    schedule=CronScheduleExpression("0 6 * * 1-5", timezone="America/New_York"),
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "treasury-data"},
+@@ -49,8 +53,29 @@ def write_pnl_report(trade_date: str) -> Path:
+ )
+ def fx_pnl_report():
+     @task
+-    def build_report(ds=None) -> str:
+-        return str(write_pnl_report(ds))
++    def build_report(ds=None, data_interval_start=None) -> str:
++        # ds is the execution date in UTC; we need the previous business day in NY time.
++        # data_interval_start is provided by Airflow for cleaner date logic.
++        if data_interval_start is None:
++            data_interval_start = ds
++        
++        # Convert execution datetime to New York time
++        exec_time_utc = pendulum.parse(data_interval_start, tz="UTC")
++        exec_time_ny = exec_time_utc.in_timezone("America/New_York")
++        
++        # Calculate the previous business day (in NY timezone)
++        # Today is the execution date in NY time; we want yesterday if today is weekday,
++        # or Friday if today is Monday.
++        report_date_ny = exec_time_ny.subtract(days=1)
++        
++        # If report_date_ny is Saturday or Sunday, back up to Friday
++        while report_date_ny.weekday() > 4:  # 5=Saturday, 6=Sunday
++            report_date_ny = report_date_ny.subtract(days=1)
++        
++        # Convert back to YYYY-MM-DD format for the report filename
++        trade_date_str = report_date_ny.format("YYYY-MM-DD")
++        
++        return str(write_pnl_report(trade_date_str))
+ 
+     build_report()
+ 

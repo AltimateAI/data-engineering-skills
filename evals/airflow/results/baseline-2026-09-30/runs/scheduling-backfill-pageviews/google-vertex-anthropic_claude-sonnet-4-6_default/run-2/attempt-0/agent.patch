@@ -1,0 +1,87 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..0e4a6df 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,8 +1,21 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
++at about 01:00 UTC the next morning. This DAG aggregates that file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++Scheduling notes
++----------------
++* start_date=2026-09-01 + catchup=True: when unpaused the scheduler
++  creates one DAG run for every UTC day from Sept 1 onward that has not
++  yet been processed, filling in the historical backlog automatically.
++* max_active_runs=1: DuckDB allows only a single writer per file, so we
++  serialise runs to avoid lock errors during the backfill.
++* The task derives its target date from the logical execution date
++  (data_interval_end) so every backfill run processes its own day rather
++  than "yesterday".
++* DELETE-then-INSERT inside a transaction makes every run idempotent:
++  re-running a day replaces its rows cleanly with no double-counting.
+ """
+ 
+ from pathlib import Path
+@@ -19,15 +32,31 @@ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ @dag(
+     dag_id="pageviews_daily",
+     schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    # Sept 1 is the earliest date with raw data; catchup=True lets the
++    # scheduler back-fill every missing day up to today automatically.
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    # DuckDB is single-writer: serialise all runs (backfill and ongoing)
++    # so at most one day is written at a time.
++    max_active_runs=1,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(data_interval_end=None) -> int:
++        # data_interval_end is the *end* of this run's interval, which
++        # equals the UTC date being processed (schedule is daily at 03:00,
++        # so the interval for the Sept-1 run is [Sept-1 03:00, Sept-2 03:00]
++        # and data_interval_end.date() == 2026-09-02 … but we want the file
++        # that was written for Sept 1).
++        #
++        # Airflow's convention: a daily DAG run triggered at the *end* of a
++        # period processes the data from that period. The file for a UTC day
++        # lands at ~01:00 the *next* morning, so the run whose
++        # data_interval_end is Sept-2 03:00 reads the Sept-1 file.
++        # Subtracting one day gives the correct source date.
++        day = (data_interval_end - pendulum.duration(days=1)).to_date_string()
+         source = RAW_DIR / f"{day}.csv"
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+@@ -42,8 +71,12 @@ def pageviews_daily():
+                 )
+                 """
+             )
++            # Idempotent: delete this day's rows first so a re-run never
++            # double-counts. The whole replace is atomic inside a transaction.
+             con.execute("BEGIN TRANSACTION")
+-            con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            con.execute(
++                "DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
++            )
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+@@ -55,7 +88,8 @@ def pageviews_daily():
+             )
+             con.execute("COMMIT")
+             return con.execute(
+-                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
++                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)",
++                [day],
+             ).fetchone()[0]
+         finally:
+             con.close()

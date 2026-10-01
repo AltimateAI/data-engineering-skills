@@ -1,0 +1,207 @@
+diff --git a/README.md b/README.md
+index 366d41e..f0e9585 100644
+--- a/README.md
++++ b/README.md
+@@ -5,7 +5,7 @@ warehouse (`warehouse/analytics.duckdb`).
+ 
+ | DAG | What it does |
+ |---|---|
+-| `orders_daily_load` | Loads the previous day's orders into `orders`, then refreshes `daily_revenue` |
++| `orders_daily_load` | Replaces its scheduled day (data interval) in `orders`, then rebuilds that day in `daily_revenue`; safe to clear, retry and backfill |
+ | `customers_snapshot` | Full refresh of the `customers` dimension |
+ 
+ Tables read by the finance dashboard (do not change their columns):
+@@ -13,4 +13,6 @@ Tables read by the finance dashboard (do not change their columns):
+ - `orders(order_id, order_date, customer_id, amount_usd, loaded_at)`
+ - `daily_revenue(order_date, order_count, revenue_usd)`
+ 
+-Local run: `airflow dags test orders_daily_load 2026-03-10`
++Local run: `airflow dags test orders_daily_load 2026-03-10` (manual runs load the last complete day before the given date, i.e. 2026-03-09)
++
++Backfill: `airflow dags backfill orders_daily_load -s 2026-03-01 -e 2026-03-15`
+diff --git a/dags/orders_daily_load.py b/dags/orders_daily_load.py
+index 53eba3b..9241a50 100644
+--- a/dags/orders_daily_load.py
++++ b/dags/orders_daily_load.py
+@@ -1,11 +1,17 @@
+-"""Loads yesterday's shop orders into the local DuckDB warehouse.
++"""Loads one day of shop orders into the local DuckDB warehouse.
+ 
+-The shop backend exports every order to data/orders.csv. This DAG copies the
+-previous day's non-cancelled orders into `orders` and then refreshes the
+-`daily_revenue` rollup that the finance dashboard reads.
++The shop backend exports every order to data/orders.csv. Each run loads the
++non-cancelled orders for its own data interval (for this @daily schedule that
++is the day *before* the run executes) into `orders` and then rebuilds that
++day's row in the `daily_revenue` rollup that the finance dashboard reads.
++
++Both tasks are idempotent: they replace the whole day (DELETE + INSERT) inside
++a single transaction, so clearing, retrying or backfilling a day always leaves
++exactly that day's rows and never touches other days. A failed attempt rolls
++back and leaves the previous state of the day intact.
+ """
+ 
+-from datetime import datetime, timedelta
++from datetime import date
+ from pathlib import Path
+ 
+ import duckdb
+@@ -17,73 +23,109 @@ SOURCE_CSV = PROJECT_DIR / "data" / "orders.csv"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "analytics.duckdb"
+ 
+ 
++def _interval_day(data_interval_start: pendulum.DateTime) -> date:
++    """The calendar day (UTC) this run is responsible for."""
++    return data_interval_start.in_timezone("UTC").date()
++
++
++def _replace_day(con: duckdb.DuckDBPyConnection, statements: list[tuple[str, list]]) -> None:
++    """Run the given statements atomically: all of them commit, or none do."""
++    con.begin()
++    try:
++        for sql, params in statements:
++            con.execute(sql, params)
++        con.commit()
++    except Exception:
++        con.rollback()
++        raise
++
++
+ @dag(
+     dag_id="orders_daily_load",
+     schedule="@daily",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
++    # DuckDB allows a single writer process; run days one at a time so
++    # backfills don't fail on the database file lock.
++    max_active_runs=1,
+     default_args={"owner": "data-eng"},
+     tags=["shop", "warehouse"],
+ )
+ def orders_daily_load():
+     @task
+-    def load_orders() -> str:
+-        day = (datetime.now() - timedelta(days=1)).date()
++    def load_orders(data_interval_start=None) -> None:
++        day = _interval_day(data_interval_start)
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+-        con.execute(
+-            """
+-            CREATE TABLE IF NOT EXISTS orders (
+-                order_id    VARCHAR,
+-                order_date  DATE,
+-                customer_id VARCHAR,
+-                amount_usd  DECIMAL(12, 2),
+-                loaded_at   TIMESTAMP
++        try:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS orders (
++                    order_id    VARCHAR,
++                    order_date  DATE,
++                    customer_id VARCHAR,
++                    amount_usd  DECIMAL(12, 2),
++                    loaded_at   TIMESTAMP
++                )
++                """
++            )
++            _replace_day(
++                con,
++                [
++                    ("DELETE FROM orders WHERE order_date = ?", [day]),
++                    (
++                        f"""
++                        INSERT INTO orders
++                        SELECT order_id,
++                               CAST(order_ts AS DATE),
++                               customer_id,
++                               CAST(amount_usd AS DECIMAL(12, 2)),
++                               now()
++                        FROM read_csv_auto('{SOURCE_CSV}')
++                        WHERE CAST(order_ts AS DATE) = ?
++                          AND status <> 'cancelled'
++                        """,
++                        [day],
++                    ),
++                ],
+             )
+-            """
+-        )
+-        con.execute(
+-            f"""
+-            INSERT INTO orders
+-            SELECT order_id,
+-                   CAST(order_ts AS DATE),
+-                   customer_id,
+-                   CAST(amount_usd AS DECIMAL(12, 2)),
+-                   now()
+-            FROM read_csv_auto('{SOURCE_CSV}')
+-            WHERE CAST(order_ts AS DATE) = ?
+-              AND status <> 'cancelled'
+-            """,
+-            [day],
+-        )
+-        con.close()
+-        return day.isoformat()
++        finally:
++            con.close()
+ 
+     @task
+-    def build_daily_revenue(day: str) -> None:
++    def build_daily_revenue(data_interval_start=None) -> None:
++        day = _interval_day(data_interval_start)
+         con = duckdb.connect(str(WAREHOUSE))
+-        con.execute(
+-            """
+-            CREATE TABLE IF NOT EXISTS daily_revenue (
+-                order_date  DATE,
+-                order_count INTEGER,
+-                revenue_usd DECIMAL(14, 2)
++        try:
++            con.execute(
++                """
++                CREATE TABLE IF NOT EXISTS daily_revenue (
++                    order_date  DATE,
++                    order_count INTEGER,
++                    revenue_usd DECIMAL(14, 2)
++                )
++                """
++            )
++            _replace_day(
++                con,
++                [
++                    ("DELETE FROM daily_revenue WHERE order_date = ?", [day]),
++                    (
++                        """
++                        INSERT INTO daily_revenue
++                        SELECT order_date, count(*), sum(amount_usd)
++                        FROM orders
++                        WHERE order_date = ?
++                        GROUP BY order_date
++                        """,
++                        [day],
++                    ),
++                ],
+             )
+-            """
+-        )
+-        con.execute(
+-            """
+-            INSERT INTO daily_revenue
+-            SELECT order_date, count(*), sum(amount_usd)
+-            FROM orders
+-            WHERE order_date = CAST(? AS DATE)
+-            GROUP BY order_date
+-            """,
+-            [day],
+-        )
+-        con.close()
++        finally:
++            con.close()
+ 
+-    build_daily_revenue(load_orders())
++    load_orders() >> build_daily_revenue()
+ 
+ 
+ orders_daily_load()

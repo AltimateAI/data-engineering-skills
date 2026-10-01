@@ -1,0 +1,3 @@
+refund_id,refund_date,order_id,amount
+R-501,2026-03-02,O-2001,54.00
+R-502,2026-03-03,O-2004,19.99

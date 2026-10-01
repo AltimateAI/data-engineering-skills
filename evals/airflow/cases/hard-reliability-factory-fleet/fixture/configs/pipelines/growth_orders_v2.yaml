@@ -1,0 +1,32 @@
+name: growth_orders_v2
+team: growth
+tier: standard
+description: Orders pipeline for growth
+schedule:
+  hour: 0
+  days: 1-5
+owners:
+- quinn
+steps:
+- name: extract
+  table: growth.raw_orders_00
+- name: transform
+  table: growth.int_orders_00
+  depends_on:
+  - extract
+- name: enrich
+  table: growth.int_orders_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: growth.int_orders_00
+  depends_on:
+  - enrich
+- name: snapshot
+  table: growth.int_orders_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: growth.mart_orders_00
+  depends_on:
+  - snapshot

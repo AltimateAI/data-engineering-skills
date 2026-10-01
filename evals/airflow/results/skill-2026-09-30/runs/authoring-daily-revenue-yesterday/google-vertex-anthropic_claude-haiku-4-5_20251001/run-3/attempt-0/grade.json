@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG daily_revenue exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['daily_revenue', 'store_dimension']"
+    },
+    {
+      "name": "scheduled runs fire daily at 03:00 UTC",
+      "kind": "primary",
+      "passed": true,
+      "detail": "[{\"start\": \"2026-10-01T03:00:00+00:00\", \"end\": \"2026-10-01T03:00:00+00:00\", \"run_after\": \"2026-10-01T03:00:00+00:00\"}, {\"start\": \"2026-10-02T03:00:00+00:00\", \"end\": \"2026-10-02T03:00:00+00:00\", \"run_after\": \"2026-10-02T03:00:00+00:00\"}, {\"start\": \"2026-10-03T03:00:00+00:00\", \"end\": \"2026-10-03T03:00:00+00:00\", \"run_after\": \"2026-10-03T03:00:00+00:00\"}]"
+    },
+    {
+      "name": "scheduled runs execute successfully",
+      "kind": "primary",
+      "passed": false,
+      "detail": "run firing 2026-09-29T03:00:00+00:00: state=failed logical_date=2026-09-29T03:00:00+00:00 new files=[] expected 2026-09-28.csv={'S04': (9, 1065.68), 'S01': (7, 1088.11), 'S03': (7, 1011.68), 'S02': (9, 1319.12)} got=missing\nrun firing 2026-09-26T03:00:00+00:00: state=failed logical_date=2026-09-26T03:00:00+00:00 new files=[] expected 2026-09-25.csv={'S01': (5, 1000.49), 'S04': (5, 699.56), 'S03': (8, 1028.89), 'S02': (7, 989.79)} got=missing"
+    },
+    {
+      "name": "the 03:00 run on day D reports calendar day D-1 (and only that day)",
+      "kind": "primary",
+      "passed": false,
+      "detail": "run firing 2026-09-29T03:00:00+00:00: state=failed logical_date=2026-09-29T03:00:00+00:00 new files=[] expected 2026-09-28.csv={'S04': (9, 1065.68), 'S01': (7, 1088.11), 'S03': (7, 1011.68), 'S02': (9, 1319.12)} got=missing\nrun firing 2026-09-26T03:00:00+00:00: state=failed logical_date=2026-09-26T03:00:00+00:00 new files=[] expected 2026-09-25.csv={'S01': (5, 1000.49), 'S04': (5, 699.56), 'S03': (8, 1028.89), 'S02': (7, 989.79)} got=missing"
+    },
+    {
+      "name": "rerun of a scheduled run reproduces the same file",
+      "kind": "primary",
+      "passed": false,
+      "detail": "state=failed; got=missing"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "20 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.5,
+  "secondary_score": 0.6666666666666666
+}

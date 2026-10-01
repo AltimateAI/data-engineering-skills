@@ -1,0 +1,150 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: broken configs only take out their own DAG (others load unchanged, no partial DAGs), each broken config is reported by file name in the parse output",
+  "primary_pass": false,
+  "primary_score": 0.875,
+  "secondary_score": 1.0,
+  "cost_usd": 3.051944,
+  "cost_reported_usd": 3.051944,
+  "wall_s": 589.3,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-090141/hard-reliability-factory-fleet-bkbvkxze/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 30.0,
+  "cost_list_price_usd": 3.051944,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 578,
+    "output": 34104,
+    "reasoning": 15269,
+    "cache_read": 764256,
+    "cache_write": 57495,
+    "total": 856433
+  },
+  "steps": 19,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 3.051944,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 578,
+      "outputTokens": 34104,
+      "cacheReadInputTokens": 764256,
+      "cacheCreationInputTokens": 57495,
+      "webSearchRequests": 0,
+      "costUSD": 3.0519439999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 15269,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 19,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-fable-5-1",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 7,
+        "tool": "bash",
+        "path": "<tmp>/dbmigrate.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 7,
+        "tool": "bash",
+        "path": "<tmp>/dbmigrate.log",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": false,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": null
+}

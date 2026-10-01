@@ -1,0 +1,23 @@
+name: supply_returns_us
+team: supply
+tier: standard
+description: Returns pipeline for supply
+schedule:
+  hour: 2
+  days: '*'
+  minute: 15
+steps:
+- name: extract
+  table: supply.raw_returns_00
+- name: validate
+  table: supply.int_returns_00
+  depends_on:
+  - extract
+- name: enrich
+  table: supply.int_returns_00
+  depends_on:
+  - validate
+- name: publish
+  table: supply.mart_returns_00
+  depends_on:
+  - enrich

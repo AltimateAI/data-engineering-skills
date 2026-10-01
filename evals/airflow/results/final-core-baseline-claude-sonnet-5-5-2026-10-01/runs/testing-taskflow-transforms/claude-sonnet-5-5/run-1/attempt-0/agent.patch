@@ -1,0 +1,245 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..8c45987
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,33 @@
++import sys
++from pathlib import Path
++
++import pytest
++
++ROOT = Path(__file__).resolve().parents[1]
++DAGS = ROOT / "dags"
++
++
++@pytest.fixture(scope="session")
++def dag_module():
++    """Import the DAG file once; importing it also registers the DAG object."""
++    sys.path.insert(0, str(DAGS))
++    try:
++        import orders_enrichment
++    finally:
++        sys.path.remove(str(DAGS))
++    return orders_enrichment
++
++
++@pytest.fixture(scope="session")
++def dag():
++    from airflow.dag_processing.dagbag import DagBag
++
++    bag = DagBag(str(DAGS), bundle_path=str(DAGS))
++    assert not bag.import_errors, bag.import_errors
++    return bag.dags["orders_enrichment"]
++
++
++@pytest.fixture
++def fn(dag_module):
++    """Return the plain Python function behind a @task, bypassing Airflow."""
++    return lambda name: getattr(dag_module, name).function
+diff --git a/tests/test_orders_enrichment.py b/tests/test_orders_enrichment.py
+new file mode 100644
+index 0000000..00aaa06
+--- /dev/null
++++ b/tests/test_orders_enrichment.py
+@@ -0,0 +1,200 @@
++import csv
++import shutil
++
++import pytest
++
++from conftest import ROOT
++
++
++def order(order_id, updated_at, amount="10.00", currency="USD", customer="C-1", date="2026-03-02"):
++    return {
++        "order_id": order_id,
++        "order_date": date,
++        "updated_at": updated_at,
++        "customer_id": customer,
++        "currency": currency,
++        "amount": amount,
++    }
++
++
++# --- dedupe_orders -------------------------------------------------------------------
++
++
++def test_dedupe_keeps_latest_version_regardless_of_row_order(fn):
++    old = order("A", "2026-03-02T07:55:00", amount="38.00")
++    new = order("A", "2026-03-02T11:47:00", amount="40.00")
++    assert fn("dedupe_orders")([new, old]) == [new]
++    assert fn("dedupe_orders")([old, new]) == [new]
++
++
++def test_dedupe_keeps_distinct_orders_sorted_by_id(fn):
++    rows = [order("B", "2026-03-02T01:00:00"), order("A", "2026-03-02T02:00:00")]
++    assert [r["order_id"] for r in fn("dedupe_orders")(rows)] == ["A", "B"]
++
++
++def test_dedupe_empty(fn):
++    assert fn("dedupe_orders")([]) == []
++
++
++# --- convert_to_usd ------------------------------------------------------------------
++
++
++def convert(fn, amount, rate, currency="EUR"):
++    rows = fn("convert_to_usd")([order("A", "t", amount=amount, currency=currency)], {currency: rate})
++    return rows[0]["amount_usd"]
++
++
++@pytest.mark.parametrize(
++    "amount, rate, expected",
++    [
++        ("100.00", "1.0850", "108.50"),
++        ("1.00", "0.125", "0.13"),  # exact tie rounds up (banker's rounding would give 0.12)
++        ("2.00", "0.125", "0.25"),
++        ("0.35", "1.0850", "0.38"),  # 0.37975
++        ("0.01", "0.4", "0.00"),  # 0.004
++        ("0.01", "0.5", "0.01"),  # 0.005 tie
++        ("20.00", "1.0812", "21.62"),  # 21.624
++    ],
++)
++def test_amount_usd_is_half_up_rounded_to_cents(fn, amount, rate, expected):
++    assert convert(fn, amount, rate) == expected
++
++
++def test_convert_preserves_row_fields_and_adds_amount_usd(fn):
++    src = order("A", "t", amount="40.50", currency="GBP")
++    (out,) = fn("convert_to_usd")([src], {"GBP": "1.2700"})
++    assert out == {**src, "amount_usd": "51.44"}  # 51.435 -> half-up
++
++
++def test_usd_orders_pass_through_at_rate_one(fn):
++    rates = fn("load_fx_rates")(ds="1999-01-01")  # no rates that day, only the implicit USD
++    (out,) = fn("convert_to_usd")([order("A", "t", amount="9.99")], rates)
++    assert out["amount_usd"] == "9.99"
++
++
++def test_missing_fx_rate_fails_instead_of_guessing(fn):
++    rows = [order("A", "t", currency="EUR"), order("B", "t", currency="JPY")]
++    with pytest.raises(ValueError, match="JPY.*B"):
++        fn("convert_to_usd")(rows, {"EUR": "1.08"})
++
++
++def test_fx_rate_from_another_day_is_not_used(fn):
++    # fx_rates.csv has EUR for 2026-03-01..03; nothing for 2026-03-04
++    rates = fn("load_fx_rates")(ds="2026-03-04")
++    with pytest.raises(ValueError, match="EUR"):
++        fn("convert_to_usd")([order("A", "t", currency="EUR")], rates)
++
++
++# --- extract / load_fx_rates on the sample data ----------------------------------------
++
++
++def test_extract_orders_filters_to_run_date(fn):
++    rows = fn("extract_orders")(ds="2026-03-02")
++    assert {r["order_date"] for r in rows} == {"2026-03-02"}
++    assert len(rows) == 6  # includes the superseded versions of S-102 and S-103
++
++
++def test_load_fx_rates_uses_only_run_date(fn):
++    assert fn("load_fx_rates")(ds="2026-03-02") == {"USD": "1", "EUR": "1.0850", "GBP": "1.2700"}
++
++
++# --- validate_totals -----------------------------------------------------------------
++
++
++def good(**kw):
++    return {**order("A", "t", customer="C-1"), "amount_usd": "5.00", **kw}
++
++
++def test_validate_passes_good_rows_through_unchanged(fn):
++    rows = [good(), good(order_id="B", amount_usd="0.00")]
++    assert fn("validate_totals")(rows) == rows
++
++
++@pytest.mark.parametrize("bad", [{"customer_id": ""}, {"amount_usd": "-0.01"}])
++def test_validate_rejects_bad_rows(fn, bad):
++    with pytest.raises(ValueError, match="invalid orders"):
++        fn("validate_totals")([good(order_id="OK"), good(order_id="BAD", **bad)])
++
++
++# --- load_enriched -------------------------------------------------------------------
++
++
++def test_load_enriched_writes_only_output_columns(fn, dag_module, tmp_path, monkeypatch):
++    monkeypatch.setattr(dag_module, "OUTPUT_DIR", tmp_path / "out")
++    path = fn("load_enriched")([good()], ds="2026-03-02")
++    assert path == str(tmp_path / "out" / "2026-03-02.csv")
++    with open(path, newline="") as fh:
++        rows = list(csv.DictReader(fh))
++    assert list(rows[0]) == ["order_id", "customer_id", "currency", "amount", "amount_usd"]
++
++
++# --- DAG definition ------------------------------------------------------------------
++
++
++def test_dag_imports_cleanly(dag):
++    assert set(dag.task_ids) == {
++        "extract_orders", "load_fx_rates", "dedupe_orders",
++        "convert_to_usd", "validate_totals", "load_enriched",
++    }
++
++
++def test_runs_daily_at_0600_utc(dag):
++    assert dag.timetable.expression == "0 6 * * *"
++    assert str(dag.timetable.timezone) == "UTC"
++
++
++def test_load_only_runs_after_validation(dag):
++    # Everything that reaches the writer must go through validate_totals, and nothing
++    # else may feed it, so a failed validation leaves output/ untouched.
++    assert dag.get_task("load_enriched").upstream_task_ids == {"validate_totals"}
++    assert dag.get_task("validate_totals").upstream_task_ids == {"convert_to_usd"}
++    assert "load_enriched" in dag.get_task("validate_totals").downstream_task_ids
++    assert dag.get_task("load_enriched").trigger_rule == "all_success"
++
++
++# --- end to end on data/ -------------------------------------------------------------
++
++
++@pytest.fixture
++def project(dag_module, tmp_path, monkeypatch):
++    """Point the DAG at a copy of data/ and a scratch output dir."""
++    shutil.copytree(ROOT / "data", tmp_path / "data")
++    monkeypatch.setattr(dag_module, "DATA_DIR", tmp_path / "data")
++    monkeypatch.setattr(dag_module, "OUTPUT_DIR", tmp_path / "output" / "orders_enriched")
++    return tmp_path
++
++
++def run_pipeline(fn, ds):
++    """Same wiring as the DAG body, run in-process."""
++    orders = fn("dedupe_orders")(fn("extract_orders")(ds=ds))
++    enriched = fn("convert_to_usd")(orders, fn("load_fx_rates")(ds=ds))
++    return fn("load_enriched")(fn("validate_totals")(enriched), ds=ds)
++
++
++def test_end_to_end_sample_day(fn, project):
++    path = run_pipeline(fn, "2026-03-02")
++    with open(path, newline="") as fh:
++        rows = list(csv.DictReader(fh))
++    assert [(r["order_id"], r["amount"], r["amount_usd"]) for r in rows] == [
++        ("S-102", "120.00", "130.20"),  # latest version, not 100.00
++        ("S-103", "40.50", "51.44"),    # latest version (08:30), not 38.00
++        ("S-104", "9.99", "9.99"),
++        ("S-105", "0.35", "0.38"),
++    ]
++    assert not (project / "output" / "orders_enriched" / "2026-03-01.csv").exists()
++
++
++def test_end_to_end_missing_rate_writes_nothing(fn, project):
++    with open(project / "data" / "orders.csv", "a", newline="") as fh:
++        fh.write("S-999,2026-03-02,2026-03-02T14:00:00,C-1,JPY,1000\n")
++    with pytest.raises(ValueError, match="JPY"):
++        run_pipeline(fn, "2026-03-02")
++    assert not (project / "output").exists()
++
++
++def test_end_to_end_validation_failure_writes_nothing(fn, project):
++    with open(project / "data" / "orders.csv", "a", newline="") as fh:
++        fh.write("S-998,2026-03-02,2026-03-02T14:00:00,,USD,5.00\n")
++    with pytest.raises(ValueError, match="S-998"):
++        run_pipeline(fn, "2026-03-02")
++    assert not (project / "output").exists()

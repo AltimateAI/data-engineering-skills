@@ -1,0 +1,87 @@
+diff --git a/dags/partner_feed.py b/dags/partner_feed.py
+index fffc488..3c97c13 100644
+--- a/dags/partner_feed.py
++++ b/dags/partner_feed.py
+@@ -8,11 +8,12 @@ from __future__ import annotations
+ 
+ import csv
+ import json
++import pendulum
+ from datetime import datetime
+ from pathlib import Path
+ 
+ from airflow.providers.standard.operators.bash import BashOperator
+-from airflow.sdk import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_CSV = PROJECT_ROOT / "data" / "partner_orders.csv"
+@@ -21,16 +22,34 @@ OUTBOX = PROJECT_ROOT / "outbox" / "acme"
+ FEED_COLUMNS = ["order_id", "sku", "qty", "amount"]
+ 
+ 
++def _feed_day(context: dict) -> str:
++    """Return the feed date as YYYY-MM-DD.
++
++    - Scheduled / backfill runs have a data interval; use data_interval_start
++      (same as the legacy ``ds`` under a CronDataIntervalTimetable).
++    - Manual triggers without a logical date have no interval; fall back to
++      dag_run.run_after (UTC), which is set at trigger time and never changes
++      on re-runs, so clearing and re-running tomorrow still produces the same
++      date's feed.
++    """
++    start = context.get("data_interval_start")
++    if start is not None:
++        return pendulum.instance(start).in_tz("UTC").strftime("%Y-%m-%d")
++    # Manual trigger with no logical date — use the trigger wall-clock time.
++    run_after = context["dag_run"].run_after
++    return pendulum.instance(run_after).in_tz("UTC").strftime("%Y-%m-%d")
++
++
+ @dag(
+-    schedule="0 4 * * *",
++    schedule=CronDataIntervalTimetable("0 4 * * *", timezone="UTC"),
+     start_date=datetime(2026, 1, 1),
+     catchup=False,
+     tags=["partner", "acme"],
+ )
+ def partner_feed():
+     @task
+-    def extract_orders(**context) -> str:
+-        day = context["logical_date"].strftime("%Y-%m-%d")
++    def extract_orders(**context) -> dict:
++        day = _feed_day(context)
+         with ORDERS_CSV.open(newline="") as fh:
+             rows = [
+                 {col: row[col] for col in FEED_COLUMNS}
+@@ -43,11 +62,13 @@ def partner_feed():
+             writer = csv.DictWriter(fh, fieldnames=FEED_COLUMNS)
+             writer.writeheader()
+             writer.writerows(rows)
+-        return str(out)
++        return {"path": str(out), "day_nodash": day.replace("-", "")}
+ 
+     @task
+-    def write_manifest(feed_path: str, **context) -> str:
+-        day = context["execution_date"].strftime("%Y-%m-%d")
++    def write_manifest(feed: dict) -> str:
++        feed_path = feed["path"]
++        # The day is already encoded in the parent directory name (YYYY-MM-DD).
++        day = Path(feed_path).parent.name
+         with open(feed_path, newline="") as fh:
+             row_count = sum(1 for _ in csv.DictReader(fh))
+         manifest = Path(feed_path).with_name("manifest.json")
+@@ -60,10 +81,10 @@ def partner_feed():
+         task_id="deliver",
+         bash_command=(
+             "mkdir -p {{ params.outbox }}"
+-            " && cp {{ ti.xcom_pull(task_ids='extract_orders') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.csv"
++            " && cp {{ ti.xcom_pull(task_ids='extract_orders')['path'] }}"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='extract_orders')['day_nodash'] }}.csv"
+             " && cp {{ ti.xcom_pull(task_ids='write_manifest') }}"
+-            " {{ params.outbox }}/acme_orders_{{ ds_nodash }}.manifest.json"
++            " {{ params.outbox }}/acme_orders_{{ ti.xcom_pull(task_ids='extract_orders')['day_nodash'] }}.manifest.json"
+         ),
+         params={"outbox": str(OUTBOX)},
+     )

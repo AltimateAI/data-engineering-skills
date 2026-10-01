@@ -1,0 +1,19 @@
+name: finance_tickets_backfill_safe
+team: finance
+tier: standard
+description: Tickets pipeline for finance
+schedule:
+  hour: 2
+  days: '*'
+retries: 4
+steps:
+- name: extract
+  table: finance.raw_tickets_00
+- name: snapshot
+  table: finance.int_tickets_00
+  depends_on:
+  - extract
+- name: publish
+  table: finance.mart_tickets_00
+  depends_on:
+  - snapshot

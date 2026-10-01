@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: suite passes on the correct project, suite passes on a behaviour-preserving edit of the sources, suite catches hidden bug: hook_ignores_host, suite catches hidden bug: schema_from_extra, suite catches hidden bug: conn_id_ignored, suite catches hidden bug: rerun_duplicates, suite catches hidden bug: partition_filter_dropped",
+  "primary_pass": false,
+  "primary_score": 0.125,
+  "secondary_score": 0.75,
+  "returncode": 0,
+  "wall_s": 94.2,
+  "cost_usd": 0.367213,
+  "cost_reported_usd": 1.637471,
+  "tokens": {
+    "input": 1270353,
+    "output": 9196,
+    "reasoning": 0,
+    "cache_read": 1101465,
+    "cache_write": 168793,
+    "total": 2549807
+  },
+  "steps": 19,
+  "termination": {
+    "why_model_stopped": "stop",
+    "why_harness_stopped": "none",
+    "done_reason": "none"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 7,
+  "edited_files": 3,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0ce793e4ffeY9Z36lt9w54Cm7.json"
+}

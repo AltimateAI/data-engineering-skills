@@ -1,0 +1,209 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 7.665693,
+  "cost_reported_usd": 7.665693,
+  "wall_s": 1332.9,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-fable-5-1-2026-10-01-baseline-20261001-090141/hard-deferrable-debug-partition-sensor-jynszzmz/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 30.0,
+  "cost_list_price_usd": 7.665693,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 932,
+    "output": 69929,
+    "reasoning": 33698,
+    "cache_read": 3410092,
+    "cache_write": 165370,
+    "total": 3646323
+  },
+  "steps": 64,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 7.665693,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-fable-5-1": {
+      "inputTokens": 932,
+      "outputTokens": 69929,
+      "cacheReadInputTokens": 3410092,
+      "cacheCreationInputTokens": 165370,
+      "webSearchRequests": 0,
+      "costUSD": 7.665693000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 64000,
+      "thinkingTokens": 33698,
+      "canonicalModel": "claude-fable-5-1",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 64,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-fable-5-1",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/lake_port",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/lake_log.jsonl",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/lake_port",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/lake_log.jsonl",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/stub.out",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/lake_port",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/e2e_ingest.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/e2e_ingest.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 41,
+        "tool": "bash",
+        "path": "<tmp>/lake_log.jsonl",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 52,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "pkill -f \"dags test lake_ingest 2026-09-28\"; pkill -f \"port-file .*scratch/port2\"; sleep 1; pgrep -fl \"dags test|catalog_stub\" || echo \"no leftover processes\"",
+        "output": "1693 /opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework/Versions/3.12/Resources/Python.app/Contents/MacOS/Python tools/catalog_stub.py --port-file ~/.cache/des-evals/w"
+      },
+      {
+        "call": 55,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "for pid in $(pgrep -f \"hard-deferrable-debug-partition-sensor-jynszzmz/agent-airflow-home/scratch\"); do kill $pid 2>/dev/null && echo \"killed $pid\"; done; pkill -f \"dags test lake_ingest 2026-09-28\" && echo \"killed dags test\"; sleep 1; pgrep -fl \"jynszzmz\" | grep -v pgrep || echo \"no leftover proces",
+        "output": "killed 1693\nkilled 2349\nkilled 3388\nkilled 95656\nkilled dags test\nno leftover processes from this workspace"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 54,
+  "edited_files": 5,
+  "errors": [],
+  "trace_path": null
+}

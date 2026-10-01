@@ -1,0 +1,90 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..cf199a1 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,8 +1,13 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
++at about 01:00 UTC the next morning. This DAG aggregates each day's file into
+ the `daily_pageviews` table (views and unique visitors per page).
++
++When unpaused with catchup=True, this DAG will backfill every day from
++2026-09-01 (the earliest available data) to today, processing one day per
++scheduler run. Each day is safe to re-run—deletes are applied before inserts
++to avoid double-counting in the single-writer DuckDB environment.
+ """
+ 
+ from pathlib import Path
+@@ -10,25 +15,44 @@ from pathlib import Path
+ import duckdb
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.models import Variable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
++# Backfill start date: Sept 1, 2026 (earliest available raw data)
++BACKFILL_START = pendulum.datetime(2026, 9, 1, tz="UTC")
++
+ 
+ @dag(
+     dag_id="pageviews_daily",
+     schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    start_date=BACKFILL_START,
++    catchup=True,
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(**context) -> int:
++        """Load and aggregate raw pageviews for the scheduled day.
++        
++        Uses the task's execution_date (data_interval_start) to determine which
++        day to load. This ensures:
++        - Backfill runs process all dates from Sept 1 to today (one per run)
++        - Re-runs process their originally-assigned date, not "yesterday"
++        - No double-counting: DELETE before INSERT ensures idempotency
++        """
++        # Get the date this task instance is responsible for (not the current date)
++        execution_date = context["data_interval_start"]
++        day = execution_date.to_date_string()
+         source = RAW_DIR / f"{day}.csv"
++        
++        # Skip gracefully if the raw file doesn't exist
++        if not source.exists():
++            return 0
++        
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -43,7 +67,9 @@ def pageviews_daily():
+                 """
+             )
+             con.execute("BEGIN TRANSACTION")
++            # Delete any existing rows for this day (safe re-run)
+             con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            # Insert aggregated data from the raw file
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+@@ -54,9 +80,10 @@ def pageviews_daily():
+                 [day],
+             )
+             con.execute("COMMIT")
+-            return con.execute(
++            row_count = con.execute(
+                 "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
+             ).fetchone()[0]
++            return row_count
+         finally:
+             con.close()
+ 

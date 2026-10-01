@@ -1,0 +1,76 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+new file mode 100644
+index 0000000..2bb9576
+--- /dev/null
++++ b/dags/daily_revenue.py
+@@ -0,0 +1,70 @@
++"""Daily revenue per store, reported for the previous calendar day (UTC).
++
++Finance picks up output/daily_revenue/<YYYY-MM-DD>.csv every morning.
++The DAG runs at 03:00 UTC so that late orders (which trickle in until ~02:00)
++are included.  The run that starts on the 29th reports on the 28th.
++
++Re-running any day produces the same file (idempotent).
++Catchup is enabled so every day since 2026-09-01 can be rerun.
++"""
++
++from __future__ import annotations
++
++import datetime
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 3 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    tags=["finance", "revenue"],
++)
++def daily_revenue():
++    @task
++    def generate_report(logical_date=None) -> str:
++        import duckdb
++
++        # The run at 03:00 on day D reports on day D-1.
++        run_date: datetime.date = logical_date.date()
++        report_date: datetime.date = run_date - datetime.timedelta(days=1)
++
++        day_start = datetime.datetime(
++            report_date.year, report_date.month, report_date.day,
++            0, 0, 0, tzinfo=datetime.timezone.utc,
++        )
++        day_end = day_start + datetime.timedelta(days=1)
++
++        orders_path = str(PROJECT_ROOT / "data" / "orders.csv")
++
++        sql = """
++            SELECT
++                store_id,
++                COUNT(*)                     AS orders,
++                ROUND(SUM(amount), 2)        AS revenue
++            FROM read_csv_auto(?)
++            WHERE order_ts >= ?
++              AND order_ts <  ?
++            GROUP BY store_id
++            ORDER BY store_id
++        """
++
++        result = duckdb.execute(sql, [orders_path, day_start, day_end]).fetchdf()
++
++        out_dir = PROJECT_ROOT / "output" / "daily_revenue"
++        out_dir.mkdir(parents=True, exist_ok=True)
++
++        out_path = out_dir / f"{report_date}.csv"
++        result.to_csv(out_path, index=False)
++
++        return str(out_path)
++
++    generate_report()
++
++
++daily_revenue()

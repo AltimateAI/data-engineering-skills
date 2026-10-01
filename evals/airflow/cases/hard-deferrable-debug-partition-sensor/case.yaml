@@ -1,0 +1,72 @@
+id: hard-deferrable-debug-partition-sensor
+area: debugging
+suite: hard
+split: holdout
+airflow_version: "3.3"
+max_turns: 80
+timeout_s: 3600
+grade_timeout_s: 1500
+prompt: |
+  Our deferrable PartitionPublishedSensor (dags/lake/: hook, trigger and sensor)
+  has caused seven incidents since we moved to Airflow 3.3. Please find the root
+  causes and fix them, keeping the sensor deferrable and its constructor arguments
+  unchanged (the DAGs in dags/ use them).
+
+  1. Whenever the catalog API slows down (it regularly takes 1-2 s per call), the
+     triggerer logs that its event loop was blocked, and deferred tasks of
+     unrelated DAGs resume minutes late.
+  2. After Tuesday's deploy restarted the triggerer, sensors with timeout=2h kept
+     waiting; one waited more than 7 hours.
+  3. When a sensor times out, the task is retried (our DAGs use retries=3) and
+     every retry waits the full timeout again. A timed-out sensor should fail for
+     good, or be skipped when soft_fail=True.
+  4. During yesterday's catalog outage (HTTP 503 on every call) the sensors went
+     green and the loads ran with no files. An API error (5xx or a connection
+     error) should fail the current try, so the task's retries take over.
+  5. orders_diff waits for today's and yesterday's orders partitions. Its "today"
+     and "yesterday" sensors often report the same file list.
+  6. Since we made the sensor finish straight from the triggerer (to free worker
+     slots), load_orders logs absurd file counts ("loading 92 files into orders"
+     for a partition with 2 files). Every consumer reads the partition's file list
+     from the sensor's return value, so that value has to be the list of files.
+  7. During Monday's 5-minute catalog outage the orders sensor failed, was retried,
+     and the retry waited another full 2 hours. `timeout` is meant as the total
+     wait for a partition in a DAG run, counted from when the sensor first started
+     waiting, retries included.
+
+  README.md describes the catalog API; tools/ has a local stand-in for it.
+description: |
+  Hard suite, theme deferrable, area debugging (Airflow 3.3). Seven production
+  incidents in a deferrable sensor + trigger + hook, each with a planted root cause.
+  Incident 7 (timeout restarts on every retry) needs a wait-start anchor that survives
+  retries: on 3.3 a retry clears the task instance's XComs and Variable.set() only
+  takes strings; the reference uses the 3.3 task state store
+  (context["task_state_store"]), alt_reference a string Variable.
+  Version-specific one: the trigger ends the task with
+  TaskSuccessEvent(xcoms={"return_value": files}); on Airflow 3.3.2 XComs pushed that
+  way (models/trigger.py handle_event_submit -> TaskInstance.xcom_push -> XComModel.set
+  json.dumps into a JSON column) reach downstream tasks as a JSON *string*, so loads
+  count characters. Plain `dags test` does not show it (it resumes the task on the
+  worker instead), so the fix is to resume on the worker and return the list. Others:
+  an `async def` hook method that calls `requests` (blocks the triggerer loop), a
+  trigger deadline computed from time.monotonic() at construction plus no
+  defer(timeout=) (a triggerer restart resets it), the timeout path raising a
+  retryable AirflowException, any non-timeout event (including errors) treated as
+  success, and a module-level cache of published partitions keyed by table only
+  (triggers share the triggerer process). Graded with grader-only DAGs against a
+  grader-owned catalog API (0.5 s per request) via grader_data/defer_runner.py
+  (deferral timeouts enforced with a 4 s grace, triggerer restarted mid-wait,
+  event-loop stalls measured). Primary checks: DAGs import; the sensor still
+  defers and its return value (read by a downstream task) is the published file
+  list; no event-loop stall >= 0.35 s; a
+  timed-out sensor (timeout=10 s, retries=2) fails on try 1; with a restart 8 s
+  into the wait it still fails 8.5-17 s after deferring; soft_fail sensor is
+  skipped; a 503 outage fails the sensor and the downstream load does not run;
+  budget scenario (6 s upstream task, timeout=16 s, retries=4, 503s from 3-8 s after
+  the first request) fails 14.5-21.5 s after the sensor's first start after >= 2
+  tries; D and D-1 sensors on one table get their own files.
+  Mutants: each root cause left unfixed in turn (blocking hook, relative deadline
+  without defer timeout, retryable timeout, errors as success, table-keyed cache,
+  TaskSuccessEvent return value, timeout budget restarted on each try), API errors
+  polled through instead of failing the try, and a trigger that fabricates the file
+  list without calling the catalog.

@@ -1,0 +1,146 @@
+diff --git a/.gitignore b/.gitignore
+index fd6aad7..08e78d2 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,3 @@
+ output/
+ __pycache__/
++staging/
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..c02b0d3
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,132 @@
++"""Daily page-level stats from the web clickstream export, for the BI tool.
++
++Each run processes one UTC day D (the run's logical date):
++- scheduled: the run that fires at D+1 04:30 UTC has logical date D 04:30 -> processes D
++- `airflow dags test clickstream_page_stats D` and backfills of D -> process D
++- manual trigger without a logical date -> the day before the trigger time
++- `params={"day": "YYYY-MM-DD"}` overrides all of the above (rerun any day)
++
++Tasks hand off file paths (claim check), never rows: extract and transform write
++Parquet under staging/clickstream_page_stats/<D>/ and load writes
++output/page_stats/<D>.csv. Every file is replaced atomically, so a rerun of a day
++replaces that day's output.
++"""
++
++from __future__ import annotations
++
++import os
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronDataIntervalTimetable, Param, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++EXPORT_DIR = PROJECT_ROOT / "data" / "clickstream"
++STAGING_DIR = PROJECT_ROOT / "staging" / "clickstream_page_stats"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++def run_day(dag_run, params) -> str:
++    """The UTC day (YYYY-MM-DD) this run processes."""
++    day = (params or {}).get("day")
++    if day:
++        return pendulum.parse(day, tz="UTC").to_date_string()
++    if dag_run.logical_date is not None:
++        return pendulum.instance(dag_run.logical_date).in_tz("UTC").to_date_string()
++    # 3.x manual trigger without a logical date: the last complete UTC day.
++    return pendulum.instance(dag_run.run_after).in_tz("UTC").subtract(days=1).to_date_string()
++
++
++def _sql_str(path: Path) -> str:
++    return "'" + str(path).replace("'", "''") + "'"
++
++
++def _replace(tmp: Path, final: Path) -> str:
++    os.replace(tmp, final)
++    return str(final)
++
++
++@dag(
++    # Fires at 04:30 UTC on D+1 (giving the export time to land) with logical date D 04:30,
++    # so backfills and `dags test` select days by their own (logical) date.
++    schedule=CronDataIntervalTimetable("30 4 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    max_active_runs=4,
++    default_args={"retries": 2, "retry_delay": timedelta(minutes=15)},
++    params={"day": Param(None, type=["null", "string"], format="date")},
++    tags=["web-analytics"],
++)
++def clickstream_page_stats():
++    @task
++    def extract(**context) -> str:
++        import duckdb
++
++        day = run_day(context["dag_run"], context["params"])
++        src = EXPORT_DIR / f"{day}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(f"clickstream export for {day} not found: {src}")
++        out_dir = STAGING_DIR / day
++        out_dir.mkdir(parents=True, exist_ok=True)
++        out = out_dir / "events.parquet"
++        tmp = out_dir / "events.parquet.tmp"
++        duckdb.sql(
++            f"""
++            COPY (
++                SELECT user_id, page, load_ms
++                FROM read_csv({_sql_str(src)}, header = true, columns = {{
++                    'event_id': 'VARCHAR', 'user_id': 'VARCHAR', 'page': 'VARCHAR',
++                    'event_ts': 'VARCHAR', 'load_ms': 'DOUBLE', 'is_bot': 'INTEGER'}})
++                WHERE is_bot IS DISTINCT FROM 1
++                  AND trim(coalesce(user_id, '')) <> ''
++            ) TO {_sql_str(tmp)} (FORMAT parquet)
++            """
++        )
++        return _replace(tmp, out)
++
++    @task
++    def transform(events_path: str) -> str:
++        import duckdb
++
++        events = Path(events_path)
++        out = events.parent / "page_stats.parquet"
++        tmp = events.parent / "page_stats.parquet.tmp"
++        duckdb.sql(
++            f"""
++            COPY (
++                SELECT page,
++                       count(*) AS views,
++                       count(DISTINCT user_id) AS unique_users,
++                       round(avg(load_ms), 1) AS avg_load_ms
++                FROM read_parquet({_sql_str(events)})
++                GROUP BY page
++                ORDER BY page
++            ) TO {_sql_str(tmp)} (FORMAT parquet)
++            """
++        )
++        return _replace(tmp, out)
++
++    @task
++    def load(stats_path: str, **context) -> str:
++        import duckdb
++
++        day = run_day(context["dag_run"], context["params"])
++        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
++        out = OUTPUT_DIR / f"{day}.csv"
++        tmp = OUTPUT_DIR / f".{day}.csv.tmp"
++        duckdb.sql(
++            f"""
++            COPY (
++                SELECT page, views, unique_users, avg_load_ms
++                FROM read_parquet({_sql_str(Path(stats_path))})
++                ORDER BY page
++            ) TO {_sql_str(tmp)} (FORMAT csv, HEADER true)
++            """
++        )
++        return _replace(tmp, out)
++
++    load(transform(extract()))
++
++
++clickstream_page_stats()

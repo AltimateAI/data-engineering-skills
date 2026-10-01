@@ -1,0 +1,18 @@
+name: payments_carriers
+team: payments
+tier: critical
+description: Carriers pipeline for payments
+schedule:
+  hour: 1
+  days: '*'
+steps:
+- name: extract
+  table: payments.raw_carriers_00
+- name: transform
+  table: payments.int_carriers_00
+  depends_on:
+  - extract
+- name: publish
+  table: payments.mart_carriers_00
+  depends_on:
+  - transform

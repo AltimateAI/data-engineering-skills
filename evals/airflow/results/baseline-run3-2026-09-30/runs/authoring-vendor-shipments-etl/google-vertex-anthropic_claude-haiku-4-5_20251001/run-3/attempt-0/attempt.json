@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: file sensor has an explicit timeout of at most 24h",
+  "primary_pass": false,
+  "primary_score": 0.9166666666666666,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 202.4,
+  "cost_usd": 0.636329,
+  "cost_reported_usd": 3.375352,
+  "tokens": {
+    "input": 2739241,
+    "output": 17025,
+    "reasoning": 0,
+    "cache_read": 2498081,
+    "cache_write": 240942,
+    "total": 5495289
+  },
+  "steps": 40,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 26,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d084e9bffedxBHmP8l9Go3I9.json"
+}

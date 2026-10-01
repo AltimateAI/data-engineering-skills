@@ -1,0 +1,139 @@
+diff --git a/dags/pageviews_daily.py b/dags/pageviews_daily.py
+index cf27330..016172a 100644
+--- a/dags/pageviews_daily.py
++++ b/dags/pageviews_daily.py
+@@ -1,8 +1,25 @@
+ """Daily page view rollup for the marketing dashboard.
+ 
+ The web tier drops one raw export per UTC day into data/pageviews/<YYYY-MM-DD>.csv
+-at about 01:00 UTC the next morning. This DAG aggregates yesterday's file into
+-the `daily_pageviews` table (views and unique visitors per page).
++at about 01:00 UTC the next morning. This DAG aggregates that file into the
++``daily_pageviews`` table (views and unique visitors per page).
++
++Period contract
++---------------
++Scheduled run due at 03:00 UTC on date D  ->  processes calendar day D-1 (UTC).
++  ``data_interval_start`` = D-1 00:00 UTC, ``data_interval_end`` = D 00:00 UTC.
++Backfill for tick D                        ->  same interval as the scheduled run for D.
++Rerun / clear of any run                   ->  same ``data_interval_start``, same day;
++  the DELETE-then-INSERT transaction makes every rerun produce identical rows.
++Manual trigger                             ->  ``run_window()`` falls back to
++  ``(logical_date or run_after) - 1 day`` so the helper always returns a day.
++
++Backfill behaviour
++------------------
++``catchup=True`` + ``start_date=2026-09-01 03:00 UTC`` means that when the DAG
++is unpaused the scheduler will create one run per day from that first tick up to
++the current time, filling all of September automatically.  ``max_active_runs=1``
++prevents concurrent writers on the single DuckDB file.
+ """
+ 
+ from pathlib import Path
+@@ -10,25 +27,54 @@ from pathlib import Path
+ import duckdb
+ import pendulum
+ from airflow.sdk import dag, task
++from airflow.sdk import CronDataIntervalTimetable
+ 
+ PROJECT_DIR = Path(__file__).resolve().parents[1]
+ RAW_DIR = PROJECT_DIR / "data" / "pageviews"
+ WAREHOUSE = PROJECT_DIR / "warehouse" / "web.duckdb"
+ 
+ 
++def _run_window(dag_run):
++    """Return (start, end) for the day this run should process.
++
++    Under CronDataIntervalTimetable the interval is always present for
++    scheduled and backfill runs.  For manual runs (no interval) we fall
++    back to ``logical_date or run_after`` and subtract one day so the
++    period contract is preserved.
++    """
++    s = dag_run.data_interval_start
++    e = dag_run.data_interval_end
++    if s is not None and e is not None and e > s:
++        # Scheduled / backfill run: the interval IS the day to process.
++        return pendulum.instance(s).in_tz("UTC"), pendulum.instance(e).in_tz("UTC")
++    # Manual trigger: no interval on 3.x.
++    anchor = dag_run.logical_date or dag_run.run_after
++    start = pendulum.instance(anchor).in_tz("UTC").start_of("day").subtract(days=1)
++    return start, start.add(days=1)
++
++
+ @dag(
+     dag_id="pageviews_daily",
+-    schedule="0 3 * * *",
+-    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+-    catchup=False,
++    # CronDataIntervalTimetable gives every run a non-zero data_interval so
++    # data_interval_start is the day being processed — identical semantics on
++    # Airflow 2 and 3, unaffected by the create_cron_data_intervals config flag.
++    schedule=CronDataIntervalTimetable("0 3 * * *", timezone="UTC"),
++    # No data exists before 2026-09-01; the first tick that covers that day is
++    # 2026-09-02 03:00 UTC (interval 2026-09-01 -> 2026-09-02).
++    start_date=pendulum.datetime(2026, 9, 1, 3, 0, 0, tz="UTC"),
++    catchup=True,          # fill every missed day since start_date on unpause
++    max_active_runs=1,     # DuckDB allows only one writer at a time
+     default_args={"owner": "web-analytics", "retries": 1},
+     tags=["web", "warehouse"],
+ )
+ def pageviews_daily():
+     @task
+-    def load_day() -> int:
+-        day = pendulum.now("UTC").subtract(days=1).to_date_string()
++    def load_day(**context) -> int:
++        dag_run = context["dag_run"]
++        start, end = _run_window(dag_run)
++        day = start.to_date_string()          # e.g. "2026-09-01"
+         source = RAW_DIR / f"{day}.csv"
++
+         WAREHOUSE.parent.mkdir(parents=True, exist_ok=True)
+         con = duckdb.connect(str(WAREHOUSE))
+         try:
+@@ -42,24 +88,37 @@ def pageviews_daily():
+                 )
+                 """
+             )
+-            con.execute("BEGIN TRANSACTION")
+-            con.execute("DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day])
++            # Idempotent write: delete the day's rows then re-insert from the
++            # raw file, all inside one transaction.  A retry or backfill rerun
++            # produces exactly the same result; no duplicates can accumulate.
++            con.execute("BEGIN")
++            con.execute(
++                "DELETE FROM daily_pageviews WHERE view_date = CAST(? AS DATE)",
++                [day],
++            )
+             con.execute(
+                 f"""
+                 INSERT INTO daily_pageviews
+-                SELECT CAST(? AS DATE), page, count(*), count(DISTINCT visitor_id)
++                SELECT
++                    CAST(? AS DATE)           AS view_date,
++                    page,
++                    count(*)                  AS views,
++                    count(DISTINCT visitor_id) AS unique_visitors
+                 FROM read_csv('{source}', header = true)
+                 GROUP BY page
+                 """,
+                 [day],
+             )
+             con.execute("COMMIT")
+-            return con.execute(
+-                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)", [day]
++            row_count = con.execute(
++                "SELECT count(*) FROM daily_pageviews WHERE view_date = CAST(? AS DATE)",
++                [day],
+             ).fetchone()[0]
+         finally:
+             con.close()
+ 
++        return row_count
++
+     load_day()
+ 
+ 
+diff --git a/warehouse/web.duckdb b/warehouse/web.duckdb
+new file mode 100644
+index 0000000000000000000000000000000000000000..0f0c39f09c15c5dbec996269f722e400b61859a5
+Binary files differ (content omitted by sanitize.py)

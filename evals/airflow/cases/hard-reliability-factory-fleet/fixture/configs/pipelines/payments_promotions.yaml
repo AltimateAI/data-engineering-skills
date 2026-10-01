@@ -1,0 +1,26 @@
+name: payments_promotions
+team: payments
+tier: standard
+description: Promotions pipeline for payments
+schedule:
+  hour: 1
+  days: 1-5
+steps:
+- name: extract
+  table: payments.raw_promotions_00
+- name: stage
+  table: payments.stg_promotions_00
+  depends_on:
+  - extract
+- name: validate
+  table: payments.int_promotions_00
+  depends_on:
+  - stage
+- name: snapshot
+  table: payments.int_promotions_00
+  depends_on:
+  - validate
+- name: publish
+  table: payments.mart_promotions_00
+  depends_on:
+  - snapshot

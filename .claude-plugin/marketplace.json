@@ -45,6 +45,17 @@
       ]
     },
     {
+      "name": "airflow-skills",
+      "description": "Skills for Apache Airflow 2.x/3.x: authoring and fixing DAGs, testing DAGs, and migrating to Airflow 3",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/airflow/authoring-airflow-dags",
+        "./skills/airflow/migrating-to-airflow-3",
+        "./skills/airflow/testing-airflow-dags"
+      ]
+    },
+    {
       "name": "altimate-code",
       "description": "Delegate data engineering tasks to altimate-code — a specialized CLI agent with 100+ data tools (warehouse profiling, column lineage, dbt build/test, FinOps)",
       "source": "./",

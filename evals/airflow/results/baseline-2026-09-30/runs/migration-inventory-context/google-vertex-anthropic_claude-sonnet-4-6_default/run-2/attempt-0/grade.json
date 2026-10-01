@@ -1,0 +1,55 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['inventory_snapshot']"
+    },
+    {
+      "name": "inventory_snapshot keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['audit_snapshot', 'build_snapshot'] deps=[['build_snapshot', 'audit_snapshot']]"
+    },
+    {
+      "name": "dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": "manual 2026-03-05: state=success interval=[None, None] failed=[]"
+    },
+    {
+      "name": "consecutive scheduled daily runs succeed on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-03-05T00:00:00+00:00: state=success interval=[2026-03-05T00:00:00+00:00, 2026-03-05T00:00:00+00:00] failed=[]; 2026-03-06T00:00:00+00:00: state=success interval=[2026-03-06T00:00:00+00:00, 2026-03-06T00:00:00+00:00] failed=[]"
+    },
+    {
+      "name": "snapshots and audit records match the Airflow 2 output",
+      "kind": "primary",
+      "passed": false,
+      "detail": "expected {'audit/2026-03-04.json': '{\"day\": \"2026-03-04\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'audit/2026-03-05.json': '{\"day\": \"2026-03-05\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'inventory/2026-03-04.csv': 'sku,on_hand,change\\nSKU-1001,-24,\\nSKU-1002,119,\\nSKU-1003,151,\\nSKU-2001,208,\\nSKU-2002,157,\\nSKU-3001,178,', 'inventory/2026-03-05.csv': 'sku,on_hand,change\\nSKU-1001,-24,0\\nSKU-1002,111,-8\\nSKU-1003,160,9\\nSKU-2001,215,7\\nSKU-2002,193,36\\nSKU-3001,178,0'}\n got {'audit/2026-03-05.json': '{\"day\": \"2026-03-05\", \"low_stock\": null, \"sku_count\": null}', 'audit/2026-03-06.json': '{\"day\": \"2026-03-06\", \"low_stock\": null, \"sku_count\": null}', 'inventory/2026-03-05.csv': 'sku,on_hand,change\\nSKU-1001,-24,\\nSKU-1002,111,\\nSKU-1003,160,\\nSKU-2001,215,\\nSKU-2002,193,\\nSKU-3001,178,', 'inventory/2026-03-06.csv': 'sku,on_hand,change\\nSKU-1001,-24,0\\nSKU-1002,103,-8\\nSKU-1003,155,-5\\nSKU-2001,235,20\\nSKU-2002,179,-14\\nSKU-3001,154,-24'}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "4 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/inventory_snapshot.py:39 AIR301; dags/inventory_snapshot.py:68 AIR301; dags/inventory_snapshot.py:82 AIR311; dags/inventory_snapshot.py:90 AIR001; dags/inventory_snapshot.py:90 AIR312; dags/inventory_snapshot.py:95 AIR001; dags/inventory_snapshot.py:95 AIR312"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/inventory_snapshot.py:18 DeprecatedImportWarning: The `airflow.operators.python.PythonOperator` attribute is deprecated. Please use `'airflow.providers.standard.operators; dags/inventory_snapshot.py:18 DeprecatedImportWarning: The `airflow.operators.python.get_current_context` attribute is deprecated. Please use `'airflow.sdk.get_current_context"
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.8,
+  "secondary_score": 0.0
+}

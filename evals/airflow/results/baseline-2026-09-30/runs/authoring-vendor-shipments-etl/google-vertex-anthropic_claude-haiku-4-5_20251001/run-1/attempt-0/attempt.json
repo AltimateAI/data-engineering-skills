@@ -1,0 +1,32 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "returncode": 0,
+  "wall_s": 266.1,
+  "cost_usd": 0.700714,
+  "cost_reported_usd": 3.2588,
+  "tokens": {
+    "input": 2558286,
+    "output": 17984,
+    "reasoning": 0,
+    "cache_read": 2249577,
+    "cache_write": 308509,
+    "total": 5134356
+  },
+  "steps": 37,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 24,
+  "edited_files": 1,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0dd064acffe0h7WXKewiO8lhK.json"
+}

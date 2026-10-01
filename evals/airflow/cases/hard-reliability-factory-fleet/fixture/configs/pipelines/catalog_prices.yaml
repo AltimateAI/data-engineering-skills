@@ -1,0 +1,38 @@
+name: catalog_prices
+team: catalog
+tier: standard
+description: Prices pipeline for catalog
+schedule:
+  hour: 3
+  days: '*'
+owners:
+- chen
+- nils
+steps:
+- name: extract
+  table: catalog.raw_prices_00
+- name: stage
+  table: catalog.stg_prices_00
+  depends_on:
+  - extract
+- name: validate
+  table: catalog.int_prices_00
+  depends_on:
+  - stage
+- name: transform
+  table: catalog.int_prices_00
+  depends_on:
+  - validate
+  - stage
+- name: aggregate
+  table: catalog.int_prices_00
+  depends_on:
+  - transform
+- name: snapshot
+  table: catalog.int_prices_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: catalog.mart_prices_00
+  depends_on:
+  - snapshot

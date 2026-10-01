@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG fx_pnl_report exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['desk_reference_refresh', 'fx_pnl_report']"
+    },
+    {
+      "name": "runs at 06:00 New York on weekdays only, across DST",
+      "kind": "primary",
+      "passed": true,
+      "detail": "timetable CronTriggerTimetable; run_after (UTC) got [['2026-03-04T11:00:00+00:00', '2026-03-05T11:00:00+00:00', '2026-03-06T11:00:00+00:00', '2026-03-09T10:00:00+00:00', '2026-03-10T10:00:00+00:00', '2026-03-11T10:00:00+00:00'], ['2026-10-28T10:00:00+00:00', '2026-10-29T10:00:00+00:00', '2026-10-30T10:00:00+00:00', '2026-11-02T11:00:00+00:00', '2026-11-03T11:00:00+00:00', '2026-11-04T11:00:00+00:00']], want [['2026-03-04T11:00:00+00:00', '2026-03-05T11:00:00+00:00', '2026-03-06T11:00:00+00:00', '2026-03-09T10:00:00+00:00', '2026-03-10T10:00:00+00:00', '2026-03-11T10:00:00+00:00'], ['2026-10-28T10:00:00+00:00', '2026-10-29T10:00:00+00:00', '2026-10-30T10:00:00+00:00', '2026-11-02T11:00:00+00:00', '2026-11-03T11:00:00+00:00', '2026-11-04T11:00:00+00:00']]"
+    },
+    {
+      "name": "Monday run after DST starts reports Friday",
+      "kind": "primary",
+      "passed": true,
+      "detail": "logical_date 2026-03-09 10:00:00+00:00 interval ['2026-03-09 10:00:00+00:00', '2026-03-09 10:00:00+00:00']; "
+    },
+    {
+      "name": "Tuesday run reports Monday",
+      "kind": "primary",
+      "passed": true,
+      "detail": "logical_date 2026-03-10 10:00:00+00:00 interval ['2026-03-10 10:00:00+00:00', '2026-03-10 10:00:00+00:00']; "
+    },
+    {
+      "name": "Monday run after DST ends reports Friday",
+      "kind": "primary",
+      "passed": true,
+      "detail": "logical_date 2026-11-02 11:00:00+00:00 interval ['2026-11-02 11:00:00+00:00', '2026-11-02 11:00:00+00:00']; "
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,31 @@
+name: people_payouts
+team: people
+tier: standard
+description: Payouts pipeline for people
+schedule:
+  hour: 5
+  days: '*'
+steps:
+- name: extract
+  table: people.raw_payouts_00
+- name: stage
+  table: people.stg_payouts_00
+  depends_on:
+  - extract
+- name: validate
+  table: people.int_payouts_00
+  depends_on:
+  - stage
+- name: transform
+  table: people.int_payouts_00
+  depends_on:
+  - validate
+- name: aggregate
+  table: people.int_payouts_00
+  depends_on:
+  - transform
+- name: publish
+  table: people.mart_payouts_00
+  depends_on:
+  - aggregate
+  - transform

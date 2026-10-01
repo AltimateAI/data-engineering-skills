@@ -1,0 +1,24 @@
+name: risk_orders_daily
+team: risk
+tier: standard
+description: Orders pipeline for risk
+schedule:
+  hour: 3
+  days: '1'
+retries: 4
+steps:
+- name: extract
+  table: risk.raw_orders_00
+- name: stage
+  table: risk.stg_orders_00
+  depends_on:
+  - extract
+- name: enrich
+  table: risk.int_orders_00
+  depends_on:
+  - stage
+- name: publish
+  table: risk.mart_orders_00
+  depends_on:
+  - enrich
+  - stage

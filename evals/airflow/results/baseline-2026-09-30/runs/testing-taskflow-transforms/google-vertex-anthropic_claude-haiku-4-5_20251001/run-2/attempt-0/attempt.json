@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: suite catches hidden bug: validation_bypassed, suite catches hidden bug: schedule_midnight",
+  "primary_pass": false,
+  "primary_score": 0.75,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 255.2,
+  "cost_usd": 0.526737,
+  "cost_reported_usd": 1.960422,
+  "tokens": {
+    "input": 1433791,
+    "output": 24934,
+    "reasoning": 0,
+    "cache_read": 1208822,
+    "cache_write": 224863,
+    "total": 2892410
+  },
+  "steps": 23,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "idle-done",
+    "done_reason": "idle_heuristic"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 7,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0d8acd6effeuNc2hWN0Nsq8es.json"
+}

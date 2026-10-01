@@ -1,0 +1,152 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..6962935
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,146 @@
++"""Daily page-level stats from clickstream exports."""
++
++from __future__ import annotations
++
++import csv
++import gzip
++from io import TextIOWrapper
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++
++
++@dag(
++    schedule="0 5 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    tags=["analytics"],
++)
++def clickstream_page_stats():
++    """Daily page-level stats aggregated from clickstream exports.
++    
++    For each day, reads the gzipped export, filters out bots and anonymous hits,
++    computes per-page views, unique users, and avg load time, and writes a CSV.
++    
++    Processes: for scheduled run on day D, processes day D-1 data.
++               for manual/rerun of day D, processes day D data.
++    """
++
++    @task
++    def extract(ds=None) -> str:
++        """Read and filter the day's clickstream export.
++        
++        Args:
++            ds: The day to process (YYYY-MM-DD, rendered by Airflow)
++        
++        Returns:
++            Path to the intermediate file with filtered events
++        """
++        import_path = PROJECT_ROOT / "data" / "clickstream" / f"{ds}.csv.gz"
++        
++        # Temp storage for filtered events (claim-check pattern)
++        temp_path = PROJECT_ROOT / "output" / "page_stats" / f"{ds}_filtered.csv"
++        temp_path.parent.mkdir(parents=True, exist_ok=True)
++        
++        filtered_count = 0
++        with temp_path.open("w", newline="") as out_fh:
++            writer = csv.DictWriter(
++                out_fh,
++                fieldnames=["event_id", "user_id", "page", "event_ts", "load_ms", "is_bot"],
++            )
++            writer.writeheader()
++            
++            # Read gzipped CSV, filter bots and anonymous hits
++            with gzip.open(import_path, "rt", newline="") as in_fh:
++                reader = csv.DictReader(in_fh)
++                for row in reader:
++                    # Drop bot traffic and anonymous hits
++                    if row["is_bot"] == "1" or not row["user_id"].strip():
++                        continue
++                    writer.writerow(row)
++                    filtered_count += 1
++        
++        print(f"Extracted {filtered_count} events for {ds}")
++        return str(temp_path)
++
++    @task
++    def transform(filtered_path: str, ds=None) -> str:
++        """Compute per-page stats from filtered events.
++        
++        Args:
++            filtered_path: Path to the filtered CSV from extract task
++            ds: The day being processed
++        
++        Returns:
++            Path to the aggregated stats file
++        """
++        # Aggregate by page
++        page_stats: dict[str, dict] = {}
++        
++        with open(filtered_path, newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                page = row["page"]
++                user_id = row["user_id"]
++                load_ms = float(row["load_ms"])
++                
++                if page not in page_stats:
++                    page_stats[page] = {
++                        "views": 0,
++                        "unique_users": set(),
++                        "load_times": [],
++                    }
++                
++                page_stats[page]["views"] += 1
++                page_stats[page]["unique_users"].add(user_id)
++                page_stats[page]["load_times"].append(load_ms)
++        
++        # Compute final stats and write output
++        out_path = PROJECT_ROOT / "output" / "page_stats" / f"{ds}.csv"
++        out_path.parent.mkdir(parents=True, exist_ok=True)
++        
++        with out_path.open("w", newline="") as fh:
++            writer = csv.writer(fh)
++            writer.writerow(["page", "views", "unique_users", "avg_load_ms"])
++            
++            # Sort by page for deterministic output
++            for page in sorted(page_stats.keys()):
++                stats = page_stats[page]
++                views = stats["views"]
++                unique_users = len(stats["unique_users"])
++                avg_load_ms = round(sum(stats["load_times"]) / len(stats["load_times"]), 1)
++                
++                writer.writerow([page, views, unique_users, avg_load_ms])
++        
++        print(f"Transformed {len(page_stats)} pages for {ds}")
++        return str(out_path)
++
++    @task
++    def load(stats_path: str, ds=None) -> None:
++        """Finalize output file (already written by transform).
++        
++        This task ensures the output persists and can be verified.
++        The output file is already sorted and in the correct format.
++        
++        Args:
++            stats_path: Path to the stats CSV
++            ds: The day being processed
++        """
++        # Verify the file exists and is readable
++        path = Path(stats_path)
++        if not path.exists():
++            raise FileNotFoundError(f"Stats file not found: {stats_path}")
++        
++        row_count = sum(1 for _ in open(path)) - 1  # -1 for header
++        print(f"Loaded {row_count} page stats for {ds} to {stats_path}")
++
++    # Task dependencies: extract -> transform -> load
++    filtered = extract()
++    stats = transform(filtered)
++    load(stats)
++
++
++clickstream_page_stats()

@@ -1,0 +1,239 @@
+diff --git a/dags/daily_revenue.py b/dags/daily_revenue.py
+index d013cbd..c6c0d59 100644
+--- a/dags/daily_revenue.py
++++ b/dags/daily_revenue.py
+@@ -13,13 +13,18 @@ from pathlib import Path
+ 
+ import duckdb
+ import pendulum
+-from airflow import DAG
+-from airflow.operators.bash import BashOperator
+-from airflow.operators.python import PythonOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG, CronDataIntervalTimetable
++from airflow.timetables.interval import (
++    CronDataIntervalTimetable as CoreCronDataIntervalTimetable,
++)
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ ORDERS_PATH = PROJECT_ROOT / "data" / "orders.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
++SCHEDULE_CRON = "15 4 * * *"
++SCHEDULE_TZ = "UTC"
+ 
+ default_args = {
+     "owner": "finance-data",
+@@ -28,10 +33,37 @@ default_args = {
+ }
+ 
+ 
+-def load_daily_revenue(templates_dict, ds, **_):
++def business_window(dag_run):
++    """[start, end) of the business day a run reports on.
++
++    Scheduled runs use their data interval (the UTC day that closed at 04:15).
++    Manual runs on Airflow 3 have no data interval, so use the latest closed
++    interval before the trigger time, as Airflow 2 did.
++    """
++    if dag_run.data_interval_start is not None:
++        return pendulum.instance(dag_run.data_interval_start), pendulum.instance(dag_run.data_interval_end)
++    interval = CoreCronDataIntervalTimetable(SCHEDULE_CRON, timezone=SCHEDULE_TZ).infer_manual_data_interval(
++        run_after=pendulum.instance(dag_run.run_after)
++    )
++    return interval.start, interval.end
++
++
++def business_date(dag_run):
++    return business_window(dag_run)[0].to_date_string()
++
++
++def business_end_date(dag_run):
++    return business_window(dag_run)[1].to_date_string()
++
++
++def logical_ts(dag_run):
++    return str(pendulum.instance(dag_run.logical_date or dag_run.run_after))
++
++
++def write_daily_revenue_csv(templates_dict, dag_run, **_):
+     """Run the rendered query and overwrite the CSV for the business day."""
+     rows = duckdb.sql(templates_dict["query"]).fetchall()
+-    out = OUTPUT_DIR / "daily_revenue" / f"{ds}.csv"
++    out = OUTPUT_DIR / "daily_revenue" / f"{business_date(dag_run)}.csv"
+     out.parent.mkdir(parents=True, exist_ok=True)
+     with out.open("w", newline="") as fh:
+         writer = csv.writer(fh)
+@@ -43,29 +75,35 @@ def load_daily_revenue(templates_dict, ds, **_):
+ 
+ with DAG(
+     dag_id="daily_revenue",
+-    schedule_interval="15 4 * * *",
++    schedule=CronDataIntervalTimetable(SCHEDULE_CRON, timezone=SCHEDULE_TZ),
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+     default_args=default_args,
+     template_searchpath=[str(Path(__file__).parent / "sql")],
++    user_defined_macros={
++        "business_date": business_date,
++        "business_end_date": business_end_date,
++        "logical_ts": logical_ts,
++    },
+     params={"orders_path": str(ORDERS_PATH), "output_dir": str(OUTPUT_DIR)},
+     tags=["finance", "revenue"],
+ ) as dag:
+-    load = PythonOperator(
++    load_daily_revenue = PythonOperator(
+         task_id="load_daily_revenue",
+-        python_callable=load_daily_revenue,
++        python_callable=write_daily_revenue_csv,
+         templates_dict={"query": "daily_revenue.sql"},
+         templates_exts=[".sql"],
+     )
+ 
+-    publish = BashOperator(
++    publish_manifest = BashOperator(
+         task_id="publish_manifest",
+         bash_command=(
+             "mkdir -p {{ params.output_dir }}/manifests && "
+-            "echo '{\"business_date\": \"{{ ds }}\", \"logical_ts\": \"{{ execution_date }}\"}' "
+-            "> {{ params.output_dir }}/manifests/{{ ds }}.json"
++            "echo '{\"business_date\": \"{{ business_date(dag_run) }}\", "
++            "\"logical_ts\": \"{{ logical_ts(dag_run) }}\"}' "
++            "> {{ params.output_dir }}/manifests/{{ business_date(dag_run) }}.json"
+         ),
+     )
+ 
+-    load >> publish
++    load_daily_revenue >> publish_manifest
+diff --git a/dags/region_reference.py b/dags/region_reference.py
+index 584b13a..22bdcdf 100644
+--- a/dags/region_reference.py
++++ b/dags/region_reference.py
+@@ -5,15 +5,15 @@ from __future__ import annotations
+ import csv
+ from pathlib import Path
+ 
+-from airflow import DAG
+-from airflow.operators.dummy import DummyOperator
+-from airflow.operators.python import PythonOperator
+-from airflow.utils.dates import days_ago
++import pendulum
++from airflow.providers.standard.operators.empty import EmptyOperator
++from airflow.providers.standard.operators.python import PythonOperator
++from airflow.sdk import DAG
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+-def write_regions():
++def build_regions_file():
+     with (PROJECT_ROOT / "data" / "orders.csv").open(newline="") as fh:
+         regions = sorted({row["region"] for row in csv.DictReader(fh)})
+     out = PROJECT_ROOT / "output" / "reference" / "regions.csv"
+@@ -26,11 +26,11 @@ def write_regions():
+ 
+ with DAG(
+     dag_id="region_reference",
+-    schedule_interval=None,
+-    start_date=days_ago(1),
++    schedule=None,
++    start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["finance", "reference"],
+ ) as dag:
+-    start = DummyOperator(task_id="start")
+-    write = PythonOperator(task_id="write_regions", python_callable=write_regions)
+-    start >> write
++    start = EmptyOperator(task_id="start")
++    write_regions = PythonOperator(task_id="write_regions", python_callable=build_regions_file)
++    start >> write_regions
+diff --git a/dags/sql/daily_revenue.sql b/dags/sql/daily_revenue.sql
+index 7acfdb5..0d93062 100644
+--- a/dags/sql/daily_revenue.sql
++++ b/dags/sql/daily_revenue.sql
+@@ -15,7 +15,7 @@ FROM read_csv(
+     }
+ )
+ WHERE status = 'completed'
+-  AND order_ts >= TIMESTAMP '{{ ds }} 00:00:00'
+-  AND order_ts <  TIMESTAMP '{{ next_ds }} 00:00:00'
++  AND order_ts >= TIMESTAMP '{{ business_date(dag_run) }} 00:00:00'
++  AND order_ts <  TIMESTAMP '{{ business_end_date(dag_run) }} 00:00:00'
+ GROUP BY region
+ ORDER BY region
+diff --git a/requirements.txt b/requirements.txt
+index 74b599a..0bc0b6c 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,4 +1,5 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ duckdb==1.4.4
+ pendulum==3.2.0
+ pytest==8.4.2
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+index 00cc214..7e84075 100644
+--- a/tests/test_dag_integrity.py
++++ b/tests/test_dag_integrity.py
+@@ -1,16 +1,22 @@
+ """CI checks: every DAG imports and the revenue pipeline keeps its shape."""
+ 
++import os
++import sys
+ from pathlib import Path
+ 
+ import pytest
+-from airflow.models import DagBag
++
++os.environ.setdefault("AIRFLOW__CORE__LOAD_EXAMPLES", "False")
++
++from airflow.dag_processing.dagbag import DagBag
+ 
+ DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++sys.path.insert(0, str(DAGS_DIR))
+ 
+ 
+ @pytest.fixture(scope="session")
+ def dagbag():
+-    return DagBag(dag_folder=str(DAGS_DIR), include_examples=False)
++    return DagBag(dag_folder=str(DAGS_DIR))
+ 
+ 
+ def test_no_import_errors(dagbag):
+@@ -18,7 +24,32 @@ def test_no_import_errors(dagbag):
+ 
+ 
+ def test_daily_revenue_structure(dagbag):
+-    dag = dagbag.get_dag("daily_revenue")
++    dag = dagbag.dags.get("daily_revenue")
+     assert dag is not None
+     assert set(dag.task_ids) == {"load_daily_revenue", "publish_manifest"}
+     assert dag.get_task("publish_manifest").upstream_task_ids == {"load_daily_revenue"}
++
++
++def test_daily_revenue_reports_previous_day(dagbag):
++    """Each 04:15 UTC run covers the UTC day that just closed, as on Airflow 2."""
++    from airflow.sdk import CronDataIntervalTimetable
++
++    timetable = dagbag.dags["daily_revenue"].timetable
++    assert isinstance(timetable, CronDataIntervalTimetable)
++    assert (timetable.expression, str(timetable.timezone)) == ("15 4 * * *", "UTC")
++
++
++def test_daily_revenue_manual_run_uses_latest_closed_day():
++    from types import SimpleNamespace
++
++    import pendulum
++    from daily_revenue import business_date, business_end_date
++
++    manual = SimpleNamespace(
++        data_interval_start=None,
++        data_interval_end=None,
++        logical_date=None,
++        run_after=pendulum.datetime(2026, 3, 6, 9, 15, tz="UTC"),
++    )
++    assert (business_date(manual), business_end_date(manual)) == ("2026-03-05", "2026-03-06")
++

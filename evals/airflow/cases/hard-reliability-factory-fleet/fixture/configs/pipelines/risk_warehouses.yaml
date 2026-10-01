@@ -1,0 +1,33 @@
+name: risk_warehouses
+team: risk
+tier: standard
+description: Warehouses pipeline for risk
+schedule:
+  hour: 5
+  days: '1'
+  minute: 45
+steps:
+- name: extract
+  table: risk.raw_warehouses_00
+- name: transform
+  table: risk.int_warehouses_00
+  depends_on:
+  - extract
+- name: enrich
+  table: risk.int_warehouses_00
+  depends_on:
+  - transform
+- name: aggregate
+  table: risk.int_warehouses_00
+  depends_on:
+  - enrich
+  - transform
+- name: snapshot
+  table: risk.int_warehouses_00
+  depends_on:
+  - aggregate
+- name: publish
+  table: risk.mart_warehouses_00
+  depends_on:
+  - snapshot
+  - aggregate

@@ -1,0 +1,40 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "returncode": 0,
+  "wall_s": 571.5,
+  "cost_usd": 3.017663,
+  "cost_reported_usd": 10.059056,
+  "tokens": {
+    "input": 2347159,
+    "output": 16773,
+    "reasoning": 0,
+    "cache_read": 1749495,
+    "cache_write": 597636,
+    "total": 4711063
+  },
+  "steps": 27,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "testing-airflow-dags",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "testing-airflow-dags"
+  ],
+  "bash_commands": 20,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0cc0f3bcffejJUr09ueb5Ao1m.json"
+}

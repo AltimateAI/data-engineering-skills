@@ -1,0 +1,18 @@
+name: search_forecast
+team: search
+tier: standard
+description: Forecast pipeline for search
+schedule:
+  hour: 3
+  days: '1'
+steps:
+- name: extract
+  table: search.raw_forecast_00
+- name: snapshot
+  table: search.int_forecast_00
+  depends_on:
+  - extract
+- name: publish
+  table: search.mart_forecast_00
+  depends_on:
+  - snapshot

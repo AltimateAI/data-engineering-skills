@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG pageviews_daily exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['pageviews_daily', 'top_pages_weekly']"
+    },
+    {
+      "name": "catchup enabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "catchup=True"
+    },
+    {
+      "name": "one writer at a time",
+      "kind": "primary",
+      "passed": true,
+      "detail": "max_active_runs=1, max_active_tasks=16 (per run on 3.x), task max_active_tis_per_dag={'load_day': None}"
+    },
+    {
+      "name": "start_date is fixed, not computed from the clock",
+      "kind": "primary",
+      "passed": true,
+      "detail": "start_date 2026-09-02 00:00:00+00:00; with the clock +400 days: 2026-09-02 00:00:00+00:00"
+    },
+    {
+      "name": "catchup backfills exactly 09-01..09-29",
+      "kind": "primary",
+      "passed": true,
+      "detail": "29 runs, first ['2026-09-02 03:00:00+00:00', '2026-09-02 03:00:00+00:00', '2026-09-02 03:00:00+00:00']; "
+    },
+    {
+      "name": "each run loads a day whose export has already landed",
+      "kind": "primary",
+      "passed": true,
+      "detail": "export for day D lands at D+1 01:00 UTC; 29 day loads checked"
+    },
+    {
+      "name": "re-running a day repairs it and keeps other days",
+      "kind": "primary",
+      "passed": true,
+      "detail": "re-run states ['success']; "
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,131 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..dd8d29c
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,125 @@
++"""Daily ingestion of partner order files.
++
++For each run date the DAG:
++1. Discovers every <partner>.csv in data/partner_drop/<ds>/
++2. Processes each file as its own dynamically-mapped task instance so
++   a single broken file only fails (and retries) its own work.
++3. Writes output/partner_feeds/<ds>/<partner>.json per file.
++4. Writes output/partner_feeds/<ds>/summary.json once all per-partner
++   tasks have finished (even on days with zero files).
++
++Supports catchup from 2026-09-01 so any historical date can be rerun.
++"""
++
++from __future__ import annotations
++
++import csv
++import json
++from decimal import ROUND_HALF_UP, Decimal
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import dag, task
++from airflow.utils.trigger_rule import TriggerRule
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_ROOT = PROJECT_ROOT / "data" / "partner_drop"
++OUT_ROOT = PROJECT_ROOT / "output" / "partner_feeds"
++
++
++@dag(
++    dag_id="partner_feeds",
++    schedule="0 6 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,
++    tags=["partners", "feeds"],
++)
++def partner_feeds():
++    # ------------------------------------------------------------------
++    # Step 1 – discover files for the run date
++    # ------------------------------------------------------------------
++    @task
++    def discover_files(ds: str) -> list[dict]:
++        """Return one dict per CSV found; empty list when no folder exists."""
++        drop_dir = DROP_ROOT / ds
++        if not drop_dir.exists():
++            return []
++        return [
++            {"partner": p.stem, "csv_path": str(p)}
++            for p in sorted(drop_dir.glob("*.csv"))
++        ]
++
++    # ------------------------------------------------------------------
++    # Step 2 – process one partner file (dynamically mapped, one per file)
++    # ------------------------------------------------------------------
++    @task(retries=2, retry_delay=pendulum.duration(seconds=30))
++    def process_partner_file(partner: str, csv_path: str, ds: str) -> dict:
++        """Read <partner>.csv, write <partner>.json, return summary row."""
++        out_dir = OUT_ROOT / ds
++        out_dir.mkdir(parents=True, exist_ok=True)
++
++        rows = 0
++        total = Decimal("0")
++        with open(csv_path, newline="") as fh:
++            reader = csv.DictReader(fh)
++            for row in reader:
++                rows += 1
++                total += Decimal(row["amount"])
++
++        total_rounded = float(total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
++
++        payload = {
++            "partner": partner,
++            "rows": rows,
++            "total_amount": total_rounded,
++        }
++        out_file = out_dir / f"{partner}.json"
++        out_file.write_text(json.dumps(payload, indent=2))
++
++        return payload
++
++    # ------------------------------------------------------------------
++    # Step 3 – summarise (runs even if some per-partner tasks failed)
++    # ------------------------------------------------------------------
++    @task(trigger_rule=TriggerRule.ALL_DONE)
++    def write_summary(results: list, ds: str) -> str:
++        """Aggregate per-partner results and write summary.json.
++
++        ``results`` is the mapped output list from process_partner_file;
++        individual elements are None when the upstream task failed, so
++        we filter those out rather than crashing the summary.
++        """
++        out_dir = OUT_ROOT / ds
++        out_dir.mkdir(parents=True, exist_ok=True)
++
++        valid = [r for r in results if r is not None]
++
++        total_files = len(valid)
++        total_rows = sum(r["rows"] for r in valid)
++        total_amount = float(
++            Decimal(str(sum(r["total_amount"] for r in valid))).quantize(
++                Decimal("0.01"), rounding=ROUND_HALF_UP
++            )
++        )
++
++        summary = {
++            "files": total_files,
++            "rows": total_rows,
++            "total_amount": total_amount,
++        }
++        out_file = out_dir / "summary.json"
++        out_file.write_text(json.dumps(summary, indent=2))
++        return str(out_file)
++
++    # ------------------------------------------------------------------
++    # Wire up
++    # ------------------------------------------------------------------
++    files = discover_files()
++
++    processed = process_partner_file.expand_kwargs(files)
++
++    write_summary(results=processed)
++
++
++partner_feeds()

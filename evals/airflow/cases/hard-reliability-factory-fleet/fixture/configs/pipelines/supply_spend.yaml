@@ -1,0 +1,31 @@
+name: supply_spend
+team: supply
+tier: standard
+description: Spend pipeline for supply
+schedule:
+  hour: 3
+  days: '*'
+steps:
+- name: extract
+  table: supply.raw_spend_00
+- name: stage
+  table: supply.stg_spend_00
+  depends_on:
+  - extract
+- name: validate
+  table: supply.int_spend_00
+  depends_on:
+  - stage
+  - extract
+- name: transform
+  table: supply.int_spend_00
+  depends_on:
+  - validate
+- name: enrich
+  table: supply.int_spend_00
+  depends_on:
+  - transform
+- name: publish
+  table: supply.mart_spend_00
+  depends_on:
+  - enrich

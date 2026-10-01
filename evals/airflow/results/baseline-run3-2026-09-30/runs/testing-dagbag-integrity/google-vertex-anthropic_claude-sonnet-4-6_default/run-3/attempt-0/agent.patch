@@ -1,0 +1,189 @@
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..33b03a4
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,183 @@
++"""DAG integrity tests.
++
++Run with:  pytest tests/
++
++Checks:
++1. Every file in dags/ parses without import errors.
++2. Every DAG satisfies our governance policy:
++   - at least one tag
++   - catchup=False
++   - every task has a non-default owner (not "airflow")
++   - every task has retries >= 2
++3. The orders_ingest pipeline runs in the exact order:
++   extract_orders -> validate_orders -> load_orders -> publish_summary
++"""
++
++from __future__ import annotations
++
++import logging
++from pathlib import Path
++
++import pytest
++from airflow.models import DagBag
++
++# ---------------------------------------------------------------------------
++# Shared fixture – load the DagBag once per session for speed.
++# safe_mode=False ensures Python-level import errors surface in import_errors
++# rather than being silently swallowed.
++# ---------------------------------------------------------------------------
++
++DAGS_DIR = Path(__file__).resolve().parents[1] / "dags"
++
++# Suppress Airflow's noisy INFO logs during tests
++logging.disable(logging.CRITICAL)
++
++
++@pytest.fixture(scope="session")
++def dagbag() -> DagBag:
++    bag = DagBag(dag_folder=str(DAGS_DIR), safe_mode=False)
++    return bag
++
++
++# ---------------------------------------------------------------------------
++# 1. Import / parse integrity
++# ---------------------------------------------------------------------------
++
++
++def test_no_import_errors(dagbag: DagBag) -> None:
++    """All DAG files in dags/ must parse cleanly – no import errors or cycles."""
++    assert dagbag.import_errors == {}, (
++        "DAG import errors detected:\n"
++        + "\n".join(f"  {path}:\n{tb}" for path, tb in dagbag.import_errors.items())
++    )
++
++
++def test_dags_folder_is_not_empty(dagbag: DagBag) -> None:
++    """DagBag must contain at least one DAG (guards against misconfigured folder)."""
++    assert dagbag.dags, f"No DAGs found in {DAGS_DIR}"
++
++
++# ---------------------------------------------------------------------------
++# 2. Governance policy – parametrised per DAG so failures are granular
++# ---------------------------------------------------------------------------
++
++
++def _all_dag_ids(dagbag_fixture_name: str = "dagbag"):
++    """Return a lazy list of dag_ids for parametrize (evaluated at collection time)."""
++    # We need a fresh bag just for parametrize; the session bag is used in tests.
++    bag = DagBag(dag_folder=str(DAGS_DIR), safe_mode=False)
++    return list(bag.dags.keys())
++
++
++# Collect IDs once at module load so pytest can parametrize properly.
++_DAG_IDS = _all_dag_ids()
++
++
++@pytest.mark.parametrize("dag_id", _DAG_IDS)
++def test_dag_has_at_least_one_tag(dagbag: DagBag, dag_id: str) -> None:
++    """Every DAG must have at least one tag (aids discovery in the Airflow UI)."""
++    dag = dagbag.dags[dag_id]
++    assert dag.tags, f"DAG '{dag_id}' has no tags – add at least one tag."
++
++
++@pytest.mark.parametrize("dag_id", _DAG_IDS)
++def test_dag_catchup_is_disabled(dagbag: DagBag, dag_id: str) -> None:
++    """Every DAG must set catchup=False to prevent unintentional backfill runs."""
++    dag = dagbag.dags[dag_id]
++    assert dag.catchup is False, (
++        f"DAG '{dag_id}' has catchup=True – set catchup=False explicitly."
++    )
++
++
++@pytest.mark.parametrize("dag_id", _DAG_IDS)
++def test_all_tasks_have_non_default_owner(dagbag: DagBag, dag_id: str) -> None:
++    """No task may use the default 'airflow' owner – set a real team/person."""
++    dag = dagbag.dags[dag_id]
++    bad_tasks = [t.task_id for t in dag.tasks if t.owner.strip().lower() == "airflow"]
++    assert not bad_tasks, (
++        f"DAG '{dag_id}': tasks with default 'airflow' owner: {bad_tasks}"
++    )
++
++
++@pytest.mark.parametrize("dag_id", _DAG_IDS)
++def test_all_tasks_have_minimum_retries(dagbag: DagBag, dag_id: str) -> None:
++    """Every task must configure at least 2 retries for resilience."""
++    dag = dagbag.dags[dag_id]
++    bad_tasks = [
++        t.task_id for t in dag.tasks if (t.retries is None or t.retries < 2)
++    ]
++    assert not bad_tasks, (
++        f"DAG '{dag_id}': tasks with fewer than 2 retries: {bad_tasks}"
++    )
++
++
++# ---------------------------------------------------------------------------
++# 3. orders_ingest pipeline order contract
++# ---------------------------------------------------------------------------
++
++ORDERS_INGEST_EXPECTED_ORDER = [
++    "extract_orders",
++    "validate_orders",
++    "load_orders",
++    "publish_summary",
++]
++
++
++def test_orders_ingest_dag_exists(dagbag: DagBag) -> None:
++    """The orders_ingest DAG must be present in the DagBag."""
++    assert "orders_ingest" in dagbag.dags, (
++        "DAG 'orders_ingest' not found. Was it renamed or deleted?"
++    )
++
++
++def test_orders_ingest_task_order(dagbag: DagBag) -> None:
++    """orders_ingest must run tasks in the exact order:
++    extract_orders -> validate_orders -> load_orders -> publish_summary.
++
++    We verify this by checking that each task in the expected sequence is an
++    *immediate* upstream dependency of the next task – i.e. the chain is
++    intact and unbroken.
++    """
++    dag = dagbag.dags["orders_ingest"]
++
++    # Build a lookup: task_id -> set of upstream task_ids
++    upstream_map: dict[str, set[str]] = {
++        t.task_id: {u.task_id for u in t.upstream_list} for t in dag.tasks
++    }
++
++    expected = ORDERS_INGEST_EXPECTED_ORDER
++    for i in range(1, len(expected)):
++        predecessor = expected[i - 1]
++        successor = expected[i]
++        assert successor in upstream_map, (
++            f"Task '{successor}' not found in orders_ingest. "
++            f"Known tasks: {list(upstream_map)}"
++        )
++        assert predecessor in upstream_map[successor], (
++            f"orders_ingest pipeline order broken: "
++            f"'{predecessor}' is not an immediate upstream of '{successor}'. "
++            f"Expected chain: {' -> '.join(expected)}"
++        )
++
++
++def test_orders_ingest_topological_order(dagbag: DagBag) -> None:
++    """Topological sort of orders_ingest must match the expected linear sequence."""
++    dag = dagbag.dags["orders_ingest"]
++    actual_order = [t.task_id for t in dag.topological_sort()]
++    assert actual_order == ORDERS_INGEST_EXPECTED_ORDER, (
++        f"orders_ingest topological order changed.\n"
++        f"  Expected: {ORDERS_INGEST_EXPECTED_ORDER}\n"
++        f"  Got:      {actual_order}"
++    )
++
++
++def test_orders_ingest_no_extra_tasks(dagbag: DagBag) -> None:
++    """orders_ingest must contain exactly the four canonical tasks – no additions."""
++    dag = dagbag.dags["orders_ingest"]
++    actual_task_ids = {t.task_id for t in dag.tasks}
++    expected_task_ids = set(ORDERS_INGEST_EXPECTED_ORDER)
++    assert actual_task_ids == expected_task_ids, (
++        f"orders_ingest has unexpected tasks.\n"
++        f"  Expected: {sorted(expected_task_ids)}\n"
++        f"  Got:      {sorted(actual_task_ids)}"
++    )

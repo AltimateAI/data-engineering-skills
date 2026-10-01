@@ -1,0 +1,85 @@
+{
+  "checks": [
+    {
+      "name": "all 6 DAGs import on Airflow 3.3 (dags/ + plugins/)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing: []"
+    },
+    {
+      "name": "every DAG keeps its tasks and dependencies (added helper tasks allowed)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "gl_postings_hourly: tasks=['extract'] deps=[]; daily_close: tasks=['net_movements', 'roll_balances'] deps=[['net_movements', 'roll_balances']]; fx_revaluation_daily: tasks=['revalue'] deps=[]; close_report_weekly: tasks=['weekly_report'] deps=[]; vendor_payments_weekday: tasks=['payment_run'] deps=[]; ledger_housekeeping: tasks=['inventory'] deps=[]"
+    },
+    {
+      "name": "schedules unchanged: same scheduled runs and data intervals, catchup, asset conditions",
+      "kind": "primary",
+      "passed": false,
+      "detail": "close_report_weekly: expected {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-03-02T07:00:00+00:00', '2026-02-23T07:00:00+00:00', '2026-03-02T07:00:00+00:00'], ['2026-03-09T07:00:00+00:00', '2026-03-02T07:00:00+00:00', '2026-03-09T07:00:00+00:00'], ['2026-03-16T07:00:00+00:00', '2026-03-09T07:00:00+00:00', '2026-03-16T07:00:00+00:00'], ['2026-03-23T07:00:00+00:00', '2026-03-16T07:00:00+00:00', '2026-03-23T07:00:00+00:00'], ['2026-03-30T07:00:00+00:00', '2026-03-23T07:00:00+00:00', '2026-03-30T07:00:00+00:00'], ['2026-04-06T07:00:00+00:00', '2026-03-30T07:00:00+00:00', '2026-04-06T07:00:00+00:00']]}\n   got {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-02-23T07:00:00+00:00', '2026-02-23T07:00:00+00:00', '2026-02-23T07:00:00+00:00'], ['2026-03-02T07:00:00+00:00', '2026-03-02T07:00:00+00:00', '2026-03-02T07:00:00+00:00'], ['2026-03-09T07:00:00+00:00', '2026-03-09T07:00:00+00:00', '2026-03-09T07:00:00+00:00'], ['2026-03-16T07:00:00+00:00', '2026-03-16T07:00:00+00:00', '2026-03-16T07:00:00+00:00'], ['2026-03-23T07:00:00+00:00', '2026-03-23T07:00:00+00:00', '2026-03-23T07:00:00+00:00'], ['2026-03-30T07:00:00+00:00', '2026-03-30T07:00:00+00:00', '2026-03-30T07:00:00+00:00']]}\nfx_revaluation_daily: expected {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-03-02T06:00:00+00:00', '2026-03-01T06:00:00+00:00', '2026-03-02T06:00:00+00:00'], ['2026-03-03T06:00:00+00:00', '2026-03-02T06:00:00+00:00', '2026-03-03T06:00:00+00:00'], ['2026-03-04T06:00:00+00:00', '2026-03-03T06:00:00+00:00', '2026-03-04T06:00:00+00:00'], ['2026-03-05T06:00:00+00:00', '2026-03-04T06:00:00+00:00', '2026-03-05T06:00:00+00:00'], ['2026-03-06T06:00:00+00:00', '2026-03-05T06:00:00+00:00', '2026-03-06T06:00:00+00:00'], ['2026-03-07T06:00:00+00:00', '2026-03-06T06:00:00+00:00', '2026-03-07T06:00:00+00:00']]}\n   got {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-03-01T06:00:00+00:00', '2026-03-01T06:00:00+00:00', '2026-03-01T06:00:00+\n...\n3T12:00:00+00:00', '2026-03-03T00:00:00+00:00', '2026-03-03T12:00:00+00:00'], ['2026-03-04T00:00:00+00:00', '2026-03-03T12:00:00+00:00', '2026-03-04T00:00:00+00:00']]}\n   got {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-03-01T00:00:00+00:00', '2026-03-01T00:00:00+00:00', '2026-03-01T00:00:00+00:00'], ['2026-03-01T12:00:00+00:00', '2026-03-01T12:00:00+00:00', '2026-03-01T12:00:00+00:00'], ['2026-03-02T00:00:00+00:00', '2026-03-02T00:00:00+00:00', '2026-03-02T00:00:00+00:00'], ['2026-03-02T12:00:00+00:00', '2026-03-02T12:00:00+00:00', '2026-03-02T12:00:00+00:00'], ['2026-03-03T00:00:00+00:00', '2026-03-03T00:00:00+00:00', '2026-03-03T00:00:00+00:00'], ['2026-03-03T12:00:00+00:00', '2026-03-03T12:00:00+00:00', '2026-03-03T12:00:00+00:00']]}\nvendor_payments_weekday: expected {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-03-03T23:00:00+00:00', '2026-03-02T23:00:00+00:00', '2026-03-03T23:00:00+00:00'], ['2026-03-04T23:00:00+00:00', '2026-03-03T23:00:00+00:00', '2026-03-04T23:00:00+00:00'], ['2026-03-05T23:00:00+00:00', '2026-03-04T23:00:00+00:00', '2026-03-05T23:00:00+00:00'], ['2026-03-06T23:00:00+00:00', '2026-03-05T23:00:00+00:00', '2026-03-06T23:00:00+00:00'], ['2026-03-09T22:00:00+00:00', '2026-03-06T23:00:00+00:00', '2026-03-09T22:00:00+00:00'], ['2026-03-10T22:00:00+00:00', '2026-03-09T22:00:00+00:00', '2026-03-10T22:00:00+00:00']]}\n   got {'catchup': False, 'timetable_kind': 'time', 'first_runs': [['2026-03-02T23:00:00+00:00', '2026-03-02T23:00:00+00:00', '2026-03-02T23:00:00+00:00'], ['2026-03-03T23:00:00+00:00', '2026-03-03T23:00:00+00:00', '2026-03-03T23:00:00+00:00'], ['2026-03-04T23:00:00+00:00', '2026-03-04T23:00:00+00:00', '2026-03-04T23:00:00+00:00'], ['2026-03-05T23:00:00+00:00', '2026-03-05T23:00:00+00:00', '2026-03-05T23:00:00+00:00'], ['2026-03-06T23:00:00+00:00', '2026-03-06T23:00:00+00:00', '2026-03-06T23:00:00+00:00'], ['2026-03-09T22:00:00+00:00', '2026-03-09T22:00:00+00:00', '2026-03-09T22:00:00+00:00']]}"
+    },
+    {
+      "name": "every replayed run (scheduled, asset-triggered, CLI-triggered) succeeds on 3.3",
+      "kind": "primary",
+      "passed": false,
+      "detail": "gl_postings_hourly scheduled 2026-03-05T01:00:00+00:00: state=success failed=[]; gl_postings_hourly scheduled 2026-03-05T02:00:00+00:00: state=success failed=[]; gl_postings_hourly scheduled 2026-03-05T03:00:00+00:00: state=success failed=[]; ledger_housekeeping scheduled 2026-03-05T12:00:00+00:00: state=success failed=[]; fx_revaluation_daily scheduled 2026-03-05T06:00:00+00:00: state=failed failed=['revalue']; fx_revaluation_daily scheduled 2026-03-06T06:00:00+00:00: state=failed failed=['revalue']; daily_close scheduled 2026-03-03T00:00:00+00:00: state=success failed=[]; daily_close scheduled 2026-03-04T00:00:00+00:00: state=success failed=[]; daily_close scheduled 2026-03-05T00:00:00+00:00: state=success failed=[]; daily_close scheduled 2026-03-06T00:00:00+00:00: state=success failed=[]; daily_close scheduled 2026-03-07T00:00:00+00:00: state=success failed=[]; vendor_payments_weekday scheduled 2026-03-06T23:00:00+00:00: state=failed failed=['payment_run']; vendor_payments_weekday scheduled 2026-03-09T22:00:00+00:00: state=failed failed=['payment_run']; close_report_weekly scheduled 2026-03-09T07:00:00+00:00: state=failed failed=['weekly_report']; daily_close CLI trigger 2026-03-09T09:00:00+00:00: state=success failed=[]; close_report_weekly scheduled 2026-03-16T07:00:00+00:00: state=failed failed=['weekly_report']\n_date\": \"2026-03-03T00:00:00+00:00\", \"start\": \"2026-03-03T00:00:00+00:00\", \"end\": \"2026-03-04T00:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"net_movements\": \"success\", \"roll_balances\": \"success\"}}, {\"dag_id\": \"daily_close\", \"run_after\": \"2026-03-05T00:00:00+00:00\", \"logical_date\": \"2026-03-04T00:00:00+00:00\", \"start\": \"2026-03-04T00:00:00+00:00\", \"end\": \"2026-03-05T00:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"net_movements\": \"success\", \"roll_balances\": \"success\"}}, {\"dag_id\": \"daily_close\", \"run_after\": \"2026-03-06T00:00:00+00:00\", \"logical_date\": \"2026-03-05T00:00:00+00:00\", \"start\": \"2026-03-05T00:00:00+00:00\", \"end\": \"2026-03-06T00:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"net_movements\": \"success\", \"roll_balances\": \"success\"}}, {\"dag_id\": \"daily_close\", \"run_after\": \"2026-03-07T00:00:00+00:00\", \"logical_date\": \"2026-03-06T00:00:00+00:00\", \"start\": \"2026-03-06T00:00:00+00:00\", \"end\": \"2026-03-07T00:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"net_movements\": \"success\", \"roll_balances\": \"success\"}}, {\"dag_id\": \"vendor_payments_weekday\", \"run_after\": \"2026-03-06T23:00:00+00:00\", \"logical_date\": \"2026-03-06T23:00:00+00:00\", \"start\": \"2026-03-06T23:00:00+00:00\", \"end\": \"2026-03-06T23:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"payment_run\": \"failed\"}}, {\"dag_id\": \"vendor_payments_weekday\", \"run_after\": \"2026-03-09T22:00:00+00:00\", \"logical_date\": \"2026-03-09T22:00:00+00:00\", \"start\": \"2026-03-09T22:00:00+00:00\", \"end\": \"2026-03-09T22:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"payment_run\": \"failed\"}}, {\"dag_id\": \"close_report_weekly\", \"run_after\": \"2026-03-09T07:00:00+00:00\", \"logical_date\": \"2026-03-09T07:00:00+00:00\", \"start\": \"2026-03-09T07:00:00+00:00\", \"end\": \"2026-03-09T07:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"weekly_report\": \"failed\"}}, {\"dag_id\": \"daily_close\", \"trigger\": \"2026-03-09T09:00:00+00:00\", \"state\": \"success\", \"tasks\": {\"net_movements\": \"success\", \"roll_balances\": \"success\"}}, {\"dag_id\": \"close_report_weekly\", \"run_after\": \"2026-03-16T07:00:00+00:00\", \"logical_date\": \"2026-03-16T07:00:00+00:00\", \"start\": \"2026-03-16T07:00:00+00:00\", \"end\": \"2026-03-16T07:00:00+00:00\", \"state\": \"failed\", \"tasks\": {\"weekly_report\": \"failed\"}}], \"error\": null, \"timetables\": {\"gl_postings_hourly\": \"CronTriggerTimetable\", \"ledger_housekeeping\": \"DeltaTriggerTimetable\", \"fx_revaluation_daily\": \"CronTriggerTimetable\", \"daily_close\": \"WorkdayTimetable\", \"vendor_payments_weekday\": \"CronTriggerTimetable\", \"close_report_weekly\": \"CronTriggerTimetable\"}}"
+    },
+    {
+      "name": "hourly extracts land every posting exactly once, in the same batches",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "daily close (scheduled runs and the CLI-triggered re-close) writes the same files and audit records",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "FX revaluation matches",
+      "kind": "primary",
+      "passed": false,
+      "detail": "missing=['fx/revaluation_20260304.csv', 'fx/revaluation_20260304.meta.json', 'fx/revaluation_20260305.csv', 'fx/revaluation_20260305.meta.json'] unexpected=[] changed=[]"
+    },
+    {
+      "name": "weekly close reports match",
+      "kind": "primary",
+      "passed": false,
+      "detail": "missing=['reports/week_2026-03-02.csv', 'reports/week_2026-03-09.csv'] unexpected=[] changed=[]"
+    },
+    {
+      "name": "vendor payment runs pay the same postings under the same names",
+      "kind": "primary",
+      "passed": false,
+      "detail": "missing=['payments/2026-03-05.csv', 'payments/2026-03-06.csv'] unexpected=[] changed=[]"
+    },
+    {
+      "name": "housekeeping inventory files match",
+      "kind": "primary",
+      "passed": false,
+      "detail": "missing=['housekeeping/batches_20260305T000000.txt'] unexpected=['housekeeping/batches_20260305T120000.txt'] changed=[]"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bpytest\\\\b', '\\\\bDagBag\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.4,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_orders_enrichment.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 40 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 40 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: dedupe_keeps_first",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dedupe_orders keeps the first row seen per order_id instead of the latest updated_at -> failed: 34 passed, 6 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDedupeOrders::test_keeps_latest_of_two_exports [AssertionError], tests.test_orders_enrichment.TestDedupeOrders::test_keeps_latest_of_many_exports [AssertionError], tests.test_orders_enrichment.TestDedupeOrders::test_multiple_distinct_orders_all_retained [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_s102_uses_later_export [AssertionError], tests.test_orders_enrichment.TestEndToEnd::test_s102_amount_usd [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: rounding_truncates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "convert_to_usd rounds down (ROUND_DOWN) instead of half-up -> failed: 32 passed, 8 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestConvertToUsd::test_gbp_conversion [AssertionError], tests.test_orders_enrichment.TestConvertToUsd::test_small_eur_conversion [AssertionError], tests.test_orders_enrichment.TestConvertToUsd::test_half_up_not_half_even [AssertionError], tests.test_orders_enrichment.TestConvertToUsd::test_half_up_zero_point_five_cents [AssertionError], tests.test_orders_enrichment.TestConvertToUsd::test_multiple_currencies_in_one_batch [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: unknown_currency_as_usd",
+      "kind": "primary",
+      "passed": true,
+      "detail": "convert_to_usd treats a currency with no FX rate as USD instead of failing -> failed: 38 passed, 2 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestConvertToUsd::test_missing_fx_rate_raises [None], tests.test_orders_enrichment.TestConvertToUsd::test_missing_fx_rate_error_includes_order_id [None]"
+    },
+    {
+      "name": "suite catches hidden bug: validation_bypassed",
+      "kind": "primary",
+      "passed": false,
+      "detail": "load_enriched is wired from convert_to_usd; validate_totals runs in parallel -> passed: 40 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: schedule_midnight",
+      "kind": "primary",
+      "passed": true,
+      "detail": "schedule changed from 0 6 * * * to @daily (00:00 UTC) -> failed: 39 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_orders_enrichment.TestDagConfig::test_schedule_is_daily_at_0600_utc [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.875,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,32 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: hourly_pageviews keeps its tasks and dependencies, dags test succeeds, scheduled hourly runs succeed on 3.3, hourly rollups (previous clock hour, change vs hour before) match 2.11, completion markers match 2.11, staging cleanup keeps and deletes the same files as 2.11",
+  "primary_pass": false,
+  "primary_score": 0.14285714285714285,
+  "secondary_score": 0.3333333333333333,
+  "returncode": 0,
+  "wall_s": 211.2,
+  "cost_usd": 0.59655,
+  "cost_reported_usd": 2.194041,
+  "tokens": {
+    "input": 1597614,
+    "output": 15160,
+    "reasoning": 0,
+    "cache_read": 1283684,
+    "cache_write": 313807,
+    "total": 3210265
+  },
+  "steps": 24,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 13,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0da16e4cffeBC5bRnuZB0WuhX.json"
+}

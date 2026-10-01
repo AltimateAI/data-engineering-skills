@@ -1,0 +1,31 @@
+name: support_carriers
+team: support
+tier: standard
+description: Carriers pipeline for support
+schedule:
+  hour: 6
+  days: '*'
+steps:
+- name: extract
+  table: support.raw_carriers_00
+- name: stage
+  table: support.stg_carriers_00
+  depends_on:
+  - extract
+- name: validate
+  table: support.int_carriers_00
+  depends_on:
+  - stage
+- name: enrich
+  table: support.int_carriers_00
+  depends_on:
+  - validate
+  - stage
+- name: snapshot
+  table: support.int_carriers_00
+  depends_on:
+  - enrich
+- name: publish
+  table: support.mart_carriers_00
+  depends_on:
+  - snapshot

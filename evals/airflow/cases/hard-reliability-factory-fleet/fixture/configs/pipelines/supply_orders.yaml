@@ -1,0 +1,22 @@
+name: supply_orders
+team: supply
+tier: standard
+description: Orders pipeline for supply
+schedule:
+  hour: 4
+  days: '*'
+steps:
+- name: extract
+  table: supply.raw_orders_00
+- name: transform
+  table: supply.int_orders_00
+  depends_on:
+  - extract
+- name: enrich
+  table: supply.int_orders_00
+  depends_on:
+  - transform
+- name: publish
+  table: supply.mart_orders_00
+  depends_on:
+  - enrich

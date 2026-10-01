@@ -1,0 +1,57 @@
+diff --git a/dags/hourly_pageviews.py b/dags/hourly_pageviews.py
+index dbbc409..2e20bd6 100644
+--- a/dags/hourly_pageviews.py
++++ b/dags/hourly_pageviews.py
+@@ -72,7 +72,7 @@ def aggregate_hour(hour: str, prev_hour: str) -> None:
+ 
+ with DAG(
+     dag_id="hourly_pageviews",
+-    schedule_interval="0 * * * *",
++    schedule="0 * * * *",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -84,27 +84,27 @@ with DAG(
+         task_id="extract_hour",
+         python_callable=extract_hour,
+         op_kwargs={
+-            "start": "{{ execution_date }}",
+-            "end": "{{ next_execution_date }}",
+-            "hour": "{{ execution_date.strftime('%Y%m%dT%H') }}",
++            "start": "{{ data_interval_start }}",
++            "end": "{{ data_interval_end }}",
++            "hour": "{{ data_interval_start.strftime('%Y%m%dT%H') }}",
+         },
+     )
+     aggregate = PythonOperator(
+         task_id="aggregate_hour",
+         python_callable=aggregate_hour,
+         op_kwargs={
+-            "hour": "{{ execution_date.strftime('%Y%m%dT%H') }}",
+-            "prev_hour": "{{ prev_execution_date.strftime('%Y%m%dT%H') }}",
++            "hour": "{{ data_interval_start.strftime('%Y%m%dT%H') }}",
++            "prev_hour": "{{ (data_interval_start - macros.timedelta(hours=1)).strftime('%Y%m%dT%H') }}",
+         },
+     )
+     publish = BashOperator(
+         task_id="publish_hour",
+         bash_command=(
+             "mkdir -p {{ params.output }}/markers && "
+-            "echo \"hour={{ execution_date.strftime('%Y-%m-%dT%H:00') }} "
++            "echo \"hour={{ data_interval_start.strftime('%Y-%m-%dT%H:00') }} "
+             "staged={{ ti.xcom_pull(task_ids='extract_hour') }}\" "
+-            "> {{ params.output }}/markers/{{ ts_nodash }}.done && "
+-            "find {{ params.output }}/staging -name '{{ yesterday_ds_nodash }}T*.csv' -delete"
++            "> {{ params.output }}/markers/{{ data_interval_start.strftime('%Y%m%dT%H0000') }}.done && "
++            "find {{ params.output }}/staging -name '{{ (data_interval_start - macros.timedelta(hours=24)).strftime('%Y%m%dT*') }}.csv' -delete"
+         ),
+     )
+     extract >> aggregate >> publish
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..3a46a94 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,2 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
+ pendulum==3.2.0

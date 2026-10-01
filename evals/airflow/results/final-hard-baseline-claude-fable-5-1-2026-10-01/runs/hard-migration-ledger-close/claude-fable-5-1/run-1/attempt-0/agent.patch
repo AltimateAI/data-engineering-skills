@@ -1,0 +1,490 @@
+diff --git a/README.md b/README.md
+index 14404fa..51e16a6 100644
+--- a/README.md
++++ b/README.md
+@@ -1,11 +1,13 @@
+ # ledger-pipelines
+ 
+-General-ledger ingestion, daily close and reporting. Deployed with
+-`dags_folder=dags/` and `plugins_folder=plugins/` (locally:
+-`export AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/plugins`). The plugin registers the
+-business-day timetable and the `macros.ledger.*` template macros. The
+-reporting currency comes from the `[ledger] base_currency` option (production
+-sets `AIRFLOW__LEDGER__BASE_CURRENCY=USD`). Times are UTC unless noted.
++General-ledger ingestion, daily close and reporting on Airflow 3.3
++(`requirements.txt`). Deployed with `dags_folder=dags/` and
++`plugins_folder=plugins/` (locally: `export AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/plugins`,
++then `airflow standalone`). The plugin registers the business-day timetable and
++the `macros.ledger.*` template macros. The reporting currency comes from the
++`[ledger] base_currency` option (production sets
++`AIRFLOW__LEDGER__BASE_CURRENCY=USD`; the SQL reads it when the task renders, so
++set it on the workers). Times are UTC unless noted.
+ 
+ | DAG | Schedule | What it does |
+ |---|---|---|
+@@ -30,3 +32,28 @@ logical date and no config (`airflow dags trigger <dag_id>`).
+   record shows it was started by a person.
+ 
+ `data/` stands in for the ERP exports.
++
++## Airflow 3 migration notes
++
++The outputs, file names and audit records are unchanged from the Airflow 2.11
++deployment; `tests/` and the before/after comparison in the migration PR cover
++the scheduled runs of every DAG and the manual re-close.
++
++- Airflow 3 dropped `prev_ds`, `next_ds`, `yesterday_ds` and `conf` from the
++  template context, and a plain `airflow dags trigger` now creates a run with
++  **no logical date and no data interval**. Airflow 2 gave such a run the
++  trigger time as logical date and asked the timetable which day it covers.
++  `plugins/ledger_lib/runs.py` rebuilds exactly those values from the run, and
++  the DAGs and `DuckDbSqlOperator` take their dates from there, so the SQL
++  templates and the runbook are unchanged.
++- The audit record's `started_by` comes from the run type (`manual` means a
++  person); Airflow 2 used the `external_trigger` flag, which no longer exists.
++- Caveat: on Airflow 3.3 the CLI's `airflow dags trigger --logical-date ...`
++  still derives the data interval from the *current* time, so it cannot be
++  used to re-close an older day. Use the REST API or the UI (which honour the
++  logical date) if that is ever needed; the runbook's plain trigger is the
++  supported path.
++- `gl_postings_hourly` pulls its high-water mark with `map_indexes=None`: on
++  Airflow 3 an `xcom_pull(include_prior_dates=True)` without it returns every
++  prior value as a list instead of the latest one.
++- `apache-airflow-providers-standard` now ships `BashOperator`.
+diff --git a/dags/close_report_weekly.py b/dags/close_report_weekly.py
+index 21b8b00..5b0cf58 100644
+--- a/dags/close_report_weekly.py
++++ b/dags/close_report_weekly.py
+@@ -10,16 +10,17 @@ import csv
+ from collections import defaultdict
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ from ledger_lib import OUTPUT_DIR
++from ledger_lib.runs import template_vars
+ 
+ CLOSE_DIR = OUTPUT_DIR / "close"
+ REPORT_DIR = OUTPUT_DIR / "reports"
+ 
+ 
+ @dag(
+-    schedule_interval="0 7 * * 1",
++    schedule="0 7 * * 1",
+     start_date=pendulum.datetime(2026, 2, 23, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -28,8 +29,10 @@ REPORT_DIR = OUTPUT_DIR / "reports"
+ )
+ def close_report_weekly():
+     @task
+-    def weekly_report(ds=None, prev_ds=None, data_interval_start=None) -> str:
+-        week_start = pendulum.instance(data_interval_start).start_of("day")
++    def weekly_report(**context) -> str:
++        run = template_vars(context)
++        ds, prev_ds = run["ds"], run["prev_ds"]
++        week_start = run["data_interval_start"].start_of("day")
+         totals: dict[str, int] = defaultdict(int)
+         closed = []
+         for offset in range(5):
+diff --git a/dags/daily_close.py b/dags/daily_close.py
+index 5998c92..dbcdcc2 100644
+--- a/dags/daily_close.py
++++ b/dags/daily_close.py
+@@ -11,9 +11,10 @@ import csv
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ from ledger_lib import DATA_DIR, OUTPUT_DIR
++from ledger_lib.runs import data_interval
+ from ledger_lib.workdays import WorkdayTimetable, previous_workday
+ from ledger_lib.operators import DuckDbSqlOperator
+ 
+@@ -45,8 +46,8 @@ def daily_close():
+     )
+ 
+     @task
+-    def roll_balances(data_interval_start=None) -> int:
+-        day = pendulum.instance(data_interval_start)
++    def roll_balances(**context) -> int:
++        day = data_interval(context).start
+         opening = read_accounts(CLOSE_DIR / previous_workday(day).strftime("%Y-%m-%d") / "balances.csv",
+                                 "closing_cents")
+         movements = read_accounts(CLOSE_DIR / day.strftime("%Y-%m-%d") / "net.csv", "net_cents")
+diff --git a/dags/fx_revaluation.py b/dags/fx_revaluation.py
+index f69714f..2e30762 100644
+--- a/dags/fx_revaluation.py
++++ b/dags/fx_revaluation.py
+@@ -5,14 +5,14 @@ from __future__ import annotations
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow import DAG
++from airflow.sdk import DAG
+ 
+ from ledger_lib import DATA_DIR
+ from ledger_lib.operators import DuckDbSqlOperator
+ 
+ with DAG(
+     dag_id="fx_revaluation_daily",
+-    schedule_interval="0 6 * * *",
++    schedule="0 6 * * *",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     template_searchpath=[str(Path(__file__).parent / "sql")],
+diff --git a/dags/gl_postings_hourly.py b/dags/gl_postings_hourly.py
+index d2c1ae5..515264e 100644
+--- a/dags/gl_postings_hourly.py
++++ b/dags/gl_postings_hourly.py
+@@ -10,15 +10,16 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ from ledger_lib import DATA_DIR, OUTPUT_DIR
++from ledger_lib.runs import data_interval
+ 
+ FIELDS = ["posting_id", "account", "amount_cents", "currency", "booked_at", "posted_at"]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule="@hourly",
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     max_active_runs=1,
+@@ -27,8 +28,11 @@ FIELDS = ["posting_id", "account", "amount_cents", "currency", "booked_at", "pos
+ )
+ def gl_postings_hourly():
+     @task
+-    def extract(data_interval_end=None, ti=None) -> int:
+-        cursor = ti.xcom_pull(task_ids="extract", key="cursor", include_prior_dates=True)
++    def extract(ti=None, **context) -> int:
++        data_interval_end = data_interval(context).end
++        # map_indexes=None: pull the latest prior value, as Airflow 2 did. Without it Airflow 3
++        # returns every prior value as a list.
++        cursor = ti.xcom_pull(task_ids="extract", key="cursor", include_prior_dates=True, map_indexes=None)
+         upper = data_interval_end.strftime("%Y-%m-%d %H:%M:%S")
+         with (DATA_DIR / "postings.csv").open(newline="") as fh:
+             rows = [r for r in csv.DictReader(fh)
+diff --git a/dags/ledger_housekeeping.py b/dags/ledger_housekeeping.py
+index 1a60011..32766a7 100644
+--- a/dags/ledger_housekeeping.py
++++ b/dags/ledger_housekeeping.py
+@@ -5,24 +5,26 @@ from __future__ import annotations
+ from datetime import timedelta
+ 
+ import pendulum
+-from airflow import DAG
+-from airflow.operators.bash import BashOperator
++from airflow.providers.standard.operators.bash import BashOperator
++from airflow.sdk import DAG
+ 
+ from ledger_lib import OUTPUT_DIR
+ 
+ with DAG(
+     dag_id="ledger_housekeeping",
+-    schedule_interval=timedelta(hours=12),
++    schedule=timedelta(hours=12),
+     start_date=pendulum.datetime(2026, 3, 1, tz="UTC"),
+     catchup=False,
+     default_args={"owner": "finance-data"},
+     tags=["ledger", "ops"],
+ ) as dag:
++    # A plain manual trigger has no logical date on Airflow 3; stamp it with the trigger
++    # time instead, which is what the logical date of such a run was on Airflow 2.
+     BashOperator(
+         task_id="inventory",
+         bash_command=(
+             'mkdir -p "$OUT" && ls "$BATCHES" 2>/dev/null | wc -l | tr -d " " '
+-            '> "$OUT/batches_{{ ts_nodash }}.txt"'
++            '> "$OUT/batches_{{ (logical_date if logical_date is defined else dag_run.run_after) | ts_nodash }}.txt"'
+         ),
+         env={"OUT": str(OUTPUT_DIR / "housekeeping"), "BATCHES": str(OUTPUT_DIR / "postings")},
+         append_env=True,
+diff --git a/dags/vendor_payments.py b/dags/vendor_payments.py
+index 7fc7fb4..9f9a45e 100644
+--- a/dags/vendor_payments.py
++++ b/dags/vendor_payments.py
+@@ -9,15 +9,16 @@ from __future__ import annotations
+ import csv
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import dag, task
+ 
+ from ledger_lib import DATA_DIR, OUTPUT_DIR
++from ledger_lib.runs import template_vars
+ 
+ NEW_YORK = pendulum.timezone("America/New_York")
+ 
+ 
+ @dag(
+-    schedule_interval="0 18 * * 1-5",
++    schedule="0 18 * * 1-5",
+     start_date=pendulum.datetime(2026, 3, 2, tz=NEW_YORK),
+     catchup=False,
+     max_active_runs=1,
+@@ -26,9 +27,11 @@ NEW_YORK = pendulum.timezone("America/New_York")
+ )
+ def vendor_payments_weekday():
+     @task
+-    def payment_run(ds=None, data_interval_start=None, data_interval_end=None) -> int:
+-        lo = data_interval_start.in_timezone("UTC").strftime("%Y-%m-%d %H:%M:%S")
+-        hi = data_interval_end.in_timezone("UTC").strftime("%Y-%m-%d %H:%M:%S")
++    def payment_run(**context) -> int:
++        run = template_vars(context)
++        ds = run["ds"]
++        lo = run["data_interval_start"].in_timezone("UTC").strftime("%Y-%m-%d %H:%M:%S")
++        hi = run["data_interval_end"].in_timezone("UTC").strftime("%Y-%m-%d %H:%M:%S")
+         with (DATA_DIR / "postings.csv").open(newline="") as fh:
+             due = [r for r in csv.DictReader(fh)
+                    if r["account"] == "2000-payables" and lo <= r["booked_at"] < hi]
+diff --git a/plugins/ledger_lib/operators.py b/plugins/ledger_lib/operators.py
+index 12d3b0c..8307700 100644
+--- a/plugins/ledger_lib/operators.py
++++ b/plugins/ledger_lib/operators.py
+@@ -5,9 +5,10 @@ from __future__ import annotations
+ import csv
+ import json
+ 
+-from airflow.models import BaseOperator
++from airflow.sdk import BaseOperator
+ 
+ from ledger_lib import PROJECT_ROOT
++from ledger_lib.runs import started_by, template_vars
+ 
+ 
+ class DuckDbSqlOperator(BaseOperator):
+@@ -15,6 +16,10 @@ class DuckDbSqlOperator(BaseOperator):
+ 
+     Next to the CSV, ``<name>.meta.json`` records the row count and whether the run
+     was started by the scheduler or by a person (the auditors ask for this).
++
++    The templates see the Airflow 2 variables (``ds``, ``data_interval_*``, ``prev_ds``,
++    ``next_ds``, ``yesterday_ds``, ``conf``) for every run, including plain manual
++    triggers; see :mod:`ledger_lib.runs`.
+     """
+ 
+     template_fields = ("sql", "target")
+@@ -27,6 +32,10 @@ class DuckDbSqlOperator(BaseOperator):
+         self.sql = sql
+         self.target = target
+ 
++    def render_template_fields(self, context, jinja_env=None) -> None:
++        context.update(template_vars(context))
++        super().render_template_fields(context, jinja_env)
++
+     def execute(self, context):
+         import duckdb
+ 
+@@ -42,8 +51,7 @@ class DuckDbSqlOperator(BaseOperator):
+             writer = csv.writer(fh)
+             writer.writerow(columns)
+             writer.writerows(rows)
+-        dag_run = context["dag_run"]
+-        meta = {"rows": len(rows), "started_by": "operator" if dag_run.external_trigger else "scheduler"}
++        meta = {"rows": len(rows), "started_by": started_by(context["dag_run"])}
+         path.with_suffix(".meta.json").write_text(json.dumps(meta, sort_keys=True) + "\n")
+         self.log.info("Wrote %d rows to %s", len(rows), self.target)
+         return len(rows)
+diff --git a/plugins/ledger_lib/runs.py b/plugins/ledger_lib/runs.py
+new file mode 100644
+index 0000000..cc4c4de
+--- /dev/null
++++ b/plugins/ledger_lib/runs.py
+@@ -0,0 +1,85 @@
++"""Per-run dates and audit facts, computed the way Airflow 2 computed them.
++
++Airflow 3 removed ``prev_ds``, ``next_ds``, ``yesterday_ds`` and ``conf`` from the
++template context, and a plain manual trigger (``airflow dags trigger <dag_id>``, the
++ops runbook) now creates a run *without* a logical date, so ``logical_date``, ``ds``,
++``data_interval_start`` and ``data_interval_end`` are missing from the context too.
++Airflow 2 gave such a run the trigger time as its logical date and inferred the data
++interval from that through the timetable. The audited outputs are keyed on these
++values, so the ledger tasks take them from here rather than from the raw context.
++"""
++
++from __future__ import annotations
++
++from typing import Any, Mapping
++
++import pendulum
++from airflow.configuration import conf
++from airflow.timetables.base import DataInterval, TimeRestriction
++
++DATE = "%Y-%m-%d"
++
++
++def is_manual(dag_run) -> bool:
++    """True for a run started by a person (CLI, API or UI trigger).
++
++    Airflow 2 recorded this as ``DagRun.external_trigger``; Airflow 3 only keeps ``run_type``.
++    """
++    run_type = getattr(dag_run.run_type, "value", dag_run.run_type)
++    return run_type == "manual"
++
++
++def started_by(dag_run) -> str:
++    """Value of the ``started_by`` audit field: ``operator`` or ``scheduler``."""
++    return "operator" if is_manual(dag_run) else "scheduler"
++
++
++def logical_date(context: Mapping[str, Any]) -> pendulum.DateTime:
++    """The run's logical date; for a plain manual trigger, the trigger time (as on Airflow 2)."""
++    value = context.get("logical_date")
++    if value is None:
++        value = context["dag_run"].run_after.replace(microsecond=0)
++    return pendulum.instance(value)
++
++
++def data_interval(context: Mapping[str, Any]) -> DataInterval:
++    """The run's data interval; for a plain manual trigger, what the timetable infers (as on Airflow 2)."""
++    start, end = context.get("data_interval_start"), context.get("data_interval_end")
++    if start is not None and end is not None:
++        return DataInterval(start=pendulum.instance(start), end=pendulum.instance(end))
++    return context["dag"].timetable.infer_manual_data_interval(run_after=logical_date(context))
++
++
++def template_vars(context: Mapping[str, Any]) -> dict[str, Any]:
++    """The Airflow 2 template variables the ledger templates use, rebuilt for this run.
++
++    ``prev_ds``/``next_ds`` keep their Airflow 2 meaning: the previous/next schedule for
++    a scheduled run, the run's own ``ds`` for a manual one (``None`` where the timetable
++    cannot say). ``conf`` is the Airflow configuration, read when the template renders.
++    """
++    date = logical_date(context)
++    interval = data_interval(context)
++    ds = date.strftime(DATE)
++    if is_manual(context["dag_run"]):
++        prev_ds = next_ds = ds
++    else:
++        timetable = context["dag"].timetable
++        get_prev = getattr(timetable, "_get_prev", None)  # cron/delta timetables only, as DAG.previous_schedule did
++        prev_ds = get_prev(date).strftime(DATE) if get_prev else None
++        following = timetable.next_dagrun_info(
++            last_automated_data_interval=interval,
++            restriction=TimeRestriction(earliest=None, latest=None, catchup=True),
++        )
++        next_ds = following.logical_date.strftime(DATE) if following and following.logical_date else None
++    return {
++        "logical_date": date,
++        "ds": ds,
++        "ds_nodash": ds.replace("-", ""),
++        "ts_nodash": date.strftime("%Y%m%dT%H%M%S"),
++        "data_interval_start": interval.start,
++        "data_interval_end": interval.end,
++        "yesterday_ds": date.subtract(days=1).strftime(DATE),
++        "prev_ds": prev_ds,
++        "next_ds": next_ds,
++        "conf": conf,
++    }
+diff --git a/requirements.txt b/requirements.txt
+index 91d0128..d516427 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,3 +1,4 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.19.0
+ duckdb
+ pendulum==3.2.0
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..68ec7b6
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,4 @@
++import sys
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins"))
+diff --git a/tests/test_runs.py b/tests/test_runs.py
+new file mode 100644
+index 0000000..c122ef5
+--- /dev/null
++++ b/tests/test_runs.py
+@@ -0,0 +1,77 @@
++"""ledger_lib.runs must reproduce the Airflow 2 run values the audited outputs are keyed on."""
++
++from types import SimpleNamespace
++
++import pendulum
++import pytest
++from airflow.timetables.interval import CronDataIntervalTimetable
++
++from ledger_lib.runs import data_interval, logical_date, started_by, template_vars
++from ledger_lib.workdays import WorkdayTimetable
++
++UTC = pendulum.timezone("UTC")
++
++
++def context(timetable, run_type, run_after, logical=None, interval=None):
++    ctx = {
++        "dag": SimpleNamespace(timetable=timetable),
++        "dag_run": SimpleNamespace(run_type=run_type, run_after=run_after),
++    }
++    if logical is not None:  # keys only exist on Airflow 3 when the run has a logical date
++        ctx.update(logical_date=logical, data_interval_start=interval.start, data_interval_end=interval.end)
++    return ctx
++
++
++@pytest.mark.parametrize(
++    "triggered_at, business_day",
++    [
++        ("2026-03-10T09:00:00", "2026-03-09"),  # Tuesday morning: Monday
++        ("2026-03-09T08:00:00", "2026-03-06"),  # Monday morning: previous Friday
++        ("2026-03-07T12:00:00", "2026-03-06"),  # Saturday: Friday
++        ("2026-03-10T00:00:00", "2026-03-09"),  # exactly midnight: the day that just ended
++    ],
++)
++def test_plain_manual_trigger_re_closes_latest_ended_business_day(triggered_at, business_day):
++    ctx = context(WorkdayTimetable(), "manual", pendulum.parse(triggered_at, tz=UTC).replace(microsecond=123))
++    interval = data_interval(ctx)
++    assert interval.start == pendulum.parse(business_day, tz=UTC)
++    assert interval.end == interval.start.add(days=1)
++    assert logical_date(ctx) == pendulum.parse(triggered_at, tz=UTC)
++    assert started_by(ctx["dag_run"]) == "operator"
++
++
++def test_scheduled_run_uses_its_own_interval():
++    start = pendulum.datetime(2026, 3, 4, tz="UTC")
++    ctx = context(WorkdayTimetable(), "scheduled", start.add(days=1), start, SimpleNamespace(start=start, end=start.add(days=1)))
++    assert data_interval(ctx) == (start, start.add(days=1))
++    assert started_by(ctx["dag_run"]) == "scheduler"
++    assert template_vars(ctx)["prev_ds"] is None  # Airflow 2: no previous schedule for custom timetables
++
++
++def test_weekly_report_dates_follow_the_cron_schedule():
++    timetable = CronDataIntervalTimetable("0 7 * * 1", timezone=UTC)
++    logical = pendulum.datetime(2026, 3, 2, 7, tz="UTC")
++    ctx = context(timetable, "scheduled", logical.add(weeks=1), logical, SimpleNamespace(start=logical, end=logical.add(weeks=1)))
++    run = template_vars(ctx)
++    assert (run["ds"], run["prev_ds"], run["next_ds"], run["yesterday_ds"]) == (
++        "2026-03-02", "2026-02-23", "2026-03-09", "2026-03-01")
++
++
++def test_fx_dates_follow_the_daily_schedule():
++    timetable = CronDataIntervalTimetable("0 6 * * *", timezone=UTC)
++    logical = pendulum.datetime(2026, 3, 10, 6, tz="UTC")
++    ctx = context(timetable, "scheduled", logical.add(days=1), logical, SimpleNamespace(start=logical, end=logical.add(days=1)))
++    run = template_vars(ctx)
++    assert (run["ds"], run["ds_nodash"], run["next_ds"], run["yesterday_ds"]) == (
++        "2026-03-10", "20260310", "2026-03-11", "2026-03-09")
++    assert run["conf"].get("ledger", "base_currency", fallback=None) in ("USD", None)
++
++
++def test_manual_runs_use_their_own_date_for_prev_and_next():
++    timetable = CronDataIntervalTimetable("0 6 * * *", timezone=UTC)
++    ctx = context(timetable, "manual", pendulum.datetime(2026, 3, 10, 9, 30, tz="UTC"))
++    run = template_vars(ctx)
++    assert run["ds"] == run["prev_ds"] == run["next_ds"] == "2026-03-10"
++    assert run["ts_nodash"] == "20260310T093000"
++    assert (run["data_interval_start"], run["data_interval_end"]) == (
++        pendulum.datetime(2026, 3, 9, 6, tz="UTC"), pendulum.datetime(2026, 3, 10, 6, tz="UTC"))

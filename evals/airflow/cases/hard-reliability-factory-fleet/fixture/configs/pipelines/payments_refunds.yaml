@@ -1,0 +1,28 @@
+name: payments_refunds
+team: payments
+tier: standard
+description: Refunds pipeline for payments
+schedule:
+  hour: 0
+  days: '*'
+steps:
+- name: extract
+  table: payments.raw_refunds_00
+- name: stage
+  table: payments.stg_refunds_00
+  depends_on:
+  - extract
+- name: enrich
+  table: payments.int_refunds_00
+  depends_on:
+  - stage
+- name: aggregate
+  table: payments.int_refunds_00
+  depends_on:
+  - enrich
+  - stage
+- name: publish
+  table: payments.mart_refunds_00
+  depends_on:
+  - aggregate
+  - enrich

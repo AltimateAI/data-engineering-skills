@@ -1,0 +1,184 @@
+diff --git a/dags/pipeline_factory.py b/dags/pipeline_factory.py
+index 96daadf..77978b4 100644
+--- a/dags/pipeline_factory.py
++++ b/dags/pipeline_factory.py
+@@ -9,18 +9,28 @@ of steps. Every step becomes a task that runs `run_step`.
+ from __future__ import annotations
+ 
+ import json
++import logging
++import zlib
++from functools import lru_cache
+ from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import yaml
+ from airflow.providers.standard.operators.python import PythonOperator
+-from airflow.sdk import DAG
++from airflow.sdk import DAG, get_parsing_context
++from airflow.timetables.trigger import CronTriggerTimetable
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ CONFIG_DIR = PROJECT_ROOT / "configs" / "pipelines"
+ REGISTRY = PROJECT_ROOT / "configs" / "registry.yaml"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
++log = logging.getLogger(__name__)
++
++WAREHOUSE_POOL = "warehouse"  # 16 slots, defined in pools.json
++# Absolute weights (not the default "downstream" rule) so a pipeline's step count never matters.
++TIER_WEIGHT = {"critical": 100, "standard": 1}
++
+ 
+ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+     """Stand-in for the warehouse call: records which step ran for which logical date."""
+@@ -38,59 +48,111 @@ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+     return table
+ 
+ 
++_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
++
++
+ def load_yaml(path: Path) -> dict:
+     with open(path) as fh:
+-        return yaml.load(fh, Loader=yaml.SafeLoader)
++        return yaml.load(fh, Loader=_YAML_LOADER)
+ 
+ 
+-def check_table(registry: dict, table: str) -> None:
+-    if table not in registry["datasets"]:
+-        raise ValueError(f"unknown table {table!r}: register it in the platform catalog first")
++@lru_cache(maxsize=1)
++def load_registry() -> tuple[dict, frozenset]:
++    """Parse the (large) registry once per process; index its tables for O(1) lookups."""
++    registry = load_yaml(REGISTRY)
++    return registry["teams"], frozenset(registry["datasets"])
+ 
+ 
+ def start_minute(name: str) -> int:
+-    # Spread pipelines over the hour so they do not all hit the warehouse at :00.
+-    return hash(name) % 60
++    # Spread pipelines over the hour; crc32 is stable across processes (hash() is salted).
++    return zlib.crc32(name.encode()) % 60
++
++
++def _require(cond: bool, msg: str) -> None:
++    if not cond:
++        raise ValueError(msg)
+ 
+ 
+ def build_dag(path: Path) -> DAG:
++    """Validate the config as data, then build a DAG that is not registered yet."""
+     cfg = load_yaml(path)
+-    registry = load_yaml(REGISTRY)
+-    team = registry["teams"][cfg["team"]]
++    _require(isinstance(cfg, dict), "config is empty or not a mapping")
++    for key in ("name", "team", "tier", "schedule", "steps"):
++        _require(key in cfg, f"missing required key {key!r}")
++    name = cfg["name"]
++    _require(isinstance(name, str) and name == path.stem, f"name {name!r} must match file name {path.stem!r}")
++    _require(cfg["tier"] in TIER_WEIGHT, f"unknown tier {cfg['tier']!r}")
+     sched = cfg["schedule"]
+-    minute = sched.get("minute", start_minute(cfg["name"]))
+-    owners = set(team["owners"]) | set(cfg.get("owners", []))
++    _require(isinstance(sched, dict) and "hour" in sched, "schedule.hour is required")
++    steps = cfg["steps"]
++    _require(isinstance(steps, list) and steps, "steps must be a non-empty list")
++
++    teams, tables = load_registry()
++    _require(cfg["team"] in teams, f"unknown team {cfg['team']!r}")
++    team = teams[cfg["team"]]
++
++    names = []
++    for step in steps:
++        _require(isinstance(step, dict) and "name" in step and "table" in step, "each step needs name and table")
++        names.append(step["name"])
++        _require(step["table"] in tables, f"unknown table {step['table']!r}: register it in the platform catalog first")
++    _require(len(set(names)) == len(names), "duplicate step names")
++    for step in steps:
++        for upstream in step.get("depends_on", []):
++            _require(upstream in names, f"step {step['name']!r} depends on unknown step {upstream!r}")
++
++    minute = sched.get("minute", start_minute(name))
++    timetable = CronTriggerTimetable(f"{minute} {sched['hour']} * * {sched.get('days', '*')}", timezone="UTC")
++    timetable.validate()
++    owners = sorted(set(team["owners"]) | set(cfg.get("owners", [])))
+ 
+     dag = DAG(
+-        dag_id=cfg["name"],
++        dag_id=name,
+         description=cfg.get("description"),
+         schedule=f"{minute} {sched['hour']} * * {sched.get('days', '*')}",
+         start_date=datetime(2026, 1, 1),
+         catchup=False,
+         tags=[cfg["team"], "fleet"],
+-        doc_md=f"Generated from `{path.name}` on {datetime.now():%Y-%m-%d %H:%M}. "
+-               f"On-call: {team['oncall']} ({team['slack']}).",
++        doc_md=f"Generated from `{path.name}`. On-call: {team['oncall']} ({team['slack']}).",
+         default_args={
+             "owner": ",".join(owners),
+             "retries": cfg.get("retries", team["default_retries"]),
+             "retry_delay": timedelta(minutes=5),
++            "pool": WAREHOUSE_POOL,
++            "weight_rule": "absolute",
++            "priority_weight": TIER_WEIGHT[cfg["tier"]],
+         },
++        auto_register=False,
+     )
+-    with dag:
+-        tasks = {}
+-        for step in cfg["steps"]:
+-            check_table(registry, step["table"])
+-            tasks[step["name"]] = PythonOperator(
+-                task_id=step["name"],
+-                python_callable=run_step,
+-                op_kwargs={"pipeline": cfg["name"], "step": step["name"], "table": step["table"]},
+-            )
+-        for step in cfg["steps"]:
+-            for upstream in step.get("depends_on", []):
+-                tasks[upstream] >> tasks[step["name"]]
++    tasks = {}
++    for step in steps:
++        tasks[step["name"]] = PythonOperator(
++            task_id=step["name"],
++            python_callable=run_step,
++            op_kwargs={"pipeline": name, "step": step["name"], "table": step["table"]},
++            dag=dag,
++        )
++    for step in steps:
++        for upstream in step.get("depends_on", []):
++            tasks[upstream] >> tasks[step["name"]]
++    dag.check_cycle()
+     return dag
+ 
+ 
+-for config_path in CONFIG_DIR.glob("*.yaml"):
+-    dag = build_dag(config_path)
+-    globals()[dag.dag_id] = dag
++def _config_paths() -> list[Path]:
++    # On a worker only the DAG of the running task is needed; file name == dag_id.
++    wanted = get_parsing_context().dag_id
++    if wanted:
++        path = CONFIG_DIR / f"{wanted}.yaml"
++        return [path] if path.is_file() else []
++    return sorted(CONFIG_DIR.glob("*.yaml"))
++
++
++for config_path in _config_paths():
++    try:
++        _built = build_dag(config_path)
++    except Exception as exc:  # a broken config only takes out its own DAG
++        log.error("Skipping pipeline config %s: %s: %s", config_path, type(exc).__name__, exc)
++        continue
++    globals()[_built.dag_id] = _built
++_built = None
+diff --git a/pools.json b/pools.json
+index bc85e99..1d31de2 100644
+--- a/pools.json
++++ b/pools.json
+@@ -1,3 +1,4 @@
+ {
+-  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false}
++  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false},
++  "warehouse": {"slots": 16, "description": "Warehouse concurrent query limit for the whole fleet", "include_deferred": false}
+ }

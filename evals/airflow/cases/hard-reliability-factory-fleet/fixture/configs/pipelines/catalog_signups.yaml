@@ -1,0 +1,24 @@
+name: catalog_signups
+team: catalog
+tier: critical
+description: Signups pipeline for catalog
+schedule:
+  hour: 3
+  days: '*'
+retries: 0
+steps:
+- name: extract
+  table: catalog.raw_signups_00
+- name: stage
+  table: catalog.stg_signups_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: catalog.int_signups_00
+  depends_on:
+  - stage
+  - extract
+- name: publish
+  table: catalog.mart_signups_00
+  depends_on:
+  - snapshot

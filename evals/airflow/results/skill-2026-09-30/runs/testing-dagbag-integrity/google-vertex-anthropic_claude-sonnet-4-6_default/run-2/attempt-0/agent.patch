@@ -1,0 +1,180 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..cdec5cd
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,34 @@
++"""Shared fixtures for the Airflow DAG test suite (Airflow 3.3, no scheduler/webserver)."""
++
++from __future__ import annotations
++
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import — set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++
++# Let tests import DAG modules and any helper packages that live in dags/.
++sys.path.insert(0, str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    """Return a DagBag loaded from the repo's dags/ folder."""
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag  # Airflow 2.x / 3.0-3.1
++
++    return DagBag(dag_folder=str(DAGS))
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..4ba56c6
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,134 @@
++"""DAG integrity tests.
++
++Rules enforced (all requested by the team):
++
++1. Every file in dags/ must import without errors or cycles.
++2. The exact set of expected DAG ids must be present (a broken DAG silently
++   disappears from the bag — this makes that visible).
++3. Every DAG must have at least one tag.
++4. Every DAG must have catchup=False.
++5. Every task must have an owner that is not the Airflow default ("airflow").
++6. Every task must have at least 2 retries.
++7. orders_ingest pipeline order must be exactly:
++       extract_orders -> validate_orders -> load_orders -> publish_summary
++"""
++
++from __future__ import annotations
++
++import pytest
++
++# The DAG ids this repo is expected to define.  Update this set when a DAG is
++# intentionally added or removed — the test will catch any *unintentional* loss.
++EXPECTED_DAGS = {"orders_ingest", "customer_snapshot", "marketing_spend"}
++
++# Airflow's built-in default owner — tasks must NOT use this.
++AIRFLOW_DEFAULT_OWNER = "airflow"
++
++
++# ---------------------------------------------------------------------------
++# Rule 1 & 2: every file imports cleanly and all expected DAGs are present
++# ---------------------------------------------------------------------------
++
++
++def test_no_import_errors(dagbag):
++    """Any file that fails to parse (syntax error, bad import, cycle …) appears
++    in dagbag.import_errors.  The suite must catch it before the Airflow UI does."""
++    assert dagbag.import_errors == {}, (
++        "DAG files failed to import:\n\n"
++        + "\n\n".join(f"{path}:\n{err}" for path, err in dagbag.import_errors.items())
++    )
++
++
++def test_expected_dags_present(dagbag):
++    """A DAG that stops parsing is silently dropped from the bag.
++    Asserting the known set ensures we notice when that happens."""
++    missing = EXPECTED_DAGS - set(dagbag.dags)
++    assert not missing, f"Expected DAG(s) missing from the bag: {missing}"
++
++
++# ---------------------------------------------------------------------------
++# Rule 3: every DAG must have at least one tag
++# ---------------------------------------------------------------------------
++
++
++def test_every_dag_has_at_least_one_tag(dagbag):
++    """Untagged DAGs are invisible to tag-based filtering in the Airflow UI."""
++    untagged = [dag_id for dag_id, dag in dagbag.dags.items() if not dag.tags]
++    assert not untagged, f"DAG(s) missing tags: {untagged}"
++
++
++# ---------------------------------------------------------------------------
++# Rule 4: every DAG must have catchup=False
++# ---------------------------------------------------------------------------
++
++
++def test_every_dag_has_catchup_disabled(dagbag):
++    """catchup=True causes a flood of backfill runs on first deployment."""
++    with_catchup = [dag_id for dag_id, dag in dagbag.dags.items() if dag.catchup]
++    assert not with_catchup, f"DAG(s) have catchup=True: {with_catchup}"
++
++
++# ---------------------------------------------------------------------------
++# Rules 5 & 6: every task must have a real owner and at least 2 retries
++# ---------------------------------------------------------------------------
++
++
++def test_every_task_has_non_default_owner(dagbag):
++    """Tasks with owner='airflow' (the Airflow built-in default) are not
++    actionable in on-call rotations — every task must declare a real owner."""
++    bad = [
++        f"{dag_id}.{task.task_id} (owner={task.owner!r})"
++        for dag_id, dag in dagbag.dags.items()
++        for task in dag.tasks
++        if task.owner == AIRFLOW_DEFAULT_OWNER
++    ]
++    assert not bad, "Task(s) using the default 'airflow' owner:\n  " + "\n  ".join(bad)
++
++
++def test_every_task_has_at_least_two_retries(dagbag):
++    """At least 2 retries are required on every task so transient failures
++    (network blips, rate limits) don't page on-call immediately.
++    Note: task-level retries override default_args, so we check t.retries directly."""
++    insufficient = [
++        f"{dag_id}.{task.task_id} (retries={task.retries})"
++        for dag_id, dag in dagbag.dags.items()
++        for task in dag.tasks
++        if task.retries < 2
++    ]
++    assert not insufficient, (
++        "Task(s) with fewer than 2 retries:\n  " + "\n  ".join(insufficient)
++    )
++
++
++# ---------------------------------------------------------------------------
++# Rule 7: orders_ingest pipeline order
++# ---------------------------------------------------------------------------
++
++
++def test_orders_ingest_pipeline_order(dagbag):
++    """The orders_ingest DAG must execute in this exact linear chain:
++        extract_orders -> validate_orders -> load_orders -> publish_summary
++
++    We assert the complete upstream_task_ids for every task so that
++    both missing edges and extra bypass edges are caught.
++    """
++    dag = dagbag.dags["orders_ingest"]
++
++    # Map: task_id -> expected set of direct upstream task ids
++    expected_upstreams: dict[str, set[str]] = {
++        "extract_orders": set(),
++        "validate_orders": {"extract_orders"},
++        "load_orders": {"validate_orders"},
++        "publish_summary": {"load_orders"},
++    }
++
++    actual_upstreams = {
++        task_id: dag.get_task(task_id).upstream_task_ids
++        for task_id in expected_upstreams
++    }
++
++    assert actual_upstreams == expected_upstreams, (
++        "orders_ingest pipeline order is wrong.\n"
++        f"Expected: {expected_upstreams}\n"
++        f"Got:      {actual_upstreams}"
++    )

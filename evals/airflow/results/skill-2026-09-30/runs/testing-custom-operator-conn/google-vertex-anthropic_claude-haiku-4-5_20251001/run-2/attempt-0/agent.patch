@@ -1,0 +1,489 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..0452959
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,20 @@
++"""Pytest configuration for Airflow DAG tests.
++
++No scheduler, webserver, or metadata DB; connections supplied via environment variables.
++"""
++
++import os
++import sys
++import tempfile
++from pathlib import Path
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Set Airflow config before any Airflow import
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))  # lets tests import DAG modules and helper packages
+diff --git a/tests/test_warehouse_hook_and_operator.py b/tests/test_warehouse_hook_and_operator.py
+new file mode 100644
+index 0000000..cfefbb3
+--- /dev/null
++++ b/tests/test_warehouse_hook_and_operator.py
+@@ -0,0 +1,457 @@
++"""Unit tests for DuckDBWarehouseHook and CsvPartitionToDuckDBOperator.
++
++Tests run against real temporary DuckDB files, not mocked. Connections are
++supplied via AIRFLOW_CONN_* environment variables.
++
++Contract being tested:
++  1. Hook reads DuckDB file path from connection.host and target schema from connection.schema
++  2. Operator loads only rows matching the partition_date
++  3. Operator returns the row count loaded
++  4. Re-running the same partition replaces old rows (no duplicates)
++  5. Other partitions are unaffected by a re-run
++"""
++
++import csv
++import json
++import tempfile
++from pathlib import Path
++
++import duckdb
++import pytest
++
++
++@pytest.fixture
++def duckdb_conn_env(tmp_path, monkeypatch):
++    """Set up a DuckDB connection via AIRFLOW_CONN_TEST_WAREHOUSE env var.
++    
++    Returns the temp database file path so tests can inspect it.
++    """
++    db_file = tmp_path / "test_warehouse.duckdb"
++    monkeypatch.setenv(
++        "AIRFLOW_CONN_TEST_WAREHOUSE",
++        json.dumps({
++            "conn_type": "duckdb",
++            "host": str(db_file),
++            "schema": "raw",
++            "extra": {},
++        }),
++    )
++    return db_file
++
++
++@pytest.fixture
++def csv_with_multiple_dates(tmp_path):
++    """Create a test CSV file with rows for multiple dates.
++    
++    Used to test partition loading and idempotency.
++    """
++    csv_file = tmp_path / "test_data.csv"
++    rows = [
++        ["order_id", "order_date", "customer_id", "amount"],
++        ["O-1001", "2026-03-01", "C-10", "100.00"],
++        ["O-1002", "2026-03-01", "C-11", "50.00"],
++        ["O-1003", "2026-03-02", "C-12", "75.00"],
++        ["O-1004", "2026-03-02", "C-13", "120.00"],
++        ["O-1005", "2026-03-03", "C-10", "40.00"],
++    ]
++    with open(csv_file, "w", newline="") as f:
++        writer = csv.writer(f)
++        writer.writerows(rows)
++    return csv_file
++
++
++@pytest.fixture
++def csv_duplicate_date(tmp_path):
++    """Create a CSV with rows for a single date, for re-run idempotency test."""
++    csv_file = tmp_path / "duplicate_check.csv"
++    rows = [
++        ["order_id", "order_date", "customer_id", "amount"],
++        ["O-2001", "2026-03-02", "C-20", "200.00"],
++        ["O-2002", "2026-03-02", "C-21", "150.00"],
++    ]
++    with open(csv_file, "w", newline="") as f:
++        writer = csv.writer(f)
++        writer.writerows(rows)
++    return csv_file
++
++
++def _read_rows_from_table(db_file, schema, table):
++    """Helper: read all rows from a table, return as list of dicts."""
++    con = duckdb.connect(str(db_file), read_only=True)
++    try:
++        rel = con.execute(f'SELECT * FROM "{schema}"."{table}"')
++        columns = [desc[0] for desc in rel.description]
++        result = rel.fetchall()
++        return [dict(zip(columns, row)) for row in result]
++    finally:
++        con.close()
++
++
++def _row_count_for_date(db_file, schema, table, date_col, date_val):
++    """Helper: count rows in table matching a specific date."""
++    con = duckdb.connect(str(db_file), read_only=True)
++    try:
++        count = con.execute(
++            f'SELECT count(*) FROM "{schema}"."{table}" WHERE "{date_col}" = ?',
++            [date_val],
++        ).fetchone()[0]
++        return count
++    finally:
++        con.close()
++
++
++class TestDuckDBWarehouseHook:
++    """Tests for DuckDBWarehouseHook."""
++
++    def test_hook_reads_database_path_from_connection_host(self, duckdb_conn_env):
++        """Hook.database_path returns the path from connection.host."""
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_warehouse")
++        assert hook.database_path == str(duckdb_conn_env)
++
++    def test_hook_reads_schema_from_connection(self, duckdb_conn_env, monkeypatch):
++        """Hook.target_schema returns connection.schema."""
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_warehouse")
++        assert hook.target_schema == "raw"
++
++    def test_hook_defaults_schema_to_main_when_not_set(self, tmp_path, monkeypatch):
++        """Hook.target_schema defaults to 'main' when connection.schema is not set."""
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        db_file = tmp_path / "test.duckdb"
++        monkeypatch.setenv(
++            "AIRFLOW_CONN_TEST_WAREHOUSE",
++            json.dumps({
++                "conn_type": "duckdb",
++                "host": str(db_file),
++                # no schema field
++            }),
++        )
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_warehouse")
++        assert hook.target_schema == "main"
++
++    def test_hook_raises_when_host_is_missing(self, monkeypatch):
++        """Hook.database_path raises ValueError when connection.host is empty."""
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        monkeypatch.setenv(
++            "AIRFLOW_CONN_TEST_WAREHOUSE",
++            json.dumps({
++                "conn_type": "duckdb",
++                "host": "",  # empty
++                "schema": "raw",
++            }),
++        )
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_warehouse")
++        with pytest.raises(ValueError, match="has no host"):
++            _ = hook.database_path
++
++    def test_hook_respects_read_only_extra(self, duckdb_conn_env, monkeypatch):
++        """Hook.get_conn() respects the read_only setting in connection.extra."""
++        from warehouse.hooks import DuckDBWarehouseHook
++
++        monkeypatch.setenv(
++            "AIRFLOW_CONN_TEST_WAREHOUSE",
++            json.dumps({
++                "conn_type": "duckdb",
++                "host": str(duckdb_conn_env),
++                "schema": "raw",
++                "extra": {"read_only": True},
++            }),
++        )
++        hook = DuckDBWarehouseHook(duckdb_conn_id="test_warehouse")
++        # Create the database file first so read-only mode can open it
++        con_write = duckdb.connect(str(duckdb_conn_env))
++        con_write.close()
++
++        con_read = hook.get_conn()
++        try:
++            # read-only connection should not allow writes
++            with pytest.raises(Exception):  # DuckDB raises on write attempt
++                con_read.execute("CREATE TABLE test (id INTEGER)")
++        finally:
++            con_read.close()
++
++
++class TestCsvPartitionToDuckDBOperator:
++    """Tests for CsvPartitionToDuckDBOperator."""
++
++    def test_operator_loads_only_specified_partition_date(
++        self, duckdb_conn_env, csv_with_multiple_dates, monkeypatch
++    ):
++        """Operator loads only rows matching partition_date."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_with_multiple_dates),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-02",
++            duckdb_conn_id="test_warehouse",
++        )
++        # Mock context (required by operator.execute)
++        context = {}
++        loaded_count = op.execute(context)
++
++        # Only 2 rows match 2026-03-02
++        assert loaded_count == 2
++        rows = _read_rows_from_table(duckdb_conn_env, "raw", "orders")
++        assert len(rows) == 2
++        assert all(row["order_date"] == "2026-03-02" for row in rows)
++
++    def test_operator_returns_row_count(
++        self, duckdb_conn_env, csv_with_multiple_dates
++    ):
++        """Operator.execute() returns the count of rows loaded."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_with_multiple_dates),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++            duckdb_conn_id="test_warehouse",
++        )
++        loaded = op.execute(context={})
++        assert loaded == 2  # Two rows for 2026-03-01
++
++    def test_operator_creates_schema_if_not_exists(
++        self, duckdb_conn_env, csv_with_multiple_dates
++    ):
++        """Operator creates the target schema if it doesn't exist."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_with_multiple_dates),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++            duckdb_conn_id="test_warehouse",
++        )
++        op.execute(context={})
++
++        # Schema "raw" should exist now
++        con = duckdb.connect(str(duckdb_conn_env))
++        try:
++            schemas = con.execute("SELECT schema_name FROM information_schema.schemata").fetchall()
++            schema_names = [s[0] for s in schemas]
++            assert "raw" in schema_names
++        finally:
++            con.close()
++
++    def test_operator_creates_table_with_same_schema_as_csv(
++        self, duckdb_conn_env, csv_with_multiple_dates
++    ):
++        """Operator creates the table with columns from the CSV (all text)."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_with_multiple_dates),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++            duckdb_conn_id="test_warehouse",
++        )
++        op.execute(context={})
++
++        # Check table exists and has expected columns
++        rows = _read_rows_from_table(duckdb_conn_env, "raw", "orders")
++        assert rows
++        # All columns should be present as text
++        expected_cols = {"order_id", "order_date", "customer_id", "amount"}
++        actual_cols = set(rows[0].keys())
++        assert expected_cols == actual_cols
++
++    def test_operator_idempotent_on_rerun_same_partition(
++        self, duckdb_conn_env, csv_duplicate_date
++    ):
++        """Re-running the same partition replaces old rows (no duplicates)."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        # First run: load 2 rows for 2026-03-02
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_duplicate_date),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-02",
++            duckdb_conn_id="test_warehouse",
++        )
++        count_1 = op.execute(context={})
++        assert count_1 == 2
++
++        # Second run: load the same partition again
++        count_2 = op.execute(context={})
++        assert count_2 == 2
++
++        # Table should still have exactly 2 rows, not 4
++        rows = _read_rows_from_table(duckdb_conn_env, "raw", "orders")
++        assert len(rows) == 2
++
++    def test_operator_does_not_affect_other_partitions_on_rerun(
++        self, duckdb_conn_env, tmp_path
++    ):
++        """Re-running one partition leaves other partitions untouched."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        # Create a CSV with three dates
++        csv_file = tmp_path / "orders.csv"
++        rows = [
++            ["order_id", "order_date", "customer_id", "amount"],
++            ["O-A", "2026-03-01", "C-1", "100.00"],
++            ["O-B", "2026-03-02", "C-2", "200.00"],
++            ["O-C", "2026-03-02", "C-3", "150.00"],
++            ["O-D", "2026-03-03", "C-4", "300.00"],
++        ]
++        with open(csv_file, "w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerows(rows)
++
++        # Load all three dates
++        for date in ["2026-03-01", "2026-03-02", "2026-03-03"]:
++            op = CsvPartitionToDuckDBOperator(
++                task_id="load_test",
++                csv_path=str(csv_file),
++                table="orders",
++                partition_column="order_date",
++                partition_date=date,
++                duckdb_conn_id="test_warehouse",
++            )
++            op.execute(context={})
++
++        # Table should have 4 rows total
++        rows = _read_rows_from_table(duckdb_conn_env, "raw", "orders")
++        assert len(rows) == 4
++
++        # Re-run 2026-03-02 (which has 2 rows in CSV)
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_file),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-02",
++            duckdb_conn_id="test_warehouse",
++        )
++        op.execute(context={})
++
++        # Should still have 4 rows total (2 for 03-01, 2 for 03-02, 1 for 03-03)
++        rows = _read_rows_from_table(duckdb_conn_env, "raw", "orders")
++        assert len(rows) == 4
++
++        # 2026-03-01 should still have its 1 row
++        assert _row_count_for_date(duckdb_conn_env, "raw", "orders", "order_date", "2026-03-01") == 1
++        # 2026-03-02 should have its 2 rows (not 4)
++        assert _row_count_for_date(duckdb_conn_env, "raw", "orders", "order_date", "2026-03-02") == 2
++        # 2026-03-03 should still have its 1 row
++        assert _row_count_for_date(duckdb_conn_env, "raw", "orders", "order_date", "2026-03-03") == 1
++
++    def test_operator_uses_custom_conn_id(self, tmp_path, monkeypatch):
++        """Operator respects the duckdb_conn_id parameter (not hardcoded default)."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        csv_file = tmp_path / "data.csv"
++        with open(csv_file, "w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerows([
++                ["id", "date"],
++                ["1", "2026-03-01"],
++            ])
++
++        # Create a connection with a custom conn_id
++        db_file = tmp_path / "custom.duckdb"
++        monkeypatch.setenv(
++            "AIRFLOW_CONN_MY_CUSTOM_WAREHOUSE",
++            json.dumps({
++                "conn_type": "duckdb",
++                "host": str(db_file),
++                "schema": "test_schema",
++            }),
++        )
++
++        # Operator should use the custom conn_id
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_file),
++            table="data",
++            partition_column="date",
++            partition_date="2026-03-01",
++            duckdb_conn_id="my_custom_warehouse",  # Custom, not the default
++        )
++        op.execute(context={})
++
++        # Verify data was loaded to the custom connection's database
++        rows = _read_rows_from_table(db_file, "test_schema", "data")
++        assert len(rows) == 1
++        assert rows[0]["id"] == "1"
++
++    def test_operator_loads_as_text_columns(
++        self, duckdb_conn_env, csv_with_multiple_dates
++    ):
++        """Operator loads all CSV columns as text (read_csv_auto with all_varchar=true)."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_with_multiple_dates),
++            table="orders",
++            partition_column="order_date",
++            partition_date="2026-03-01",
++            duckdb_conn_id="test_warehouse",
++        )
++        op.execute(context={})
++
++        # Check column types
++        con = duckdb.connect(str(duckdb_conn_env), read_only=True)
++        try:
++            info = con.execute(
++                f'SELECT column_name, data_type FROM information_schema.columns '
++                f'WHERE table_schema = \'raw\' AND table_name = \'orders\''
++            ).fetchall()
++            types = {name: dtype for name, dtype in info}
++            # All should be VARCHAR (text)
++            assert types["order_id"] == "VARCHAR"
++            assert types["order_date"] == "VARCHAR"
++            assert types["customer_id"] == "VARCHAR"
++            assert types["amount"] == "VARCHAR"
++        finally:
++            con.close()
++
++    def test_operator_with_empty_partition(self, duckdb_conn_env, tmp_path):
++        """Operator handles a partition with zero matching rows gracefully."""
++        from warehouse.operators import CsvPartitionToDuckDBOperator
++
++        csv_file = tmp_path / "data.csv"
++        with open(csv_file, "w", newline="") as f:
++            writer = csv.writer(f)
++            writer.writerows([
++                ["id", "date"],
++                ["1", "2026-03-01"],
++            ])
++
++        op = CsvPartitionToDuckDBOperator(
++            task_id="load_test",
++            csv_path=str(csv_file),
++            table="data",
++            partition_column="date",
++            partition_date="2026-12-31",  # No rows match this date
++            duckdb_conn_id="test_warehouse",
++        )
++        loaded = op.execute(context={})
++
++        # Should return 0 for empty partition
++        assert loaded == 0
++
++        # Table should exist but be empty
++        con = duckdb.connect(str(duckdb_conn_env), read_only=True)
++        try:
++            count = con.execute('SELECT count(*) FROM "raw"."data"').fetchone()[0]
++            assert count == 0
++        finally:
++            con.close()

@@ -1,0 +1,202 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666,
+  "cost_usd": 0.360459,
+  "cost_reported_usd": 0.360459,
+  "wall_s": 118.4,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-033030/hard-deferrable-debug-partition-sensor-j8z3s34c/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 6.0,
+  "cost_list_price_usd": 0.360459,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 36,
+    "output": 10877,
+    "reasoning": 3724,
+    "cache_read": 563607,
+    "cache_write": 34724,
+    "total": 609244
+  },
+  "steps": 18,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.360459,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 36,
+      "outputTokens": 10877,
+      "cacheReadInputTokens": 563607,
+      "cacheCreationInputTokens": 34724,
+      "webSearchRequests": 0,
+      "costUSD": 0.36045940000000004,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 3724,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 18,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": true,
+    "hits": [
+      {
+        "call": 13,
+        "tool": "bash",
+        "path": "<tmp>/pf",
+        "root": "shared-temp"
+      },
+      {
+        "call": 13,
+        "tool": "bash",
+        "path": "<work>/",
+        "root": "work-root"
+      },
+      {
+        "call": 13,
+        "tool": "bash",
+        "path": "<tmp>/pf",
+        "root": "shared-temp"
+      }
+    ],
+    "denied_hits": [
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/pf",
+        "root": "shared-temp"
+      },
+      {
+        "call": 14,
+        "tool": "bash",
+        "path": "<tmp>/pf",
+        "root": "shared-temp"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/pf2",
+        "root": "shared-temp"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/stub.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/stub.log",
+        "root": "shared-temp"
+      },
+      {
+        "call": 15,
+        "tool": "bash",
+        "path": "<tmp>/pf2",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 14,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "cd <work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-033030/hard-deferrable-debug-partition-sensor-j8z3s34c/ws\n(python tools/catalog_stub.py --port-file <tmp>/pf --publish orders/2026-09-29=2 --publish orders/2026-09-28=3 >/dev/null 2>&1 &) ; s",
+        "output": "Exit code 1\ncat: <tmp>/pf: No such file or directory\nTraceback (most recent call last):\n  File \"<stdin>\", line 8, in <module>\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.8/Frameworks/Python.framework"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": true,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 17,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

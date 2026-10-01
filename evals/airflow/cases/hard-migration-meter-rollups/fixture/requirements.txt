@@ -1,0 +1,2 @@
+apache-airflow==2.11.2
+pendulum==3.2.0

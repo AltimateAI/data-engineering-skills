@@ -1,0 +1,17 @@
+All checks pass. Summary follows.
+
+**Root causes and fixes** (all in `dags/lake/`, sensor constructor and the DAGs untouched):
+
+1. **Loop blocked.** The hook's "async" method called the blocking `requests` client, so every 1-2 s catalog call froze the triggerer's event loop. `aget_partition` now uses `httpx.AsyncClient`. Measured against the stub with 1 s latency: worst loop stall dropped to 0.05 s.
+2. **Restart restarted the clock.** The trigger computed `give_up_at` from `time.monotonic()` in `__init__` and never serialized it, so every triggerer restart rebuilt it with a fresh budget, and `defer()` had no backstop timeout. The trigger now carries an absolute epoch deadline in its serialized kwargs, and the sensor passes `defer(timeout=remaining + 60 s)` as a backstop. A trigger rebuilt from `serialize()` mid-wait stopped at the original deadline. Old trigger rows still in the DB (with the `timeout` kwarg) are still accepted.
+3. **Timeout was retried.** `execute_complete` raised a plain `AirflowException`, which Airflow retries. It now raises `AirflowSensorTimeout`, or `AirflowSkipException` under `soft_fail`. Verified: failed after one try, skipped with `soft_fail`.
+4. **Outage went green.** The error event fell through to `event.get("files", [])` and returned an empty list. An error event now raises the hook's `LakeApiError`, which is deliberately not an `AirflowException` so the try fails and retries run even under `soft_fail`. Verified with every call answering 503: four tries, then failed, never skipped.
+5. **Same file list.** The published cache was keyed by table only, so the first partition published for `orders` was returned for every other `orders` sensor in that triggerer. It is now keyed by table and partition. Verified: today and yesterday return different lists.
+6. **Absurd file counts.** `TaskSuccessEvent(xcoms=...)` is pushed by the triggerer through the ORM with `serialize=True`, which stores the list as a JSON string inside the JSON column. The worker then received a 92-character string and `len()` counted characters. The trigger now yields a plain `TriggerEvent` and `execute_complete` returns the list. The load task received a real list of 2 files.
+7. **Budget reset on retry.** Nothing anchored the wait across tries. The sensor now stores the first wait start in `context["task_state_store"]` (survives retries, cleared when the wait ends) and computes `deadline = anchor + timeout` on every try. Verified with a 3 s outage, `retries=3` and `timeout=8`: three failed tries, then the fourth deferred and timed out 8 s after the first try started, not 8 s per try. Published inside the budget after the outage: success with the list. The non-deferrable poke path gets the same remaining budget.
+
+**Verified in this session** (Airflow 3.3.2, `replay_runs.py` with real retries against `tools/catalog_stub.py`): the static checker exits 0; the two real DAGs `lake_ingest` and `orders_diff` succeed with correct lists; the eight scenarios above. The scratch DAGs and logs live in `../scratch`, outside the repo.
+
+**Not verified:** a real triggerer process (restart was simulated via the serialize round trip; `dags test` runs triggers inline), and the two pre-existing checker warnings about `{{ ds }}` on manual runs, which are unrelated to these incidents and left as is.
+
+Nothing is committed. The diff is three files in `dags/lake/`.

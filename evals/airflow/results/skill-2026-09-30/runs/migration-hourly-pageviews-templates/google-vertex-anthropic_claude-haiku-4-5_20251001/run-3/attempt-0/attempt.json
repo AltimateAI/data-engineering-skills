@@ -1,0 +1,40 @@
+{
+  "status": "task_fail",
+  "reason": "failed primary: staging cleanup keeps and deletes the same files as 2.11",
+  "primary_pass": false,
+  "primary_score": 0.8571428571428571,
+  "secondary_score": 0.3333333333333333,
+  "returncode": 0,
+  "wall_s": 108.2,
+  "cost_usd": 0.494257,
+  "cost_reported_usd": 2.057551,
+  "tokens": {
+    "input": 1563410,
+    "output": 8652,
+    "reasoning": 0,
+    "cache_read": 1307162,
+    "cache_write": 256132,
+    "total": 3135356
+  },
+  "steps": 22,
+  "termination": {
+    "why_model_stopped": "explicit-done",
+    "why_harness_stopped": "none",
+    "done_reason": "explicit_done"
+  },
+  "skill_invocations": [
+    {
+      "name": "migrating-to-airflow-3",
+      "origin": "global",
+      "status": "completed"
+    }
+  ],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [
+    "migrating-to-airflow-3"
+  ],
+  "bash_commands": 14,
+  "edited_files": 2,
+  "errors": [],
+  "trace_path": "~/.local/share/altimate-code/traces/ses_f0caac492ffe18DgfcVwqMDWhU.json"
+}

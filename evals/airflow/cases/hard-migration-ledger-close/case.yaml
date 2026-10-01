@@ -1,0 +1,33 @@
+id: hard-migration-ledger-close
+area: migration
+suite: hard
+split: holdout
+airflow_version: "3.3"
+max_turns: 80
+timeout_s: 3600
+prompt: |
+  Our general-ledger Airflow project (DAGs and SQL in dags/, the business-day
+  timetable, macros and operators in plugins/) runs on Airflow 2.11. Please
+  migrate the whole project to Airflow 3.3 (the local venv already has 3.3.2)
+  so we can switch production over. The auditors compare outputs before and
+  after the cutover: every scheduled run and the manual re-close described in
+  the README runbook must write exactly the same files, audit records
+  included, as on 2.11.
+description: |
+  Hard whole-project Airflow 2.11 -> 3.3 migration (6 DAGs, plugin with a
+  custom timetable + macro, DuckDB SQL operator with .sql templates, custom
+  config section). Pain points P7 and P3. Runtime-only traps on 3.3: (1) the
+  runbook CLI trigger of daily_close has no logical date or data interval, so
+  the SQL template, output path and roll-forward must take the business day
+  from the custom timetable's infer_manual_data_interval(run_after) (3.x no
+  longer applies it to CLI triggers); (2) the operator's audit record reads
+  dag_run.external_trigger (gone; run_type replaces it); (3) `conf`,
+  `next_ds`, `yesterday_ds` gone from the SQL template context; (4) the weekly
+  report takes `prev_ds` as a TaskFlow argument, which silently becomes None
+  (and for a weekly cron the replacement is ds-7, not ds-1); (5) the XCom
+  cursor with include_prior_dates returns a list; (6) bare cron, preset and
+  timedelta schedules become trigger timetables, including a New York
+  business-day cron across the DST change. Primary: imports, task graphs,
+  schedules, and a replay of scheduled runs + the CLI re-close under the
+  Airflow 3 worker DB block, with every output equal to the original replayed
+  in 2.11.

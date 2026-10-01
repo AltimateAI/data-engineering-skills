@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG pageviews_daily exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['pageviews_daily', 'top_pages_weekly']"
+    },
+    {
+      "name": "catchup enabled",
+      "kind": "primary",
+      "passed": false,
+      "detail": "catchup=False"
+    },
+    {
+      "name": "one writer at a time",
+      "kind": "primary",
+      "passed": false,
+      "detail": "max_active_runs=16, max_active_tasks=16 (per run on 3.x), task max_active_tis_per_dag={'discover_missing_dates': None, 'load_date': None, 'get_yesterday_date': None, 'load_date__1': None}"
+    },
+    {
+      "name": "start_date is fixed, not computed from the clock",
+      "kind": "primary",
+      "passed": true,
+      "detail": "start_date 2026-01-01 00:00:00+00:00; with the clock +400 days: 2026-01-01 00:00:00+00:00"
+    },
+    {
+      "name": "catchup backfills exactly 09-01..09-29",
+      "kind": "primary",
+      "passed": false,
+      "detail": "the scheduler would create more than 40 runs up to 2026-09-30T12:00:00+00:00 (first run ['2026-01-01 03:00:00+00:00', '2026-01-01 03:00:00+00:00', '2026-01-01 03:00:00+00:00']); start_date is before the data"
+    },
+    {
+      "name": "each run loads a day whose export has already landed",
+      "kind": "primary",
+      "passed": false,
+      "detail": "no run loaded any day"
+    },
+    {
+      "name": "re-running a day repairs it and keeps other days",
+      "kind": "primary",
+      "passed": false,
+      "detail": "needs a clean backfill in which one run loaded 2026-09-15 (run index None)"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": false,
+      "detail": "failed tasks []: manual__2026-09-30T16:01:11.344580+00:00 [up_for_retry] ti_id=01a0f30c-6da0-7169-af6a-b83793049214>, <TaskInstance: pageviews_daily.load_date__1 manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66ce-71d3-af54-61e1bda63bed>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T16:06:07.282785Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_date manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66cc-72a0-a50e-47c77b72b66f>, <TaskInstance: pageviews_daily.discover_missing_dates manual__2026-09-30T16:01:11.344580+00:00 [up_for_retry] ti_id=01a0f30c-6da0-7169-af6a-b83793049214>, <TaskInstance: pageviews_daily.load_date__1 manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66ce-71d3-af54-61e1bda63bed>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T16:06:08.289637Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_date manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66cc-72a0-a50e-47c77b72b66f>, <TaskInstance: pageviews_daily.discover_missing_dates manual__2026-09-30T16:01:11.344580+00:00 [up_for_retry] ti_id=01a0f30c-6da0-7169-af6a-b83793049214>, <TaskInstance: pageviews_daily.load_date__1 manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66ce-71d3-af54-61e1bda63bed>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T16:06:09.294843Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_date manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66cc-72a0-a50e-47c77b72b66f>, <TaskInstance: pageviews_daily.discover_missing_dates manual__2026-09-30T16:01:11.344580+00:00 [up_for_retry] ti_id=01a0f30c-6da0-7169-af6a-b83793049214>, <TaskInstance: pageviews_daily.load_date__1 manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66ce-71d3-af54-61e1bda63bed>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n2026-09-30T16:06:10.301180Z [warning  ] No tasks to run. unrunnable tasks: {<TaskInstance: pageviews_daily.load_date manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66cc-72a0-a50e-47c77b72b66f>, <TaskInstance: pageviews_daily.discover_missing_dates manual__2026-09-30T16:01:11.344580+00:00 [up_for_retry] ti_id=01a0f30c-6da0-7169-af6a-b83793049214>, <TaskInstance: pageviews_daily.load_date__1 manual__2026-09-30T16:01:11.344580+00:00 [None] ti_id=01a0f30c-66ce-71d3-af54-61e1bda63bed>} [airflow.sdk.definitions.dag] loc=dag.py:1424\n\n\n[timed out after 300s]"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": false,
+  "primary_score": 0.3333333333333333,
+  "secondary_score": 1.0
+}

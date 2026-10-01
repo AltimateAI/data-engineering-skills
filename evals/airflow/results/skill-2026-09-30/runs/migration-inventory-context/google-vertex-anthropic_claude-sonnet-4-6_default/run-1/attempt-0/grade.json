@@ -1,0 +1,55 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly on Airflow 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "dags: ['inventory_snapshot']"
+    },
+    {
+      "name": "inventory_snapshot keeps its tasks and dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tasks=['audit_snapshot', 'build_snapshot'] deps=[['build_snapshot', 'audit_snapshot']]"
+    },
+    {
+      "name": "dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": "manual 2026-03-05: state=success interval=[None, None] failed=[]"
+    },
+    {
+      "name": "consecutive scheduled daily runs succeed on 3.3",
+      "kind": "primary",
+      "passed": true,
+      "detail": "2026-03-05T00:00:00+00:00: state=success interval=[2026-03-04T00:00:00+00:00, 2026-03-05T00:00:00+00:00] failed=[]; 2026-03-06T00:00:00+00:00: state=success interval=[2026-03-05T00:00:00+00:00, 2026-03-06T00:00:00+00:00] failed=[]"
+    },
+    {
+      "name": "snapshots and audit records match the Airflow 2 output",
+      "kind": "primary",
+      "passed": true,
+      "detail": "expected {'audit/2026-03-04.json': '{\"day\": \"2026-03-04\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'audit/2026-03-05.json': '{\"day\": \"2026-03-05\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'inventory/2026-03-04.csv': 'sku,on_hand,change\\nSKU-1001,-24,\\nSKU-1002,119,\\nSKU-1003,151,\\nSKU-2001,208,\\nSKU-2002,157,\\nSKU-3001,178,', 'inventory/2026-03-05.csv': 'sku,on_hand,change\\nSKU-1001,-24,0\\nSKU-1002,111,-8\\nSKU-1003,160,9\\nSKU-2001,215,7\\nSKU-2002,193,36\\nSKU-3001,178,0'}\n got {'audit/2026-03-04.json': '{\"day\": \"2026-03-04\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'audit/2026-03-05.json': '{\"day\": \"2026-03-05\", \"low_stock\": [\"SKU-1001\"], \"sku_count\": 6}', 'inventory/2026-03-04.csv': 'sku,on_hand,change\\nSKU-1001,-24,\\nSKU-1002,119,\\nSKU-1003,151,\\nSKU-2001,208,\\nSKU-2002,157,\\nSKU-3001,178,', 'inventory/2026-03-05.csv': 'sku,on_hand,change\\nSKU-1001,-24,0\\nSKU-1002,111,-8\\nSKU-1003,160,9\\nSKU-2001,215,7\\nSKU-2002,193,36\\nSKU-3001,178,0'}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bruff\\\\b.*\\\\bAIR\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/inventory_snapshot.py:98 AIR001; dags/inventory_snapshot.py:102 AIR001"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

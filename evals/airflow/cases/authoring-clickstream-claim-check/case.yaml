@@ -1,0 +1,36 @@
+id: authoring-clickstream-claim-check
+area: authoring
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1500
+prompt: |
+  We want daily page-level stats from the web clickstream exports in
+  data/clickstream/. Please build a DAG `clickstream_page_stats` that runs
+  daily and, for the run's date, is split into three tasks:
+
+  - extract: read that day's export and drop bot traffic (is_bot = 1) and
+    anonymous hits (empty user_id)
+  - transform: per page, compute views, unique_users and avg_load_ms (the mean
+    of load_ms, rounded to 1 decimal)
+  - load: write output/page_stats/<date>.csv with the columns
+    page,views,unique_users,avg_load_ms, sorted by page
+
+  The exports are about 20k events a day today, but marketing expects roughly
+  50x that by next year once the new tracker is live. Reruns of a day should
+  just replace that day's file. We need to be able to rerun any day since
+  2026-09-01.
+description: |
+  XCom misuse (P6): passing a day's events between tasks through XCom (a
+  DataFrame converted to records/JSON) instead of a claim check (write the data
+  to storage, pass the path). Primary: DAG imports; extract/transform/load form
+  a chain of >= 3 tasks; `airflow dags test` for two days succeeds and writes
+  correct page stats; after the runs, the grader reads the XCom table in the
+  grading metadata DB (and the Variable table) and requires every value to be
+  <= 48 KB (the filtered
+  events are ~1 MB as JSON, per-page aggregates ~2 KB, so passing aggregates
+  via XCom is allowed); a rerun reproduces the output.
+  Mutants: extract returns df.to_dict("records"), extract returns
+  df.to_json(), Airflow-2 style `ti.xcom_pull()` without task_ids (returns
+  None in Airflow 3), events stashed in an Airflow Variable.

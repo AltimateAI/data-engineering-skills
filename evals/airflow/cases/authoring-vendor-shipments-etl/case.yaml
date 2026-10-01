@@ -1,0 +1,48 @@
+id: authoring-vendor-shipments-etl
+area: authoring
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+grade_timeout_s: 1500
+prompt: |
+  Our carrier aggregator drops a daily file called shipments_YYYY-MM-DD.csv
+  into a landing directory. The directory is different in every environment,
+  so its path lives in the Airflow Variable `vendor_landing_dir`.
+
+  Please add a new DAG `vendor_shipments` that runs every morning at 06:00 UTC
+  and does this:
+
+  1. Waits for that day's file. It usually shows up before 9am but is
+     sometimes late. If it still isn't there by the end of the day, the run
+     should fail so on-call gets paged. We only have a couple of worker slots,
+     so waiting for the file must not tie one of them up.
+  2. Loads the file into a `vendor_shipments` table in our DuckDB warehouse:
+     the file's columns plus a `ship_date` column set to the file's date. If a
+     day gets rerun, its rows must not be duplicated.
+  3. Runs scripts/publish_shipments_report.sh for that date to publish the
+     carrier report.
+
+  The aggregator has been sending files since 2026-09-01, and we need to be
+  able to rerun any day since then by hand, but the DAG must not backfill old
+  days on its own when we deploy it. Follow the conventions of the existing
+  DAG.
+description: |
+  Version-aware authoring of a new Airflow 3.3 ETL DAG from a spec: sensor +
+  Python load + BashOperator. Pain points: outdated/hallucinated APIs (P1),
+  top-level Variable access (P3), poke sensors with the 7-day default timeout
+  (P8), non-idempotent loads (P4), BashOperator relative paths.
+  Primary: DAG imports with no Variables defined; parsing with Variable /
+  Connection lookups trapped and a poisoned metadata-DB URL records no access;
+  sensor -> load -> bash ordering; every sensor is reschedule-mode or
+  deferrable with a timeout <= 24h; daily 06:00 UTC schedule, catchup off; `airflow
+  dags test` for two days (Variable points at a grader-owned landing dir whose
+  files differ from the sample data) loads exactly the file rows, the report
+  script output is correct, and a rerun keeps row counts; on a day whose file
+  has not landed, nothing downstream of the sensor starts within 150 s (catches
+  sensors on the directory or a wrong path). The load step may be Python or
+  bash. The grader defines an
+  `fs_default` connection (conn_type fs) so FileSensor solutions work.
+  Mutants: poke sensor without timeout, module-level Variable.get with a
+  default, Airflow-2 `schedule_interval`, bash script by relative path,
+  append-only load, sensor watching the landing directory instead of the file.

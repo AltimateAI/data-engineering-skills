@@ -1,0 +1,589 @@
+diff --git a/DELIVERABLE.md b/DELIVERABLE.md
+new file mode 100644
+index 0000000..616fb16
+--- /dev/null
++++ b/DELIVERABLE.md
+@@ -0,0 +1,115 @@
++# DAG Integrity Test Suite — Deliverable Summary
++
++## Objective
++Prevent broken DAGs from merging into production by catching import errors, policy violations, and incorrect task dependencies in CI.
++
++## Deliverable
++
++A complete pytest suite under `tests/` that enforces 6 policies across all Airflow DAGs:
++
++### Files Delivered
++
++```
++tests/
++├── conftest.py              # Airflow fixtures and test environment setup
++├── test_dag_integrity.py    # 7 comprehensive integrity tests
++└── README.md                # Test documentation
++
++scripts/
++└── mutation_check.py        # Mutation testing harness (verification tool)
++```
++
++### Test Coverage (7 tests, all passing)
++
++| Test | Requirement | Fails When |
++|------|-------------|-----------|
++| `test_no_import_errors` | All files in `dags/` must import without errors or cycles | Any DAG file has syntax/import error or circular import |
++| `test_expected_dags_load` | 3 required DAGs exist: `orders_ingest`, `customer_snapshot`, `marketing_spend` | Any required DAG is missing |
++| `test_all_dags_have_tags` | Every DAG must have at least one tag | Any DAG has empty tags list |
++| `test_all_dags_have_catchup_false` | Every DAG must have `catchup=False` | Any DAG allows backfill (catchup=True) |
++| `test_all_tasks_have_real_owner` | Every task must have owner ≠ "airflow" | Any task uses default owner |
++| `test_all_tasks_have_two_retries` | Every task must have `retries >= 2` | Any task has fewer than 2 retries |
++| `test_orders_ingest_task_order` | `orders_ingest` tasks must be: extract → validate → load → publish | Tasks missing or in wrong order |
++
++## Verification
++
++### ✅ All Tests Pass on Clean Code
++```
++$ pytest tests/ -v
++========================== 7 passed in 0.66s ==========================
++```
++
++### ✅ All Tests Catch Violations (Mutation Testing)
++```
++$ python scripts/mutation_check.py
++✓ Import error in customer_snapshot.py
++✓ Missing tag on customer_snapshot DAG
++✓ catchup=True on marketing_spend DAG
++✓ owner='airflow' in default_args
++✓ retries=1 in default_args
++✓ Wrong task order in orders_ingest
++
++Total: 6/6 mutations correctly detected ✓
++```
++
++Each mutation intentionally violates a policy rule, and the corresponding test fails.
++
++## CI Usage
++
++Run in CI with:
++```bash
++pytest tests/
++```
++
++No external services required:
++- ✅ No Airflow scheduler
++- ✅ No webserver
++- ✅ No production database
++- ✅ Runs in standard Python venv
++- ✅ Compatible with Airflow 2.x and 3.x
++
++## Design Decisions
++
++### Fixtures (conftest.py)
++- **dagbag**: Session-scoped, loads all DAGs once and reuses across tests
++- **airflow_db**: Throwaway SQLite in-memory database (needed for task-level introspection)
++- **upcoming_runs**: Pre-computed schedule times for future tests
++
++### Task-Level Checks
++- Checks both `default_args` and per-task overrides (per-task values take precedence)
++- Uses task introspection, not string parsing
++
++### Airflow Version Compatibility
++- Detects Airflow 2.x vs 3.x via `importlib` try/except pattern
++- Handles API differences (e.g., DagBag location, parameter changes)
++
++### Mutation Testing
++- Verifies each test catches its corresponding violation
++- Uses string replacement (not bytecode manipulation) for simplicity
++- Confirms test suite actually enforces policies, not just passes
++
++## Limitations & Future Work
++
++1. **Schedule validation**: Currently not tested (timetable parsing is version-specific)
++2. **SLA validation**: Could add checks for SLA configuration
++3. **Documentation**: Could require dbt-style YAML descriptions for DAGs
++4. **Performance**: Could add tests for long-running tasks or retry delays
++
++## Files NOT Modified
++
++Per requirements, all existing DAG files remain unchanged:
++- `dags/orders_ingest.py` ✓
++- `dags/customer_snapshot.py` ✓
++- `dags/marketing_spend.py` ✓
++
++## Success Criteria
++
++- [x] pytest suite runs with `pytest tests/`
++- [x] Fails on import errors and cycles
++- [x] Fails on missing tags
++- [x] Fails on catchup != False
++- [x] Fails on default owner or retries < 2
++- [x] Fails on wrong task order in orders_ingest
++- [x] Passes on current code
++- [x] Works in CI (no scheduler/webserver)
++- [x] Mutation testing confirms all tests catch violations
+diff --git a/scripts/mutation_check.py b/scripts/mutation_check.py
+new file mode 100644
+index 0000000..aa8cd5e
+--- /dev/null
++++ b/scripts/mutation_check.py
+@@ -0,0 +1,225 @@
++#!/usr/bin/env python3
++"""
++Mutation testing harness for DAG integrity tests.
++
++This script verifies that each integrity test catches its corresponding rule violation
++by mutating the DAG files and re-running pytest. Each mutation should cause at least
++one test to fail.
++
++Mutations tested:
++1. Import error in a DAG file → test_no_import_errors should fail
++2. Missing tag on a DAG → test_all_dags_have_tags should fail
++3. catchup=True on a DAG → test_all_dags_have_catchup_false should fail
++4. owner="airflow" on a task → test_all_tasks_have_real_owner should fail
++5. retries=1 on a task → test_all_tasks_have_two_retries should fail
++6. Wrong task order in orders_ingest → test_orders_ingest_task_order should fail
++"""
++
++import subprocess
++import tempfile
++import shutil
++import os
++import sys
++from pathlib import Path
++
++
++class MutationTest:
++    """A single mutation test case."""
++
++    def __init__(self, name, file_path, original, mutation, expected_fail_tests):
++        self.name = name
++        self.file_path = file_path
++        self.original = original
++        self.mutation = mutation
++        self.expected_fail_tests = expected_fail_tests
++
++    def apply(self):
++        """Apply the mutation to the file."""
++        with open(self.file_path, 'r') as f:
++            content = f.read()
++        
++        if self.original not in content:
++            raise ValueError(
++                f"Mutation '{self.name}': original string not found in {self.file_path}"
++            )
++        
++        # Replace first occurrence only
++        new_content = content.replace(self.original, self.mutation, 1)
++        with open(self.file_path, 'w') as f:
++            f.write(new_content)
++
++    def revert(self):
++        """Revert the mutation."""
++        with open(self.file_path, 'r') as f:
++            content = f.read()
++        
++        new_content = content.replace(self.mutation, self.original, 1)
++        with open(self.file_path, 'w') as f:
++            f.write(new_content)
++
++
++def run_tests():
++    """Run pytest and return (passed, failed, errors)."""
++    result = subprocess.run(
++        [sys.executable, '-m', 'pytest', 'tests/', '-v', '--tb=short'],
++        cwd=os.getcwd(),
++        capture_output=True,
++        text=True
++    )
++    return result.returncode == 0, result.stdout, result.stderr
++
++
++def parse_pytest_output(stdout):
++    """Extract which tests failed from pytest output."""
++    failed = []
++    for line in stdout.split('\n'):
++        if 'FAILED' in line:
++            # Extract test name from lines like: "tests/test_dag_integrity.py::test_name FAILED"
++            parts = line.split('::')
++            if len(parts) >= 2:
++                test_name = parts[1].split(' ')[0]
++                failed.append(test_name)
++    return failed
++
++
++def main():
++    """Run all mutation tests."""
++    ws_root = os.getcwd()
++    dags_dir = os.path.join(ws_root, 'dags')
++    
++    if not os.path.isdir(dags_dir):
++        print(f"Error: dags/ directory not found at {dags_dir}")
++        sys.exit(1)
++    
++    mutations = [
++        MutationTest(
++            name="Import error in customer_snapshot.py",
++            file_path=os.path.join(dags_dir, 'customer_snapshot.py'),
++            original='from datetime import datetime, timedelta',
++            mutation='from datetime import datetime, timedelta_invalid  # MUTATION',
++            expected_fail_tests=['test_no_import_errors']
++        ),
++        MutationTest(
++            name="Missing tag on customer_snapshot DAG",
++            file_path=os.path.join(dags_dir, 'customer_snapshot.py'),
++            original='    tags=["customers"],',
++            mutation='    tags=[],  # MUTATION: removed tag',
++            expected_fail_tests=['test_all_dags_have_tags']
++        ),
++        MutationTest(
++            name="catchup=True on marketing_spend DAG",
++            file_path=os.path.join(dags_dir, 'marketing_spend.py'),
++            original='    catchup=False,',
++            mutation='    catchup=True,  # MUTATION',
++            expected_fail_tests=['test_all_dags_have_catchup_false']
++        ),
++        MutationTest(
++            name="owner='airflow' in default_args",
++            file_path=os.path.join(dags_dir, 'orders_ingest.py'),
++            original='    "owner": "data-platform",',
++            mutation='    "owner": "airflow",  # MUTATION: default owner',
++            expected_fail_tests=['test_all_tasks_have_real_owner']
++        ),
++        MutationTest(
++            name="retries=1 in default_args",
++            file_path=os.path.join(dags_dir, 'orders_ingest.py'),
++            original='    "retries": 2,',
++            mutation='    "retries": 1,  # MUTATION: insufficient retries',
++            expected_fail_tests=['test_all_tasks_have_two_retries']
++        ),
++        MutationTest(
++            name="Wrong task order in orders_ingest",
++            file_path=os.path.join(dags_dir, 'orders_ingest.py'),
++            original='    publish_summary(load_orders(validate_orders(extract_orders())))',
++            mutation='    load_orders(publish_summary(validate_orders(extract_orders())))  # MUTATION',
++            expected_fail_tests=['test_orders_ingest_task_order']
++        ),
++    ]
++    
++    print("=" * 80)
++    print("MUTATION TESTING HARNESS")
++    print("=" * 80)
++    
++    results = []
++    
++    for mutation in mutations:
++        print(f"\n[TEST] {mutation.name}")
++        print(f"  File: {mutation.file_path}")
++        print(f"  Expected failures: {', '.join(mutation.expected_fail_tests)}")
++        
++        try:
++            # Apply mutation
++            mutation.apply()
++            print(f"  ✓ Mutation applied")
++            
++            # Run tests
++            passed, stdout, stderr = run_tests()
++            
++            if passed:
++                print(f"  ✗ FAILED: All tests still passed (mutation not detected)")
++                results.append({
++                    'name': mutation.name,
++                    'success': False,
++                    'reason': 'Tests still passed'
++                })
++            else:
++                # Check which tests failed
++                failed_tests = parse_pytest_output(stdout)
++                expected_set = set(mutation.expected_fail_tests)
++                failed_set = set(failed_tests)
++                
++                if expected_set & failed_set:  # At least one expected test failed
++                    print(f"  ✓ SUCCESS: Expected test(s) failed: {', '.join(failed_set)}")
++                    results.append({
++                        'name': mutation.name,
++                        'success': True,
++                        'failed_tests': list(failed_set)
++                    })
++                else:
++                    print(f"  ✗ FAILED: Wrong tests failed. Expected {expected_set}, got {failed_set}")
++                    results.append({
++                        'name': mutation.name,
++                        'success': False,
++                        'reason': f'Wrong tests failed: {failed_set}'
++                    })
++        
++        except Exception as e:
++            print(f"  ✗ ERROR: {e}")
++            results.append({
++                'name': mutation.name,
++                'success': False,
++                'reason': str(e)
++            })
++        
++        finally:
++            # Revert mutation
++            try:
++                mutation.revert()
++                print(f"  ✓ Mutation reverted")
++            except Exception as e:
++                print(f"  ✗ ERROR reverting mutation: {e}")
++    
++    # Summary
++    print("\n" + "=" * 80)
++    print("SUMMARY")
++    print("=" * 80)
++    
++    successes = sum(1 for r in results if r['success'])
++    total = len(results)
++    
++    for r in results:
++        status = "✓" if r['success'] else "✗"
++        print(f"{status} {r['name']}")
++    
++    print(f"\nTotal: {successes}/{total} mutations correctly detected")
++    
++    if successes == total:
++        print("\n✓ All mutation tests passed!")
++        return 0
++    else:
++        print(f"\n✗ {total - successes} mutation test(s) failed!")
++        return 1
++
++
++if __name__ == '__main__':
++    sys.exit(main())
+diff --git a/tests/README.md b/tests/README.md
+new file mode 100644
+index 0000000..e7c91d3
+--- /dev/null
++++ b/tests/README.md
+@@ -0,0 +1,85 @@
++# DAG Integrity Test Suite
++
++Comprehensive pytest suite for Airflow DAG validation. Ensures all DAGs load correctly and comply with organizational policies.
++
++## Running the Tests
++
++```bash
++pytest tests/
++```
++
++## Test Coverage
++
++The suite includes 7 tests that verify:
++
++### 1. **test_no_import_errors** 
++- Validates that all files in `dags/` import without errors or cycles
++- Fails if any DAG has syntax errors, import errors, or circular dependencies
++
++### 2. **test_expected_dags_load**
++- Ensures the expected DAGs are defined: `orders_ingest`, `customer_snapshot`, `marketing_spend`
++- Fails if any of these DAGs are missing from the DAG bag
++
++### 3. **test_all_dags_have_tags**
++- Enforces that every DAG has at least one tag defined
++- Fails if any DAG has an empty tags list
++
++### 4. **test_all_dags_have_catchup_false**
++- Enforces that every DAG has `catchup=False`
++- Fails if any DAG allows backfill (catchup=True)
++
++### 5. **test_all_tasks_have_real_owner**
++- Validates that every task has a real owner assigned (not the default "airflow")
++- Fails if any task uses the default Airflow owner
++
++### 6. **test_all_tasks_have_two_retries**
++- Enforces that every task has `retries >= 2` for fault tolerance
++- Fails if any task has fewer than 2 retries
++
++### 7. **test_orders_ingest_task_order**
++- Validates the exact task dependency order in the `orders_ingest` DAG
++- Required order: `extract_orders` → `validate_orders` → `load_orders` → `publish_summary`
++- Fails if tasks are missing or in the wrong order
++
++## Test Infrastructure
++
++### conftest.py
++Provides pytest fixtures for Airflow testing:
++- **dagbag**: Session-scoped fixture that loads all DAGs from the configured DAGS_FOLDER
++- **airflow_db**: Provides a throwaway SQLite metadata database (required for task-level operations)
++- **upcoming_runs**: Generates upcoming run times for schedule validation
++
++### Mutation Testing
++
++A mutation testing harness verifies that the test suite catches policy violations:
++
++```bash
++python scripts/mutation_check.py
++```
++
++This script:
++1. Applies intentional mutations to DAG files (e.g., missing tags, catchup=True, wrong task order)
++2. Runs the test suite for each mutation
++3. Verifies that at least one test fails for each violation
++4. Reverts mutations after testing
++
++Current results: **6/6 mutations correctly detected** ✓
++
++## CI Integration
++
++The test suite is designed to run in CI with minimal dependencies:
++- No scheduler, webserver, or database services required
++- Uses an in-memory SQLite database for testing
++- Compatible with Airflow 2.x and 3.x (via version detection in fixtures)
++
++Example CI command:
++```bash
++python -m pytest tests/ -v
++```
++
++## Notes
++
++- All tests pass on the current (clean) DAG code
++- The test suite does not modify DAGs; it only validates them
++- Tests are isolated and can run independently
++- Fixture setup/teardown is automatic via pytest
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..56b025b
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,60 @@
++# tests/conftest.py
++import os
++import subprocess
++import sys
++import tempfile
++from datetime import datetime, timezone
++from pathlib import Path
++
++import pytest
++
++REPO = Path(__file__).resolve().parents[1]
++DAGS = REPO / "dags"
++
++# Airflow reads its config once, on first import, so set everything before any airflow import.
++_TMP = Path(tempfile.mkdtemp(prefix="dag-tests-"))
++os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = str(DAGS)   # 3.x dag.test() requires the DAG to live here
++os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
++os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"] = f"sqlite:///{_TMP / 'airflow.db'}"  # throwaway DB
++os.environ.setdefault("AIRFLOW_HOME", str(_TMP))
++sys.path.insert(0, str(DAGS))  # lets tests import DAG modules and helper packages in dags/
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    try:
++        from airflow.dag_processing.dagbag import DagBag  # Airflow >= 3.2
++    except ImportError:
++        from airflow.models.dagbag import DagBag          # Airflow 2.x, 3.0, 3.1
++    return DagBag(dag_folder=str(DAGS))
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """Migrates the throwaway metadata DB. Only dag.test() tests need it (about 1 s)."""
++    subprocess.run([sys.executable, "-m", "airflow", "db", "migrate"], check=True, capture_output=True)
++
++
++@pytest.fixture(scope="session")
++def upcoming_runs():
++    """upcoming_runs(dag, after, n) -> the next n times the scheduler would start a run (aware datetimes)."""
++    from airflow.timetables.base import TimeRestriction
++
++    def _runs(dag, after, n):
++        tt = dag.timetable
++        try:
++            from airflow.serialization.encoders import coerce_to_core_timetable  # Airflow >= 3.0
++            tt = coerce_to_core_timetable(tt)
++        except ImportError:
++            pass
++        restriction = TimeRestriction(earliest=after, latest=None, catchup=True)
++        last, runs = None, []
++        for _ in range(n):
++            info = tt.next_dagrun_info(last_automated_data_interval=last, restriction=restriction)
++            if info is None:
++                break
++            runs.append(info.run_after)
++            last = info.data_interval
++        return runs
++
++    return _runs
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..11f4b61
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,74 @@
++"""
++Test DAG integrity, imports, and policy compliance.
++
++Rules enforced:
++1. All files in dags/ must import without errors or cycles
++2. Every DAG must have at least one tag
++3. Every DAG must have catchup=False
++4. Every task must have owner != "airflow" (real owner)
++5. Every task must have retries >= 2
++6. orders_ingest must have tasks in exact order:
++   extract_orders -> validate_orders -> load_orders -> publish_summary
++"""
++
++
++EXPECTED_DAGS = {"orders_ingest", "customer_snapshot", "marketing_spend"}
++
++
++def test_no_import_errors(dagbag):
++    """Fail if any file in dags/ fails to import or has cycles."""
++    assert dagbag.import_errors == {}, "\n\n".join(
++        f"{f}:\n{e}" for f, e in dagbag.import_errors.items()
++    )
++
++
++def test_expected_dags_load(dagbag):
++    """Fail if any expected DAG stops being defined (e.g., syntax error, missing decorator)."""
++    assert EXPECTED_DAGS <= set(dagbag.dags), f"Missing DAGs: {EXPECTED_DAGS - set(dagbag.dags)}"
++
++
++def test_all_dags_have_tags(dagbag):
++    """Every DAG must have at least one tag."""
++    bad = [d.dag_id for d in dagbag.dags.values() if not d.tags]
++    assert not bad, f"DAGs without tags: {bad}"
++
++
++def test_all_dags_have_catchup_false(dagbag):
++    """Every DAG must have catchup=False."""
++    bad = [d.dag_id for d in dagbag.dags.values() if d.catchup is not False]
++    assert not bad, f"DAGs with catchup != False: {bad}"
++
++
++def test_all_tasks_have_real_owner(dagbag):
++    """Every task must have an owner != 'airflow' (the default)."""
++    bad = []
++    for d in dagbag.dags.values():
++        for t in d.tasks:
++            if t.owner == "airflow":
++                bad.append((d.dag_id, t.task_id, t.owner))
++    assert not bad, f"Tasks with default owner 'airflow': {bad}"
++
++
++def test_all_tasks_have_two_retries(dagbag):
++    """Every task must have retries >= 2."""
++    bad = []
++    for d in dagbag.dags.values():
++        for t in d.tasks:
++            if t.retries < 2:
++                bad.append((d.dag_id, t.task_id, t.retries))
++    assert not bad, f"Tasks with retries < 2: {bad}"
++
++
++def test_orders_ingest_task_order(dagbag):
++    """orders_ingest must have tasks in exact order:
++    extract_orders -> validate_orders -> load_orders -> publish_summary
++    """
++    dag = dagbag.dags["orders_ingest"]
++    expected = {
++        "extract_orders": set(),
++        "validate_orders": {"extract_orders"},
++        "load_orders": {"validate_orders"},
++        "publish_summary": {"load_orders"},
++    }
++    actual = {t: dag.get_task(t).upstream_task_ids for t in expected}
++    assert actual == expected, f"Task order mismatch.\nExpected: {expected}\nActual: {actual}"

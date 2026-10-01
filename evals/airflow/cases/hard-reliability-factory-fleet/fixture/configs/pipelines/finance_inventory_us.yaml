@@ -1,0 +1,23 @@
+name: finance_inventory_us
+team: finance
+tier: standard
+description: Inventory pipeline for finance
+schedule:
+  hour: 2
+  days: 1-5
+  minute: 0
+steps:
+- name: extract
+  table: finance.raw_inventory_00
+- name: stage
+  table: finance.stg_inventory_00
+  depends_on:
+  - extract
+- name: snapshot
+  table: finance.int_inventory_00
+  depends_on:
+  - stage
+- name: publish
+  table: finance.mart_inventory_00
+  depends_on:
+  - snapshot

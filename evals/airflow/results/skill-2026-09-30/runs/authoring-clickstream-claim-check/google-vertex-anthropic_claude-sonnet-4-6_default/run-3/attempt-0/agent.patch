@@ -1,0 +1,239 @@
+diff --git a/dags/clickstream_page_stats.py b/dags/clickstream_page_stats.py
+new file mode 100644
+index 0000000..055be99
+--- /dev/null
++++ b/dags/clickstream_page_stats.py
+@@ -0,0 +1,233 @@
++"""Daily page-level stats from web clickstream exports.
++
++Period contract
++---------------
++scheduled run firing at midnight UTC for date D  → processes day D
++manual trigger (3.x, no logical date)            → processes the run_after date
++rerun / clear of any run                          → processes the same day as the original
++backfill of date D                                → processes day D
++
++Claim-check pattern
++-------------------
++At 1 M+ events/day the raw filtered rows are too large for XCom (metadata DB).
++Each task writes its output to a scratch file keyed on the run date and returns
++only the path; the next task reads that path.  A rerun overwrites the scratch
++file before the load task replaces the final output, so the pattern is idempotent.
++
++Output
++------
++output/page_stats/<date>.csv  columns: page,views,unique_users,avg_load_ms
++Reruns replace that day's file.
++"""
++
++from __future__ import annotations
++
++import csv
++import gzip
++import os
++import tempfile
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import CronTriggerTimetable, dag, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DATA_DIR = PROJECT_ROOT / "data" / "clickstream"
++SCRATCH_DIR = PROJECT_ROOT / "output" / ".scratch" / "clickstream_page_stats"
++OUTPUT_DIR = PROJECT_ROOT / "output" / "page_stats"
++
++
++def _run_date(dag_run) -> pendulum.DateTime:
++    """Return the calendar date this run processes, in UTC.
++
++    Processes its own day: the date of the scheduled tick (trigger timetable)
++    or the date of run_after for manual/asset-triggered runs.
++    """
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").start_of("day")
++
++
++@dag(
++    dag_id="clickstream_page_stats",
++    schedule=CronTriggerTimetable("0 0 * * *", timezone="UTC"),
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=True,
++    max_active_runs=1,
++    params={"day": None},
++    tags=["clickstream", "web"],
++)
++def clickstream_page_stats():
++
++    @task
++    def extract(**context) -> str:
++        """Read the day's gzipped clickstream export, drop bots and anonymous hits.
++
++        Writes filtered rows to a scratch CSV and returns the path (claim check).
++        At 1 M+ events/day this is far too large for XCom.
++        """
++        dag_run = context["dag_run"]
++        params = context.get("params") or {}
++
++        # Honour explicit reprocess param
++        day_str = params.get("day")
++        if day_str:
++            date = pendulum.parse(day_str, tz="UTC").start_of("day")
++        else:
++            date = _run_date(dag_run)
++
++        date_label = date.to_date_string()  # "YYYY-MM-DD"
++
++        src = DATA_DIR / f"{date_label}.csv.gz"
++        if not src.exists():
++            raise FileNotFoundError(
++                f"Clickstream export not found: {src}. "
++                "Check that the export for this date has been delivered."
++            )
++
++        SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
++        out_path = SCRATCH_DIR / f"{date_label}.csv"
++
++        kept = 0
++        dropped_bot = 0
++        dropped_anon = 0
++
++        tmp_path = Path(tempfile.mktemp(dir=SCRATCH_DIR, suffix=".tmp"))
++        try:
++            with (
++                gzip.open(src, "rt", newline="") as src_fh,
++                tmp_path.open("w", newline="") as out_fh,
++            ):
++                reader = csv.DictReader(src_fh)
++                writer = csv.DictWriter(
++                    out_fh,
++                    fieldnames=["event_id", "user_id", "page", "event_ts", "load_ms"],
++                )
++                writer.writeheader()
++                for row in reader:
++                    if row["is_bot"] == "1":
++                        dropped_bot += 1
++                        continue
++                    if not row["user_id"].strip():
++                        dropped_anon += 1
++                        continue
++                    writer.writerow(
++                        {
++                            "event_id": row["event_id"],
++                            "user_id": row["user_id"],
++                            "page": row["page"],
++                            "event_ts": row["event_ts"],
++                            "load_ms": row["load_ms"],
++                        }
++                    )
++                    kept += 1
++            # Atomic replace so a partial write never leaves a corrupt file
++            tmp_path.replace(out_path)
++        finally:
++            if tmp_path.exists():
++                tmp_path.unlink()
++
++        print(
++            f"extract [{date_label}]: kept={kept} dropped_bot={dropped_bot} "
++            f"dropped_anon={dropped_anon}"
++        )
++        return str(out_path)
++
++    @task
++    def transform(filtered_path: str, **context) -> str:
++        """Aggregate filtered events per page: views, unique_users, avg_load_ms.
++
++        Reads the scratch CSV from extract (claim-check path).
++        Writes aggregated CSV to a scratch file and returns that path.
++        """
++        dag_run = context["dag_run"]
++        params = context.get("params") or {}
++
++        day_str = params.get("day")
++        if day_str:
++            date = pendulum.parse(day_str, tz="UTC").start_of("day")
++        else:
++            date = _run_date(dag_run)
++
++        date_label = date.to_date_string()
++
++        # Per-page accumulators
++        page_views: dict[str, int] = {}
++        page_users: dict[str, set[str]] = {}
++        page_load_ms: dict[str, list[float]] = {}
++
++        with Path(filtered_path).open(newline="") as fh:
++            for row in csv.DictReader(fh):
++                page = row["page"]
++                page_views[page] = page_views.get(page, 0) + 1
++                page_users.setdefault(page, set()).add(row["user_id"])
++                page_load_ms.setdefault(page, []).append(float(row["load_ms"]))
++
++        SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
++        out_path = SCRATCH_DIR / f"{date_label}_agg.csv"
++        tmp_path = Path(tempfile.mktemp(dir=SCRATCH_DIR, suffix=".tmp"))
++        try:
++            with tmp_path.open("w", newline="") as fh:
++                writer = csv.writer(fh)
++                writer.writerow(["page", "views", "unique_users", "avg_load_ms"])
++                for page in sorted(page_views):
++                    loads = page_load_ms[page]
++                    avg = round(sum(loads) / len(loads), 1)
++                    writer.writerow(
++                        [
++                            page,
++                            page_views[page],
++                            len(page_users[page]),
++                            avg,
++                        ]
++                    )
++            tmp_path.replace(out_path)
++        finally:
++            if tmp_path.exists():
++                tmp_path.unlink()
++
++        print(f"transform [{date_label}]: {len(page_views)} unique pages aggregated")
++        return str(out_path)
++
++    @task
++    def load(agg_path: str, **context) -> None:
++        """Write output/page_stats/<date>.csv.  Overwrites any existing file (idempotent).
++
++        Reads the aggregated CSV from transform (claim-check path).
++        """
++        dag_run = context["dag_run"]
++        params = context.get("params") or {}
++
++        day_str = params.get("day")
++        if day_str:
++            date = pendulum.parse(day_str, tz="UTC").start_of("day")
++        else:
++            date = _run_date(dag_run)
++
++        date_label = date.to_date_string()
++
++        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
++        final_path = OUTPUT_DIR / f"{date_label}.csv"
++        tmp_path = Path(tempfile.mktemp(dir=OUTPUT_DIR, suffix=".tmp"))
++
++        try:
++            with (
++                Path(agg_path).open(newline="") as src_fh,
++                tmp_path.open("w", newline="") as dst_fh,
++            ):
++                # Pass through; data is already sorted by page from transform
++                dst_fh.write(src_fh.read())
++            # Atomic replace: rerun replaces the day's file, never appends
++            tmp_path.replace(final_path)
++        finally:
++            if tmp_path.exists():
++                tmp_path.unlink()
++
++        print(f"load [{date_label}]: written to {final_path}")
++
++    # Wire up the pipeline with claim-check paths flowing between tasks
++    filtered = extract()
++    aggregated = transform(filtered)
++    load(aggregated)
++
++
++clickstream_page_stats()

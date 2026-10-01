@@ -1,0 +1,61 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG orders_daily_load exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['customers_snapshot', 'orders_daily_load']"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "scheduled runs load exactly their own day",
+      "kind": "primary",
+      "passed": true,
+      "detail": "runs: {'state': 'success', 'logical_date': '2026-03-09T00:00:00+00:00', 'start': '2026-03-09T00:00:00+00:00', 'end': '2026-03-10T00:00:00+00:00', 'run_after': '2026-03-10T00:00:00+00:00'}, {'state': 'success', 'logical_date': '2026-03-10T00:00:00+00:00', 'start': '2026-03-10T00:00:00+00:00', 'end': '2026-03-11T00:00:00+00:00', 'run_after': '2026-03-11T00:00:00+00:00'}; "
+    },
+    {
+      "name": "re-running a day creates no duplicates and keeps the previous day",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "re-run repairs a partially written day",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "2 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

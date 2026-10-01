@@ -1,0 +1,79 @@
+{
+  "checks": [
+    {
+      "name": "test suite exists under tests/",
+      "kind": "primary",
+      "passed": true,
+      "detail": "tests/test_dag_integrity.py"
+    },
+    {
+      "name": "suite passes on the correct project",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 9 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite passes on a behaviour-preserving edit of the sources",
+      "kind": "primary",
+      "passed": true,
+      "detail": "passed: 9 passed, 0 failed, 0 errors, 0 skipped"
+    },
+    {
+      "name": "suite catches hidden bug: import_error",
+      "kind": "primary",
+      "passed": true,
+      "detail": "customer_snapshot imports the removed airflow.operators.dummy module -> failed: 1 passed, 0 failed, 8 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestDagImports::test_dags_can_be_loaded [RuntimeError], tests.test_dag_integrity.TestDagPolicy::test_all_dags_have_tags [RuntimeError], tests.test_dag_integrity.TestDagPolicy::test_all_dags_have_catchup_false [RuntimeError], tests.test_dag_integrity.TestTaskPolicy::test_all_tasks_have_real_owner [RuntimeError], tests.test_dag_integrity.TestTaskPolicy::test_all_tasks_have_minimum_retries [RuntimeError]"
+    },
+    {
+      "name": "suite catches hidden bug: dag_cycle",
+      "kind": "primary",
+      "passed": true,
+      "detail": "orders_ingest gains a publish_summary >> extract_orders edge (cycle) -> failed: 1 passed, 0 failed, 8 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestDagImports::test_dags_can_be_loaded [RuntimeError], tests.test_dag_integrity.TestDagPolicy::test_all_dags_have_tags [RuntimeError], tests.test_dag_integrity.TestDagPolicy::test_all_dags_have_catchup_false [RuntimeError], tests.test_dag_integrity.TestTaskPolicy::test_all_tasks_have_real_owner [RuntimeError], tests.test_dag_integrity.TestTaskPolicy::test_all_tasks_have_minimum_retries [RuntimeError]"
+    },
+    {
+      "name": "suite catches hidden bug: missing_dependency",
+      "kind": "primary",
+      "passed": true,
+      "detail": "orders_ingest loads straight from extract; validate_orders is left dangling -> failed: 8 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestOrdersIngestPipeline::test_orders_ingest_task_order [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: retries_disabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "marketing_spend.fetch_spend overrides retries=0 at task level -> failed: 8 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestTaskPolicy::test_all_tasks_have_minimum_retries [AssertionError]"
+    },
+    {
+      "name": "suite catches hidden bug: catchup_enabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "customer_snapshot sets catchup=True -> failed: 8 passed, 1 failed, 0 errors, 0 skipped; behavioral failures: tests.test_dag_integrity.TestDagPolicy::test_all_dags_have_catchup_false [AssertionError]"
+    },
+    {
+      "name": "project sources left unchanged",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bpytest\\\\b']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "tests/test_dag_integrity.py:36 AIR311; tests/test_dag_integrity.py:72 AIR311; tests/test_dag_integrity.py:85 AIR311; tests/test_dag_integrity.py:97 AIR311; tests/test_dag_integrity.py:118 AIR311; tests/test_dag_integrity.py:137 AIR311; tests/test_dag_integrity.py:169 AIR311; tests/test_dag_integrity.py:175 AIR311; tests/test_dag_integrity.py:193 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.75
+}

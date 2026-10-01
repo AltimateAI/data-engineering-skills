@@ -1,0 +1,272 @@
+diff --git a/tests/conftest.py b/tests/conftest.py
+new file mode 100644
+index 0000000..d60c836
+--- /dev/null
++++ b/tests/conftest.py
+@@ -0,0 +1,61 @@
++"""Shared pytest setup.
++
++Airflow reads its configuration when it is first imported, so the environment
++below has to be in place before any test module imports airflow. Everything
++points at a throwaway AIRFLOW_HOME so the suite never touches a developer's
++~/airflow (or CI's) config or metadata DB.
++"""
++
++from __future__ import annotations
++
++import atexit
++import os
++import shutil
++import sys
++import tempfile
++from pathlib import Path
++
++import pytest
++
++REPO_ROOT = Path(__file__).resolve().parents[1]
++DAGS_DIR = REPO_ROOT / "dags"
++DATA_DIR = REPO_ROOT / "data"
++
++_AIRFLOW_HOME = Path(tempfile.mkdtemp(prefix="airflow-tests-"))
++atexit.register(shutil.rmtree, _AIRFLOW_HOME, ignore_errors=True)
++
++os.environ.update(
++    {
++        "AIRFLOW_HOME": str(_AIRFLOW_HOME),
++        "AIRFLOW__CORE__DAGS_FOLDER": str(DAGS_DIR),
++        "AIRFLOW__CORE__LOAD_EXAMPLES": "False",
++        "AIRFLOW__CORE__DEFAULT_TIMEZONE": "utc",
++        "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": f"sqlite:///{_AIRFLOW_HOME / 'airflow.db'}",
++        "AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS": "False",
++    }
++)
++
++# Airflow puts the dags folder on sys.path; do the same so tests can import
++# DAG modules (e.g. `import shipments_daily`) to unit test their helpers.
++sys.path.insert(0, str(DAGS_DIR))
++
++if "airflow" in sys.modules:  # pragma: no cover - guards against plugin import order
++    raise RuntimeError("airflow was imported before tests/conftest.py could configure it")
++
++
++@pytest.fixture(scope="session")
++def dagbag():
++    from airflow.models import DagBag
++
++    bag = DagBag(dag_folder=str(DAGS_DIR), include_examples=False, safe_mode=False)
++    assert not bag.import_errors, f"DAG import errors: {bag.import_errors}"
++    return bag
++
++
++@pytest.fixture(scope="session")
++def airflow_db():
++    """A freshly initialised SQLite metadata DB, only for tests that run DAGs."""
++    from airflow.utils import db
++
++    db.initdb()
++    yield
+diff --git a/tests/test_dag_integrity.py b/tests/test_dag_integrity.py
+new file mode 100644
+index 0000000..f3dce47
+--- /dev/null
++++ b/tests/test_dag_integrity.py
+@@ -0,0 +1,36 @@
++"""Structural checks that apply to every DAG in dags/."""
++
++from __future__ import annotations
++
++import pytest
++
++from conftest import DAGS_DIR
++
++DAG_FILES = sorted(p for p in DAGS_DIR.rglob("*.py") if p.name != "__init__.py")
++
++
++def test_dag_files_found():
++    assert DAG_FILES, f"no DAG files found in {DAGS_DIR}"
++
++
++@pytest.mark.parametrize("dag_file", DAG_FILES, ids=lambda p: str(p.relative_to(DAGS_DIR)))
++def test_dag_file_imports(dag_file):
++    from airflow.models import DagBag
++
++    # safe_mode=False: parse every .py file, not just ones that mention "airflow" and "dag".
++    bag = DagBag(dag_folder=str(dag_file), include_examples=False, safe_mode=False)
++    assert not bag.import_errors, bag.import_errors[str(dag_file)]
++
++
++def test_expected_dags_present(dagbag):
++    assert {"shipments_daily", "carrier_rates_weekly"} <= set(dagbag.dag_ids)
++
++
++def test_every_task_has_at_least_two_retries(dagbag):
++    too_few = [
++        f"{dag_id}.{task.task_id} (retries={task.retries})"
++        for dag_id, dag in sorted(dagbag.dags.items())
++        for task in dag.tasks
++        if task.retries < 2
++    ]
++    assert not too_few, f"tasks with fewer than 2 retries: {too_few}"
+diff --git a/tests/test_shipments_daily.py b/tests/test_shipments_daily.py
+new file mode 100644
+index 0000000..b8fca42
+--- /dev/null
++++ b/tests/test_shipments_daily.py
+@@ -0,0 +1,157 @@
++"""shipments_daily: schedule, task wiring, late-shipment rules, end-to-end run."""
++
++from __future__ import annotations
++
++import csv
++from datetime import datetime, timezone
++
++import pytest
++
++DAG_ID = "shipments_daily"
++
++
++@pytest.fixture(scope="module")
++def dag(dagbag):
++    return dagbag.dags[DAG_ID]
++
++
++# --- schedule ---------------------------------------------------------------
++
++
++def test_schedule_is_weekdays_0730_utc(dag):
++    assert dag.timezone.name == "UTC"
++
++    # Two full weeks starting Monday 2026-03-02.
++    runs = [
++        info.logical_date
++        for info in dag.iter_dagrun_infos_between(
++            datetime(2026, 3, 2, tzinfo=timezone.utc),
++            datetime(2026, 3, 15, 23, 59, tzinfo=timezone.utc),
++        )
++    ]
++    expected = [
++        datetime(2026, 3, day, 7, 30, tzinfo=timezone.utc)
++        for day in (2, 3, 4, 5, 6, 9, 10, 11, 12, 13)
++    ]
++    assert runs == expected
++
++
++# --- dependencies -----------------------------------------------------------
++
++
++def test_report_only_built_after_extract(dag):
++    from airflow.utils.trigger_rule import TriggerRule
++
++    extract = dag.get_task("extract_shipments")
++    report = dag.get_task("build_report")
++    assert extract.task_id in report.get_flat_relative_ids(upstream=True)
++
++    # Every task on a path from extract to report must wait for its upstreams to
++    # succeed; otherwise the report could run after a failed/skipped extract.
++    between = (
++        extract.get_flat_relative_ids(upstream=False) & report.get_flat_relative_ids(upstream=True)
++    ) | {report.task_id}
++    loose = {t: dag.get_task(t).trigger_rule for t in between}
++    assert all(rule == TriggerRule.ALL_SUCCESS for rule in loose.values()), loose
++
++
++# --- late-shipment rules ----------------------------------------------------
++
++RUN_DATE = "2026-03-03"
++
++
++def find_late_shipments(rows, as_of):
++    # Imported lazily so a broken DAG file shows up as a failing import test
++    # rather than aborting collection of the whole suite.
++    from shipments_daily import find_late_shipments as impl
++
++    return impl(rows, as_of=as_of)
++
++
++def shipment(shipment_id, promised, delivered="", ship_date="2026-02-20", carrier="DHL"):
++    return {
++        "shipment_id": shipment_id,
++        "ship_date": ship_date,
++        "carrier": carrier,
++        "promised_date": promised,
++        "delivered_date": delivered,
++    }
++
++
++def late_days(rows, as_of=RUN_DATE):
++    return {r["shipment_id"]: r["days_late"] for r in find_late_shipments(rows, as_of=as_of)}
++
++
++@pytest.mark.parametrize(
++    "promised, delivered, expected_days",
++    [
++        # delivered on the run date
++        pytest.param("2026-03-02", RUN_DATE, 1, id="delivered-today-1-day-late"),
++        pytest.param("2026-02-26", RUN_DATE, 5, id="delivered-today-late-across-month-end"),
++        pytest.param(RUN_DATE, RUN_DATE, None, id="delivered-today-on-promised-date"),
++        pytest.param("2026-03-05", RUN_DATE, None, id="delivered-today-early"),
++        # delivered some other day: not part of this run's report
++        pytest.param("2026-02-24", "2026-03-02", None, id="delivered-late-yesterday"),
++        pytest.param("2026-02-24", "2026-02-24", None, id="delivered-on-time-earlier"),
++        # still open
++        pytest.param("2026-03-02", "", 1, id="open-promised-yesterday"),
++        pytest.param("2026-02-26", "", 5, id="open-promised-across-month-end"),
++        pytest.param(RUN_DATE, "", None, id="open-promised-today"),
++        pytest.param("2026-03-06", "", None, id="open-promised-future"),
++    ],
++)
++def test_late_rules(promised, delivered, expected_days):
++    result = late_days([shipment("SH-1", promised, delivered)])
++    if expected_days is None:
++        assert result == {}
++    else:
++        assert result == {"SH-1": expected_days}
++
++
++def test_late_rules_mixed_batch_keeps_input_fields():
++    rows = [
++        shipment("A", "2026-03-01", RUN_DATE, carrier="UPS"),
++        shipment("B", "2026-02-28", "", carrier="FedEx"),
++        shipment("C", RUN_DATE, RUN_DATE),
++        shipment("D", "2026-03-04", ""),
++    ]
++    late = {r["shipment_id"]: r for r in find_late_shipments(rows, as_of=RUN_DATE)}
++    assert set(late) == {"A", "B"}
++    assert late["A"] == {**rows[0], "days_late": 2}
++    assert late["B"] == {**rows[1], "days_late": 3}
++
++
++def test_late_rules_empty_input():
++    assert find_late_shipments([], as_of=RUN_DATE) == []
++
++
++# --- end to end -------------------------------------------------------------
++
++
++@pytest.mark.usefixtures("airflow_db")
++def test_end_to_end_on_sample_data(dag, tmp_path, monkeypatch):
++    from airflow.utils.state import DagRunState, TaskInstanceState
++    from shipments_daily import REPORT_COLUMNS
++
++    # The DAG writes to <repo>/output/; redirect it so the test neither pollutes
++    # the checkout nor passes on a stale file from an earlier run.
++    report_globals = dag.get_task("build_report").python_callable.__globals__
++    monkeypatch.setitem(report_globals, "OUTPUT_DIR", tmp_path)
++
++    dag_run = dag.test(execution_date=datetime(2026, 3, 3, tzinfo=timezone.utc))
++
++    states = {ti.task_id: ti.state for ti in dag_run.get_task_instances()}
++    assert states == {t: TaskInstanceState.SUCCESS for t in dag.task_ids}
++    assert dag_run.state == DagRunState.SUCCESS
++
++    with (tmp_path / "2026-03-03.csv").open(newline="") as fh:
++        reader = csv.reader(fh)
++        header, *rows = list(reader)
++
++    assert header == REPORT_COLUMNS
++    assert rows == [
++        ["SH-1009", "DHL", "2026-02-26", "", "5"],
++        ["SH-1003", "FedEx", "2026-02-28", "", "3"],
++        ["SH-1007", "UPS", "2026-03-01", "2026-03-03", "2"],
++        ["SH-1001", "DHL", "2026-03-02", "2026-03-03", "1"],
++    ]

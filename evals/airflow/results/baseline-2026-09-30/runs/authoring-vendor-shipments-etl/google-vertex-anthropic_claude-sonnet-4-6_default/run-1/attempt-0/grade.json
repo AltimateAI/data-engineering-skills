@@ -1,0 +1,97 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly with no Variables defined",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG vendor_shipments exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['vendor_shipments', 'warehouse_orders']"
+    },
+    {
+      "name": "no Variable/Connection/metadata-DB access at parse time",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{\"calls\": [], \"dags\": [\"vendor_shipments\", \"warehouse_orders\"], \"errors\": {}}"
+    },
+    {
+      "name": "task graph is wait-for-file -> load -> bash report",
+      "kind": "primary",
+      "passed": true,
+      "detail": "sensor(s) ['wait_for_file'] -> ['load_shipments'] -> publish_report"
+    },
+    {
+      "name": "file sensor is reschedule-mode or deferrable",
+      "kind": "primary",
+      "passed": true,
+      "detail": "[{\"task_id\": \"wait_for_file\", \"class\": \"FileSensor\", \"mode\": \"reschedule\", \"deferrable\": true, \"timeout_s\": 64740.0}]"
+    },
+    {
+      "name": "file sensor has an explicit timeout of at most 24h",
+      "kind": "primary",
+      "passed": true,
+      "detail": "[{\"task_id\": \"wait_for_file\", \"class\": \"FileSensor\", \"mode\": \"reschedule\", \"deferrable\": true, \"timeout_s\": 64740.0}]"
+    },
+    {
+      "name": "runs daily at 06:00 UTC with catchup disabled",
+      "kind": "primary",
+      "passed": true,
+      "detail": "catchup=False runs=[{'start': '2026-10-01T06:00:00+00:00', 'end': '2026-10-01T06:00:00+00:00', 'run_after': '2026-10-01T06:00:00+00:00'}, {'start': '2026-10-02T06:00:00+00:00', 'end': '2026-10-02T06:00:00+00:00', 'run_after': '2026-10-02T06:00:00+00:00'}, {'start': '2026-10-03T06:00:00+00:00', 'end': '2026-10-03T06:00:00+00:00', 'run_after': '2026-10-03T06:00:00+00:00'}]"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "vendor_shipments holds exactly the landing file rows per ship_date",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{'2026-09-29': 'expected 42 rows, got 42', '2026-09-28': 'expected 31 rows, got 31'}"
+    },
+    {
+      "name": "carrier report published for each run date",
+      "kind": "primary",
+      "passed": true,
+      "detail": "{'2026-09-29': {'expected': {'UPS': (11, 185.74), 'DHL': (11, 260.51), 'FedEx': (10, 293.5), 'USPS': (10, 183.08)}, 'got': {'DHL': (11, 260.51), 'FedEx': (10, 293.5), 'UPS': (11, 185.74), 'USPS': (10, 183.08)}}, '2026-09-28': {'expected': {'USPS': (6, 146.97), 'FedEx': (11, 155.6), 'DHL': (9, 185.47), 'UPS': (5, 75.3)}, 'got': {'DHL': (9, 185.47), 'FedEx': (11, 155.6), 'UPS': (5, 75.3), 'USPS': (6, 146.97)}}}"
+    },
+    {
+      "name": "rerun of a day does not duplicate rows and keeps other days",
+      "kind": "primary",
+      "passed": true,
+      "detail": "second run ok=True; {'2026-09-29': 42, '2026-09-28': 31}"
+    },
+    {
+      "name": "load waits for the day's file (nothing runs when the file is missing)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "no shipments_2026-09-27.csv in the landing dir; after 150s (timed_out=True) task states: {'wait_for_file': 'queued', 'publish_report': 'None', 'load_shipments': 'None'}"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bDagBag\\\\b', '\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "dags/vendor_shipments.py:71 AIR311"
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

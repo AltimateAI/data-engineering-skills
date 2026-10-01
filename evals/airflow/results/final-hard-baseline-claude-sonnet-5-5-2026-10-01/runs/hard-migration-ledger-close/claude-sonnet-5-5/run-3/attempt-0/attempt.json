@@ -1,0 +1,153 @@
+{
+  "status": "ok",
+  "reason": "primary checks passed",
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0,
+  "cost_usd": 0.797406,
+  "cost_reported_usd": 0.797406,
+  "wall_s": 842.9,
+  "launched": true,
+  "agent_env_pre": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "sandbox": true,
+  "tmpdir": "<work>/final-hard-baseline-claude-sonnet-5-5-2026-10-01-baseline-20261001-040414/hard-migration-ledger-close-ofil5fsz/tmp",
+  "agent_python": "~/.cache/des-evals/agent-airflow-3.3/bin/python",
+  "returncode": 0,
+  "run_cap_usd": 6.0,
+  "cost_list_price_usd": 0.797406,
+  "cost_correction_applied": false,
+  "double_counted_steps": 0,
+  "tokens": {
+    "input": 62,
+    "output": 22967,
+    "reasoning": 11099,
+    "cache_read": 1536381,
+    "cache_write": 65084,
+    "total": 1624494
+  },
+  "steps": 32,
+  "runner": "claude-code",
+  "billing": "subscription",
+  "cost_usd_equivalent": 0.797406,
+  "cost_source": "result",
+  "model_usage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 62,
+      "outputTokens": 22967,
+      "cacheReadInputTokens": 1536381,
+      "cacheCreationInputTokens": 65084,
+      "webSearchRequests": 0,
+      "costUSD": 0.7974061999999998,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 11099,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "num_turns": 32,
+  "result_subtype": "success",
+  "subagent_stats": {
+    "spawned": 0,
+    "completed": 0,
+    "failed": 0
+  },
+  "inventory": {
+    "skills": [
+      "altimate-code",
+      "creating-dbt-models",
+      "debugging-dbt-errors",
+      "developing-incremental-models",
+      "documenting-dbt-models",
+      "finding-expensive-queries",
+      "migrating-sql-to-dbt",
+      "optimizing-databricks-sql",
+      "optimizing-query-by-id",
+      "optimizing-query-text",
+      "refactoring-dbt-models",
+      "testing-dbt-models",
+      "deep-research",
+      "dataviz",
+      "update-config",
+      "verify",
+      "debug",
+      "code-review",
+      "simplify",
+      "batch",
+      "fewer-permission-prompts",
+      "doctor",
+      "loop",
+      "schedule",
+      "claude-api",
+      "workflow-authoring",
+      "run",
+      "run-skill-generator",
+      "plugin-authoring"
+    ],
+    "plugins": [
+      {
+        "name": "cc-plugin-agents-md",
+        "path": "builtin",
+        "source": "cc-plugin-agents-md@builtin"
+      },
+      {
+        "name": "cc-plugin-plugin-authoring",
+        "path": "builtin",
+        "source": "cc-plugin-plugin-authoring@builtin"
+      }
+    ],
+    "mcp_servers": [],
+    "model": "claude-sonnet-5-5",
+    "claude_code_version": "2.1.286",
+    "memory_paths": null
+  },
+  "inventory_problems": [],
+  "aborted": null,
+  "agent_env_post": {
+    "changed": false,
+    "restored": false,
+    "detail": ""
+  },
+  "isolation": {
+    "contamination_suspect": false,
+    "hits": [],
+    "denied_hits": [
+      {
+        "call": 12,
+        "tool": "bash",
+        "path": "<tmp>/af3home",
+        "root": "shared-temp"
+      }
+    ],
+    "kill_commands": [
+      {
+        "call": 25,
+        "patterns": [
+          "pkill"
+        ],
+        "command": "export AIRFLOW_HOME=$PWD/.afhome AIRFLOW__CORE__PLUGINS_FOLDER=$PWD/plugins AIRFLOW__CORE__DAGS_FOLDER=$PWD/dags AIRFLOW__LEDGER__BASE_CURRENCY=USD AIRFLOW__CORE__LOAD_EXAMPLES=False PYTHONPATH=$PWD/plugins\npkill -f \"dags test\" ; sleep 1\ntimeout 90 airflow dags test gl_postings_hourly 2026-03-03T14:",
+        "output": "Command did not complete within its 120s timeout and was moved to the background (ID: bpmwr22w0). Output is being written to: <work>/final-hard-baseline-claude-sonnet-"
+      }
+    ],
+    "escaping_symlinks": []
+  },
+  "contamination_suspect": false,
+  "kill_command": true,
+  "termination": {
+    "why_harness_stopped": "completed",
+    "why_model_stopped": "end_turn",
+    "done_reason": "success"
+  },
+  "skill_invocations": [],
+  "auto_loaded_skills": [],
+  "airflow_skills_used": [],
+  "bash_commands": 31,
+  "edited_files": 0,
+  "errors": [],
+  "trace_path": null
+}

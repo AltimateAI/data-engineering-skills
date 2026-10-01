@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG partner_feed is present",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['partner_catalog_sync', 'partner_feed']"
+    },
+    {
+      "name": "task graph preserved (extract -> manifest -> deliver)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "missing=[] broken=[] deps=[['extract_orders', 'write_manifest'], ['write_manifest', 'deliver']]"
+    },
+    {
+      "name": "dags test with logical date 2026-03-02 succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "dated run delivers the 2026-03-02 feed",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "name": "manual run without a logical date succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": "result={'state': 'success', 'logical_date': None, 'run_after': '2026-03-03T00:30:00+00:00'} non-success tasks=[]"
+    },
+    {
+      "name": "manual run delivers the feed for its trigger day (2026-03-03)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "ok"
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": false,
+      "detail": "7 bash commands, none verifying"
+    },
+    {
+      "name": "ruff AIR clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 0.6666666666666666
+}

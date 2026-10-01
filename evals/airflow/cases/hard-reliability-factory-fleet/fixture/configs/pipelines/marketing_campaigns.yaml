@@ -1,0 +1,18 @@
+name: marketing_campaigns
+team: marketing
+tier: critical
+description: Campaigns pipeline for marketing
+schedule:
+  hour: 1
+  days: '*'
+steps:
+- name: extract
+  table: marketing.raw_campaigns_00
+- name: validate
+  table: marketing.int_campaigns_00
+  depends_on:
+  - extract
+- name: publish
+  table: marketing.mart_campaigns_00
+  depends_on:
+  - validate

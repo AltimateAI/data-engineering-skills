@@ -1,0 +1,27 @@
+id: migration-weekly-catchup
+area: migration
+split: dev
+airflow_version: "3.3"
+max_turns: 40
+timeout_s: 900
+prompt: |
+  Our platform team is switching the scheduler over to Airflow 3.3 (the venv in
+  this repo already has 3.3.2 installed). Please port the marketing DAGs so they
+  run on 3.3. The growth team depends on the weekly campaign report working the
+  way it does now (see the README), including the season re-runs and the
+  on-call page when the Monday report is late.
+description: |
+  Airflow 2.11 -> 3.3 migration of a weekly reporting project. Pain points P7
+  (migration beyond ruff) and P2 (schedule semantics). `weekly_campaign_report`
+  has no `catchup` argument and the README's season re-run process relies on
+  Airflow 2's catchup=True default (Airflow 3 defaults to False and nothing
+  errors). Its bare cron "0 6 * * 1" plus `ds`/`next_ds` reports on the
+  PREVIOUS Mon-Sun week; in Airflow 3 a bare cron becomes CronTriggerTimetable
+  and `next_ds` is gone. `sla` in default_args and `sla_miss_callback` are
+  silently accepted no-ops in 3.3, so the late-report page disappears unless
+  it is rebuilt as a Deadline Alert. Primary: both DAGs import on 3.3, task
+  graph preserved, dags test succeeds, the Monday 06:00 runs replayed in 3.3
+  write the same weekly CSVs/manifests as the original replayed in 2.11, the
+  scheduler would create the same backfill runs from start_date as 2.11, and a
+  Deadline Alert with a callback resolves to 09:00 UTC for the Monday run.
+  Secondary: verification commands, ruff AIR clean, no deprecation warnings.

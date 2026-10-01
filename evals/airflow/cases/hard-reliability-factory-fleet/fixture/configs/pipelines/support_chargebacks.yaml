@@ -1,0 +1,31 @@
+name: support_chargebacks
+team: support
+tier: standard
+description: Chargebacks pipeline for support
+schedule:
+  hour: 3
+  days: '*'
+  minute: 0
+owners:
+- vik
+- pia
+retries: 1
+steps:
+- name: extract
+  table: support.raw_chargebacks_00
+- name: stage
+  table: support.stg_chargebacks_00
+  depends_on:
+  - extract
+- name: transform
+  table: support.int_chargebacks_00
+  depends_on:
+  - stage
+- name: enrich
+  table: support.int_chargebacks_00
+  depends_on:
+  - transform
+- name: publish
+  table: support.mart_chargebacks_00
+  depends_on:
+  - enrich

@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "name": "DAGs import cleanly in Airflow 2.11",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "DAG inventory_snapshot exists",
+      "kind": "primary",
+      "passed": true,
+      "detail": "found: ['inventory_snapshot', 'sales_daily']"
+    },
+    {
+      "name": "scheduled daily at 02:30 UTC",
+      "kind": "primary",
+      "passed": true,
+      "detail": "[{'start': '2026-10-01T02:30:00+00:00', 'end': '2026-10-01T02:30:00+00:00', 'run_after': '2026-10-01T02:30:00+00:00'}, {'start': '2026-10-02T02:30:00+00:00', 'end': '2026-10-02T02:30:00+00:00', 'run_after': '2026-10-02T02:30:00+00:00'}, {'start': '2026-10-03T02:30:00+00:00', 'end': '2026-10-03T02:30:00+00:00', 'run_after': '2026-10-03T02:30:00+00:00'}]"
+    },
+    {
+      "name": "catchup disabled (2.11 defaults to catchup=True)",
+      "kind": "primary",
+      "passed": true,
+      "detail": "catchup=False"
+    },
+    {
+      "name": "airflow dags test succeeds",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "snapshot and low-stock files are correct for each logical date",
+      "kind": "primary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "rerun is idempotent and keeps other dates",
+      "kind": "primary",
+      "passed": true,
+      "detail": "second run ok=True; "
+    },
+    {
+      "name": "ran verification commands",
+      "kind": "secondary",
+      "passed": true,
+      "detail": "matched: ['\\\\bairflow\\\\s+dags\\\\s+(test|list-import-errors|list|reserialize)\\\\b', '\\\\bpython[0-9.]*\\\\s+\\\\S*dags/\\\\S+\\\\.py']"
+    },
+    {
+      "name": "ruff AIR0,AIR2 clean",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "name": "no deprecation warnings",
+      "kind": "secondary",
+      "passed": true,
+      "detail": ""
+    }
+  ],
+  "primary_pass": true,
+  "primary_score": 1.0,
+  "secondary_score": 1.0
+}

@@ -1,0 +1,124 @@
+diff --git a/dags/partner_feeds.py b/dags/partner_feeds.py
+new file mode 100644
+index 0000000..9a8f373
+--- /dev/null
++++ b/dags/partner_feeds.py
+@@ -0,0 +1,118 @@
++"""Daily per-partner order feed totals plus a day summary for finance.
++
++Each partner file in data/partner_drop/<day>/ is processed by its own mapped task instance,
++so one broken file fails (and retries) only itself. The summary is written on every run,
++including days with no drop folder (all zeros).
++
++Period contract (UTC):
++  scheduled run at 23:30 on day D      -> processes data/partner_drop/D/
++  manual trigger without a date        -> the UTC day of the trigger time
++  `airflow dags test partner_feeds D`  -> D
++  rerun / clear / backfill of D        -> D again (outputs fully rewritten)
++  trigger with params.day = D          -> D
++"""
++
++from __future__ import annotations
++
++import json
++from datetime import timedelta
++from pathlib import Path
++
++import pendulum
++from airflow.sdk import Param, dag, get_current_context, task
++
++PROJECT_ROOT = Path(__file__).resolve().parents[1]
++DROP_ROOT = PROJECT_ROOT / "data" / "partner_drop"
++OUTPUT_ROOT = PROJECT_ROOT / "output" / "partner_feeds"
++SUMMARY_NAME = "summary.json"
++
++
++def run_day(context) -> str:
++    """The day (YYYY-MM-DD, UTC) this run processes."""
++    day = (context.get("params") or {}).get("day")
++    if day:
++        return pendulum.parse(day).to_date_string()
++    dag_run = context["dag_run"]
++    anchor = dag_run.logical_date or dag_run.run_after
++    return pendulum.instance(anchor).in_tz("UTC").to_date_string()
++
++
++def write_json(path: Path, payload: dict) -> None:
++    path.parent.mkdir(parents=True, exist_ok=True)
++    tmp = path.with_name(path.name + ".tmp")
++    tmp.write_text(json.dumps(payload, indent=2) + "\n")
++    tmp.replace(path)
++
++
++@dag(
++    schedule="30 23 * * *",
++    start_date=pendulum.datetime(2026, 9, 1, tz="UTC"),
++    catchup=False,
++    params={"day": Param(None, type=["null", "string"], format="date")},
++    default_args={"retries": 2, "retry_delay": timedelta(minutes=5)},
++    tags=["partners"],
++)
++def partner_feeds():
++    @task
++    def list_partners() -> list[str]:
++        """Partners that sent a file for the run's day (empty when the folder is missing)."""
++        day = run_day(get_current_context())
++        drop_dir = DROP_ROOT / day
++        partners = sorted(p.stem for p in drop_dir.glob("*.csv")) if drop_dir.is_dir() else []
++
++        # Rerun hygiene: drop outputs of partners whose file is no longer in the drop.
++        out_dir = OUTPUT_ROOT / day
++        if out_dir.is_dir():
++            for stale in out_dir.glob("*.json"):
++                if stale.name != SUMMARY_NAME and stale.stem not in partners:
++                    stale.unlink()
++        return partners
++
++    @task(map_index_template="{{ partner_name }}")
++    def process_file(partner: str) -> str:
++        import csv
++        from decimal import Decimal
++
++        context = get_current_context()
++        context["partner_name"] = partner
++        day = run_day(context)
++
++        rows, total = 0, Decimal("0")
++        with open(DROP_ROOT / day / f"{partner}.csv", newline="") as f:
++            reader = csv.DictReader(f)
++            if not reader.fieldnames or "amount" not in reader.fieldnames:
++                raise ValueError(f"{partner}.csv has no 'amount' column: {reader.fieldnames}")
++            for line_no, row in enumerate(reader, start=2):
++                try:
++                    total += Decimal(row["amount"].strip())
++                except Exception as exc:
++                    raise ValueError(f"{partner}.csv line {line_no}: bad amount {row['amount']!r}") from exc
++                rows += 1
++
++        out = OUTPUT_ROOT / day / f"{partner}.json"
++        write_json(out, {"partner": partner, "rows": rows, "total_amount": float(round(total, 2))})
++        return str(out)
++
++    @task(trigger_rule="none_failed")
++    def write_summary(partners: list[str]) -> str:
++        """Runs when every file succeeded, or when there were no files (mapped task skipped)."""
++        from decimal import Decimal
++
++        day = run_day(get_current_context())
++        out_dir = OUTPUT_ROOT / day
++        rows, total = 0, Decimal("0")
++        for partner in partners:
++            result = json.loads((out_dir / f"{partner}.json").read_text())
++            rows += result["rows"]
++            total += Decimal(str(result["total_amount"]))
++
++        out = out_dir / SUMMARY_NAME
++        write_json(out, {"files": len(partners), "rows": rows, "total_amount": float(round(total, 2))})
++        return str(out)
++
++    partners = list_partners()
++    processed = process_file.expand(partner=partners)
++    processed >> write_summary(partners)
++
++
++partner_feeds()

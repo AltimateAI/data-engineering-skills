@@ -1,0 +1,208 @@
+diff --git a/dags/pipeline_factory.py b/dags/pipeline_factory.py
+index 96daadf..4ebe033 100644
+--- a/dags/pipeline_factory.py
++++ b/dags/pipeline_factory.py
+@@ -9,18 +9,34 @@ of steps. Every step becomes a task that runs `run_step`.
+ from __future__ import annotations
+ 
+ import json
++import logging
++import re
++import zlib
+ from datetime import datetime, timedelta
+ from pathlib import Path
+ 
+ import yaml
+ from airflow.providers.standard.operators.python import PythonOperator
+ from airflow.sdk import DAG
++from airflow.sdk.definitions.context import get_parsing_context
++
++log = logging.getLogger(__name__)
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ CONFIG_DIR = PROJECT_ROOT / "configs" / "pipelines"
+ REGISTRY = PROJECT_ROOT / "configs" / "registry.yaml"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
++WAREHOUSE_POOL = "warehouse"
++# Absolute weights (not the default sum-of-downstream) so the number of steps in
++# a pipeline never changes its priority: any critical task beats any standard one.
++TIER_PRIORITY = {"critical": 1000, "standard": 1}
++
++try:  # libyaml is ~10x faster; the registry alone is 20k lines
++    from yaml import CSafeLoader as _Loader
++except ImportError:  # pragma: no cover
++    from yaml import SafeLoader as _Loader
++
+ 
+ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+     """Stand-in for the warehouse call: records which step ran for which logical date."""
+@@ -40,36 +56,58 @@ def run_step(pipeline: str, step: str, table: str, **context) -> str:
+ 
+ def load_yaml(path: Path) -> dict:
+     with open(path) as fh:
+-        return yaml.load(fh, Loader=yaml.SafeLoader)
++        return yaml.load(fh, Loader=_Loader)
+ 
+ 
+-def check_table(registry: dict, table: str) -> None:
+-    if table not in registry["datasets"]:
+-        raise ValueError(f"unknown table {table!r}: register it in the platform catalog first")
++def start_minute(name: str) -> int:
++    # Spread pipelines over the hour. crc32 is stable across processes, unlike hash().
++    return zlib.crc32(name.encode()) % 60
+ 
+ 
+-def start_minute(name: str) -> int:
+-    # Spread pipelines over the hour so they do not all hit the warehouse at :00.
+-    return hash(name) % 60
++def _int_in(value, lo: int, hi: int, what: str) -> int:
++    if isinstance(value, bool) or not isinstance(value, int) or not lo <= value <= hi:
++        raise ValueError(f"{what} must be an integer in {lo}..{hi}, got {value!r}")
++    return value
+ 
+ 
+-def build_dag(path: Path) -> DAG:
++def build_dag(path: Path, registry: dict) -> DAG:
+     cfg = load_yaml(path)
+-    registry = load_yaml(REGISTRY)
++    if not isinstance(cfg, dict):
++        raise ValueError("config is not a mapping")
++    name = cfg["name"]
++    if not isinstance(name, str) or not name:
++        raise ValueError(f"invalid name {name!r}")
++    tier = cfg.get("tier", "standard")
++    if tier not in TIER_PRIORITY:
++        raise ValueError(f"unknown tier {tier!r}")
+     team = registry["teams"][cfg["team"]]
+     sched = cfg["schedule"]
+-    minute = sched.get("minute", start_minute(cfg["name"]))
+-    owners = set(team["owners"]) | set(cfg.get("owners", []))
++    hour = _int_in(sched["hour"], 0, 23, "schedule.hour")
++    minute = _int_in(sched.get("minute", start_minute(name)), 0, 59, "schedule.minute")
++    days = str(sched.get("days", "*"))
++    owners = list(dict.fromkeys([*team["owners"], *cfg.get("owners", [])]))
++    steps = cfg["steps"]
++    if not steps:
++        raise ValueError("pipeline has no steps")
++    datasets = registry["datasets"]
++    names = [step["name"] for step in steps]
++    if len(set(names)) != len(names):
++        raise ValueError("duplicate step names")
++    for step in steps:
++        if step["table"] not in datasets:
++            raise ValueError(f"unknown table {step['table']!r}: register it in the platform catalog first")
++        for upstream in step.get("depends_on") or []:
++            if upstream not in names:
++                raise ValueError(f"step {step['name']!r} depends on unknown step {upstream!r}")
+ 
+     dag = DAG(
+-        dag_id=cfg["name"],
++        dag_id=name,
+         description=cfg.get("description"),
+-        schedule=f"{minute} {sched['hour']} * * {sched.get('days', '*')}",
++        schedule=f"{minute} {hour} * * {days}",
+         start_date=datetime(2026, 1, 1),
+         catchup=False,
+         tags=[cfg["team"], "fleet"],
+-        doc_md=f"Generated from `{path.name}` on {datetime.now():%Y-%m-%d %H:%M}. "
+-               f"On-call: {team['oncall']} ({team['slack']}).",
++        doc_md=f"Generated from `{path.name}`. On-call: {team['oncall']} ({team['slack']}).",
+         default_args={
+             "owner": ",".join(owners),
+             "retries": cfg.get("retries", team["default_retries"]),
+@@ -78,19 +116,66 @@ def build_dag(path: Path) -> DAG:
+     )
+     with dag:
+         tasks = {}
+-        for step in cfg["steps"]:
+-            check_table(registry, step["table"])
++        for step in steps:
+             tasks[step["name"]] = PythonOperator(
+                 task_id=step["name"],
+                 python_callable=run_step,
+-                op_kwargs={"pipeline": cfg["name"], "step": step["name"], "table": step["table"]},
++                op_kwargs={"pipeline": name, "step": step["name"], "table": step["table"]},
++                pool=WAREHOUSE_POOL,
++                priority_weight=TIER_PRIORITY[tier],
++                weight_rule="absolute",
+             )
+-        for step in cfg["steps"]:
+-            for upstream in step.get("depends_on", []):
++        for step in steps:
++            for upstream in step.get("depends_on") or []:
+                 tasks[upstream] >> tasks[step["name"]]
++    dag.validate()  # rejects dependency cycles
+     return dag
+ 
+ 
+-for config_path in CONFIG_DIR.glob("*.yaml"):
+-    dag = build_dag(config_path)
+-    globals()[dag.dag_id] = dag
++_NAME_RE = re.compile(r"^name:\s*['\"]?([^\s'\"#]+)", re.M)
++
++
++def select_configs() -> list[Path]:
++    """All configs, or on a worker only the one that defines the DAG being run."""
++    paths = sorted(CONFIG_DIR.glob("*.yaml"))
++    wanted = get_parsing_context().dag_id
++    if wanted is None:
++        return paths
++    matches = [p for p in paths if p.stem == wanted]
++    if matches:
++        return matches
++    # name differs from the file name: find it without a full YAML parse
++    for p in paths:
++        try:
++            m = _NAME_RE.search(p.read_text())
++        except OSError:
++            continue
++        if m and m.group(1) == wanted:
++            return [p]
++    return []
++
++
++def build_fleet() -> None:
++    paths = select_configs()
++    if not paths:
++        return
++    try:
++        registry = load_yaml(REGISTRY)
++        registry["teams"], registry["datasets"]
++    except Exception:
++        log.exception("Failed to load registry %s; no fleet DAGs can be built", REGISTRY)
++        return
++    seen: dict[str, Path] = {}
++    for path in paths:
++        try:
++            dag = build_dag(path, registry)
++            if dag.dag_id in seen:
++                raise ValueError(f"dag_id {dag.dag_id!r} already defined by {seen[dag.dag_id].name}")
++        except Exception as exc:
++            log.error("Skipping pipeline config %s: %s: %s", path, type(exc).__name__, exc)
++            continue
++        seen[dag.dag_id] = path
++        globals()[dag.dag_id] = dag
++
++
++build_fleet()
+diff --git a/pools.json b/pools.json
+index bc85e99..9d6adc9 100644
+--- a/pools.json
++++ b/pools.json
+@@ -1,3 +1,12 @@
+ {
+-  "default_pool": {"slots": 128, "description": "Default pool", "include_deferred": false}
+-}
++  "default_pool": {
++    "slots": 128,
++    "description": "Default pool",
++    "include_deferred": false
++  },
++  "warehouse": {
++    "slots": 16,
++    "description": "Warehouse concurrent query limit (whole fleet)",
++    "include_deferred": false
++  }
++}
+\ No newline at end of file

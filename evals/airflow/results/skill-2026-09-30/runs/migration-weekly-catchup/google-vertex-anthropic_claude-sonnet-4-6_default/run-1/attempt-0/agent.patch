@@ -1,0 +1,115 @@
+diff --git a/dags/campaign_sync.py b/dags/campaign_sync.py
+index 4ae3318..aac7963 100644
+--- a/dags/campaign_sync.py
++++ b/dags/campaign_sync.py
+@@ -6,13 +6,13 @@ import shutil
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import CronDataIntervalTimetable, dag, task
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
+ @dag(
+-    schedule_interval="@hourly",
++    schedule=CronDataIntervalTimetable("0 * * * *", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
+     catchup=False,
+     tags=["marketing"],
+diff --git a/dags/weekly_campaign_report.py b/dags/weekly_campaign_report.py
+index 150cb17..a146f28 100644
+--- a/dags/weekly_campaign_report.py
++++ b/dags/weekly_campaign_report.py
+@@ -13,28 +13,48 @@ from datetime import timedelta
+ from pathlib import Path
+ 
+ import pendulum
+-from airflow.decorators import dag, task
++from airflow.sdk import (
++    CronDataIntervalTimetable,
++    DeadlineAlert,
++    DeadlineReference,
++    SyncCallback,
++    dag,
++    get_current_context,
++    task,
++)
+ 
+ PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ EVENTS = PROJECT_ROOT / "data" / "campaign_events.csv"
+ OUTPUT_DIR = PROJECT_ROOT / "output"
+ 
+ 
+-def notify_growth_oncall(dag, task_list, blocking_task_list, slas, blocking_tis):
+-    print(f"SLA missed for {task_list} in {dag.dag_id}")
++def notify_growth_oncall(**kwargs):
++    print("SLA missed for weekly_campaign_report")
+ 
+ 
+ @dag(
+-    schedule_interval="0 6 * * 1",
++    schedule=CronDataIntervalTimetable("0 6 * * 1", timezone="UTC"),
+     start_date=pendulum.datetime(2026, 1, 5, tz="UTC"),
+-    default_args={"owner": "growth-analytics", "retries": 1, "sla": timedelta(hours=3)},
+-    sla_miss_callback=notify_growth_oncall,
++    catchup=True,
++    default_args={"owner": "growth-analytics", "retries": 1},
++    deadline=DeadlineAlert(
++        reference=DeadlineReference.DAGRUN_QUEUED_AT,
++        interval=timedelta(hours=3),
++        callback=SyncCallback(notify_growth_oncall),
++    ),
+     max_active_runs=2,
+     tags=["marketing", "weekly"],
+ )
+ def weekly_campaign_report():
+     @task
+-    def summarize_week(ds=None, next_ds=None) -> dict:
++    def summarize_week() -> dict:
++        ctx = get_current_context()
++        # Under CronDataIntervalTimetable the interval is Mon 06:00 -> next Mon 06:00.
++        # ds == data_interval_start date string (the Mon that opens the reporting week).
++        # data_interval_end is the exclusive upper bound (next Mon 06:00 UTC).
++        ds: str = ctx["ds"]                               # e.g. "2026-01-05"
++        next_ds: str = ctx["data_interval_end"].strftime("%Y-%m-%d")  # e.g. "2026-01-12"
++
+         totals: dict[str, list[float]] = defaultdict(lambda: [0.0, 0])
+         with EVENTS.open(newline="") as fh:
+             for row in csv.DictReader(fh):
+diff --git a/output/manifests/2026-01-12.json b/output/manifests/2026-01-12.json
+new file mode 100644
+index 0000000..1230fb3
+--- /dev/null
++++ b/output/manifests/2026-01-12.json
+@@ -0,0 +1 @@
++{"campaigns": 0, "week_end": "2026-01-12", "week_start": "2026-01-12"}
+\ No newline at end of file
+diff --git a/output/reference/campaigns.csv b/output/reference/campaigns.csv
+new file mode 100644
+index 0000000..cb5859b
+--- /dev/null
++++ b/output/reference/campaigns.csv
+@@ -0,0 +1,5 @@
++campaign_id,name,channel
++C-101,spring_search,search
++C-102,retargeting,social
++C-205,brand_video,social
++C-310,partner_promo,social
+diff --git a/output/weekly/2026-01-12.csv b/output/weekly/2026-01-12.csv
+new file mode 100644
+index 0000000..499d9f5
+--- /dev/null
++++ b/output/weekly/2026-01-12.csv
+@@ -0,0 +1 @@
++campaign_id,spend,conversions,cost_per_conversion
+diff --git a/requirements.txt b/requirements.txt
+index 7056ae9..1e2dccc 100644
+--- a/requirements.txt
++++ b/requirements.txt
+@@ -1,2 +1,3 @@
+-apache-airflow==2.11.2
++apache-airflow==3.3.2
++apache-airflow-providers-standard==1.3.0
+ pendulum==3.2.0
