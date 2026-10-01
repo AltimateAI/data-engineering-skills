@@ -211,7 +211,7 @@ variable like its `task_id` (ruff AIR001), e.g. `publish_report = BashOperator(t
 
 ### 5. Verify loop (do not stop at the first green)
 `python SKILL_DIR/scripts/airflow_check.py dags plugins` after EVERY fix until exit
-0; fixing one error often uncovers the next. Then
+0 (missing optional `plugins/` is skipped; other absent inputs exit 3). Then
 `ruff check --select AIR --preview dags/ plugins/` (all AIR rules): AIR311 means an
 old import path, AIR001 a task variable not named like its `task_id`.
 
@@ -221,7 +221,7 @@ M="${TMPDIR:-/tmp}/mig"
 python SKILL_DIR/scripts/airflow_check.py dags --json --runs 5 > "$M/after.json" 2>/dev/null
 python3 SKILL_DIR/scripts/compare_previews.py "$M/before.json" "$M/after.json"
 ```
-Exit 0: same fire times, logical dates, data intervals and catchup. Any diff is a
+Exit 0: same timetable class/summary, fire times, logical dates, intervals and catchup. Any diff is a
 behaviour change: fix it, or record a deliberate, user-approved change.
 
 ### 7. BEFORE/AFTER replay (the proof)

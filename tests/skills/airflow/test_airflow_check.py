@@ -436,3 +436,182 @@ def test_vendored_copies_match_canonical():
     copies = sorted((REPO / "skills" / "airflow").glob("*/scripts/airflow_check.py"))
     stale = [str(p.relative_to(REPO)) for p in copies if p.read_bytes() != canonical]
     assert stale == [], f"re-copy skills/airflow/_shared/airflow_check.py into: {stale}"
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+def test_removed_conf_only_context_uses(key, tmp_path):
+    source = '''from airflow.decorators import task
+from airflow.configuration import conf
+@task
+def broken(**context):
+    return context["conf"], context.get("conf")
+bad_template = "{{ conf.get('core', 'dags_folder') }}"
+plain = conf.get("core", "dags_folder")
+def helper(conf, **kwargs):
+    return conf, kwargs["conf"]
+other = {"conf": 1}["conf"]
+good_template = "{{ params.conf }} {{ dag_run.conf }} {{ 'conf' }}"
+@task
+def supplied_conf(conf=None):
+    return conf
+supplied_conf(conf={"user": "value"})
+@task
+def local_conf():
+    conf = {"user": "value"}
+    return conf["user"]
+'''
+    (tmp_path / "conf.py").write_text(source)
+    data, proc = run_checker(key, "conf.py", "--static-only", cwd=tmp_path)
+    hits = [f for f in data["findings"] if f["rule"] == "removed-context-key"]
+    assert {f["line"] for f in hits} == ({5, 6} if key == "3.3" else set())
+    assert proc.returncode == (2 if key == "3.3" else 0)
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+def test_missing_optional_plugins_still_scans_dags(key, tmp_path):
+    (tmp_path / "dags").mkdir()
+    (tmp_path / "dags" / "d.py").write_text((FIXTURES / "clean" / "clean_dag.py").read_text())
+    data, proc = run_checker(key, "dags", "plugins", cwd=tmp_path)
+    assert proc.returncode == 0, proc.stdout
+    assert data["summary"]["files_scanned"] == 1
+    assert "clean_daily" in by_id(data)
+    _, missing = run_checker(key, "plugins", cwd=tmp_path)
+    assert missing.returncode == 3
+    _, typo = run_checker(key, "dags", "plguins", cwd=tmp_path)
+    assert typo.returncode == 3
+
+
+def test_dag_id_preserves_template_findings(tmp_path):
+    (tmp_path / "dags" / "sql").mkdir(parents=True)
+    (tmp_path / "dags" / "sql" / "run.sh").write_text("echo {{ execution_date }}\n")
+    (tmp_path / "dags" / "d.py").write_text('''from airflow.sdk import DAG
+from airflow.providers.standard.operators.bash import BashOperator
+with DAG("external_template", schedule=None):
+    BashOperator(task_id="run", bash_command="sql/run.sh")
+''')
+    data, proc = run_checker("3.3", "dags", "--dag-id", "external_template", cwd=tmp_path)
+    assert proc.returncode == 2, proc.stdout
+    assert any(f["file"] == "dags/sql/run.sh" and f["rule"] == "removed-context-key"
+               for f in data["findings"])
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+@pytest.mark.parametrize("param", ["run_after", "next_ds", "conf", "try_number", "exception",
+                                   "expanded_ti_count", "task_reschedule_count"])
+def test_reserved_context_params_match_real_imports(key, param, tmp_path):
+    (tmp_path / "mapped.py").write_text(f'''from airflow.decorators import task
+from airflow import DAG
+@task
+def consume({param}=None):
+    return {param}
+with DAG("mapped", schedule=None):
+    consume.expand({param}=[1, 2])
+''')
+    data, proc = run_checker(key, "mapped.py", cwd=tmp_path)
+    reserved = param in {"try_number", "exception", "expanded_ti_count"} or (
+        key == "3.3" and param == "task_reschedule_count") or (key == "2.11" and param in {"next_ds", "conf"})
+    assert bool(data["import_errors"]) is reserved, proc.stdout
+    hits = [f for f in data["findings"] if f["rule"] == "reserved-context-param"]
+    assert bool(hits) is reserved, proc.stdout
+    assert proc.returncode == (1 if reserved else 0), proc.stdout
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+def test_once_and_hybrid_schedules_are_previewed(key, tmp_path):
+    imports = ("from airflow.sdk import DAG, Asset\n"
+               "from airflow.sdk import AssetOrTimeSchedule\n"
+               "condition = {'assets': [Asset('s3://bucket/input')]}\n"
+               "Hybrid = AssetOrTimeSchedule\n") if key == "3.3" else (
+               "from airflow import DAG, Dataset\n"
+               "from airflow.timetables.datasets import DatasetOrTimeSchedule\n"
+               "condition = {'datasets': [Dataset('s3://bucket/input')]}\n"
+               "Hybrid = DatasetOrTimeSchedule\n")
+    (tmp_path / "schedules.py").write_text(imports + '''import pendulum
+from airflow.timetables.interval import CronDataIntervalTimetable
+start = pendulum.datetime(2026, 1, 1, tz="UTC")
+with DAG("once", schedule="@once", start_date=start, catchup=False):
+    pass
+with DAG("hybrid", schedule=Hybrid(timetable=CronDataIntervalTimetable("0 4 * * *", timezone="UTC"),
+                                  **condition), start_date=start, catchup=False):
+    pass
+''')
+    data, proc = run_checker(key, "schedules.py", "--runs", "2", cwd=tmp_path)
+    assert proc.returncode == 0, proc.stdout
+    assert len(by_id(data)["once"]["next_runs"]) == 1
+    hybrid = by_id(data)["hybrid"]
+    assert len(hybrid["next_runs"]) == 2
+    assert hybrid["next_runs"][0]["data_interval_start"] == "2026-01-01T04:00:00+00:00"
+    assert hybrid["next_runs"][0]["data_interval_end"] == "2026-01-02T04:00:00+00:00"
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+@pytest.mark.parametrize("source,rule", [
+    ('''from airflow import DAG
+from datetime import datetime
+with DAG("macros", schedule=None, user_defined_macros={"clock": lambda: datetime.now()},
+         on_success_callback=lambda context: datetime.now()):
+    pass
+''', "dynamic-dag-arg"),
+    ('''from airflow import DAG
+from airflow.sensors.external_task import ExternalTaskSensor
+with DAG("sensors", schedule=None, default_args={"deferrable": True}):
+    ExternalTaskSensor(task_id="sensor", external_dag_id="upstream")
+''', "sensor-poke-no-timeout"),
+    ('''from airflow.decorators import task
+@task
+def one(**kwargs):
+    return kwargs["ds"]
+def helper(**kwargs):
+    return kwargs["prev_ds"]
+''', "removed-context-key"),
+    ('''from airflow.decorators import dag
+from datetime import datetime
+@dag(schedule=None)
+def build():
+    today = datetime.now().date()
+build()
+''', "wall-clock-in-task"),
+])
+def test_static_rules_respect_execution_scope(key, source, rule, tmp_path):
+    (tmp_path / "scope.py").write_text(source)
+    data, proc = run_checker(key, "scope.py", "--static-only", cwd=tmp_path)
+    assert not [f for f in data["findings"] if f["rule"] == rule], proc.stdout
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+def test_reserved_context_key_sets_match_installed_airflow(key, tmp_path):
+    module = "airflow.sdk.definitions.context" if key == "3.3" else "airflow.utils.context"
+    code = f'''import runpy
+from {module} import KNOWN_CONTEXT_KEYS
+checker = runpy.run_path({str(CHECKER)!r})
+assert checker["CONTEXT_KEYS_{key[0]}"] == KNOWN_CONTEXT_KEYS
+'''
+    proc = subprocess.run([env_python(key), "-c", code], env=clean_environ(AIRFLOW_HOME=str(tmp_path)),
+                          capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0, proc.stderr
+
+
+def test_explicit_conf_template_macro_is_not_removed_context(tmp_path):
+    (tmp_path / "macros.py").write_text('''from airflow.sdk import DAG, conf
+from airflow.providers.standard.operators.bash import BashOperator
+with DAG("custom_conf", schedule=None, user_defined_macros={"conf": conf}):
+    BashOperator(task_id="custom", bash_command="{{ conf.get('core', 'dags_folder') }}")
+with DAG("removed_conf", schedule=None):
+    BashOperator(task_id="removed", bash_command="{{ conf.get('core', 'dags_folder') }}")
+''')
+    data, _ = run_checker("3.3", "macros.py", "--static-only", cwd=tmp_path)
+    assert [f["line"] for f in data["findings"] if f["rule"] == "removed-context-key"] == [6]
+
+
+@pytest.mark.parametrize("key", ["3.3", "2.11"])
+def test_lambda_defaults_and_immediate_calls_still_run_at_parse_time(key, tmp_path):
+    (tmp_path / "lambdas.py").write_text('''from airflow import DAG
+from datetime import datetime
+with DAG("macros", schedule=None,
+         user_defined_macros={"clock": lambda now=datetime.now(): now},
+         start_date=(lambda: datetime.now())()):
+    pass
+''')
+    data, proc = run_checker(key, "lambdas.py", "--static-only", cwd=tmp_path)
+    assert [f["line"] for f in data["findings"] if f["rule"] == "dynamic-dag-arg"] == [4, 5]
+    assert proc.returncode == 2

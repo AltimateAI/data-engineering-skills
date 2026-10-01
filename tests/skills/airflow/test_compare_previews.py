@@ -45,7 +45,8 @@ def test_shifted_logical_date_differs(tmp_path):
     out, code = compare(tmp_path, report(dag()), report(dag(timetable="CronTriggerTimetable",
                                                             runs=[shifted])))
     assert code == 2
-    assert {d["field"] for d in out["dags"][0]["diffs"]} == {"logical_date", "data_interval_start"}
+    assert {d["field"] for d in out["dags"][0]["diffs"]} == {
+        "timetable", "logical_date", "data_interval_start"}
 
 
 def test_catchup_change_differs(tmp_path):
@@ -86,3 +87,29 @@ def test_requested_dag_missing_everywhere_is_reported(tmp_path):
 def test_malformed_report_is_usage_error(tmp_path):
     _, code = compare(tmp_path, {"dags": [{"timetable": "x"}]}, report(dag()))
     assert code == 3
+
+
+@pytest.mark.parametrize("before,after", [
+    (dag(timetable="OnceTimetable", runs=[]), dag(timetable="NullTimetable", runs=[])),
+    (dag(timetable="DatasetOrTimeSchedule", timetable_summary="Dataset or 0 4 * * *", runs=[]),
+     dag(timetable="AssetOrTimeSchedule", timetable_summary="Asset or 0 5 * * *", runs=[])),
+    (dag(timetable_summary="0 4 * * *"), dag(timetable_summary="0 5 * * *")),
+])
+def test_timetable_metadata_changes_do_not_match(tmp_path, before, after):
+    out, code = compare(tmp_path, report(before), report(after))
+    assert code == 2
+    assert {d["field"] for d in out["dags"][0]["diffs"]} & {"timetable", "timetable_summary"}
+
+
+def test_renamed_dataset_timetable_with_same_runs_matches(tmp_path):
+    before = dag(timetable="DatasetOrTimeSchedule", timetable_summary="Dataset or 0 4 * * *")
+    after = dag(timetable="AssetOrTimeSchedule", timetable_summary="Asset or 0 4 * * *")
+    _, code = compare(tmp_path, report(before), report(after))
+    assert code == 0
+
+
+def test_hybrid_schedule_without_preview_does_not_match(tmp_path):
+    hybrid = dag(timetable="AssetOrTimeSchedule", runs=[])
+    out, code = compare(tmp_path, report(hybrid), report(hybrid))
+    assert code == 2
+    assert out["dags"][0]["diffs"][0]["field"] == "preview"

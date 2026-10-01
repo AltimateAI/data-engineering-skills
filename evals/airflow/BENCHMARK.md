@@ -283,6 +283,20 @@ limits and cost caps count as failures. Paired deltas are per case and model, an
   (section 3); recall is a 4-turn measure.
 - **`final.md` content was not evaluated.** Grading never reads the agent's final message.
 
+### Post-benchmark fixes
+
+The benchmarked `skills/airflow` tree hash is recorded in each result's `meta.json` (and below).
+The shipped skills tree differs only by these helper fixes and their documentation: version-aware context
+keys (including removed `conf`), optional missing `plugins/`, template findings with `--dag-id`, scoped
+parse-time checks, timetable identity and interval comparisons, mutation recovery after interrupted runs,
+and exit 4 for manual runs without a legacy replay baseline. These fixes were made after the benchmark;
+the reported results and numbers have not been changed or rerun against the updated skills.
+
+Agents could also see other processes' command lines through `ps`. A scan of the 152 reported task
+transcripts (2,912 tool calls) found no access to solutions, results or cases files. Outside-process argv
+access is now blocked through both process-info and `kern.proc` sysctl restrictions; the sandbox also
+denies the whole checkout and the evaluation cache, with explicit allowances for each attempt's inputs.
+
 ## 8. Reproducibility
 
 | Item | Value |
@@ -291,7 +305,7 @@ limits and cost caps count as failures. Paired deltas are per case and model, an
 | Airflow 3.3 env | apache-airflow 3.3.2, Python 3.12.8, pytest 9.1.1, ruff 0.16.9, duckdb 1.5.6, pandas 3.0.5 |
 | Airflow 2.11 env | apache-airflow 2.11.2, Python 3.12.8 |
 | Host | macOS 26 arm64, single machine |
-| `skills/airflow` sha256 | `d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0` (identical in the campaign state file before and after the campaign, in every skill-arm `meta.json`, and in the working tree when this report was written; computed by `run_eval.hash_dir`, bytecode ignored) |
+| Benchmarked `skills/airflow` sha256 | `d3af9fac9ff0337042ffb634539cd96828c2f63020d1651fee7fe70fd09557a0` (identical in the campaign state file before and after the campaign and in every skill-arm `meta.json`; computed by `run_eval.hash_dir`, bytecode ignored; shipped helper fixes are listed above) |
 | Staged skills sha256 | baseline `ca2b482d…`, skill `45fa68a5…` |
 | Runs | 2026-10-01 09:29-16:02 UTC (Sonnet 5.5 and Opus 5.5 final runs) |
 | Results | `results/final-{hard,core}-{baseline,skill}-claude-{sonnet,opus}-5-5-2026-10-01`, merged in `results/final-summary-2026-10-01/{hard,core}/` |

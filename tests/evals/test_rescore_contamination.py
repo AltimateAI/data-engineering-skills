@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pytest
 import rescore_contamination as rc
 import run_eval as re_
 
@@ -153,3 +154,43 @@ def test_conclusion_check_flags_sign_and_significance_changes():
     model, pooled = rc.conclusion_check(reports)
     assert model["model"] == "m" and model["sign_same"] and not model["significance_same"] and model["changed"]
     assert pooled["model"] == "pooled" and not pooled["changed"]
+
+
+@pytest.mark.parametrize("live_flag", [False, True])
+def test_missing_events_are_unknown_and_preserve_live_flag(tmp_path, live_flag):
+    res = tmp_path / "campaign"
+    write_attempt(res, CASE, "m", 1, [])
+    rows_path = res / "runs.jsonl"
+    row = json.loads(rows_path.read_text())
+    row["contamination_suspect"] = live_flag
+    rows_path.write_text(json.dumps(row) + "\n")
+    rc.attempt_dir(res, row, row["attempts"][0]).joinpath("events.jsonl").unlink()
+    records, rows = rc.rescore([res], [res], str(tmp_path / "work"), str(tmp_path))
+    assert records[0]["evidence_strength"] == "unknown"
+    assert rows[0]["contamination_rescore"] == "unknown"
+    assert rows[0]["contamination_suspect"] is (True if live_flag else None)
+    out = tmp_path / "rescored"
+    assert rc.main([str(res), "--out", str(out), "--bootstrap", "10"]) == 0
+    result = json.loads((out / "results.json").read_text())
+    assert result["tables"]["all"]["n_runs"] == 1
+    assert result["tables"]["excluding-flagged"]["n_runs"] == 0
+    assert "unknown" in (out / "REPORT.md").read_text()
+
+
+def test_rescore_never_clears_live_contamination_flag(tmp_path):
+    res = tmp_path / "campaign"
+    write_attempt(res, CASE, "m", 1, [tool("echo clean")])
+    path = res / "runs.jsonl"
+    row = json.loads(path.read_text())
+    row["contamination_suspect"] = True
+    path.write_text(json.dumps(row) + "\n")
+    _records, rows = rc.rescore([res], [res], str(tmp_path / "work"), str(tmp_path))
+    assert rc.dedupe(rows)[0]["contamination_suspect"] is True
+
+
+def test_prior_eval_cache_access_has_strong_evidence(tmp_path):
+    prior = tmp_path / ".cache" / "des-evals" / "prior" / "agent.patch"
+    scan = rc.scan_attempt([tool(f"cat {prior}")], CASE, tmp_path / "results",
+                           str(tmp_path / "work"), False, str(tmp_path))
+    assert scan["contamination_suspect"]
+    assert rc.classify(scan, {}, "attempt") == "strong"

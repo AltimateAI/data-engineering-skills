@@ -5,8 +5,11 @@ pure-Python project and whatever Python runs this suite.
 """
 import hashlib
 import json
+import os
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -142,3 +145,71 @@ def test_crlf_file_mutation_is_really_applied(project):
                         "promised > run_date")
     assert code == 0 and data["mutants"][0]["caught"] is True
     assert b"\r\n" in src.read_bytes()
+
+
+def interrupt_mutation(project, signum, before_signal=None):
+    """Signal the real runner only, once its pytest child has observed the mutation."""
+    marker = project / "mutated"
+    (project / "tests" / "test_interrupt.py").write_text(
+        "import pathlib, time\nfrom calc import RETRIES\n"
+        "def test_retries():\n"
+        "    marker = pathlib.Path('mutated')\n"
+        "    if RETRIES == 0 and not marker.exists():\n"
+        "        marker.touch()\n"
+        "        time.sleep(300)\n"
+        "    assert RETRIES == 2\n"
+    )
+    proc = subprocess.Popen(
+        [sys.executable, str(SCRIPT), "--mutation", "src/calc.py", "RETRIES = 2", "RETRIES = 0"],
+        cwd=project, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True,
+    )
+    try:
+        deadline = time.monotonic() + 30
+        while not marker.exists() and proc.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert marker.exists(), "mutation did not reach the pytest child"
+        if before_signal is not None:
+            before_signal()
+        proc.send_signal(signum)
+        proc.wait(timeout=30)
+    finally:
+        # SIGKILL cannot let the runner reap pytest; clean its entire session in the test.
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.communicate(timeout=30)
+
+
+@pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGHUP])
+def test_signal_restores_original_bytes_and_mtime(project, signum):
+    src = project / "src" / "calc.py"
+    original, mtime = src.read_bytes(), src.stat().st_mtime_ns
+    interrupt_mutation(project, signum)
+    assert src.read_bytes() == original
+    assert src.stat().st_mtime_ns == mtime
+
+
+def test_sigkill_journal_recovers_before_validating_mutations(project):
+    src = project / "src" / "calc.py"
+    original, mtime = src.read_bytes(), src.stat().st_mtime_ns
+    interrupt_mutation(project, signal.SIGKILL)
+    assert b"RETRIES = 0" in src.read_bytes()
+    code, data, proc = run(project, "--mutation", "src/calc.py", "RETRIES = 2", "RETRIES = 0")
+    assert code == 0, proc.stdout + proc.stderr
+    assert data["baseline"]["passed"] == 4
+    assert src.read_bytes() == original
+    assert src.stat().st_mtime_ns == mtime
+
+
+def test_active_run_does_not_restore_another_mutation(project):
+    def retry_while_active():
+        code, data, proc = run(project, "--mutation", "src/calc.py", "RETRIES = 2", "RETRIES = 0")
+        assert code == 3, proc.stdout + proc.stderr
+        assert "another mutation check is active" in data["error"]
+        assert b"RETRIES = 0" in (project / "src" / "calc.py").read_bytes()
+        assert (project / ".mutation-check.json").exists()
+
+    interrupt_mutation(project, signal.SIGTERM, before_signal=retry_while_active)
+    assert (project / "src" / "calc.py").read_text() == MODULE
+    assert not (project / ".mutation-check.json").exists()

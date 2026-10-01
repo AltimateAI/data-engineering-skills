@@ -343,7 +343,11 @@ def run_attempt(q: dict, ctx: dict, model: str, attempt_dir: Path, skills_dir: P
     record: dict[str, Any] = {"status": "harness_error", "reason": "", "fired": [], "cost_usd": 0.0,
                               "cost_reported_usd": 0.0, "wall_s": 0.0, "launched": False}
     scratch = None
+    env_lease = r.ExitStack()
     try:
+        guard = (actx.env_guards if actx else {}).get(version)
+        if guard is not None:
+            env_lease.enter_context(guard.attempt())
         record["agent_env_pre"] = r._guard_check(actx, version)
         hook = None if ctx["airflow_version"] else (lambda env: deactivate_airflow(env, agent_py))
         prep = r.prepare_agent(f"trig-{q['id']}", agent_py, lambda d: make_workspace(ctx["fixture"], d),
@@ -371,9 +375,12 @@ def run_attempt(q: dict, ctx: dict, model: str, attempt_dir: Path, skills_dir: P
         record["contamination_suspect"] = record["isolation"]["contamination_suspect"]
         record["kill_command"] = bool(record["isolation"]["kill_commands"])
         stderr = stderr_path.read_text(errors="replace")
-        if (scratch / "final.md").exists():
-            san.write_text(attempt_dir / "final.md", (scratch / "final.md").read_text(errors="replace"))
+        final = r.attempt_artifact(scratch / "final.md", scratch)
+        if final.exists():
+            san.write_text(attempt_dir / "final.md", final.read_text(errors="replace"))
         trace = next((e.get("path") for e in reversed(events) if e.get("type") == "trace_saved"), None)
+        if trace:
+            trace = str(r.attempt_artifact(trace, scratch))
         invocations = g.skill_invocations(events)
         auto = r.auto_loaded_skills(trace)
         status, reason = r.classify_attempt(timed_out=proc["timed_out"], cost_capped=proc["cost_capped"],
@@ -393,6 +400,8 @@ def run_attempt(q: dict, ctx: dict, model: str, attempt_dir: Path, skills_dir: P
                             if k in ("why_model_stopped", "why_harness_stopped", "done_reason")},
             "errors": g.error_messages(events)[-3:],
         })
+    except g.UnsafeWorkspaceError as exc:
+        record.update({"status": "task_fail", "reason": str(exc)[:500], "contamination_suspect": True})
     except cc.TokenCommandError as exc:  # retried like any infra error; the retry re-runs the command
         record.update({"status": "infra_error", "reason": f"token command failed: {exc}"[:500]})
         r.log(f"TOKEN COMMAND FAILED in attempt {attempt_dir}: {exc}")
@@ -413,6 +422,7 @@ def run_attempt(q: dict, ctx: dict, model: str, attempt_dir: Path, skills_dir: P
             if record.get("usage_recovered_from"):
                 budget.add(record["cost_usd"])
     finally:
+        env_lease.close()
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
         san.write_json(attempt_dir / "attempt.json", record)
@@ -506,6 +516,17 @@ def write_report(out: Path, rows: list[dict], airflow_names: list[str], queries:
     return summary
 
 
+def resume_meta_problems(meta: dict, runner: str, models: list[str],
+                         provenance: dict) -> list[str]:
+    """Refuse to relabel completed runs after their inputs change."""
+    problems = []
+    for key, now in {"runner": runner, "models": models, **provenance}.items():
+        before = meta.get(key, "altimate-code" if key == "runner" else None)
+        if before != now:
+            problems.append(f"{key} changed or is missing in the saved campaign metadata")
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     airflow_names = r.skill_names(args.skills_dir)
@@ -526,6 +547,23 @@ def main(argv: list[str] | None = None) -> int:
         print((out / "REPORT.md").read_text())
         return 0
 
+    provenance = {
+        "airflow_skills_sha256": r.hash_dir(args.skills_dir),
+        "queries_sha256": hashlib.sha256(args.queries.read_bytes()).hexdigest(),
+        "fixtures_sha256": {name: r.hash_dir(c["fixture"]) for name, c in contexts.items()},
+    }
+    done: dict[tuple, dict] = {}
+    redo: dict[tuple, dict] = {}
+    old_meta: dict = {}
+    if args.resume and rows_path.exists():
+        old_meta = json.loads((out / "meta.json").read_text()) if (out / "meta.json").exists() else {}
+        problems = resume_meta_problems(old_meta, args.runner, models, provenance)
+        if problems:
+            r.log(f"ABORT: --resume inputs differ from {out}/meta.json: " + "; ".join(problems)
+                  + ". Start a new --out directory.")
+            return 2
+        done, redo = r.load_resume(rows_path, key=trigger_key)
+
     versions = {c["airflow_version"] or FALLBACK_AIRFLOW_VERSION for c in contexts.values()}
     missing = r.missing_interpreters(versions)
     if missing:
@@ -533,7 +571,7 @@ def main(argv: list[str] | None = None) -> int:
     claude = args.runner == "claude-code"
     if claude:
         r.require_claude_token()
-    skills_sha_before = r.hash_dir(args.skills_dir)
+    skills_sha_before = provenance["airflow_skills_sha256"]
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     args.work_dir = r.work_root() / f"{out.name}-triggers-{stamp}"
     args.work_dir.mkdir(parents=True)
@@ -563,16 +601,6 @@ def main(argv: list[str] | None = None) -> int:
     if problems:
         r.log("ABORT: skill inventory check failed")
         return 2
-    done: dict[tuple, dict] = {}
-    redo: dict[tuple, dict] = {}
-    old_meta: dict = {}
-    if args.resume and rows_path.exists():
-        old_meta = json.loads((out / "meta.json").read_text()) if (out / "meta.json").exists() else {}
-        before = (old_meta.get("runner", "altimate-code"), old_meta.get("models"))
-        if before != (args.runner, models):
-            r.log(f"ABORT: --resume settings differ from {out}/meta.json: runner/models were {before}")
-            return 2
-        done, redo = r.load_resume(rows_path, key=trigger_key)
     args.ctx = r.AttemptContext(
         out_dir=out, work_dir=args.work_dir, staged_skills=staged,
         altimate_version="" if claude else r.altimate_version(),
@@ -596,11 +624,9 @@ def main(argv: list[str] | None = None) -> int:
         "altimate_code_version": args.ctx.altimate_version or None,
         "small_model": None if claude else r.SMALL_MODEL,
         "queries_file": str(args.queries),
-        "queries_sha256": hashlib.sha256(args.queries.read_bytes()).hexdigest(),
-        "fixtures_sha256": {name: r.hash_dir(c["fixture"]) for name, c in contexts.items()},
+        **provenance,
         "query_ids": [q["id"] for q in queries],
         "airflow_skills_dir": str(args.skills_dir),
-        "airflow_skills_sha256": skills_sha_before,
         "airflow_skill_names": airflow_names,
         "repo_skill_names": repo_names,
         "staged_skills_sha256": r.hash_dir(staged),

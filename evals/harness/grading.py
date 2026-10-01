@@ -861,6 +861,43 @@ def apply_overlay(overlay: str | os.PathLike, dest: str | os.PathLike) -> None:
             shutil.copy2(src, tgt)
 
 
+class UnsafeWorkspaceError(ValueError):
+    """Agent-created links cannot safely be handed to an unsandboxed grader."""
+
+
+def unsafe_workspace_symlinks(workspace: str | os.PathLike) -> list[str]:
+    """Find external, dangling, cyclic and directory links without traversing them.
+
+    Directory links are refused: even internal links can form traversal cycles
+    through multiple directories. Internal file links remain supported.
+    """
+    workspace = Path(workspace)
+    if workspace.is_symlink():
+        return [f"workspace root -> {os.readlink(workspace)}"]
+    root = workspace.resolve()
+    unsafe = []
+    for directory, dirs, files in os.walk(root, followlinks=False):
+        dirs[:] = [name for name in dirs if name != ".git"]
+        for name in dirs + files:
+            path = Path(directory) / name
+            if not path.is_symlink():
+                continue
+            try:
+                resolved = path.resolve(strict=True)
+                safe = resolved.is_relative_to(root) and resolved.is_file()
+            except (OSError, RuntimeError):
+                safe = False
+            if not safe:
+                unsafe.append(f"{path.relative_to(root)} -> {os.readlink(path)}")
+    return unsafe
+
+
+def validate_workspace(workspace: str | os.PathLike) -> None:
+    unsafe = unsafe_workspace_symlinks(workspace)
+    if unsafe:
+        raise UnsafeWorkspaceError("unsafe workspace symlinks: " + "; ".join(unsafe[:10]))
+
+
 def copy_workspace(
     workspace: str | os.PathLike,
     overlays: Iterable[str | os.PathLike] = (),
@@ -874,10 +911,29 @@ def copy_workspace(
         res = g.run_pytest(py, buggy, ["tests"])
         grader.primary("tests catch drops_nulls", res.caught_bug, res.summary())
     """
-    target = Path(dest) if dest else Path(tempfile.mkdtemp(prefix="eval-ws-")) / "ws"
-    shutil.copytree(workspace, target, ignore=_COPY_IGNORE, dirs_exist_ok=True)
+    validate_workspace(workspace)
+    target = Path(dest) if dest else Path(tempfile.mkdtemp(prefix="eval-ws-")).resolve() / "ws"
+    if target.exists() or target.is_symlink():
+        raise UnsafeWorkspaceError("workspace copy destination already exists")
+    # The caller chooses the destination, but agents can plant its components.
+    # Resolve the trusted system temp aliases only for our own fresh temp dir.
+    if any(parent.is_symlink() for parent in target.absolute().parents):
+        raise UnsafeWorkspaceError("workspace copy destination has a symlink ancestor")
+    # Never let copytree dereference agent links. Rewrite safe file links into
+    # the copy, including absolute links whose original target was in workspace.
+    shutil.copytree(workspace, target, ignore=_COPY_IGNORE, dirs_exist_ok=True, symlinks=True)
+    root = Path(workspace).resolve()
+    for directory, _dirs, files in os.walk(target, followlinks=False):
+        for name in files:
+            link = Path(directory) / name
+            if link.is_symlink():
+                source = root / link.relative_to(target)
+                local_target = target / source.resolve(strict=True).relative_to(root)
+                link.unlink()
+                link.symlink_to(os.path.relpath(local_target, link.parent))
     for ov in overlays:
         apply_overlay(ov, target)
+    validate_workspace(target)
     return target
 
 

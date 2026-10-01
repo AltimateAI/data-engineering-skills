@@ -204,7 +204,9 @@ Verified code for every row is in `references/test-patterns.md`.
 ## Mutation check: prove the suite catches bugs
 
 For each rule, plant the smallest realistic bug that breaks it, run the suite, and put the code back.
-The bundled script does this safely (restores bytes and mtime even on failure, checks the hash):
+The bundled script restores bytes and mtime on failure, SIGINT, SIGTERM or SIGHUP, checking the hash.
+After SIGKILL or a crash, rerun from the same `--cwd`: it restores `.mutation-check.json` before
+checking mutations. Preserve that journal until recovery; `.mutation-check.lock` prevents overlapping runs.
 
 ```bash
 python <skill-dir>/scripts/mutation_check.py \

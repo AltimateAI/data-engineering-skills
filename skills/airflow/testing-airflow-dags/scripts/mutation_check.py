@@ -7,6 +7,9 @@ and restores the original bytes and mtime. A mutation is "caught" when pytest
 reports at least one failing or erroring test (JUnit) with it applied. A run that
 times out or ends without a failing test (pytest internal/usage error, no tests
 collected, killed) is "inconclusive": it proves nothing either way.
+SIGINT, SIGTERM and SIGHUP restore immediately. SIGKILL cannot be handled: rerun
+from the same --cwd to restore the saved .mutation-check.json journal before
+validating mutations or running tests. Do not delete that journal after a crash.
 
 Stdlib only; run it with the Python that has Airflow and pytest installed.
 
@@ -28,6 +31,9 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+import base64
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import json
 import os
@@ -169,12 +175,60 @@ def parse_junit(path: Path):
 
 
 def _raise_interrupt(signum, frame):
-    """Turns SIGTERM into an exception so the finally-block still restores the file."""
+    """Route termination and terminal hangup through the restore finally-block."""
     raise KeyboardInterrupt
 
 
 def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+@contextmanager
+def project_lock(cwd: Path):
+    # Keep the lock inode: unlinking it lets a third runner bypass an existing waiter.
+    with (cwd / ".mutation-check.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise UsageError(f"another mutation check is active in {cwd}") from None
+        yield
+
+
+def save_journal(journal: Path, path: Path, original: bytes, st):
+    record = {"path": str(path), "original": base64.b64encode(original).decode("ascii"),
+              "sha256": sha(original), "atime_ns": st.st_atime_ns, "mtime_ns": st.st_mtime_ns}
+    # Publish a complete, flushed backup before touching the source file. A killed
+    # writer can leave a temporary file, but cannot publish a partial journal.
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="w", dir=journal.parent,
+                                         prefix=".mutation-check-", delete=False) as backup:
+            temporary = Path(backup.name)
+            json.dump(record, backup)
+            backup.flush()
+            os.fsync(backup.fileno())
+        os.replace(temporary, journal)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def restore_journal(journal: Path):
+    if not journal.exists():
+        return
+    record = json.loads(journal.read_text())
+    original = base64.b64decode(record["original"], validate=True)
+    if sha(original) != record["sha256"]:
+        raise UsageError(f"backup checksum failed; preserve {journal} for manual recovery")
+    path = Path(record["path"])
+    with path.open("wb") as source:
+        source.write(original)
+        source.flush()
+        os.fsync(source.fileno())
+    os.utime(path, ns=(record["atime_ns"], record["mtime_ns"]))
+    if sha(path.read_bytes()) != record["sha256"]:
+        raise UsageError(f"restore failed; preserve {journal} for manual recovery")
+    journal.unlink()
 
 
 def main(argv=None) -> int:
@@ -183,13 +237,20 @@ def main(argv=None) -> int:
         cwd = Path(args.cwd).resolve()
         if not cwd.is_dir():
             raise UsageError(f"--cwd is not a directory: {args.cwd}")
-        muts = load_mutations(args, cwd)
-    except UsageError as e:
+        signal.signal(signal.SIGTERM, _raise_interrupt)
+        signal.signal(signal.SIGHUP, _raise_interrupt)
+        with project_lock(cwd):
+            journal = cwd / ".mutation-check.json"
+            restore_journal(journal)  # before OLD validation, which a stranded mutation fails
+            muts = load_mutations(args, cwd)
+            return run_mutations(args, cwd, muts, journal)
+    except (UsageError, OSError, ValueError) as e:
         print(json.dumps({"error": str(e), "exit_code": 3}))
         return 3
 
+
+def run_mutations(args, cwd: Path, muts: list, journal: Path) -> int:
     pytest_args = args.pytest_args or ["tests"]
-    signal.signal(signal.SIGTERM, _raise_interrupt)
 
     out = {"python": sys.executable, "cwd": str(cwd), "pytest_args": pytest_args}
     baseline = run_pytest(pytest_args, cwd, args.timeout)
@@ -211,13 +272,13 @@ def main(argv=None) -> int:
                  "why": m["why"][:MAX_MSG]}
         try:
             mutated = original.decode().replace(m["old"], m["new"], 1).encode()
+            save_journal(journal, path, original, st)
             path.write_bytes(mutated)
             # A different mtime forces Python to recompile instead of reusing a cached .pyc.
             os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 2_000_000_000))
             run = run_pytest(pytest_args, cwd, args.timeout)
         finally:
-            path.write_bytes(original)
-            os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns))
+            restore_journal(journal)
             if sha(path.read_bytes()) != sha(original):
                 restored_ok = False
         caught = run["exit_code"] in (1, 2) and bool(run["failing"])

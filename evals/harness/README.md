@@ -277,19 +277,30 @@ dir, except the agent venv (see below).
   (`uv pip sync` to the frozen requirements, delete files not in the manifest,
   then `uv pip sync --reinstall` if it still differs) and records
   `agent_env_pre` / `agent_env_post` in `attempt.json`. The campaign also checks
-  (and restores) each agent venv before it starts. With `--parallel > 1`,
-  concurrent runs share the venv, so a package installed by one run is visible
-  to the others until the next check restores it.
+  (and restores) each agent venv before it starts. An exclusive thread and file
+  lock spans each attempt's pre-check, execution and post-check. Attempts using
+  the same venv are serialized, including across harness processes; different
+  venvs can run concurrently. No restore rewrites a venv used by another attempt.
 - **macOS sandbox:** when `sandbox-exec` works, the agent runs under a
   per-run profile (Claude Code differences are listed in its section above) (`<scratch>/sandbox.sb`, see `IsolationRoots.sandbox_profile`):
   - writes are denied everywhere except the scratch dir, the agent venv,
     `~/.cache/altimate-code` (provider SDK cache) and `/dev`;
   - reads are denied for the repo checkout (worktree and main checkout), the
-    results dir, the whole work root (other runs' scratch dirs) except this run's
+    results dir, sibling campaign directories identified by `meta.json` or
+    `runs.jsonl`, all of `~/.cache/des-evals` and `$EVAL_ENV_ROOT`, and the whole
+    work root (other runs' scratch dirs) except this run's
     scratch dir and the staged skills, `~/.local/share/altimate-code` except the
     linked files, user skill dirs (`~/.claude`, `~/.agents`, `~/.altimate-code`,
     `~/.codex`, `~/.opencode`), `/private/tmp`, `/private/var/tmp` and the
-    harness's own temp dir;
+    harness's own temp dir. The agent venv and grader runtime packages remain
+    readable; reads of grader venvs still count as transcript contamination;
+  - process information is denied except within the same sandbox instance.
+    The profile also denies `sysctl-read` for the `kern.proc` prefix: on macOS
+    26 neither control alone blocks every argv query. Together they prevent
+    `ps aux` enumeration and direct `KERN_PROCARGS2` reads for an outside PID.
+    The regression runs an unprivileged, ad-hoc signed copy of `ps`, since the
+    system's setuid `/bin/ps` cannot launch under `sandbox-exec` even without
+    these rules. Claude Code and altimate-code local startup still work;
   - signals are denied except to processes in the same sandbox instance
     (`(deny signal)` + `(allow signal (target same-sandbox))`, both runners).
     An agent's `pkill -f airflow` or `kill <pid>` of the harness, a grader or a
@@ -298,6 +309,13 @@ dir, except the agent venv (see below).
     with identical profiles cannot signal each other. The harness (outside the
     sandbox) still stops agents on timeout and cost cap. Verified on macOS 26
     with Claude Code 2.1.286 and altimate-code 0.12.2.
+
+  The harness stops the entire agent process group on every exit, including
+  successful exits, and escalates to SIGKILL even when the leader has exited.
+  Before copying or grading, it rejects external, dangling, cyclic and directory
+  symlinks and planted workspace/destination root links as task failures. Safe
+  internal file links are rebased into the grading copy. Agent-selected final
+  and trace artifacts must also resolve inside the attempt's scratch directory.
 
   The agent's stdout/stderr are spooled in the scratch dir and copied to the
   results dir afterwards: node aborts at startup when its stdio is a file it is
@@ -541,4 +559,4 @@ holds `inventory-skill.json`, `runs.jsonl`, `runs/<query>/<model>/run-N/attempt-
   a script), and nothing stops an agent from signalling other processes.
 - If the harness itself is killed, agents keep running in their own sessions
   until they finish or hit their own limits; rerun with `--resume`.
-- The agent venv is shared by concurrent runs; restores happen between attempts.
+- Parallelism is limited to one attempt per agent venv by the environment lease.

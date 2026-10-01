@@ -57,6 +57,7 @@ TEMPLATE_EXTS = {".sql", ".sh", ".bash", ".j2", ".jinja", ".hql"}
 
 # Context keys removed in Airflow 3.0, with the replacement to suggest.
 REMOVED_CONTEXT_KEYS = {
+    "conf": "from airflow.sdk import conf (for templates, explicitly supply it via user_defined_macros)",
     "execution_date": "logical_date (on 3.x cron/timedelta schedules this equals the run time, "
     "not the start of the previous period)",
     "next_execution_date": "data_interval_end",
@@ -88,14 +89,22 @@ RUN_DATE_KEYS = {"ds", "ds_nodash", "ts", "ts_nodash", "logical_date",
                  "data_interval_start", "data_interval_end"}
 
 # Names Airflow injects into TaskFlow / python_callable parameters from the context.
-CONTEXT_KEYS = {
-    "conf", "dag", "dag_run", "data_interval_end", "data_interval_start", "ds", "ds_nodash",
+CONTEXT_KEYS_COMMON = {
+    "dag", "dag_run", "data_interval_end", "data_interval_start", "ds", "ds_nodash",
     "inlets", "logical_date", "macros", "map_index_template", "outlets", "params",
     "prev_data_interval_end_success", "prev_data_interval_start_success", "prev_end_date_success",
-    "prev_start_date_success", "run_after", "run_id", "task", "task_instance",
-    "task_instance_key_str", "templates_dict", "test_mode", "ti", "triggering_asset_events",
+    "prev_start_date_success", "run_id", "task", "task_instance",
+    "task_instance_key_str", "templates_dict", "test_mode", "ti",
     "ts", "ts_nodash", "ts_nodash_with_tz", "var", "conn", "outlet_events", "inlet_events",
-} | set(REMOVED_CONTEXT_KEYS)
+    "try_number", "exception", "expanded_ti_count", "reason",
+}
+# KNOWN_CONTEXT_KEYS in Airflow 2.11 and 3.3 respectively. run_after is a DagRun
+# attribute, never an injected context key. Removed keys are no longer reserved on 3.x.
+CONTEXT_KEYS_2 = CONTEXT_KEYS_COMMON | set(REMOVED_CONTEXT_KEYS)
+CONTEXT_KEYS_3 = CONTEXT_KEYS_COMMON | {
+    "triggering_asset_events", "task_reschedule_count", "asset_state_store",
+    "task_state_store", "partition_date", "partition_key",
+}
 
 NOW_CALLS = ("datetime.now", "datetime.utcnow", "datetime.today", "date.today", "pendulum.now",
              "pendulum.today", "pendulum.yesterday", "pendulum.tomorrow", "timezone.utcnow")
@@ -378,7 +387,7 @@ class FileScan:
     def _collect(self, tree) -> None:
         self.task_funcs: dict[str, ast.AST] = {}
         self.callable_names: set[str] = set()
-        self.ctx_names = {"context", "ctx"}
+        self.ctx_names: dict[ast.AST | None, set[str]] = {}
         self.default_args_dicts: list[ast.Dict] = []
         self.dag_calls: list[ast.Call] = []
         self.bare_dag_decorators: list[ast.AST] = []
@@ -386,8 +395,6 @@ class FileScan:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if any(self.is_task_decorator(d) for d in node.decorator_list):
                     self.task_funcs[node.name] = node
-                if node.args.kwarg is not None:
-                    self.ctx_names.add(node.args.kwarg.arg)
                 for dec in node.decorator_list:
                     if isinstance(dec, (ast.Name, ast.Attribute)) and not isinstance(dec, ast.Call):
                         name = self.dotted(dec) or ""
@@ -406,12 +413,36 @@ class FileScan:
                 if (self.call_name(node.value) or "").endswith("get_current_context"):
                     for tgt in node.targets:
                         if isinstance(tgt, ast.Name):
-                            self.ctx_names.add(tgt.id)
+                            self.ctx_names.setdefault(self._enclosing_func(node), set()).add(tgt.id)
             if isinstance(node, (ast.Assign, ast.AnnAssign)) and isinstance(
                     getattr(node, "value", None), ast.Dict):
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
                 if any(isinstance(t, ast.Name) and "default_args" in t.id for t in targets):
                     self.default_args_dicts.append(node.value)
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+                    node in self.task_funcs.values() or node.name in self.callable_names):
+                names = self.ctx_names.setdefault(node, set())
+                if node.args.kwarg:
+                    names.add(node.args.kwarg.arg)
+                names.update(a.arg for a in node.args.args + node.args.kwonlyargs
+                             if a.arg in {"context", "ctx"})
+        self.supplied_task_params: dict[str, set[str]] = {}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            if isinstance(func, ast.Attribute) and func.attr in {"expand", "partial"}:
+                func = func.value
+            if not isinstance(func, ast.Name) or func.id not in self.task_funcs:
+                continue
+            params = self.task_funcs[func.id].args.args
+            supplied = {kw.arg for kw in node.keywords if kw.arg}
+            supplied.update(a.arg for a in params[:len(node.args)])
+            if func.id in self.supplied_task_params:
+                self.supplied_task_params[func.id] &= supplied
+            else:
+                self.supplied_task_params[func.id] = supplied
 
     # -- driver --------------------------------------------------------------
     def run(self) -> list[dict]:
@@ -429,7 +460,7 @@ class FileScan:
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
                 if id(node) not in self.docstrings:
-                    run_date_lines.append(self._scan_string(node.value, node.lineno, v3))
+                    run_date_lines.append(self._scan_string(node.value, node.lineno, v3, node))
             elif isinstance(node, (ast.Import, ast.ImportFrom)):
                 self._check_import(node, v2)
             elif isinstance(node, ast.Call):
@@ -459,10 +490,28 @@ class FileScan:
         return self.findings
 
     # -- rules ---------------------------------------------------------------
-    def _scan_string(self, text: str, lineno: int, v3: bool) -> int | None:
+    def _scan_string(self, text: str, lineno: int, v3: bool, node=None) -> int | None:
         if "{{" not in text and "{%" not in text:
             return None
-        return scan_template_text(text, lineno, v3, self.add)
+        overrides = set()
+        parent = self.parents.get(node)
+        while parent is not None:
+            dag_calls = []
+            if isinstance(parent, (ast.With, ast.AsyncWith)):
+                dag_calls = [i.context_expr for i in parent.items]
+            elif isinstance(parent, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                dag_calls = parent.decorator_list
+            for call in dag_calls:
+                if not isinstance(call, ast.Call) or not self.is_dag_call(call):
+                    continue
+                for kw in call.keywords:
+                    if kw.arg != "user_defined_macros":
+                        continue
+                    value = self.module_assign.get(kw.value.id) if isinstance(kw.value, ast.Name) else kw.value
+                    if isinstance(value, ast.Dict):
+                        overrides.update(k.value for k in value.keys if isinstance(k, ast.Constant))
+            parent = self.parents.get(parent)
+        return scan_template_text(text, lineno, v3, self.add, overrides)
 
     def _check_import(self, node, v2: bool) -> None:
         if not v2 or id(node) in self.guarded:
@@ -524,7 +573,7 @@ class FileScan:
                 self.add(call.lineno, "db-access-in-task", self._db_msg(hit))
 
         # wall clock deciding data in tasks
-        if in_body and _matches(name, NOW_CALLS) and self._derives_date(call):
+        if in_body and not parse_scope and _matches(name, NOW_CALLS) and self._derives_date(call):
             self.add(call.lineno, "wall-clock-in-task",
                      f"`{'.'.join(name.split('.')[-2:])}()` picks which data to process from the wall clock: retries, reruns, late runs "
                      "and backfills then process the wrong period. Derive dates from the run "
@@ -579,6 +628,9 @@ class FileScan:
                 if isinstance(k, ast.Constant) and k.value == "mode" and isinstance(
                         v, ast.Constant) and v.value == "reschedule":
                     return
+                if defer is None and isinstance(k, ast.Constant) and k.value == "deferrable" \
+                        and isinstance(v, ast.Constant) and v.value is True:
+                    return
         self.add(line or call.lineno, "sensor-poke-no-timeout",
                  f"{cls} runs in poke mode without timeout=: it holds a worker slot for up to the "
                  "default 7-day timeout if the condition never becomes true. Set timeout= (seconds) "
@@ -598,7 +650,7 @@ class FileScan:
 
     def _is_context_expr(self, node) -> bool:
         if isinstance(node, ast.Name):
-            return node.id in self.ctx_names
+            return node.id in self.ctx_names.get(self._enclosing_func(node), set())
         if isinstance(node, ast.Call):
             return (self.call_name(node) or "").endswith("get_current_context")
         return False
@@ -632,7 +684,7 @@ class FileScan:
         params = [a.arg for a in node.args.args + node.args.kwonlyargs]
         if v3:
             for p in params:
-                if p in REMOVED_CONTEXT_KEYS:
+                if p in REMOVED_CONTEXT_KEYS and p not in self.supplied_task_params.get(node.name, set()):
                     self.add(node.lineno, "removed-context-key",
                              _removed_msg(p, f"parameter of task callable `{node.name}`"))
         if any(p in RUN_DATE_KEYS for p in params):
@@ -650,7 +702,8 @@ class FileScan:
         for fname, fn in self.task_funcs.items():
             args = [a.arg for a in fn.args.args]
             kwonly = [a.arg for a in fn.args.kwonlyargs]
-            hits = {p for p in args + kwonly if p in CONTEXT_KEYS}
+            keys = CONTEXT_KEYS_2 if v2 else CONTEXT_KEYS_3
+            hits = {p for p in args + kwonly if p in keys}
             if hits:
                 reserved[fname] = (args, hits)
         if not reserved:
@@ -688,7 +741,7 @@ class FileScan:
         seen_calls = self._dyn_seen
         for label, expr in exprs:
             for sub_label, sub in self._expand_names(label, expr):
-                for n in ast.walk(sub):
+                for n in self._walk_evaluated(sub):
                     if isinstance(n, ast.Call) and id(n) not in seen_calls:
                         seen_calls.add(id(n))
                         cname = self.call_name(n) or ""
@@ -712,12 +765,25 @@ class FileScan:
                          self._sla_msg("sla_miss_callback="))
         self._check_dag_kwargs(call, kws, has_star, v3)
 
+    def _walk_evaluated(self, expr):
+        """Values evaluated now; lambda bodies run later, but their defaults run now."""
+        yield expr
+        if isinstance(expr, ast.Lambda):
+            children = list(expr.args.defaults) + [d for d in expr.args.kw_defaults if d is not None]
+            parent = self.parents.get(expr)
+            if isinstance(parent, ast.Call) and parent.func is expr:
+                children.append(expr.body)  # immediately invoked lambda
+        else:
+            children = ast.iter_child_nodes(expr)
+        for child in children:
+            yield from self._walk_evaluated(child)
+
     def _expand_names(self, label, expr, depth: int = 2):
         """``expr`` plus module-level values it references by name (``default_args`` etc.)."""
         yield label, expr
         if depth <= 0:
             return
-        for n in ast.walk(expr):
+        for n in self._walk_evaluated(expr):
             if isinstance(n, ast.Name) and n.id in self.module_assign:
                 value = self.module_assign[n.id]
                 if value is not expr:
@@ -770,7 +836,7 @@ def _is_filter(body: str, pos: int) -> bool:
     return body[:pos].rstrip().endswith("|")
 
 
-def scan_template_text(text: str, lineno: int, v3: bool, add) -> int | None:
+def scan_template_text(text: str, lineno: int, v3: bool, add, context_overrides=()) -> int | None:
     """Jinja rules over a string; returns the line of the first run-date reference."""
     first_run_date = None
     for m in JINJA_BLOCK_RE.finditer(text):
@@ -778,7 +844,7 @@ def scan_template_text(text: str, lineno: int, v3: bool, add) -> int | None:
         line = lineno + text.count("\n", 0, m.start())
         if v3:
             for km in JINJA_REMOVED_RE.finditer(body):
-                if not _is_filter(body, km.start()):
+                if km.group(1) not in context_overrides and not _is_filter(body, km.start()):
                     add(line, "removed-context-key", _removed_msg(km.group(1), "Jinja template"))
             for km in JINJA_RUN_ATTR_RE.finditer(body):
                 add(line, "removed-context-key",
@@ -987,7 +1053,7 @@ def count_catchup_runs(dag, earliest, now) -> int:
 
 
 def describe_dag(dag, n_runs: int, start_from: str | None, major: int | None) -> dict:
-    tt = getattr(dag, "timetable", None)
+    tt = core_timetable(dag)
     tt_name = type(tt).__name__ if tt is not None else None
     sched = getattr(dag, "schedule", None) if (major or 0) >= 3 else getattr(
         dag, "schedule_interval", None)
@@ -1006,9 +1072,9 @@ def describe_dag(dag, n_runs: int, start_from: str | None, major: int | None) ->
         "next_runs": [],
         "warnings": warns,
     }
-    schedulable = bool(getattr(tt, "can_be_scheduled", True)) and tt_name not in (
-        "NullTimetable", "OnceTimetable", None) and "Asset" not in (tt_name or "") \
-        and "Dataset" not in (tt_name or "")
+    schedulable = bool(getattr(tt, "can_be_scheduled", getattr(tt, "_can_be_scheduled", True))) \
+        and tt_name not in ("NullTimetable", "AssetTriggeredTimetable", "DatasetTriggeredTimetable",
+                            "DatasetTriggeredSchedule", None)
     if schedulable:
         try:
             runs, earliest, note = preview_runs(dag, n_runs, start_from)
@@ -1091,9 +1157,11 @@ def parse_args(argv):
                "3 usage/environment error. Warnings never fail.",
     )
     p.add_argument("paths", nargs="*", metavar="DAGS_PATH",
-                   help="DAG files or folders (default: $AIRFLOW__CORE__DAGS_FOLDER, else ./dags)")
+                   help="DAG files or folders (default: $AIRFLOW__CORE__DAGS_FOLDER, else ./dags); "
+                        "a missing plugins folder is skipped when another input exists")
     p.add_argument("--dag-id", action="append", default=[],
-                   help="only report this DAG (repeatable)")
+                   help="only report this DAG and its Python file (repeatable); template-file "
+                        "findings remain project-wide")
     p.add_argument("--runs", type=int, default=3, help=f"scheduled runs to preview per DAG "
                    f"(default 3, max {MAX_RUNS})")
     p.add_argument("--from", dest="start_from", metavar="DATE",
@@ -1124,6 +1192,8 @@ def default_paths() -> list[Path]:
 
 def build_result(args) -> tuple[dict, int]:
     paths = [Path(p) for p in args.paths] or default_paths()
+    if any(p.exists() for p in paths):
+        paths = [p for p in paths if p.exists() or p.name != "plugins"]
     missing = [str(p) for p in paths if not p.exists()]
     result = {"airflow_version": None, "target_version": None, "paths": [str(p) for p in paths],
               "import_errors": [], "dags": [], "findings": [], "parse_warnings": [],
@@ -1186,7 +1256,10 @@ def build_result(args) -> tuple[dict, int]:
         env_error = True
 
     if selected_files is not None:
-        findings = [f for f in findings if f["file"] in selected_files]
+        # Templates can be shared, included, or chosen dynamically. Retain their
+        # findings rather than pretending fileloc identifies all a DAG's inputs.
+        findings = [f for f in findings if f["file"] in selected_files
+                    or Path(f["file"]).suffix in TEMPLATE_EXTS]
     total_findings = len(findings)
     result["findings"] = findings[:MAX_FINDINGS]
     n_err = sum(1 for f in findings if f["severity"] == "error")

@@ -9,6 +9,8 @@ agent-venv fingerprint/restore. Standard library only.
   earlier ``deny`` rules. Signals are allowed only to processes of the same
   sandbox instance, so an agent's ``pkill -f airflow`` cannot reach the harness,
   graders or sibling runs (each ``sandbox-exec`` call is its own instance).
+  Process information is restricted to that instance too, and process-table
+  sysctl reads are denied to prevent exposure of outside command arguments.
 - :func:`scan_kill_commands` flags bash commands that kill processes by name or
   pattern (``pkill``, ``killall``, ``kill`` fed by ``pgrep``/``ps``/``lsof``, ``kill -1``).
 - :func:`scan_contamination` inspects a run's tool calls for references to
@@ -21,6 +23,7 @@ agent-venv fingerprint/restore. Standard library only.
 from __future__ import annotations
 
 import hashlib
+import fcntl
 import json
 import os
 import re
@@ -28,6 +31,7 @@ import shutil
 import subprocess
 import sys
 import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -40,6 +44,13 @@ SANDBOX_EXEC = "/usr/bin/sandbox-exec"
 #: Signals only within the same sandbox instance: a sandboxed ``kill``/``pkill`` of an
 #: outside process (harness, grader, sibling run) fails with EPERM.
 SIGNAL_RULES = ("(deny signal)", "(allow signal (target same-sandbox))")
+# Both controls are necessary on macOS: process-info alone does not hide argv
+# retrieved through sysctl, and sysctl alone does not block known-PID queries.
+PROCESS_INFO_RULES = (
+    '(deny sysctl-read (sysctl-name-prefix "kern.proc"))',
+    "(deny process-info*)",
+    "(allow process-info* (target same-sandbox))",
+)
 
 
 def _sbpl_str(path: str | os.PathLike) -> str:
@@ -77,7 +88,7 @@ def sandbox_profile(
     listing or reading them): the ancestors of an allowed dir inside a denied root,
     which ``mkdir -p`` and SQLite's path resolution walk.
     ``isolate_signals`` denies signals except to processes of the same sandbox
-    instance (the agent's own process tree).
+    instance (the agent's own process tree), and hides outside process info.
     """
     lines = ["(version 1)", "(allow default)", "(deny file-write*)"]
     writes = _filters(write_allow)
@@ -93,6 +104,7 @@ def sandbox_profile(
         if meta:
             lines.append(f"(allow file-read-metadata {meta})")
     if isolate_signals:
+        lines += PROCESS_INFO_RULES
         lines += SIGNAL_RULES
     return "\n".join(lines) + "\n"
 
@@ -364,23 +376,49 @@ class AgentEnvGuard:
     compares the venv with it and, when it differs, restores it: ``uv pip sync``
     to the frozen requirements, delete files that are not in the manifest, then
     ``uv pip sync --reinstall`` if the venv still differs. Returns
-    ``{"changed", "restored", "detail"}``. Thread-safe: one check at a time.
+    ``{"changed", "restored", "detail"}``. ``attempt()`` holds an exclusive lease
+    through the pre-check, agent execution and post-check. Threads and separate
+    harness processes sharing a venv cannot restore it during another attempt.
     """
 
     def __init__(self, venv: str | os.PathLike, resync=resync_venv) -> None:
         self.venv = Path(venv)
         self._resync = resync
-        self._lock = threading.Lock()
-        mf = manifest_file(self.venv)
-        self.manifest = json.loads(mf.read_text()) if mf.exists() else venv_manifest(self.venv)
+        self._lock = threading.RLock()
+        self._lease_depth = 0
+        with self.attempt():
+            mf = manifest_file(self.venv)
+            self.manifest = json.loads(mf.read_text()) if mf.exists() else venv_manifest(self.venv)
         self.pristine = manifest_fingerprint(self.manifest)
         self.restores = 0
 
     def _clean(self) -> bool:
         return venv_fingerprint(self.venv) == self.pristine
 
-    def check(self) -> dict:
+    @contextmanager
+    def attempt(self):
+        """Exclusive, reentrant venv lease; the lock file is outside the venv."""
         with self._lock:
+            if self._lease_depth:
+                self._lease_depth += 1
+                try:
+                    yield
+                finally:
+                    self._lease_depth -= 1
+                return
+            venv = self.venv.resolve()
+            lock_path = venv.with_name(venv.name + ".attempt.lock")
+            with lock_path.open("a+b") as lock_file:
+                fcntl.flock(lock_file, fcntl.LOCK_EX)
+                self._lease_depth = 1
+                try:
+                    yield
+                finally:
+                    self._lease_depth = 0
+                    fcntl.flock(lock_file, fcntl.LOCK_UN)
+
+    def check(self) -> dict:
+        with self.attempt():
             if self._clean():
                 return {"changed": False, "restored": False, "detail": ""}
             now = venv_manifest(self.venv)

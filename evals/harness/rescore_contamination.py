@@ -33,8 +33,8 @@ before this attempt read it back; otherwise ``weak``.
 
 Outputs in ``--out``: ``contamination.jsonl`` (one row per attempt),
 ``all/`` and ``excluding-flagged/`` (``report.py`` results.json + REPORT.md; a run
-is dropped when its scored attempt is flagged), ``excluding-strong/`` (drops only
-strong-evidence runs, a sensitivity check), ``meta.json``, and ``REPORT.md`` +
+is dropped when its scored attempt is flagged or unknown), ``excluding-strong/``
+(drops strong-evidence and unknown runs, a sensitivity check), ``meta.json``, and ``REPORT.md`` +
 ``results.json`` (flag counts, pass-rate tables with all runs and without flagged
 runs, per-case paired deltas, pooled deltas with case-clustered CIs, and a check of
 whether each delta's sign or significance changes when flagged runs are dropped).
@@ -60,7 +60,7 @@ import report as rp  # noqa: E402
 import run_eval as re_  # noqa: E402
 import sanitize as san  # noqa: E402
 
-STRONG_ROOTS = ("repo", "results", "work-root", "user-skills", "altimate-data", "user-config", "grader-env")
+STRONG_ROOTS = ("repo", "results", "eval-cache", "work-root", "user-skills", "altimate-data", "user-config", "grader-env")
 _WRITE_TOOLS = ("write",)
 
 
@@ -248,7 +248,10 @@ def rescore(dirs: list[Path], index_dirs: list[Path], work_root: str, home: str)
         src = Path(r["_source"])
         grader_is_agent = not (raw_meta.get(str(src)) or {}).get("agent_envs")
         attempts = [a for a in r.get("attempts") or [] if a.get("status") not in rp.SKIPPED]
-        flagged_final = strong_final = flagged_any = False
+        live_flag = bool(r.get("contamination_suspect"))
+        flagged_final = strong_final = None
+        flagged_any = bool(r.get("contamination_any_attempt") or live_flag)
+        final_available = False
         for i, a in enumerate(attempts):
             adir = attempt_dir(src, r, a)
             ev = adir / "events.jsonl"
@@ -256,7 +259,7 @@ def rescore(dirs: list[Path], index_dirs: list[Path], work_root: str, home: str)
                 "source": src.name, "attempt": a.get("attempt", i), "status": a.get("status"),
                 "scored": i == len(attempts) - 1, "events_available": ev.exists()}
             if not ev.exists():
-                rec.update(contamination_suspect=None, evidence_strength=None)
+                rec.update(contamination_suspect=None, evidence_strength="unknown")
                 records.append(rec)
                 continue
             scan = scan_attempt(g.load_events(ev), r["case"], src, work_root, grader_is_agent, home)
@@ -274,7 +277,14 @@ def rescore(dirs: list[Path], index_dirs: list[Path], work_root: str, home: str)
             flagged_any = flagged_any or scan["contamination_suspect"]
             if rec["scored"]:
                 flagged_final, strong_final = scan["contamination_suspect"], level == "strong"
+                final_available = True
             records.append(rec)
+        # Missing local transcripts provide no evidence of cleanliness. Keep
+        # live flags even if this rescan cannot reproduce their original evidence.
+        flagged_final = True if live_flag else flagged_final
+        strong_final = True if r.get("contamination_strong") else strong_final
+        r["contamination_rescore"] = ("unknown" if not final_available else
+                                       "flagged" if flagged_final else "clean")
         r["contamination_suspect"] = flagged_final
         r["contamination_strong"] = strong_final
         r["contamination_any_attempt"] = flagged_any
@@ -340,14 +350,16 @@ def render_summary(records: list[dict], reports: dict[str, dict], meta: dict) ->
     L = ["# altimate-code campaigns 2026-09-30: retroactive contamination rescore", "",
          "Detector: `isolation.scan_contamination` with today's forbidden roots, rebuilt per campaign "
          "(see `evals/harness/rescore_contamination.py`). Inputs: " + ", ".join(f"`{d}`" for d in meta["inputs"]) + ".",
-         "A run is dropped from the excluding tables when its scored attempt is flagged. "
+         "Missing scored-attempt events are unknown, never clean; both excluding tables drop unknown runs. "
+         "Live contamination flags are preserved. A run is dropped from the excluding-flagged table when flagged. "
          "Evidence strength is a heuristic: `strong` = the attempt used a shared-temp path another attempt had "
          "used earlier without overwriting it first, used a non-temp forbidden root, or overwrote a shared-temp "
          "path that another attempt also wrote before this attempt's last use of it (a race); `weak` = no sign of "
          "another attempt's state: paths this attempt overwrote first with no concurrent writer (e.g. "
          "`> /tmp/summary.md`), per-process names (`/tmp/x_$$`, `mktemp`), a mistyped path to its own scratch dir, "
          "or shared-temp paths no earlier attempt used. Manual review of the strong hits: `REVIEW.md`.", "",
-         "## Flagged scored attempts", "",
+         "## Rescan evidence for scored attempts", "",
+         "Counts below describe the reconstructed scan only; preserved live run flags can exclude additional runs.", "",
          "| split | arm | model | attempts | flagged | strong | flagged & passed | flagged & failed | no events |",
          "|---|---|---|---|---|---|---|---|---|"]
     for c in _counts(records):
@@ -478,8 +490,10 @@ def main(argv: list[str] | None = None) -> int:
     records, rows = rescore(args.dirs, index_dirs, work_root, home)
     rows = dedupe(rows)
     variants = {"all": rows,
-                "excluding-flagged": [r for r in rows if not r.get("contamination_suspect")],
-                "excluding-strong": [r for r in rows if not r.get("contamination_strong")]}
+                "excluding-flagged": [r for r in rows if r.get("contamination_suspect") is False
+                                      and r.get("contamination_rescore") != "unknown"],
+                "excluding-strong": [r for r in rows if r.get("contamination_strong") is False
+                                     and r.get("contamination_rescore") != "unknown"]}
     args.out.mkdir(parents=True, exist_ok=True)
     reports = {}
     for name, rs in variants.items():

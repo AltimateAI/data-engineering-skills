@@ -1,6 +1,7 @@
 """Unit tests for the pure parts of evals/harness/run_triggers.py (no LLM)."""
 
 import json
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -147,3 +148,41 @@ def test_repo_queries_file_is_valid():
         assert sum(1 for q in qs if q["expected"] == n) >= 5
     assert sum(1 for q in qs if q["expected"] is None) >= 10
     assert set(ctx) == {"airflow2", "airflow3", "dbt", "python"}
+
+
+@pytest.mark.parametrize("changed", ["skills", "queries", "fixture"])
+def test_resume_rejects_provenance_drift_before_launch(tmp_path, monkeypatch, changed):
+    queries = write_queries(tmp_path, [{"id": "a", "context": "af", "expected": A, "query": "x"}])
+    skills = tmp_path / "skills"
+    skill = skills / A / "SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text(f"---\nname: {A}\ndescription: original\n---\n")
+    out = tmp_path / "results"
+    out.mkdir()
+    meta = {"runner": "altimate-code", "models": ["m"],
+            "airflow_skills_sha256": t.r.hash_dir(skills),
+            "queries_sha256": hashlib.sha256(queries.read_bytes()).hexdigest(),
+            "fixtures_sha256": {n: t.r.hash_dir(tmp_path / "fx") for n in ("af", "py")}}
+    (out / "meta.json").write_text(json.dumps(meta))
+    (out / "runs.jsonl").write_text("\n")
+    if changed == "skills":
+        skill.write_text(skill.read_text().replace("original", "changed"))
+    elif changed == "queries":
+        queries.write_text(queries.read_text().replace('"query": "x"', '"query": "changed"'))
+    else:
+        (tmp_path / "fx" / "README.md").write_text("changed fixture")
+    monkeypatch.setattr(t.r, "missing_interpreters", lambda *_: pytest.fail("resume must abort before launch setup"))
+    assert t.main(["--resume", "--out", str(out), "--queries", str(queries),
+                   "--skills-dir", str(skills), "--models", "m"]) == 2
+    assert json.loads((out / "meta.json").read_text()) == meta
+    assert (out / "runs.jsonl").read_text() == "\n"
+
+
+def test_trigger_resume_accepts_matching_provenance():
+    hashes = {"airflow_skills_sha256": "skills", "queries_sha256": "queries",
+              "fixtures_sha256": {"af": "fixture"}}
+    meta = {"runner": "claude-code", "models": ["m"], **hashes}
+    assert t.resume_meta_problems(meta, "claude-code", ["m"], hashes) == []
+    assert t.resume_meta_problems(meta, "altimate-code", ["m"], hashes)
+    assert t.resume_meta_problems(meta, "claude-code", ["other"], hashes)
+    assert t.resume_meta_problems({}, "claude-code", ["m"], hashes)

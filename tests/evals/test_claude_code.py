@@ -298,7 +298,11 @@ def test_claude_sandbox_profile_and_policy(tmp_path):
     assert "user-config" in labels
     alt = r.IsolationRoots(scratch=roots.scratch, agent_venv=roots.agent_venv, staged_skills=roots.staged_skills,
                            out_dir=None, work_root=roots.work_root, base=roots.base)
-    assert "file-read-metadata" not in alt.sandbox_profile() and "user-config" not in {x for x, _ in alt.forbidden()}
+    # Both runners need stat-only access to runtime ancestors after denying the
+    # entire eval cache; this does not grant directory listings or file contents.
+    assert "file-read-metadata" in alt.sandbox_profile()
+    assert f'(literal "{os.path.realpath(tmp_path / "work")}")' in alt.sandbox_profile()
+    assert "user-config" not in {x for x, _ in alt.forbidden()}
 
 
 def test_contamination_scan_on_claude_tool_calls(tmp_path):

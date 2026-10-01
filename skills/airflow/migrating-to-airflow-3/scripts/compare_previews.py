@@ -4,7 +4,8 @@
 Runs are matched per DAG by run_after (the wall-clock time the run fires). For
 every matched run the chosen fields (default: logical_date, data_interval_start,
 data_interval_end) must be identical, the set of fire times must be identical,
-and catchup must be identical. Anything else is reported as a difference.
+and catchup, timetable class and summary must be identical (allowing the Airflow
+Dataset-to-Asset rename). Anything else is reported as a difference.
 
 Stdlib only; it does not import Airflow.
 
@@ -72,7 +73,20 @@ def load(path: str) -> dict:
     return data
 
 
-UNSCHEDULED = ("NullTimetable", "OnceTimetable")
+UNSCHEDULED = ("NullTimetable", "AssetTriggeredTimetable", "DatasetTriggeredTimetable",
+               "DatasetTriggeredSchedule")
+
+
+def timetable_value(value):
+    """Normalize only the known 2.x Dataset -> 3.x Asset timetable renames."""
+    aliases = {"DatasetTriggeredSchedule": "AssetTriggeredTimetable",
+               "DatasetTriggeredTimetable": "AssetTriggeredTimetable",
+               "DatasetOrTimeSchedule": "AssetOrTimeSchedule", "Dataset": "Asset"}
+    if value in aliases:
+        return aliases[value]
+    if isinstance(value, str) and value.startswith("Dataset or "):
+        return "Asset or " + value[len("Dataset or "):]
+    return value
 
 
 def index(data: dict, only: set[str], path: str) -> dict[str, dict]:
@@ -88,7 +102,7 @@ def index(data: dict, only: set[str], path: str) -> dict[str, dict]:
 def preview_missing(dag: dict) -> bool:
     """True when a scheduled DAG has no previewed runs (preview failed or had no start_date)."""
     tt = dag.get("timetable") or ""
-    scheduled = tt and tt not in UNSCHEDULED and "Asset" not in tt and "Dataset" not in tt
+    scheduled = tt and tt not in UNSCHEDULED
     return bool(scheduled) and not dag.get("next_runs")
 
 
@@ -100,6 +114,9 @@ def compare_dag(before: dict, after: dict, fields: tuple[str, ...]) -> dict:
             diffs.append({"field": "preview", side: f"unavailable: {reason[:200]}"})
     if before.get("catchup") != after.get("catchup"):
         diffs.append({"field": "catchup", "before": before.get("catchup"), "after": after.get("catchup")})
+    for field in ("timetable", "timetable_summary"):
+        if timetable_value(before.get(field)) != timetable_value(after.get(field)):
+            diffs.append({"field": field, "before": before.get(field), "after": after.get(field)})
     b_runs = {r["run_after"]: r for r in before.get("next_runs", [])}
     a_runs = {r["run_after"]: r for r in after.get("next_runs", [])}
     for ra in sorted(set(b_runs) | set(a_runs)):

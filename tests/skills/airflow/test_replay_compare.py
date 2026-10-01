@@ -1,11 +1,16 @@
-"""Tests for skills/airflow/migrating-to-airflow-3/scripts/replay_compare.py (no Airflow needed)."""
+"""Replay comparison unit tests and manual-run checks against available Airflow envs."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
+
+from test_airflow_check import clean_environ, env_python
 
 REPO = Path(__file__).resolve().parents[3]
 SCRIPT = REPO / "skills" / "airflow" / "migrating-to-airflow-3" / "scripts" / "replay_compare.py"
@@ -48,6 +53,58 @@ def test_legacy_mode_reports_missing_baseline_as_note():
     diffs, notes = rc.compare_runs(before, after, legacy=True)
     assert diffs == []
     assert len(notes) == 2
+
+
+@pytest.mark.parametrize("legacy", [False, True])
+def test_failed_manual_before_run_has_one_missing_baseline_note(legacy):
+    before = {"runs": {"d": [_run("2026-03-05T09:00", kind="manual", state="failed")]}}
+    after = {"runs": {"d": [_run("2026-03-05T09:00", kind="manual")]}}
+    diffs, notes = rc.compare_runs(before, after, legacy=legacy)
+    assert diffs == [] and len(notes) == 1
+    assert "no baseline" in notes[0]
+
+
+def test_legacy_manual_run_returns_unproven(tmp_path, monkeypatch, capsys):
+    for side in ("before", "after"):
+        (tmp_path / side / "dags").mkdir(parents=True)
+    plan = tmp_path / "plan.txt"
+    plan.write_text("d --runs 0 --manual 2026-03-05T09:00:00Z\n")
+    monkeypatch.setattr(rc, "side_env", lambda *_: {})
+    monkeypatch.setattr(rc, "replay_side", lambda name, *_: {
+        "name": name, "runs": {"d": [_run("2026-03-05T09:00:00Z", kind="manual")]}, "errors": []})
+    code = rc.main(["--before", str(tmp_path / "before"), "--after", str(tmp_path / "after"),
+                    "--plan", str(plan), "--legacy-before"])
+    output = capsys.readouterr().out
+    assert code == rc.EXIT_UNPROVEN
+    assert "No baseline" in output and "IDENTICAL:" not in output
+    assert json.loads(output.splitlines()[-1])["no_baseline"] == 1
+
+
+@pytest.mark.parametrize("baseline", ["legacy", "2.11"])
+def test_real_manual_replay_requires_a_2x_baseline(tmp_path, baseline):
+    python3 = env_python("3.3")
+    before_flags = ["--legacy-before"] if baseline == "legacy" else ["--before-python", env_python("2.11")]
+    for side in ("before", "after"):
+        dags = tmp_path / side / "dags"
+        dags.mkdir(parents=True)
+        (dags / "probe.py").write_text(
+            "import pendulum\nfrom airflow import DAG\n"
+            "from airflow.operators.empty import EmptyOperator\n"
+            "with DAG('manual_probe', schedule=None, "
+            "start_date=pendulum.datetime(2026, 3, 1, tz='UTC')):\n"
+            "    EmptyOperator(task_id='step')\n"
+        )
+    plan = tmp_path / "plan.txt"
+    plan.write_text("manual_probe --runs 0 --manual 2026-03-05T09:00:00Z\n")
+    proc = subprocess.run(
+        [python3, str(SCRIPT), "--before", str(tmp_path / "before"), "--after", str(tmp_path / "after"),
+         "--plan", str(plan), *before_flags], cwd=tmp_path,
+        env=clean_environ(TMPDIR=str(tmp_path)), capture_output=True, text=True, timeout=180,
+    )
+    summary = json.loads(proc.stdout.splitlines()[-1])
+    assert summary["errors"] == 0, proc.stdout + proc.stderr
+    assert proc.returncode == (rc.EXIT_UNPROVEN if baseline == "legacy" else rc.EXIT_OK), proc.stdout
+    assert summary["no_baseline"] == (1 if baseline == "legacy" else 0)
 
 
 def test_compare_files_missing_changed_extra(tmp_path):

@@ -36,6 +36,7 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -340,18 +341,8 @@ def workspace_patch(ws: Path, base: Path, scratch: Path) -> str:
 
 
 def escaping_symlinks(ws: Path) -> list[str]:
-    """Symlinks in the workspace that resolve outside it (e.g. to a case reference)."""
-    out = []
-    root = os.path.realpath(ws)
-    for dirpath, dirnames, filenames in os.walk(ws):
-        dirnames[:] = [d for d in dirnames if d != ".git"]
-        for name in dirnames + filenames:
-            p = os.path.join(dirpath, name)
-            if os.path.islink(p):
-                target = os.path.realpath(p)
-                if target != root and not target.startswith(root + os.sep):
-                    out.append(f"{os.path.relpath(p, ws)} -> {os.readlink(p)}")
-    return out
+    """External or otherwise unsafe links that cannot be passed to a grader."""
+    return g.unsafe_workspace_symlinks(ws)
 
 
 # --------------------------------------------------------------------------
@@ -543,6 +534,21 @@ class IsolationRoots:
             roots.append(("repo", str(main)))
         if self.out_dir:
             roots.append(("results", str(self.out_dir)))
+        # Campaign outputs are also commonly stored beside the venvs. Fence off
+        # all older campaigns there, including when EVAL_ENV_ROOT is overridden.
+        roots.append(("eval-cache", str(Path(home) / ".cache" / "des-evals")))
+        roots.append(("eval-cache", str(g.env_root())))
+        if self.out_dir:
+            # Custom output locations can share a parent with older campaigns.
+            # Deny the campaign dirs, not an arbitrary parent such as HOME or /.
+            parent = self.out_dir.resolve().parent
+            if parent.is_dir():
+                for p in parent.iterdir():
+                    try:
+                        if p.is_dir() and ((p / "meta.json").is_file() or (p / "runs.jsonl").is_file()):
+                            roots.append(("results", str(p)))
+                    except OSError:
+                        continue  # unrelated virtual or inaccessible filesystem entries
         roots.append(("work-root", str(self.work_root)))
         roots.append(("altimate-data", str(host_altimate_data_dir(self.base))))
         roots += [("user-skills", d.replace("~", home, 1)) for d in USER_SKILL_DIRS]
@@ -552,7 +558,7 @@ class IsolationRoots:
         return roots
 
     def allowed(self) -> list[str]:
-        return [str(self.scratch), str(self.staged_skills)]
+        return [str(self.scratch), str(self.staged_skills), str(self.agent_venv)]
 
     def policy(self) -> iso.ContaminationPolicy:
         src = os.environ if self.base is None else self.base
@@ -566,6 +572,11 @@ class IsolationRoots:
         # Shared temp dirs where graders and older runs leave outputs. /var/folders/*/C
         # (per-user caches some macOS frameworks need) stays readable.
         read_deny += ["/private/tmp", "/private/var/tmp", tempfile.gettempdir()]
+        # Runtime packages remain readable, as before; grader venv references
+        # still count as contamination in the transcript policy.
+        runtime_dirs = [self.agent_venv, *grader_env_dirs()]
+        metadata_paths = {str(p) for root in [self.scratch, *runtime_dirs]
+                          for p in Path(os.path.realpath(root)).parents}
         if self.runner == "claude-code":
             # Claude Code keeps config, sessions and its temp files under the attempt
             # scratch dir (CLAUDE_CONFIG_DIR, CLAUDE_CODE_TMPDIR); it needs no host data.
@@ -574,16 +585,17 @@ class IsolationRoots:
             return iso.sandbox_profile(
                 write_allow=[self.scratch, self.agent_venv, "/dev"],
                 read_deny=read_deny,
-                read_allow=[self.scratch, self.staged_skills],
+                read_allow=[self.scratch, self.staged_skills, *runtime_dirs],
                 read_allow_literal=cc.binary_paths(),
-                metadata_allow_literal=[str(p) for p in Path(os.path.realpath(self.scratch)).parents],
+                metadata_allow_literal=sorted(metadata_paths),
             )
         links = [host_data / n for n in ALTIMATE_DATA_LINKS if (host_data / n).exists()]
         return iso.sandbox_profile(
             write_allow=[self.scratch, self.agent_venv, host_altimate_cache_dir(self.base), "/dev"],
             read_deny=read_deny,
-            read_allow=[self.scratch, self.staged_skills] + [p for p in links if p.is_dir()],
+            read_allow=[self.scratch, self.staged_skills, *runtime_dirs] + [p for p in links if p.is_dir()],
             read_allow_literal=[p for p in links if not p.is_dir()],
+            metadata_allow_literal=sorted(metadata_paths),
         )
 
 
@@ -820,8 +832,9 @@ def _run_and_watch(cmd, cwd, env, out_path: Path, err_path: Path, started: float
                     stop_process_group(proc)
                     break
         finally:
-            if proc.poll() is None and not (timed_out or cost_capped or aborted):
-                stop_process_group(proc, grace_s=5)
+            # A successful leader can leave grandchildren running. Reap the whole
+            # group before any workspace reads, environment restores or grading.
+            stop_process_group(proc, grace_s=0 if (timed_out or cost_capped or aborted) else 5)
             proc.wait()
             if monitor is not None:
                 monitor.poll()
@@ -840,20 +853,34 @@ def auto_loaded_skills(trace_path: str | None) -> list[str]:
     return sorted(set(re.findall(r'<auto_loaded_skill name=\\?"([^"\\]+)', text)))
 
 
+def attempt_artifact(path: str | Path, scratch: Path) -> Path:
+    """Resolve agent-selected artifact paths without reading outside the attempt."""
+    try:
+        resolved = Path(path).resolve()
+    except (OSError, RuntimeError) as exc:
+        raise g.UnsafeWorkspaceError("unsafe attempt artifact path") from exc
+    if not resolved.is_relative_to(scratch.resolve()):
+        raise g.UnsafeWorkspaceError("attempt artifact points outside scratch")
+    return resolved
+
+
 def stop_process_group(proc: subprocess.Popen, grace_s: float = 15) -> None:
     """SIGTERM the agent's process group, then SIGKILL after ``grace_s``.
 
-    ``killpg`` raises ``PermissionError`` on macOS when the group has already exited
-    and only a zombie leader remains, so any ``OSError`` means "nothing left to kill".
+    Wait for the group, not just its leader: descendants may ignore SIGTERM.
     """
     try:
         os.killpg(proc.pid, signal.SIGTERM)
-        proc.wait(timeout=grace_s)
-        return
     except OSError:
         return
-    except subprocess.TimeoutExpired:
-        pass
+    deadline = time.monotonic() + grace_s
+    while time.monotonic() < deadline:
+        proc.poll()  # reap the leader if it has exited
+        try:
+            os.killpg(proc.pid, 0)
+        except OSError:
+            return
+        time.sleep(min(0.05, max(0, deadline - time.monotonic())))
     try:
         os.killpg(proc.pid, signal.SIGKILL)
     except OSError:
@@ -861,6 +888,7 @@ def stop_process_group(proc: subprocess.Popen, grace_s: float = 15) -> None:
 
 
 def run_grader(case: Case, workspace: Path, events: Path, out: Path, log_path: Path) -> tuple[dict | None, bool]:
+    g.validate_workspace(workspace)
     env = cc.scrub_env(g.scrubbed_environ())
     env.pop(cc.TOKEN_VAR, None)  # graders never need the agent's credentials
     env.pop(cc.TOKEN_CMD_VAR, None)
@@ -1022,8 +1050,9 @@ def runner_fields(ctx: AttemptContext | None, events: list[dict], use: dict, pro
     if ctx is None or ctx.runner != "claude-code":
         return {}
     res = g.claude_result(events) or {}
-    if res.get("result") and not (scratch / "final.md").exists():
-        (scratch / "final.md").write_text(str(res["result"]))
+    final = attempt_artifact(scratch / "final.md", scratch)
+    if res.get("result") and not final.exists():
+        final.write_text(str(res["result"]))
     inv = proc.get("inventory") or cc.inventory_from_events(events)
     problems = proc.get("inventory_problems")
     if problems is None:
@@ -1062,7 +1091,11 @@ def run_attempt(case: Case, model: str, arm: str, attempt_dir: Path, skills_dir:
                               "primary_score": None, "secondary_score": None, "cost_usd": 0.0,
                               "cost_reported_usd": 0.0, "wall_s": 0.0, "launched": False}
     scratch = None
+    env_lease = ExitStack()
     try:
+        guard = (ctx.env_guards if ctx else {}).get(case.airflow_version)
+        if guard is not None:
+            env_lease.enter_context(guard.attempt())
         record["agent_env_pre"] = _guard_check(ctx, case.airflow_version)
         prep = prepare_agent(case.id, case.agent_env_py,
                              lambda d: make_workspace(case, [], d), case.prompt, model, case.max_turns,
@@ -1089,6 +1122,7 @@ def run_attempt(case: Case, model: str, arm: str, attempt_dir: Path, skills_dir:
         if proc.get("aborted"):
             raise AttemptAborted(proc["aborted"])
         record["agent_env_post"] = _guard_check(ctx, case.airflow_version, raise_on_fail=False)
+        g.validate_workspace(ws)
         record["isolation"] = isolation_report(events, roots)
         record["isolation"]["escaping_symlinks"] = escaping_symlinks(ws)
         if record["isolation"]["escaping_symlinks"]:
@@ -1102,10 +1136,13 @@ def run_attempt(case: Case, model: str, arm: str, attempt_dir: Path, skills_dir:
             log(f"BROAD KILL COMMAND {case.id} {slug(model)}: "
                 f"{[k['command'][:80] for k in record['isolation']['kill_commands'][:3]]}")
         stderr = stderr_path.read_text(errors="replace")
-        if (scratch / "final.md").exists():
-            san.write_text(attempt_dir / "final.md", (scratch / "final.md").read_text(errors="replace"))
+        final = attempt_artifact(scratch / "final.md", scratch)
+        if final.exists():
+            san.write_text(attempt_dir / "final.md", final.read_text(errors="replace"))
         san.write_text(attempt_dir / "agent.patch", workspace_patch(ws, case.fixture, scratch))
         trace = next((e.get("path") for e in reversed(events) if e.get("type") == "trace_saved"), None)
+        if trace:
+            trace = str(attempt_artifact(trace, scratch))
         if trace and args.keep_traces and Path(trace).exists():
             shutil.copy2(trace, attempt_dir / "trace.json")
         skills_used = g.skill_invocations(events)
@@ -1140,6 +1177,9 @@ def run_attempt(case: Case, model: str, arm: str, attempt_dir: Path, skills_dir:
             "primary_score": grade.get("primary_score") if grade else None,
             "secondary_score": grade.get("secondary_score") if grade else None,
         })
+    except g.UnsafeWorkspaceError as exc:
+        record.update({"status": "task_fail", "reason": str(exc)[:500],
+                       "primary_pass": False, "primary_score": 0.0, "contamination_suspect": True})
     except cc.TokenCommandError as exc:  # retried like any infra error; the retry re-runs the command
         record.update({"status": "infra_error", "reason": f"token command failed: {exc}"[:500]})
         log(f"TOKEN COMMAND FAILED in attempt {attempt_dir}: {exc}")
@@ -1160,6 +1200,7 @@ def run_attempt(case: Case, model: str, arm: str, attempt_dir: Path, skills_dir:
             if record.get("usage_recovered_from"):
                 budget.add(record["cost_usd"])
     finally:
+        env_lease.close()
         if scratch is not None:
             if ctx is not None and ctx.runner == "claude-code":
                 if args.keep_traces:

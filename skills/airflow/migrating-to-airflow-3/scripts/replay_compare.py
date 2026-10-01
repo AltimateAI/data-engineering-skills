@@ -29,9 +29,9 @@ Usage (run with the 3.x project Python):
   catchup_by_default = True). This reproduces 2.x schedule dates for bare cron
   / timedelta schedules; BEFORE runs that fail on removed 2.x-only keys have no
   baseline and are reported as such ("No baseline"), as are files only AFTER
-  wrote; missing or changed files still count as differences. Manual runs then have
-  3.x semantics on both sides (no logical date), so compare them against the
-  2.x behaviour by reasoning.
+  wrote; missing or changed files still count as differences. Manual runs also
+  have no baseline: both sides use 3.x semantics (no logical date), so compare
+  them against the 2.x behaviour by reasoning, even when outputs match.
 --outputs: directories (relative to each copy) holding what the DAGs write;
   default "output". They are deleted in both copies before replaying unless
   --keep-outputs is given, so pass copies, never the working project.
@@ -43,7 +43,8 @@ Usage (run with the 3.x project Python):
 stdout: a human-readable report; the last line is a JSON summary.
 Exit codes: 0 identical, 2 differences (or a side failed to replay),
 3 usage/environment error, 4 no differences but some runs/files had no
-baseline (--legacy-before), so not proven. Both sides replay in parallel;
+baseline (a failed BEFORE run, or emulated/absent baselines with --legacy-before),
+so not proven. Both sides replay in parallel;
 expect a few seconds per planned run.
 """
 
@@ -230,6 +231,9 @@ def compare_runs(before: dict, after: dict, legacy: bool) -> tuple[list[str], li
                 notes.append(f"{dag_id} {key}: BEFORE run {rb.get('state')} (failed={rb.get('failed_tasks')}): "
                              "no baseline for this run's outputs")
             if rb.get("kind") == "manual":
+                if legacy and rb.get("state") == "success":
+                    notes.append(f"{dag_id} {key}: manual run uses 3.x semantics on both sides; "
+                                 "no 2.x baseline")
                 continue  # manual-run dates legitimately differ between 2.x and 3.x
             for field in ("logical_date", "data_interval_start", "data_interval_end"):
                 if rb.get(field) != ra.get(field):

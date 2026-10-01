@@ -48,6 +48,7 @@ temp/
 # report/, selftest/) and small per-attempt files (grade.json, attempt.json,
 # agent.patch, final.md). Raw agent transcripts and logs stay local.
 evals/**/results/*/runs/**/events.jsonl
+evals/**/results/*/runs/**/session.jsonl
 evals/**/results/*/runs/**/stderr.log
 evals/**/results/*/runs/**/grade.log
 evals/**/results/*/runs/**/trace.json
