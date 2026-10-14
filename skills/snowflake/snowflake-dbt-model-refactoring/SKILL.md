@@ -412,7 +412,7 @@ any single source of truth." No jargon, no marketing tone.>
 | Cost (static evidence)        | Yes / No / Not measured | e.g. "same as above; credits impact measurable via Phase 7" |
 | Governance / testability      | Yes / No  | e.g. "each intermediate now has unique/not_null tests on its grain key — 4 new tests, none before" |
 | Best-practice compliance      | Yes / No  | e.g. "matches dbt Labs' recommended staging → intermediate → mart layering; hardcoded literals hoisted to vars" |
-| Semantic behavior             | Preserved / Not preserved / Row-count-only verified | Fill from Parity evidence below. "Preserved" ONLY when BOTH the row-count check returned equal counts AND the multiplicity-aware NULL-safe comparison returned `differing_rows = 0`. "Not preserved" when either check failed. "Row-count-only verified" when the user chose row-count-only strictness and per-row equality was not checked. |
+| Semantic behavior             | Preserved / Not preserved / Row-count-only verified | Fill from Parity evidence below. "Preserved" ONLY when ALL THREE Phase 4 gates passed: row-count equality, multiplicity-aware NULL-safe comparison (`differing_rows = 0`), AND column-contract diff (0 columns with `status <> 'OK'`). The column-contract gate matters even when values compare equal — e.g. a `NUMBER → FLOAT` type change can keep `differing_rows = 0` under implicit coercion while still breaking the column contract. "Not preserved" when ANY of the three failed. "Row-count-only verified" when the user chose row-count-only strictness and per-row equality / column contract were not checked. |
 
 Fill only rows that materially changed. Mark "Not measured" honestly for
 performance and cost when warehouse benchmark was skipped — do not claim
@@ -431,8 +431,7 @@ performance improvements without measurement.
 | Columns removed (unused downstream)|   —    |       |   |
 
 ## Parity evidence
-- Row count before: <n>   after: <n>
-- Row-count check: before=<n>, after=<n>, equal=<TRUE|FALSE>
+- Row count: before=<n>, after=<n>, equal=<TRUE|FALSE> (must be TRUE for PASSED)
 - Multiplicity-aware NULL-safe comparison: differing_rows=<n> (must be 0 for PASSED)
 - Column-contract diff (INFORMATION_SCHEMA.COLUMNS): <n> columns with status <> 'OK'
   (must be 0 for PASSED; any ADDED / REMOVED / TYPE_CHANGED / ORDER_CHANGED fails parity)
