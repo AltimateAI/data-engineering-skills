@@ -87,10 +87,23 @@ Run these steps **in parallel where possible** — most are independent:
    query, one snapshot:
    - `altimate-dbt build --model <target>` (this both proves the current
      state builds and populates the manifest for later parity work).
-   - `CREATE OR REPLACE TABLE <db>.<schema>.<target>_before AS SELECT * FROM <target>`.
-   - Capture aggregate signature in ONE query:
-     `SELECT count(*), count(distinct <grain>), sum(<numeric>), min(<numeric>), max(<numeric>) FROM <target>`.
-     This is what parity will re-check in Phase 4.
+   - **Resolve the materialized relation from the dbt manifest**
+     (`target/manifest.json` → `nodes.<model>.relation_name`), do NOT
+     assume it lives in the session's current database/schema. Use that
+     fully-qualified name as `<src_relation>` below.
+   - Snapshot to a **session-unique, non-colliding** name — include the
+     dbt invocation_id or a timestamp suffix so a second concurrent run
+     does not clobber the first:
+     `CREATE TABLE <db>.<schema>.<target>_before_<yyyymmdd_hhmmss> AS SELECT * FROM <src_relation>`.
+     Use `CREATE TABLE` (not `CREATE OR REPLACE`); if the name collides,
+     surface the error — do not silently overwrite another user's snapshot.
+   - Capture aggregate signature in ONE query, built dynamically from the
+     model's actual column list (also in `manifest.json`):
+     `SELECT count(*), count(distinct <grain>) [, sum(<n>), min(<n>), max(<n>) FOR EACH numeric column <n>] FROM <src_relation>`.
+     If the model has **no numeric columns** (pure dimension model),
+     skip the sum/min/max terms — the key-wise comparison in Phase 4
+     is the real safety net. This signature is cheap context, not the
+     parity gate.
 
 **Time-saver rule:** do NOT call `cost-report` in Phase 1. Warehouse
 signals are collected in Phase 7 only if the user opts in. Pulling
@@ -119,12 +132,28 @@ writes total, and NO retries. Get each file right the first time.
    models inline into their consumer at compile time, so no warehouse
    round trip creates them as views. This shaves the second half of the
    parity build.
+
+   **Incremental-model exception.** If the target is `materialized='incremental'`,
+   do NOT extract any CTE that uses `{{ this }}`, `is_incremental()`, or
+   references the target's own prior state into an ephemeral model.
+   `is_incremental()` evaluates against the **ephemeral** model's own
+   context (always false), silently stripping the incremental filter and
+   causing the next build to reinsert all historical rows on an `append`
+   target. For incremental targets: keep materialization-dependent
+   predicates in the target model itself and extract only pure, stateless
+   logic (joins, aggregations that don't reference `this`). Call this out
+   explicitly in the Phase 2 plan.
 2. Hoist repeated literals into `vars:` in `dbt_project.yml` (one edit).
 3. Rewrite the target as a thin composition. Preserve the final column
    list exactly (order + names + types) (one edit).
-4. **Append** schema.yml entries for the new models to the existing
-   `models/marts/schema.yml` — do NOT create a new
-   `models/intermediate/schema.yml` file. One less file, one less write.
+4. **Append** schema entries for the new models to the project's existing
+   properties file. **Discover the file first** — dbt projects use
+   different conventions:
+   - A single `models/<layer>/schema.yml` co-located with models
+   - A sibling `properties.yml` or `_models.yml`
+   - Per-model `<model_name>.yml` next to the `.sql`
+   Pick the file that already documents a sibling model in the same
+   layer. Only create a new properties file if no existing one applies.
    (Ephemeral models can have descriptions but not tests, which is fine
    for the skill's needs.)
 
@@ -143,25 +172,59 @@ formatting.
 
 Safety gate. Do not skip.
 
-1. **One build to materialize the new state + downstream:**
-   `altimate-dbt build --model +<target>+`. This builds the target plus
-   its full upstream and downstream in a single run, which is what we
-   need for parity and downstream-still-works evidence in one shot.
-2. **Parity via ONE aggregate query** (row-count + spot-check hash):
-   `SELECT (SELECT count(*) FROM <target>_before) = (SELECT count(*) FROM <target>) AS row_ok, <sig checks…>`.
-   Do NOT call `data_diff` first unless the aggregate check fails. In the
-   observed run, `data_diff` needed two retries to resolve identifier
-   quoting and warehouse-scoping — skipping it saves 30–60s. Fall back to
-   `data_diff` only if the aggregate check disagrees or if the user chose
-   full column-hash strictness.
-3. If parity-strictness=full, follow the aggregate check with one
-   `data_diff` call using **fully qualified UPPERCASE** table names
-   (e.g. `ANALYTICS.MARTS.CUSTOMER_ORDER_SUMMARY_BEFORE`) and lowercase
-   column names — this matches Snowflake's identifier resolution and
-   avoids the two retries observed in the reference run.
+1. **Build the refactored candidate in an isolated schema, NOT in prod.**
+   The production target must remain the current version until parity
+   passes. Options, in order of preference:
+   - Use a non-prod dbt target (e.g. `--target dev` with
+     `generate_schema_name` giving a user-specific schema).
+   - Or set a one-off suffix via `--vars '{candidate_suffix: _candidate}'`
+     combined with a project macro that honors it.
+   - Or run `dbt run-operation` to materialize into a scratch schema
+     the user controls.
+
+   Invocation (adjust to the project's convention):
+   `altimate-dbt build --model +<target>+ --target <non_prod_target>`.
+   This builds the target plus its full upstream and downstream in a
+   single run, giving us parity + downstream-still-works evidence in one
+   shot — WITHOUT overwriting the production relation.
+
+   If the project has no non-prod target configured, **stop and ask the
+   user how to proceed**. Do not fall through to a prod build.
+2. **Parity gate — key-wise comparison is the baseline, not aggregates.**
+   Aggregates (count/sum/min/max) do NOT detect value swaps between keys
+   or changes to non-numeric columns. Run `data_diff` (or an equivalent
+   key-wise EXCEPT-based check) as the primary gate:
+
+   ```sql
+   -- Key-wise: every grain key in before must appear in after with
+   -- identical values across all columns. Both directions.
+   SELECT 'rows_only_in_before' AS side, count(*) AS n FROM (
+     SELECT * FROM <before_relation> EXCEPT SELECT * FROM <candidate_relation>
+   )
+   UNION ALL
+   SELECT 'rows_only_in_after', count(*) FROM (
+     SELECT * FROM <candidate_relation> EXCEPT SELECT * FROM <before_relation>
+   );
+   ```
+
+   Both counts MUST be 0 for parity to pass. Aggregate signature from
+   Phase 1 is useful supporting evidence in the report but is NOT the
+   gate. If the user explicitly chose "row-count-only" strictness, run
+   the row-count check and label parity in the report as
+   `AGGREGATE-ONLY (per-row not verified)` — never claim full parity
+   from an aggregate match.
+3. **Use the manifest-resolved identifiers verbatim.** Snowflake treats
+   quoted identifiers as case-sensitive; forcing UPPERCASE breaks projects
+   that create quoted lowercase relations (e.g. `"customer_order_summary"`).
+   Pass the fully-qualified `relation_name` straight from `target/manifest.json`
+   (which already contains the correct quoting the adapter used at build
+   time). Do not re-case or re-quote.
 4. If parity fails, stop. Skip to Phase 6 with a failure-mode report
-   and **do not** replace the production target model. Ask how to proceed.
-5. If parity passes, drop the `_before` snapshot.
+   and **do not** promote the candidate relation. Keep the `_before`
+   snapshot for debugging. Ask how to proceed.
+5. If parity passes, promote the candidate: either `ALTER TABLE ... RENAME`
+   or re-run the build against the prod target. Then drop the `_before`
+   snapshot and the candidate relation.
 
 **Skip rule:** do NOT run per-model `schema-verify` on every touched model
 if Phase 4's build already succeeded — `build` runs schema-verify
@@ -217,7 +280,7 @@ any single source of truth." No jargon, no marketing tone.>
 | Cost (static evidence)        | Yes / No / Not measured | e.g. "same as above; credits impact measurable via Phase 7" |
 | Governance / testability      | Yes / No  | e.g. "each intermediate now has unique/not_null tests on its grain key — 4 new tests, none before" |
 | Best-practice compliance      | Yes / No  | e.g. "matches dbt Labs' recommended staging → intermediate → mart layering; hardcoded literals hoisted to vars" |
-| Semantic behavior             | Preserved | Row count and aggregate signature identical (see Parity evidence below) |
+| Semantic behavior             | Preserved / Not preserved / Aggregate-only verified | Fill from Parity evidence below. "Preserved" ONLY when the key-wise EXCEPT comparison returned 0 mismatches in both directions. "Not preserved" when parity failed. "Aggregate-only verified" when the user chose row-count/aggregate-only strictness. |
 
 Fill only rows that materially changed. Mark "Not measured" honestly for
 performance and cost when warehouse benchmark was skipped — do not claim
@@ -237,10 +300,12 @@ performance improvements without measurement.
 
 ## Parity evidence
 - Row count before: <n>   after: <n>
-- Aggregate signature (count / sum / min / max on grain + one numeric):
-  before → after (identical | mismatch on <col>)
-- `data_diff` result (if run): <n rows mismatched>
-- Full project build after refactor: PASS=<n> ERROR=<n> WARN=<n>
+- Key-wise EXCEPT comparison: <n> rows only in before, <n> rows only in after
+  (both must be 0 for PASSED)
+- Aggregate signature (count / distinct grain / sum·min·max on numerics if present):
+  before → after (identical | mismatch on <col>)  — supporting evidence only, not the gate
+- Target-lineage build (`build +<target>+`) after refactor: PASS=<n> ERROR=<n> WARN=<n>
+  (scope: target plus its ancestors and descendants, not the whole project)
 
 ## Next-step optimizations (not applied)
 - <bullet per surviving sql-review finding>
@@ -251,6 +316,10 @@ performance improvements without measurement.
 
 ---
 
+<ONLY IF Parity: PASSED, append the following question. OMIT entirely on
+Parity: FAILED — do not invite a warehouse benchmark against a refactor
+that didn't pass semantic parity.>
+
 Would you like to run a **warehouse benchmark** now to measure real
 runtime, bytes scanned, and credits — comparing the refactored model
 against its historical query stats? (This uses `cost-report` + a fresh
@@ -259,7 +328,8 @@ warehouse credentials to be reachable.)
 ```
 
 The trailing question triggers Phase 7. Do not run Phase 7 until the user
-says yes.
+says yes. On parity failure, the report ends after "Files changed" and
+the next step is remediation, not benchmarking.
 
 ### Phase 7 — (Optional) Snowflake warehouse benchmark on real history
 
@@ -278,8 +348,9 @@ this skill uses them **together**:
 
 | Source | Latency | Retention | Use for |
 |---|---|---|---|
-| `SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY` | 20–45 min | 365 days | **Historical "before"** — averages over the last N days |
-| `INFORMATION_SCHEMA.QUERY_HISTORY_BY_WAREHOUSE()` table function | ~seconds | 7 days, 10K rows/call | **Fresh "after"** — the run we just triggered |
+| `SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY` | 20–45 min | 365 days | **Historical "before"** — runtime / bytes averages over the last N days |
+| `SNOWFLAKE.ACCOUNT_USAGE.QUERY_ATTRIBUTION_HISTORY` | 20–45 min + | 365 days | **Compute credits attributed to a query** (both historical and fresh, once ingested) — the only correct source for warehouse-compute credits |
+| `INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION()` / `BY_WAREHOUSE()` | ~seconds | 7 days, 10K rows/call | **Fresh "after"** — runtime + bytes_scanned for the run we just triggered, filtered by `QUERY_ID` |
 
 `ACCOUNT_USAGE` is the only source with enough retention to give a
 credible historical baseline, but its ~45 min ingestion lag means a run
@@ -301,40 +372,71 @@ Then:
    from a single fresh run of the old code.
 
 2. **Fresh refactored run** — trigger one build of the refactored model
-   at the top of Phase 7:
-   `altimate-dbt build --model <target>` and capture the `QUERY_ID` from
-   the build's compiled-query log line (dbt writes it as
-   `/* {"app": "dbt", ..., "query_id": "01b..."} */` in the trailing
-   comment, or you can read the dbt log's `SUCCESS` line for the runtime
-   directly).
+   **on the user-selected profile/target** (do not drop the `--target`
+   argument; otherwise the build goes to the default connection and the
+   history lookup finds nothing or compares the wrong environment):
 
-   Then read the fresh run's metrics from `INFORMATION_SCHEMA`:
+   `altimate-dbt build --model <target> --target <selected_target>`
+
+   **Capture the executed statement's `QUERY_ID` from the adapter's
+   query log, not from the compiled SQL** — Snowflake assigns the
+   `QUERY_ID` server-side when the statement runs, so it cannot appear
+   in the compiled SQL beforehand. Sources, in order of preference:
+   - dbt's `logs/dbt.log` (DEBUG level): the adapter logs each
+     statement's `query_id` after Snowflake returns it.
+   - `run_results.json` (newer dbt versions include `adapter_response.query_id`
+     per node).
+   - As a fallback: query `INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION()`
+     filtered to the dbt session's statements that materialize the target
+     (statement type `CREATE_TABLE_AS_SELECT` / `INSERT` touching the
+     target relation name).
+
+   Note: a `dbt build` run of a single model typically issues several
+   statements (schema create, model materialize, tests). The one we want
+   is the model's materialize statement — not a `dbt test` statement that
+   also references the model name. Filtering by `QUERY_ID` avoids this
+   ambiguity; filtering by `ILIKE '%<target>%'` does not.
+
+   Then read the fresh run's metrics from `INFORMATION_SCHEMA` by
+   `QUERY_ID`:
 
    ```sql
    SELECT
-       execution_time / 1000 AS runtime_s,
+       execution_time / 1000.0 AS runtime_s,
        bytes_scanned,
-       credits_used_cloud_services,
-       warehouse_size
-   FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_WAREHOUSE(
-       WAREHOUSE_NAME => '<warehouse>',
-       RESULT_LIMIT => 100
+       warehouse_size,
+       warehouse_name
+   FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION(
+       RESULT_LIMIT => 1000
    ))
-   WHERE query_text ILIKE '%<target>%'
-     AND query_text NOT ILIKE '%INFORMATION_SCHEMA%'
-     AND start_time >= dateadd('minute', -10, current_timestamp)
-   ORDER BY start_time DESC
-   LIMIT 1;
+   WHERE query_id = '<captured_query_id>';
    ```
 
-   There is usually a 1–5s gap between build completion and
+   (Use `QUERY_HISTORY_BY_SESSION` within the same session, or
+   `QUERY_HISTORY_BY_WAREHOUSE` filtered by `QUERY_ID` from a different
+   session — never filter solely by `query_text ILIKE`.)
+
+   There is usually a 1–5s gap between statement completion and
    `INFORMATION_SCHEMA` visibility. If the first call returns zero rows,
    retry ONCE after a 5-second wait. If still zero, fall back to the
    runtime the dbt log itself reported (`SUCCESS 1 in Xs`) and mark
    `bytes_scanned` as "not captured".
 
-   **Do NOT read the fresh run from `ACCOUNT_USAGE`.** It will not be
-   there for ~45 min and the demo will look broken.
+   **Compute credits for the fresh run** — do NOT use
+   `credits_used_cloud_services`; that column measures metadata/cloud
+   services credits, which are typically ~0 for compute-bound workloads
+   and will make genuine warehouse-cost wins look like zero savings.
+   Use `SNOWFLAKE.ACCOUNT_USAGE.QUERY_ATTRIBUTION_HISTORY.CREDITS_ATTRIBUTED_COMPUTE`
+   filtered by `QUERY_ID` (same column the existing `cost-report` skill
+   uses). If `QUERY_ATTRIBUTION_HISTORY` hasn't caught up yet (same
+   ~45 min lag as `ACCOUNT_USAGE`), mark the fresh-run credits and
+   savings as "not yet available — rerun this cell in ~1 hour" rather
+   than filling in a cloud-services number.
+
+   **Do NOT read the fresh run's runtime/bytes from `ACCOUNT_USAGE`.**
+   It will not be there for ~45 min. `INFORMATION_SCHEMA` is correct for
+   runtime and bytes_scanned; `ACCOUNT_USAGE.QUERY_ATTRIBUTION_HISTORY`
+   is the only source for the compute-attributed credits number.
 
 3. **Optimization signals** — delegate to `query-optimize` on the
    refactored SQL for additional optimizations the cleaner structure now
@@ -346,15 +448,18 @@ Then:
 
    ```
    ## Warehouse metrics
-   Historical baseline: last <N> days from ACCOUNT_USAGE.QUERY_HISTORY (n=<run count>)
-   Fresh refactored run: 1 run just now, read from INFORMATION_SCHEMA (~s latency)
+   Historical baseline: last <N> days from ACCOUNT_USAGE.QUERY_HISTORY +
+     QUERY_ATTRIBUTION_HISTORY (n=<run count>)
+   Fresh refactored run: 1 run just now (QUERY_ID=<id>), runtime/bytes
+     from INFORMATION_SCHEMA (~s latency); attributed compute credits
+     from QUERY_ATTRIBUTION_HISTORY (available after ~45 min)
 
-   | Metric                         | Historical avg | Refactored run | Δ |
-   |--------------------------------|----------------|----------------|---|
-   | Runtime (s)                    |                |                |   |
-   | Bytes scanned                  |                |                |   |
-   | Credits per run (est.)         |                |                |   |
-   | Estimated annual savings (USD) |     —          |                |   |
+   | Metric                              | Historical avg | Refactored run | Δ |
+   |-------------------------------------|----------------|----------------|---|
+   | Runtime (s)                         |                |                |   |
+   | Bytes scanned                       |                |                |   |
+   | Credits per run (compute-attributed)|                | <value or "pending ingestion"> |   |
+   | Estimated annual savings (USD)      |     —          | <computed once credits available> |   |
    ```
 
    Cite both sources explicitly in the block header so anyone reading
@@ -394,22 +499,29 @@ These exist to hold the 20-minute budget:
   warehouse round trip creates them as views.
 - **Max 5 file writes in Phase 3, no retries.** Two failed attempts on
   the same file = stop and ask.
-- **One build for parity** (`build --model +<target>+`), which also
-  exercises downstream — do not do a target-only build followed by a
-  full-project build.
-- **Aggregate SQL check before `data_diff`.** `data_diff` needs UPPERCASE
-  fully-qualified names and lowercase column names on Snowflake; the
-  aggregate SQL avoids the retry cycle when nothing has changed.
+- **One build for parity** (`build --model +<target>+ --target <non_prod>`),
+  which also exercises downstream — do not do a target-only build followed
+  by a full-project build. **Always on a non-prod target** to avoid
+  writing an unverified refactor over the production relation.
+- **Key-wise parity is the gate, aggregates are supporting evidence.**
+  Aggregates (count/sum/min/max) miss value swaps between keys and
+  non-numeric changes. Use the two-direction `EXCEPT` comparison from
+  Phase 4 as the pass/fail signal. Pass identifiers through from
+  `manifest.json` verbatim — do not re-case or re-quote them.
 - **No per-model `schema-verify` fan-out** when `build` already succeeded.
   It reports "mismatch" for any partial `schema.yml` documentation — the
   false-positive rate is high and the information gained is low.
 - **Do not pull `QUERY_HISTORY` up front.** Warehouse work is Phase 7,
   gated behind opt-in.
-- **In Phase 7, read historical from `ACCOUNT_USAGE`, fresh from
-  `INFORMATION_SCHEMA`.** `ACCOUNT_USAGE` has ~45 min ingestion lag — a
-  fresh run triggered inside the demo will not appear in time.
-  `INFORMATION_SCHEMA.QUERY_HISTORY_BY_WAREHOUSE()` returns in seconds
-  but only holds 7 days. Use both.
+- **In Phase 7, split by metric and by freshness.** Historical runtime /
+  bytes / credits come from `ACCOUNT_USAGE.QUERY_HISTORY` +
+  `QUERY_ATTRIBUTION_HISTORY`. Fresh runtime + bytes come from
+  `INFORMATION_SCHEMA` filtered by captured `QUERY_ID` (not by
+  `query_text ILIKE`, which can match a `dbt test` statement or another
+  session's query). Fresh **compute credits** can only come from
+  `QUERY_ATTRIBUTION_HISTORY` once it ingests (~45 min); mark as
+  "pending ingestion" until then rather than substituting
+  `credits_used_cloud_services`, which measures a different thing.
 - **Do not re-read files you already read.** Cache metrics as text; do
   not re-invoke `read` to pull line counts you already computed.
 
