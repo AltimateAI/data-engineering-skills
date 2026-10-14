@@ -39,6 +39,57 @@ Snowflake-specific.
 - Do **not** change model outputs — refactoring must preserve row count and per-row values
 - Do **not** touch models the user did not point at, even if they look messy
 
+## Prerequisites & invocation
+
+This skill delegates specialized sub-tasks (lineage, parity, SQL review,
+cost attribution, etc.) that are not themselves packaged with
+`snowflake-skills`. Two valid invocation paths — pick the one that
+matches the user's environment:
+
+**Preferred — `altimate-code`** (bundled in the `dbt-snowflake` kit).
+Before using any delegated-task line below, verify it is available:
+
+```bash
+command -v altimate-code
+```
+
+If present, delegate each sub-task via its non-interactive runner:
+
+```bash
+altimate-code run "<task description>" --yolo \
+  --output /tmp/altimate-result.md --dir "$(pwd)"
+```
+
+Then read `/tmp/altimate-result.md` and use the result. See the
+`altimate-code` skill for the full flag reference and install guidance.
+
+**Fallback — plain dbt + direct SQL** when `altimate-code` is not
+installed and the user does not want to install it. In that case:
+
+- Replace `dbt-analyze` lookups with `dbt ls --select +<target>+ --output json`
+  (downstream nodes) plus `dbt docs generate` + reading
+  `target/catalog.json` and `target/manifest.json` for the column-usage
+  map. Note: this is coarser than altimate-code's column-level lineage.
+- Replace build/compile delegation with plain `dbt build` / `dbt compile`.
+- Replace `data-parity` with the SQL in Phase 4 run directly against the
+  warehouse (via the dbt adapter, `snowsql`, or any Snowflake client).
+- Replace `sql-review` with `sqlfluff lint` or project-standard linter.
+- Replace `cost-report` / `query-optimize` with direct queries against
+  `SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY` + `QUERY_ATTRIBUTION_HISTORY`
+  (sample SQL in Phase 7).
+
+If **neither** `altimate-code` nor plain `dbt` is available, stop and
+tell the user — do not fabricate results from file reads alone.
+
+Throughout the procedure below, every reference to a delegated tool
+(`dbt-analyze`, `data-parity`, `sql-review`, `cost-report`,
+`query-optimize`, `lineage-diff`) is a logical sub-task name. Execute it
+via `altimate-code run "..."` on the preferred path or the plain-dbt
+equivalent on the fallback path. Every reference to `altimate-dbt build
+--model X` on the preferred path translates to `altimate-code run "dbt
+build --select X ..."` or plain `dbt build --select X` on the fallback
+path.
+
 ## Time budget
 
 Target end-to-end runtime: **5–6 minutes**, hard ceiling **8 minutes**.
@@ -79,13 +130,23 @@ Run these steps **in parallel where possible** — most are independent:
      hardcoded literals repeated ≥3 times.
    - Combine into one shell pipeline; do not re-read the file for each
      metric.
-2. **Downstream + column-usage map** — delegate to `dbt-analyze`:
-   - One call to fetch the downstream subtree and the columns each
-     downstream consumes. Save the result. Columns produced by the target
-     but not consumed anywhere = "safe to remove" set.
+2. **Downstream + column-usage map** — delegate (see tool-delegation
+   cheatsheet):
+   - One call to fetch the downstream dbt subtree and the columns each
+     downstream dbt model consumes. Save the result. Columns produced by
+     the target but not referenced by any downstream dbt node = the
+     **"candidates for review"** set — NOT "safe to remove".
+   - The dbt graph can only see dbt-tracked consumers. It is blind to
+     BI dashboards, direct warehouse queries, reverse-ETL jobs, external
+     tools, and anything that reads the materialized relation outside of
+     `ref()`. Removing a column that is unreferenced in dbt can still
+     break those consumers.
+   - Default behavior: **do not drop any columns** in the refactor
+     without explicit per-column user confirmation during Phase 2. The
+     candidates set is information for the plan, not a license to delete.
 3. **Warehouse baseline snapshot + aggregate signature** — one build, one
    query, one snapshot:
-   - `altimate-dbt build --model <target>` (this both proves the current
+   - `dbt build --select <target>` (or `altimate-code run "dbt build --select <target>"` on the preferred path) (this both proves the current
      state builds and populates the manifest for later parity work).
    - **Resolve the materialized relation from the dbt manifest**
      (`target/manifest.json` → `nodes.<model>.relation_name`), do NOT
@@ -124,8 +185,12 @@ Phase 3 until the user says go.
 
 ### Phase 3 — Execute (target: ≤90s)
 
-Apply the refactor with a **strict write budget**: no more than 5 file
-writes total, and NO retries. Get each file right the first time.
+Apply the refactor **strictly within the write set approved in the
+Phase 2 plan**: one write per file enumerated in the plan (new ephemeral
+intermediates, the rewritten target, `dbt_project.yml` var hoists, one
+properties-file append). Do not create or modify any file that was not
+in the approved plan. The budget scales with the plan — three extracted
+CTEs is three intermediate writes, not a cap violation.
 
 1. Create the intermediate models as **ephemeral** (add
    `{{ config(materialized='ephemeral') }}` at the top of each). Ephemeral
@@ -157,16 +222,17 @@ writes total, and NO retries. Get each file right the first time.
    (Ephemeral models can have descriptions but not tests, which is fine
    for the skill's needs.)
 
-**Compile-check rule:** do NOT run `altimate-dbt compile` in Phase 3 at
-all. Go straight to Phase 4's build. If there's a jinja / ref error, the
+**Compile-check rule:** do NOT run a separate `dbt compile` in Phase 3.
+Go straight to Phase 4's build. If there's a jinja / ref error, the
 build will surface it with the same clarity a compile would, and we save
 one warehouse round trip.
 
-**Write-budget rule:** if a file needs to be rewritten because your first
-version has a syntax or logic problem, that's ONE strike. Two strikes
-and you stop — surface the error to the user and ask how to proceed.
-Do not silently rewrite the same file three times chasing jinja loop
-formatting.
+**No silent retries.** If a file needs to be rewritten because your
+first version has a syntax or logic problem, that is ONE strike. Two
+strikes on the same file and you stop — surface the error to the user
+and ask how to proceed. Do not silently rewrite the same file three
+times chasing jinja loop formatting. This discipline is independent of
+the write-set size.
 
 ### Phase 4 — Validate parity (target: ≤4 min)
 
@@ -183,36 +249,59 @@ Safety gate. Do not skip.
      the user controls.
 
    Invocation (adjust to the project's convention):
-   `altimate-dbt build --model +<target>+ --target <non_prod_target>`.
+   `dbt build --select +<target>+ --target <non_prod_target>` (or route
+   via `altimate-code run "..."` on the preferred path).
    This builds the target plus its full upstream and downstream in a
    single run, giving us parity + downstream-still-works evidence in one
    shot — WITHOUT overwriting the production relation.
 
    If the project has no non-prod target configured, **stop and ask the
    user how to proceed**. Do not fall through to a prod build.
-2. **Parity gate — key-wise comparison is the baseline, not aggregates.**
+2. **Parity gate — multiplicity-aware comparison, not just EXCEPT.**
    Aggregates (count/sum/min/max) do NOT detect value swaps between keys
-   or changes to non-numeric columns. Run `data_diff` (or an equivalent
-   key-wise EXCEPT-based check) as the primary gate:
+   or changes to non-numeric columns. Plain `EXCEPT` is also insufficient
+   on Snowflake because it eliminates duplicates: a fan-out join that
+   turns `{A, A, B}` into `{A, B, B}` leaves the distinct-row sets
+   identical and both `EXCEPT` sides return 0 — parity would falsely
+   pass despite a changed row count and shifted multiplicities.
+
+   Run the gate as **two independent checks**, both must pass:
 
    ```sql
-   -- Key-wise: every grain key in before must appear in after with
-   -- identical values across all columns. Both directions.
-   SELECT 'rows_only_in_before' AS side, count(*) AS n FROM (
-     SELECT * FROM <before_relation> EXCEPT SELECT * FROM <candidate_relation>
+   -- (a) Row-count equality — catches any size change,
+   --     including same-set-with-different-multiplicities cases that
+   --     EXCEPT alone misses.
+   SELECT
+     (SELECT count(*) FROM <before_relation>)    AS before_rows,
+     (SELECT count(*) FROM <candidate_relation>) AS after_rows,
+     (SELECT count(*) FROM <before_relation>)
+       = (SELECT count(*) FROM <candidate_relation>) AS row_count_ok;
+
+   -- (b) Multiplicity-aware set comparison — GROUP BY all columns and
+   --     compare per-row counts across sides via FULL OUTER JOIN. Any
+   --     missing row, extra row, or multiplicity shift surfaces as a
+   --     row where before_cnt <> after_cnt (or one side is NULL).
+   WITH b AS (
+     SELECT <col_list>, count(*) AS cnt FROM <before_relation>    GROUP BY <col_list>
+   ),
+   a AS (
+     SELECT <col_list>, count(*) AS cnt FROM <candidate_relation> GROUP BY <col_list>
    )
-   UNION ALL
-   SELECT 'rows_only_in_after', count(*) FROM (
-     SELECT * FROM <candidate_relation> EXCEPT SELECT * FROM <before_relation>
-   );
+   SELECT count(*) AS differing_rows
+   FROM b FULL OUTER JOIN a USING (<col_list>)
+   WHERE coalesce(b.cnt, 0) <> coalesce(a.cnt, 0);
    ```
 
-   Both counts MUST be 0 for parity to pass. Aggregate signature from
-   Phase 1 is useful supporting evidence in the report but is NOT the
-   gate. If the user explicitly chose "row-count-only" strictness, run
-   the row-count check and label parity in the report as
-   `AGGREGATE-ONLY (per-row not verified)` — never claim full parity
-   from an aggregate match.
+   Parity passes **only if both** `row_count_ok = TRUE` **and**
+   `differing_rows = 0`. If the user explicitly chose row-count-only
+   strictness, run (a) alone and label parity in the report as
+   `ROW-COUNT-ONLY (per-row not verified)` — never claim full parity
+   from a row-count match. Aggregate signature from Phase 1 is useful
+   supporting evidence in the report but is NOT the gate.
+
+   The `<col_list>` is the model's full column list from
+   `manifest.json`'s `nodes.<model>.columns`; expand it inline rather
+   than using `GROUP BY *` (Snowflake does not accept `*` in GROUP BY).
 3. **Use the manifest-resolved identifiers verbatim.** Snowflake treats
    quoted identifiers as case-sensitive; forcing UPPERCASE breaks projects
    that create quoted lowercase relations (e.g. `"customer_order_summary"`).
@@ -226,13 +315,42 @@ Safety gate. Do not skip.
    or re-run the build against the prod target. Then drop the `_before`
    snapshot and the candidate relation.
 
-**Skip rule:** do NOT run per-model `schema-verify` on every touched model
-if Phase 4's build already succeeded — `build` runs schema-verify
-internally. Run schema-verify only on the target model, once, and only if
-the user asked for strict verification. In the observed run, five
-per-model schema-verify calls each reported "mismatch" purely because
-`schema.yml` documents a curated subset — five calls to learn nothing.
-Skip them.
+6. **Column-contract check.** `dbt build` does NOT verify the physical
+   column list — it only runs the tests you declared in `schema.yml`.
+   A refactor can change a column's name, order, or type while row count
+   and tests still pass. Compare the before/after output schemas
+   explicitly, independent of the build result:
+
+   ```sql
+   SELECT
+     coalesce(b.column_name, a.column_name) AS column_name,
+     b.ordinal_position AS before_pos, a.ordinal_position AS after_pos,
+     b.data_type        AS before_type, a.data_type        AS after_type,
+     CASE
+       WHEN b.column_name IS NULL              THEN 'ADDED'
+       WHEN a.column_name IS NULL              THEN 'REMOVED'
+       WHEN b.data_type <> a.data_type         THEN 'TYPE_CHANGED'
+       WHEN b.ordinal_position <> a.ordinal_position THEN 'ORDER_CHANGED'
+       ELSE 'OK'
+     END AS status
+   FROM
+     (SELECT column_name, ordinal_position, data_type
+      FROM <db>.INFORMATION_SCHEMA.COLUMNS
+      WHERE table_schema = '<before_schema>' AND table_name = '<before_table>') b
+   FULL OUTER JOIN
+     (SELECT column_name, ordinal_position, data_type
+      FROM <db>.INFORMATION_SCHEMA.COLUMNS
+      WHERE table_schema = '<candidate_schema>' AND table_name = '<candidate_table>') a
+     USING (column_name)
+   ORDER BY coalesce(b.ordinal_position, a.ordinal_position);
+   ```
+
+   Any row with `status <> 'OK'` means the Phase 3 "preserve final
+   column list exactly (order + names + types)" rule was violated.
+   Fail parity and surface the diff. The old per-model schema-verify
+   fan-out is still noisy against partial `schema.yml` documentation —
+   this `INFORMATION_SCHEMA`-based check compares the materialized
+   relations directly, which is what the contract actually requires.
 
 ### Phase 5 — Static-only optimization signals (target: ≤1 min)
 
@@ -376,7 +494,9 @@ Then:
    argument; otherwise the build goes to the default connection and the
    history lookup finds nothing or compares the wrong environment):
 
-   `altimate-dbt build --model <target> --target <selected_target>`
+   `dbt build --select <target> --target <selected_target>` (or
+   `altimate-code run "dbt build --select <target> --target <selected_target>"`
+   on the preferred path).
 
    **Capture the executed statement's `QUERY_ID` from the adapter's
    query log, not from the compiled SQL** — Snowflake assigns the
@@ -386,10 +506,13 @@ Then:
      statement's `query_id` after Snowflake returns it.
    - `run_results.json` (newer dbt versions include `adapter_response.query_id`
      per node).
-   - As a fallback: query `INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION()`
-     filtered to the dbt session's statements that materialize the target
-     (statement type `CREATE_TABLE_AS_SELECT` / `INSERT` touching the
-     target relation name).
+   - As a fallback: query `INFORMATION_SCHEMA.QUERY_HISTORY_BY_WAREHOUSE()`
+     filtered to recent `CREATE_TABLE_AS_SELECT` / `INSERT` statements on
+     the warehouse that touch the target relation name, then pick the
+     one whose timing matches the dbt run. Do NOT use
+     `QUERY_HISTORY_BY_SESSION()` here — the dbt build ran in a separate
+     process/session, so a `BY_SESSION` call from this skill's session
+     returns nothing.
 
    Note: a `dbt build` run of a single model typically issues several
    statements (schema create, model materialize, tests). The one we want
@@ -398,7 +521,8 @@ Then:
    ambiguity; filtering by `ILIKE '%<target>%'` does not.
 
    Then read the fresh run's metrics from `INFORMATION_SCHEMA` by
-   `QUERY_ID`:
+   `QUERY_ID`. Use `QUERY_HISTORY_BY_WAREHOUSE` (the dbt build ran in
+   a different session, so `BY_SESSION` would return nothing):
 
    ```sql
    SELECT
@@ -406,15 +530,16 @@ Then:
        bytes_scanned,
        warehouse_size,
        warehouse_name
-   FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION(
+   FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_WAREHOUSE(
+       WAREHOUSE_NAME => '<warehouse_from_selected_target>',
        RESULT_LIMIT => 1000
    ))
    WHERE query_id = '<captured_query_id>';
    ```
 
-   (Use `QUERY_HISTORY_BY_SESSION` within the same session, or
-   `QUERY_HISTORY_BY_WAREHOUSE` filtered by `QUERY_ID` from a different
-   session — never filter solely by `query_text ILIKE`.)
+   Never filter solely by `query_text ILIKE` — that can match a `dbt test`
+   statement or another session's query. Always filter by the captured
+   `QUERY_ID`.
 
    There is usually a 1–5s gap between statement completion and
    `INFORMATION_SCHEMA` visibility. If the first call returns zero rows,
@@ -471,20 +596,24 @@ Then:
 
 ## Tool delegation cheatsheet
 
-| Need                                    | Call                                          |
-|-----------------------------------------|-----------------------------------------------|
-| Downstream tree + column usage          | `dbt-analyze` (once, in Phase 1)              |
-| Compile / build a model                 | `dbt-develop` → `altimate-dbt compile/build`  |
-| Row-count + hash parity                 | Aggregate SQL first; `data-parity` only on mismatch or full-strictness |
-| Warehouse cost baseline                 | `cost-report` (Phase 7 only)                  |
-| Per-query performance rewrite candidates| `query-optimize` (Phase 7 only)               |
-| Column-level lineage diff (old vs new)  | `lineage-diff` (only if the user asks)        |
-| Static SQL anti-pattern lint            | `sql-review` (Phase 5)                        |
-| Verify materialized schema matches yml  | `dbt-schema-verify` (target only, once, only if strict verification requested) |
+Columns show the preferred invocation (via `altimate-code run`) and the
+plain-dbt fallback. See "Prerequisites & invocation" above for which to
+use.
 
-Do **not** grep for lineage, parse SQL by hand, or shell out to `dbt`
-directly if an Altimate skill exists for the task. The Altimate skills
-handle jinja / incremental / macro edge cases that ad-hoc scripts miss.
+| Need | Preferred (`altimate-code run "..."`) | Fallback |
+|------|---------------------------------------|----------|
+| Downstream tree + column usage (Phase 1) | `altimate-code run "map downstream consumers and column usage for model <target>"` | `dbt ls --select +<target>+ --output json` + parse `target/catalog.json` |
+| Compile / build a model | `altimate-code run "dbt build --select <target> --target <t>"` | `dbt build --select <target> --target <t>` |
+| Row-count + multiplicity-aware parity (Phase 4) | Run the SQL in Phase 4 directly via `altimate-code run "<sql>"` or any Snowflake client | Same SQL via `dbt --quiet show`, `snowsql`, or Python/SQL client |
+| Warehouse cost baseline (Phase 7) | `altimate-code run "cost report for model <target> over last <N> days"` | Direct SQL on `ACCOUNT_USAGE.QUERY_HISTORY` + `QUERY_ATTRIBUTION_HISTORY` |
+| Per-query optimization suggestions (Phase 7) | `altimate-code run "suggest query optimizations for <target>"` | Manual review + `EXPLAIN` plan reading |
+| Column-level lineage diff (old vs new) | `altimate-code run "column lineage diff for <target> between <before_relation> and <candidate_relation>"` | Not easily reproducible without altimate-code; skip or ask the user |
+| Static SQL anti-pattern lint (Phase 5) | `altimate-code run "sql-review on models/.../<target>.sql"` | `sqlfluff lint models/.../<target>.sql` |
+| Column-contract check (Phase 4, step 6) | Run the `INFORMATION_SCHEMA.COLUMNS` SQL in Phase 4 via `altimate-code run` or any Snowflake client | Same SQL via any Snowflake client |
+
+Do **not** grep for lineage or parse SQL by hand when a tool exists for
+the task. Jinja / incremental / macro edge cases are easy to miss with
+ad-hoc scripts.
 
 ## Efficiency rules (learned from prior runs)
 
@@ -497,8 +626,9 @@ These exist to hold the 20-minute budget:
 - **Ephemeral intermediates.** Materialize new intermediate models as
   ephemeral so they inline into the target at compile time. No separate
   warehouse round trip creates them as views.
-- **Max 5 file writes in Phase 3, no retries.** Two failed attempts on
-  the same file = stop and ask.
+- **Phase 3 writes only what the plan approved.** Budget scales with
+  the plan's write set; no silent retries — two failed attempts on the
+  same file = stop and ask.
 - **One build for parity** (`build --model +<target>+ --target <non_prod>`),
   which also exercises downstream — do not do a target-only build followed
   by a full-project build. **Always on a non-prod target** to avoid
@@ -508,9 +638,14 @@ These exist to hold the 20-minute budget:
   non-numeric changes. Use the two-direction `EXCEPT` comparison from
   Phase 4 as the pass/fail signal. Pass identifiers through from
   `manifest.json` verbatim — do not re-case or re-quote them.
-- **No per-model `schema-verify` fan-out** when `build` already succeeded.
-  It reports "mismatch" for any partial `schema.yml` documentation — the
-  false-positive rate is high and the information gained is low.
+- **Column-contract via `INFORMATION_SCHEMA.COLUMNS`, not `schema.yml`.**
+  Do NOT fan out per-model `schema-verify` calls — `schema.yml` typically
+  documents a curated subset of columns, so verify-against-yml produces
+  false "mismatch" reports with high rate and low information. Use the
+  explicit before/after `INFORMATION_SCHEMA.COLUMNS` diff in Phase 4 step 6
+  instead; it compares the materialized relations directly, which is
+  what Phase 3's column-preservation contract actually requires. `dbt
+  build` on its own does NOT verify column name / order / type.
 - **Do not pull `QUERY_HISTORY` up front.** Warehouse work is Phase 7,
   gated behind opt-in.
 - **In Phase 7, split by metric and by freshness.** Historical runtime /
