@@ -281,6 +281,13 @@ Safety gate. Do not skip.
    --     compare per-row counts across sides via FULL OUTER JOIN. Any
    --     missing row, extra row, or multiplicity shift surfaces as a
    --     row where before_cnt <> after_cnt (or one side is NULL).
+   --
+   --     NULL-safety: USING (...) and ON a.c = b.c both treat NULL as
+   --     non-matching (NULL = NULL -> UNKNOWN), so identical rows that
+   --     contain NULL in any joined column would fail to pair up and
+   --     register as false "differing rows". Match on
+   --     `a.c IS NOT DISTINCT FROM b.c` for every column — that returns
+   --     TRUE when both sides are NULL and when both sides are equal.
    WITH b AS (
      SELECT <col_list>, count(*) AS cnt FROM <before_relation>    GROUP BY <col_list>
    ),
@@ -288,7 +295,12 @@ Safety gate. Do not skip.
      SELECT <col_list>, count(*) AS cnt FROM <candidate_relation> GROUP BY <col_list>
    )
    SELECT count(*) AS differing_rows
-   FROM b FULL OUTER JOIN a USING (<col_list>)
+   FROM b
+   FULL OUTER JOIN a
+     ON  a.<col_1> IS NOT DISTINCT FROM b.<col_1>
+     AND a.<col_2> IS NOT DISTINCT FROM b.<col_2>
+     AND /* …one row per column in <col_list>… */
+     AND a.<col_N> IS NOT DISTINCT FROM b.<col_N>
    WHERE coalesce(b.cnt, 0) <> coalesce(a.cnt, 0);
    ```
 
@@ -300,8 +312,10 @@ Safety gate. Do not skip.
    supporting evidence in the report but is NOT the gate.
 
    The `<col_list>` is the model's full column list from
-   `manifest.json`'s `nodes.<model>.columns`; expand it inline rather
-   than using `GROUP BY *` (Snowflake does not accept `*` in GROUP BY).
+   `manifest.json`'s `nodes.<model>.columns`; expand it inline (both in
+   the `GROUP BY` and in the per-column `IS NOT DISTINCT FROM` conditions)
+   rather than using `GROUP BY *` or `USING (...)` — Snowflake does not
+   accept `*` in `GROUP BY`, and `USING (...)` is not NULL-safe.
 3. **Use the manifest-resolved identifiers verbatim.** Snowflake treats
    quoted identifiers as case-sensitive; forcing UPPERCASE breaks projects
    that create quoted lowercase relations (e.g. `"customer_order_summary"`).
@@ -398,7 +412,7 @@ any single source of truth." No jargon, no marketing tone.>
 | Cost (static evidence)        | Yes / No / Not measured | e.g. "same as above; credits impact measurable via Phase 7" |
 | Governance / testability      | Yes / No  | e.g. "each intermediate now has unique/not_null tests on its grain key — 4 new tests, none before" |
 | Best-practice compliance      | Yes / No  | e.g. "matches dbt Labs' recommended staging → intermediate → mart layering; hardcoded literals hoisted to vars" |
-| Semantic behavior             | Preserved / Not preserved / Aggregate-only verified | Fill from Parity evidence below. "Preserved" ONLY when the key-wise EXCEPT comparison returned 0 mismatches in both directions. "Not preserved" when parity failed. "Aggregate-only verified" when the user chose row-count/aggregate-only strictness. |
+| Semantic behavior             | Preserved / Not preserved / Row-count-only verified | Fill from Parity evidence below. "Preserved" ONLY when BOTH the row-count check returned equal counts AND the multiplicity-aware NULL-safe comparison returned `differing_rows = 0`. "Not preserved" when either check failed. "Row-count-only verified" when the user chose row-count-only strictness and per-row equality was not checked. |
 
 Fill only rows that materially changed. Mark "Not measured" honestly for
 performance and cost when warehouse benchmark was skipped — do not claim
@@ -418,8 +432,10 @@ performance improvements without measurement.
 
 ## Parity evidence
 - Row count before: <n>   after: <n>
-- Key-wise EXCEPT comparison: <n> rows only in before, <n> rows only in after
-  (both must be 0 for PASSED)
+- Row-count check: before=<n>, after=<n>, equal=<TRUE|FALSE>
+- Multiplicity-aware NULL-safe comparison: differing_rows=<n> (must be 0 for PASSED)
+- Column-contract diff (INFORMATION_SCHEMA.COLUMNS): <n> columns with status <> 'OK'
+  (must be 0 for PASSED; any ADDED / REMOVED / TYPE_CHANGED / ORDER_CHANGED fails parity)
 - Aggregate signature (count / distinct grain / sum·min·max on numerics if present):
   before → after (identical | mismatch on <col>)  — supporting evidence only, not the gate
 - Target-lineage build (`build +<target>+`) after refactor: PASS=<n> ERROR=<n> WARN=<n>
@@ -633,11 +649,16 @@ These exist to hold the 20-minute budget:
   which also exercises downstream — do not do a target-only build followed
   by a full-project build. **Always on a non-prod target** to avoid
   writing an unverified refactor over the production relation.
-- **Key-wise parity is the gate, aggregates are supporting evidence.**
-  Aggregates (count/sum/min/max) miss value swaps between keys and
-  non-numeric changes. Use the two-direction `EXCEPT` comparison from
-  Phase 4 as the pass/fail signal. Pass identifiers through from
-  `manifest.json` verbatim — do not re-case or re-quote them.
+- **Multiplicity-aware NULL-safe parity is the gate; aggregates and
+  EXCEPT are not sufficient.** Aggregates (count/sum/min/max) miss value
+  swaps between keys and non-numeric changes. Plain `EXCEPT` dedupes, so
+  it misses row-multiplicity shifts (e.g. a fan-out that turns {A,A,B}
+  into {A,B,B}). Use the row-count equality check PLUS the per-row-count
+  `FULL OUTER JOIN ... ON a.c IS NOT DISTINCT FROM b.c` comparison from
+  Phase 4 as the pass/fail signal — both must pass. `IS NOT DISTINCT
+  FROM` is required so NULL-valued cells match NULL on the other side.
+  Pass identifiers through from `manifest.json` verbatim — do not re-case
+  or re-quote them.
 - **Column-contract via `INFORMATION_SCHEMA.COLUMNS`, not `schema.yml`.**
   Do NOT fan out per-model `schema-verify` calls — `schema.yml` typically
   documents a curated subset of columns, so verify-against-yml produces
