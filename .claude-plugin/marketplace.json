@@ -32,7 +32,8 @@
       "skills": [
         "./skills/snowflake/optimizing-query-by-id",
         "./skills/snowflake/optimizing-query-text",
-        "./skills/snowflake/finding-expensive-queries"
+        "./skills/snowflake/finding-expensive-queries",
+        "./skills/snowflake/snowflake-dbt-model-refactoring"
       ]
     },
     {
