@@ -174,21 +174,28 @@ case "$(echo "$NON_PROD_TARGET" | tr '[:upper:]' '[:lower:]')" in
 esac
 
 # 3. Resolved-database/schema check: compare the candidate target's
-#    database/schema to the project's prod output in profiles.yml. If
-#    they match, this is prod in disguise — refuse.
-#    `dbt debug --target X` prints `database:` and `schema:` under
-#    "Connection:" — parse those, or use a run-operation that prints
-#    `{{ target.database }}.{{ target.schema }}`.
-CAND_DBSCHEMA="$(dbt run-operation \
-  --target "$NON_PROD_TARGET" \
-  --args '{sql: "select current_database() || \".\" || current_schema()"}' \
-  --quiet 2>/dev/null || true)"
-PROD_DBSCHEMA="$(dbt run-operation \
-  --target prod \
-  --args '{sql: "select current_database() || \".\" || current_schema()"}' \
-  --quiet 2>/dev/null || true)"
+#    database/schema to the project's prod output. If they match, this
+#    is prod in disguise — refuse.
+#    Use `dbt show --inline` to run an ad-hoc SELECT against the target
+#    (NOT `dbt run-operation`, which requires a positional macro name).
+resolve_db_schema() {
+  # Prints "<database>.<schema>" for the given target, or empty if the
+  # target doesn't exist / cannot connect.
+  local target="$1"
+  dbt show --inline \
+    "select current_database() || '.' || current_schema() as dbschema" \
+    --target "$target" --limit 1 2>/dev/null \
+    | awk -F'|' '/\|.*\./ && !/dbschema/ {gsub(/ /, "", $2); print $2; exit}'
+}
+CAND_DBSCHEMA="$(resolve_db_schema "$NON_PROD_TARGET")"
+PROD_DBSCHEMA="$(resolve_db_schema prod)"
+
+if [ -z "$CAND_DBSCHEMA" ]; then
+  echo "Could not resolve database.schema for target '$NON_PROD_TARGET'. Refusing."
+  exit 1
+fi
 if [ -n "$PROD_DBSCHEMA" ] && [ "$CAND_DBSCHEMA" = "$PROD_DBSCHEMA" ]; then
-  echo "Refusing: target '$NON_PROD_TARGET' resolves to the same db.schema as 'prod'."
+  echo "Refusing: target '$NON_PROD_TARGET' resolves to the same database.schema ($CAND_DBSCHEMA) as 'prod'."
   exit 1
 fi
 

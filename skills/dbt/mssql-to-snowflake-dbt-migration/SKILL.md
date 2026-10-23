@@ -367,19 +367,31 @@ if [ -f "macros/get_custom_schema.sql" ] && \
   git add macros/get_custom_schema.sql
 fi
 
-# seeds/ only if this run added a seed
-git status --porcelain seeds/ | grep -q . && git add seeds/
+# seeds/ only if this run added a seed. Use if/then/fi, NOT `cond && cmd`
+# — under `set -e`, a `cond` that exits non-zero (nothing changed → grep
+# returns 1) aborts the whole script instead of just skipping the stage.
+if [ -n "$(git status --porcelain seeds/)" ]; then
+  git add seeds/
+fi
 
-# dbt_project.yml only if modified
-[ -n "$(git status --porcelain dbt_project.yml)" ] && git add dbt_project.yml
+# dbt_project.yml only if modified (same reason — use if/then/fi).
+if [ -n "$(git status --porcelain dbt_project.yml)" ]; then
+  git add dbt_project.yml
+fi
 
 cd -   # back to repo root
 
-# Commit message via file (quoted heredoc — no shell expansion of
-# <scope> / <layering> text, which may contain shell metacharacters).
-cat > /tmp/mssql-commit-msg.txt <<EOF
-Migrate <scope> from MS SQL to Snowflake dbt (<layering>) — ${TS}
+# Commit message via QUOTED heredoc (<<'EOF') — no shell expansion of
+# <scope> / <layering> or object/schema names that may contain
+# shell metacharacters like `$`, backticks, `(`, `)`. The literal
+# `${TS}` placeholder is replaced afterwards with `sed`, so TS still
+# gets injected without re-opening the shell-expansion window.
+cat > /tmp/mssql-commit-msg.txt <<'EOF'
+Migrate <scope> from MS SQL to Snowflake dbt (<layering>) — __TS__
 EOF
+# Inject TS safely with sed (not shell interpolation into the heredoc).
+sed -i.bak "s/__TS__/${TS}/" /tmp/mssql-commit-msg.txt && rm -f /tmp/mssql-commit-msg.txt.bak
+
 git commit -F /tmp/mssql-commit-msg.txt
 ```
 

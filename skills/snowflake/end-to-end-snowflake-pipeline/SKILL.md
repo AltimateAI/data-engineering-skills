@@ -102,36 +102,72 @@ one consolidated question — then proceed.
 
 ### Phase 2 — Detect the environment (≤30s) — do NOT ask the user
 
-Run these in parallel:
+Export the detection results as shell variables that later phases
+depend on. Set every variable the later phases read — never leave one
+undefined.
+
 ```bash
-find . -maxdepth 3 -name dbt_project.yml | head -1
+REPO_ROOT="$(git rev-parse --show-toplevel)"
 
-# Airflow signals: dags/*.py (any depth under dags/)
-find . -maxdepth 4 -path '*/dags/*.py' | head -5
+# --- Detect orchestrator ---
+AIRFLOW_DAGS_DIR=""   # e.g. "dags" or "airflow/dags"; empty if none
+# Airflow signals: *.py under any */dags/ directory, excluding dot-paths.
+AIRFLOW_HIT="$(find "$REPO_ROOT" -maxdepth 5 -path '*/dags/*.py' \
+               -not -path '*/.*' | head -1)"
+if [ -n "$AIRFLOW_HIT" ]; then
+  # Strip filename to get the dags dir, relative to REPO_ROOT.
+  AIRFLOW_DAGS_DIR="$(dirname "${AIRFLOW_HIT#$REPO_ROOT/}")"
+fi
 
-# Prefect signals: prefect.yaml OR a @flow import pattern
-find . -maxdepth 4 -name 'prefect.yaml' | head -3
-grep -rln "from prefect import flow\|@flow" --include="*.py" . 2>/dev/null | head -3
+PREFECT_HIT="$(find "$REPO_ROOT" -maxdepth 4 -name 'prefect.yaml' | head -1)"
+if [ -z "$PREFECT_HIT" ]; then
+  PREFECT_HIT="$(grep -rln "from prefect import flow\|@flow" \
+                 --include='*.py' "$REPO_ROOT" 2>/dev/null | head -1)"
+fi
 
-# Dagster signals: definitions.py, workspace.yaml, or [tool.dagster] in pyproject.toml
-# dagster.yaml alone is an INSTANCE config, often not committed — do not rely on it.
-find . -maxdepth 4 \( -name 'definitions.py' -o -name 'workspace.yaml' \) | head -3
-grep -l "\[tool.dagster\]" pyproject.toml 2>/dev/null
+DAGSTER_HIT="$(find "$REPO_ROOT" -maxdepth 4 \
+               \( -name 'definitions.py' -o -name 'workspace.yaml' \) \
+               | head -1)"
+if [ -z "$DAGSTER_HIT" ] && [ -f "$REPO_ROOT/pyproject.toml" ]; then
+  grep -q '^\[tool.dagster\]' "$REPO_ROOT/pyproject.toml" && \
+    DAGSTER_HIT="$REPO_ROOT/pyproject.toml"
+fi
 
+# ORCHESTRATOR is ALWAYS set — later phases rely on this.
+if   [ -n "$AIRFLOW_HIT" ]; then ORCHESTRATOR="airflow"
+elif [ -n "$PREFECT_HIT" ]; then ORCHESTRATOR="prefect"
+elif [ -n "$DAGSTER_HIT" ]; then ORCHESTRATOR="dagster"
+else                             ORCHESTRATOR="none"
+fi
+
+# --- Detect dbt project root (relative to REPO_ROOT) ---
+DBT_PROJECT_HIT="$(find "$REPO_ROOT" -maxdepth 3 -name dbt_project.yml | head -1)"
+if [ -n "$DBT_PROJECT_HIT" ]; then
+  DBT_ROOT="$(dirname "${DBT_PROJECT_HIT#$REPO_ROOT/}")"
+  [ "$DBT_ROOT" = "" ] && DBT_ROOT="."
+else
+  echo "No dbt_project.yml found — this skill requires an existing dbt project."
+  exit 1
+fi
+
+# --- VCS ---
 git remote -v 2>/dev/null | head -1
-command -v gh >/dev/null 2>&1 && gh auth status 2>&1 | head -3 || echo "gh: not installed"
+if command -v gh >/dev/null 2>&1; then
+  GH_AUTH="$(gh auth status 2>&1 | head -3)"
+else
+  GH_AUTH="gh: not installed"
+fi
+
+echo "Detected: dbt_root=$DBT_ROOT  orchestrator=$ORCHESTRATOR  dags_dir=${AIRFLOW_DAGS_DIR:-N/A}"
 ```
 
 Decide:
-- **Orchestrator**:
-  - **Airflow** if any `dags/*.py` exists.
-  - **Prefect** if `prefect.yaml` OR a `@flow` import is found.
-  - **Dagster** if `definitions.py` / `workspace.yaml` / `[tool.dagster]`
-    in `pyproject.toml` is found. (`dagster.yaml` on its own is NOT
-    sufficient — it's an instance config and rarely committed.)
-  - **None** otherwise — do not add one; flag it and skip Phase 5.
+- **Orchestrator**: Airflow / Prefect / Dagster / none per the above.
+  `ORCHESTRATOR` is always set.
 - **VCS**: GitHub if `github.com` remote and `gh` is auth'd; else just
   commit locally and tell the user.
+- **No orchestrator detected** (`ORCHESTRATOR=none`) — do not add one;
+  flag it and skip Phase 5.
 
 Print the detected stack in one line before building.
 
@@ -257,17 +293,25 @@ case "$(echo "$NON_PROD_TARGET" | tr '[:upper:]' '[:lower:]')" in
     echo "Refusing: target '$NON_PROD_TARGET' looks like production."; exit 1 ;;
 esac
 
-# 3. Resolved-database/schema check vs the 'prod' target in profiles.yml.
-CAND_DBSCHEMA="$(dbt run-operation \
-  --target "$NON_PROD_TARGET" \
-  --args '{sql: "select current_database() || \".\" || current_schema()"}' \
-  --quiet 2>/dev/null || true)"
-PROD_DBSCHEMA="$(dbt run-operation \
-  --target prod \
-  --args '{sql: "select current_database() || \".\" || current_schema()"}' \
-  --quiet 2>/dev/null || true)"
+# 3. Resolved-database/schema check vs the 'prod' target. Use `dbt show
+#    --inline` (NOT `dbt run-operation`, which requires a positional
+#    macro name).
+resolve_db_schema() {
+  local target="$1"
+  dbt show --inline \
+    "select current_database() || '.' || current_schema() as dbschema" \
+    --target "$target" --limit 1 2>/dev/null \
+    | awk -F'|' '/\|.*\./ && !/dbschema/ {gsub(/ /, "", $2); print $2; exit}'
+}
+CAND_DBSCHEMA="$(resolve_db_schema "$NON_PROD_TARGET")"
+PROD_DBSCHEMA="$(resolve_db_schema prod)"
+
+if [ -z "$CAND_DBSCHEMA" ]; then
+  echo "Could not resolve database.schema for target '$NON_PROD_TARGET'. Refusing."
+  exit 1
+fi
 if [ -n "$PROD_DBSCHEMA" ] && [ "$CAND_DBSCHEMA" = "$PROD_DBSCHEMA" ]; then
-  echo "Refusing: target '$NON_PROD_TARGET' resolves to the same db.schema as 'prod'."
+  echo "Refusing: target '$NON_PROD_TARGET' resolves to the same database.schema ($CAND_DBSCHEMA) as 'prod'."
   exit 1
 fi
 
@@ -287,28 +331,37 @@ dbt build \
   --fail-fast
 ```
 
-**DAG parse check — resolve the DAG path from the REPO ROOT, not the
-dbt project root.** When the dbt project is nested in the repo, `dags/`
-is a sibling of the project, not inside it; checking `dags/<pipeline>.py`
-from inside the dbt project silently finds nothing and the parse check
-is skipped while the summary still claims PASS.
+**DAG parse check — only runs for Airflow, and only if Phase 5 actually
+wrote the file.** Resolve the DAG path from the detected
+`$AIRFLOW_DAGS_DIR` (relative to `$REPO_ROOT`), not a hard-coded
+`dags/`. Prefect flows and Dagster definitions are parsed by their own
+tooling in Phase 6 or skipped — not by `python -c ast.parse`.
 
 ```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-DAG_FILE="$REPO_ROOT/dags/<pipeline>.py"
+# Compute the DAG file path for Airflow only; empty otherwise.
+if [ "$ORCHESTRATOR" = "airflow" ]; then
+  DAG_FILE="$REPO_ROOT/$AIRFLOW_DAGS_DIR/<pipeline>.py"
+else
+  DAG_FILE=""
+fi
 
-# If Phase 5 was supposed to write a DAG (orchestrator detected), the
-# file MUST exist. Hard-stop if it doesn't — do not silently skip.
-if [ "$ORCHESTRATOR" != "none" ] && [ ! -f "$DAG_FILE" ]; then
-  echo "DAG file missing at $DAG_FILE despite $ORCHESTRATOR being detected."
+# If this is Airflow and Phase 5 was supposed to write a DAG, the file
+# MUST exist. Hard-stop if it doesn't — do not silently skip.
+if [ "$ORCHESTRATOR" = "airflow" ] && [ ! -f "$DAG_FILE" ]; then
+  echo "DAG file missing at $DAG_FILE despite Airflow being detected."
   exit 1
 fi
 
-if [ -f "$DAG_FILE" ]; then
+if [ -n "$DAG_FILE" ] && [ -f "$DAG_FILE" ]; then
   python3 -c "import ast; ast.parse(open('$DAG_FILE').read())" \
     && echo "DAG parse: PASS" \
     || { echo "DAG parse: FAIL"; exit 1; }
 fi
+
+# For Prefect: `prefect deployment inspect <name>` is the native check,
+# if the Prefect CLI is reachable in the user's shell.
+# For Dagster: `dagster definitions validate` ditto.
+# ORCHESTRATOR=none: this check doesn't run (no DAG was written).
 ```
 
 Note on DAG parse: `ast.parse` catches syntax errors only. If the
@@ -340,15 +393,22 @@ before push. On a fresh branch at the merge base, `git diff main...HEAD`
 is empty; and the new DAG + model files are untracked, so plain
 `git diff` doesn't show them either.
 
+Reuse `$REPO_ROOT`, `$DBT_ROOT`, and `$DAG_FILE` from Phase 2 — do NOT
+hard-code `$REPO_ROOT/models` or `$REPO_ROOT/dags/<pipeline>.py` (those
+assume a non-nested project and Airflow, both of which may be false).
+
 ```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-# Mark new files as intent-to-add so git diff shows their contents too
-git add --intent-to-add -- \
-  "$REPO_ROOT/models" \
-  "$REPO_ROOT/dags/<pipeline>.py"       # only if the DAG was written
+# Build the stage list from Phase 2 detections.
+STAGE_PATHS=( "$REPO_ROOT/$DBT_ROOT/models" )
+if [ -n "$DAG_FILE" ] && [ -f "$DAG_FILE" ]; then
+  STAGE_PATHS+=( "$DAG_FILE" )
+fi
+
+# Mark new files as intent-to-add so `git diff` shows their contents.
+git add --intent-to-add -- "${STAGE_PATHS[@]}"
 
 # Review every change the commit will contain
-git diff -- "$REPO_ROOT/models" "$REPO_ROOT/dags/<pipeline>.py"
+git diff -- "${STAGE_PATHS[@]}"
 git status --porcelain
 ```
 
@@ -368,26 +428,25 @@ Fix issues locally and re-run Phase 6 if any code changed.
 
 ### Phase 8 — Commit, push, PR, ticket (≤75s)
 
-Stage explicitly from the **repo root** so both `models/` (inside the
-dbt project, possibly nested) and `dags/` (sibling of the dbt project)
-are reached from one place.
+Stage from `$REPO_ROOT` using the paths already resolved in Phase 2
+(`$DBT_ROOT`, `$DAG_FILE`). Use `if/then/fi` (not `cond && cmd`) so a
+no-change path doesn't abort the script under `set -e`.
 
 ```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-# dbt files — path depends on whether the dbt project is nested
-DBT_ROOT="<dbt_project_root_relative_to_repo>"   # e.g. "." or "dbt/"
-git add "$DBT_ROOT/models"                       # covers nested sources.yml / _models.yml
+# dbt files — $DBT_ROOT is relative to $REPO_ROOT (e.g. "." or "dbt")
+git add "$DBT_ROOT/models"       # covers nested sources.yml / _models.yml
 
-# DAG — resolved from REPO ROOT, not the dbt project
-if [ -f "dags/<pipeline>.py" ]; then
-  git add "dags/<pipeline>.py"
+# DAG — only if Phase 2 detected Airflow and Phase 5 wrote the file.
+if [ -n "$DAG_FILE" ] && [ -f "$DAG_FILE" ]; then
+  git add "$DAG_FILE"
 fi
 
-# dbt_project.yml only if actually modified
-[ -n "$(git status --porcelain "$DBT_ROOT/dbt_project.yml")" ] \
-  && git add "$DBT_ROOT/dbt_project.yml"
+# dbt_project.yml only if actually modified. if/then/fi, NOT cond && cmd.
+if [ -n "$(git status --porcelain "$DBT_ROOT/dbt_project.yml")" ]; then
+  git add "$DBT_ROOT/dbt_project.yml"
+fi
 # Do NOT stage macros/ — it's outside the Phase 1 allow-list.
 # (If a macro really changed, Phase 1 should have hard-stopped already.)
 ```
