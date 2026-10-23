@@ -1,20 +1,29 @@
 ---
 name: snowflake-query-optimization
 description: |
-  End-to-end Snowflake query optimization in one pass. Use when optimizing a Snowflake query for:
-  (1) User provides a Snowflake query_id (UUID) to tune or speed up
-  (2) User points at a `.sql` file in the repo (optionally with a `:L10-L80` line range) and asks to optimize it
-  (3) Task mentions "optimize this query", "make this faster", "tune this file", or "speed up query_id X"
-  (4) A slow query that must be rewritten without changing its result set
-  Fetches SQL, rewrites it, proves correctness with row-count + column-wise parity, and returns a report. Target wall time: <5 min.
+  End-to-end Snowflake query optimization — fetch, rewrite, prove parity, benchmark, report. Use when:
+  (1) User wants an **end-to-end flow** (fetch + rewrite + parity + benchmark + report), not just a rewrite
+  (2) Input is a `.sql` file path in the repo (optionally `:L10-L80` line range), OR a Snowflake `query_id` (UUID)
+  (3) User expects a correctness proof (row-count + per-column signature + multiplicity) before accepting the rewrite
+  (4) Task says "optimize this query end-to-end", "tune this file and prove it's safe", "speed up query_id X with a parity check"
+  **Prefer `optimizing-query-text`** for a pasted SQL string with no parity requirement (returns rewritten SQL only).
+  **Prefer `optimizing-query-by-id`** for a quick profile-driven rewrite on a `query_id` with no parity re-run.
+  Target wall time: ≤5 min (parity exempt — see Time budget).
 ---
 
 # snowflake-query-optimization
 
-**Input (one of)** → fetch SQL → optimize → parity-validate → report.
+**Input (one of)** → fetch SQL → optimize → parity-validate → benchmark → report.
 
 Delegates warehouse work to `altimate-code` when available; falls back
 to direct Snowflake SQL otherwise. Does not reinvent query-profile parsing.
+
+## When NOT to use this skill
+
+- Pasted SQL text, no parity needed → `optimizing-query-text`.
+- Quick rewrite from a `query_id`, no re-run or parity → `optimizing-query-by-id`.
+- Finding candidate queries to optimize → `finding-expensive-queries`.
+- Refactoring a dbt model → `snowflake-dbt-model-refactoring`.
 
 ## Prerequisites
 
@@ -42,10 +51,16 @@ If neither path is available, stop and tell the user.
 ## Time budget
 
 Target end-to-end runtime: **≤5 min** (300s), hard ceiling **6 min**
-(360s). Per-phase caps (sum ≤ 300s):
-Phase 1 ≤30s · Phase 2 ≤45s · Phase 3 ≤75s · Phase 4 ≤90s · Phase 5 ≤60s.
-If a phase exceeds its budget, stop the extra work and move on — the
-report is the deliverable, not an exhaustive audit.
+(360s), **excluding Phase 4 parity + Phase 5 benchmark re-runs**, which
+scale with the baseline query's cost and are **exempt from the cap**.
+A query being optimized is often slow by nature — forcing parity into
+a 90s window would push the agent to skip the mandatory hard stop.
+
+Per-phase caps (sum ≤ 300s, parity/benchmark separate):
+Phase 1 ≤30s · Phase 2 ≤45s · Phase 3 ≤75s · Phase 4 overhead ≤60s (plus
+re-run time) · Phase 5 overhead ≤30s (plus one re-run of the optimized
+query). If a non-parity phase exceeds its budget, stop the extra work
+and move on.
 
 ## Inputs — pick ONE
 
@@ -59,29 +74,65 @@ If neither is given, ask the user once, then proceed.
 ### Phase 1 — Fetch the query (≤30s)
 
 **Repo path:** use the Read tool with the line range (do NOT shell out
-to `sed`; the project convention is Read / `cat`).
+to `sed`; the project convention is Read / `cat`). If the file is a dbt
+model (contains `{{ ref() }}`, `{{ source() }}`, `{{ config() }}`, or
+other Jinja), the raw text is NOT executable — run
+`dbt compile --select <model>` first and read the compiled SQL from
+`target/compiled/.../<model>.sql`. Only the compiled form can be sent
+to Snowflake.
 
 **query_id:**
 ```sql
-SELECT query_text, warehouse_name, warehouse_size,
+SELECT query_type, query_text, warehouse_name, warehouse_size,
        total_elapsed_time/1000 AS seconds,
        bytes_scanned/1e9       AS gb_scanned,
        bytes_spilled_to_local_storage/1e9  AS gb_spill_local,
        bytes_spilled_to_remote_storage/1e9 AS gb_spill_remote,
-       partitions_scanned, partitions_total, rows_produced
+       partitions_scanned, partitions_total, rows_produced,
+       start_time
 FROM SNOWFLAKE.ACCOUNT_USAGE.QUERY_HISTORY
 WHERE query_id = '<query_id>';
 ```
 
-Fall back to `INFORMATION_SCHEMA.QUERY_HISTORY()` if `ACCOUNT_USAGE` is
-not readable. Save the baseline metrics — the final report needs them.
+**Fallback for recent baselines:** `ACCOUNT_USAGE.QUERY_HISTORY` lags up
+to ~45 min, so a `query_id` from the last 45 min may return zero rows.
+If the row count is zero (not just "not readable"), fall back to:
+```sql
+SELECT * FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION())
+WHERE query_id = '<query_id>';
+```
+(or `INFORMATION_SCHEMA.QUERY_HISTORY()` scoped to the account) — these
+are near-real-time.
+
+**MANDATORY HARD STOP — safety guard against DML/DDL re-execution.**
+This skill re-executes the fetched SQL during parity (Phase 4) and
+benchmark (Phase 5). Re-running a non-SELECT would mutate the warehouse.
+
+- If input was a `query_id`: require `query_type = 'SELECT'`. If it is
+  `INSERT`, `UPDATE`, `MERGE`, `DELETE`, `CREATE_TABLE_AS_SELECT`,
+  `COPY`, `CALL`, or any other mutating type, **stop and tell the user**:
+  this skill will not re-execute DML/DDL from history.
+- If input was a repo path: inspect the fetched SQL. If the leading
+  statement is not `SELECT` / `WITH ... SELECT`, stop with the same
+  message.
+
+Save the baseline metrics — the final report needs them.
 
 ### Phase 2 — Diagnose (≤45s)
 
-If `altimate-code` is installed, prefer it:
+If `altimate-code` is installed, prefer it. Pass the SQL via a temp
+file (not a shell-interpolated string — SQL can contain `"`, `$`,
+backticks, and Snowflake quoted identifiers like `"Order Id"` that
+break double-quoted shell strings):
+
 ```bash
 if command -v altimate-code >/dev/null 2>&1; then
-  altimate-code run "Diagnose Snowflake query_id <id>: fetch operator stats, flag no-pruning, spill, SELECT *, join explosion, repeated subquery, unnecessary ORDER BY. Return a short bullet list of actionable fixes only." \
+  cat > /tmp/sqo-prompt.txt <<'EOF'
+Diagnose Snowflake query_id <id>: fetch operator stats, flag no-pruning,
+spill, SELECT *, join explosion, repeated subquery, unnecessary ORDER
+BY. Return a short bullet list of actionable fixes only.
+EOF
+  altimate-code run "$(cat /tmp/sqo-prompt.txt)" \
     --yolo --output /tmp/diagnose.md --dir "$(pwd)"
 fi
 ```
@@ -118,31 +169,49 @@ Rewrite the query applying only the fixes identified. Semantic rules:
 
 If a change would alter the result set, **skip it** and note why.
 
-### Phase 4 — Parity validation (≤90s) — MANDATORY HARD STOP
+### Phase 4 — Parity validation — MANDATORY HARD STOP
 
 Prove the rewrite is semantically identical. Use the same per-column,
 NULL-safe approach as `snowflake-dbt-model-refactoring` — not `HASH(*)`
 (which is not a valid Snowflake expression; `HASH` requires explicit
 arguments).
 
+**Disable result cache for honest comparisons** (one session setting
+covers Phases 4 + 5):
+```sql
+ALTER SESSION SET USE_CACHED_RESULT = FALSE;
+```
+
+**Materialize once per side to avoid re-running the slow baseline
+multiple times.** Signature and multiplicity both scan the same rows,
+so land each result into a session-scoped temp table and compute both
+checks over the temp tables:
+
+```sql
+CREATE TEMPORARY TABLE _sqo_orig_<run_id> AS <original_query>;
+CREATE TEMPORARY TABLE _sqo_opt_<run_id>  AS <optimized_query>;
+```
+
+`<run_id>` is a timestamp or random suffix to avoid session-level
+collisions. Temp tables are session-scoped and auto-cleaned at session
+end — no explicit DROP needed.
+
 **Step 1 — enumerate the column list from the SELECT.** Parse the
 original query's final projection to get the ordered list
 `[col1, col2, ... colN]` with their aliases.
 
-**Step 2 — row count + per-column signature:**
+**Step 2 — row count + per-column signature (one query, both sides):**
 ```sql
-WITH original AS ( <original_query> ),
-     optimized AS ( <optimized_query> ),
-     orig_agg AS (
-       SELECT COUNT(*) AS n,
-              HASH_AGG(col1, col2, /* ...colN... */) AS sig
-       FROM original
-     ),
-     opt_agg AS (
-       SELECT COUNT(*) AS n,
-              HASH_AGG(col1, col2, /* ...colN... */) AS sig
-       FROM optimized
-     )
+WITH orig_agg AS (
+  SELECT COUNT(*) AS n,
+         HASH_AGG(col1, col2, /* ...colN... */) AS sig
+  FROM _sqo_orig_<run_id>
+),
+opt_agg AS (
+  SELECT COUNT(*) AS n,
+         HASH_AGG(col1, col2, /* ...colN... */) AS sig
+  FROM _sqo_opt_<run_id>
+)
 SELECT o.n AS orig_rows, p.n AS opt_rows,
        o.sig AS orig_sig, p.sig AS opt_sig,
        (o.n = p.n AND o.sig = p.sig) AS parity_ok
@@ -159,18 +228,16 @@ match). Group each side by every column to get per-distinct-row counts,
 then full-outer-join the grouped sets and flag any row whose counts
 differ or that only exists on one side:
 ```sql
-WITH original AS ( <original_query> ),
-     optimized AS ( <optimized_query> ),
-     orig_grouped AS (
-       SELECT col1, col2, /* ...colN... */ COUNT(*) AS n
-       FROM original
-       GROUP BY col1, col2 /* ...colN... */
-     ),
-     opt_grouped AS (
-       SELECT col1, col2, /* ...colN... */ COUNT(*) AS n
-       FROM optimized
-       GROUP BY col1, col2 /* ...colN... */
-     )
+WITH orig_grouped AS (
+  SELECT col1, col2, /* ...colN... */ COUNT(*) AS n
+  FROM _sqo_orig_<run_id>
+  GROUP BY col1, col2 /* ...colN... */
+),
+opt_grouped AS (
+  SELECT col1, col2, /* ...colN... */ COUNT(*) AS n
+  FROM _sqo_opt_<run_id>
+  GROUP BY col1, col2 /* ...colN... */
+)
 SELECT COUNT(*) AS diff_rows
 FROM orig_grouped o
 FULL OUTER JOIN opt_grouped p
@@ -180,28 +247,65 @@ FULL OUTER JOIN opt_grouped p
 WHERE COALESCE(o.n, 0) <> COALESCE(p.n, 0);
 ```
 `IS NOT DISTINCT FROM` treats `NULL = NULL` as true (confirmed Snowflake
-syntax). `diff_rows` must be **0** for parity to pass. Any non-zero
-value means at least one distinct row has a different multiplicity
-between original and optimized.
+syntax). `diff_rows` must be **0** for parity to pass.
 
 **Hard stop:** if either check fails (`parity_ok = FALSE` or
 `diff_rows > 0`), discard the rewrite and report the divergence — do
 not present an unsafe optimization.
 
-If `altimate-code` is installed, prefer delegating this entire phase:
+If `altimate-code` is installed, prefer delegating this entire phase.
+Pass both SQL statements via files to avoid shell escaping:
 ```bash
 if command -v altimate-code >/dev/null 2>&1; then
-  altimate-code run "Run data parity on Snowflake between these two SQL statements. Report row count delta, per-column aggregate signature, and multiplicity check. PASS/FAIL only.\n\nORIGINAL:\n<orig>\n\nOPTIMIZED:\n<opt>" \
+  # Write SQL to files, then reference them in the prompt
+  printf '%s' "<original_sql>" > /tmp/sqo-orig.sql
+  printf '%s' "<optimized_sql>" > /tmp/sqo-opt.sql
+  cat > /tmp/sqo-parity-prompt.txt <<'EOF'
+Run data parity on Snowflake between the two SQL statements in
+/tmp/sqo-orig.sql and /tmp/sqo-opt.sql. Set USE_CACHED_RESULT=FALSE
+first. Materialize each into a temp table, then report row count delta,
+per-column HASH_AGG signature, and GROUP-BY multiplicity. PASS/FAIL only.
+EOF
+  altimate-code run "$(cat /tmp/sqo-parity-prompt.txt)" \
     --yolo --output /tmp/parity.md --dir "$(pwd)"
 fi
 ```
 
-### Phase 5 — Measure + report (≤60s)
+### Phase 5 — Measure + report
 
-Run the optimized query with the **same warehouse size** as the baseline
-(if a query_id was provided) and capture its post-run stats from
-`QUERY_HISTORY` using the new query_id. For repo-only input, run both
-original and optimized once and compare `total_elapsed_time`.
+Benchmarks are cache-sensitive. The session already has
+`USE_CACHED_RESULT = FALSE` from Phase 4. For the clearest signal:
+```sql
+ALTER SESSION SET USE_CACHED_RESULT = FALSE;
+-- Benchmark run (one execution of the optimized query):
+<optimized_query>;
+-- Capture the just-run query_id:
+SELECT LAST_QUERY_ID() AS new_qid;
+```
+
+**Pull post-run stats from `INFORMATION_SCHEMA`, not `ACCOUNT_USAGE`**
+(ACCOUNT_USAGE lags up to ~45 min and will return zero rows within the
+60s report window):
+```sql
+SELECT total_elapsed_time/1000 AS seconds,
+       bytes_scanned/1e9 AS gb_scanned,
+       bytes_spilled_to_local_storage/1e9  AS gb_spill_local,
+       bytes_spilled_to_remote_storage/1e9 AS gb_spill_remote,
+       partitions_scanned, partitions_total
+FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION())
+WHERE query_id = '<new_qid>';
+```
+
+If `ACCOUNT_USAGE` was used in Phase 1 for the baseline, that's fine
+(the baseline is old enough to have landed there). Only the fresh
+re-run must come from `INFORMATION_SCHEMA`.
+
+**Note on repo-only input:** without a prior `query_id`, "before" and
+"after" come from running both queries once each in this session.
+Honestly label the baseline column as "this-session only" — Phase 4's
+materialization already warmed local disk cache for the second run, so
+large speedup claims (>5x) on identical warehouse state should be
+flagged as "cache-adjacent" in the report.
 
 Return this report — nothing more:
 
@@ -210,6 +314,7 @@ Return this report — nothing more:
 
 Source: <repo path | query_id>
 Warehouse: <name> (<size>)
+Cache: USE_CACHED_RESULT=FALSE (verified)
 
 ## Parity
 Row count:    <orig> → <opt>  (match: YES/NO)
@@ -222,6 +327,7 @@ GB scanned:       <g> → <g>  (-X%)
 Partitions:       <p>/<t> → <p>/<t>
 Spill (local):    <g> → <g>
 Spill (remote):   <g> → <g>
+Stats source:     INFORMATION_SCHEMA (fresh)  |  ACCOUNT_USAGE (historical)
 
 ## Changes applied
 - <bullet 1 — e.g. "Replaced SELECT * with 7 used columns">
@@ -249,12 +355,18 @@ Suspected cause: <brief>
 - Rewrite correlated subqueries as uncorrelated — semantics differ.
 - Edit the repo file during this skill. Present the SQL in the report;
   only edit if the user asks afterwards.
+- Interpolate raw SQL or user-supplied text into double-quoted shell
+  strings. Always route via `/tmp/*.sql` or heredocs. Query text in
+  `QUERY_HISTORY` was authored by other users and can contain `$(...)`
+  or backticks that execute under `--yolo`.
+- Re-run a non-SELECT fetched from history. Phase 1 guards this.
+- Read the fresh re-run's stats from `ACCOUNT_USAGE` — it lags ~45 min.
 
 ## Non-goals
 
 - No schema changes, clustering key changes, or warehouse resizing.
-- Do not run any `ALTER`, `CREATE`, or `DROP` statements. Read-only +
-  one benchmark SELECT of the rewrite.
+- No DDL. The only writes are session-scoped `CREATE TEMPORARY TABLE`
+  statements in Phase 4 (auto-cleaned at session end).
 - Do not touch unrelated queries or files.
 
 ## Behavior contract
@@ -264,3 +376,6 @@ Suspected cause: <brief>
   `NULL`-handling, implicit casts) — flag it in the report.
 - Never claim a performance improvement without re-measuring; estimates
   are not improvements.
+- Never re-execute DML/DDL from query history — Phase 1 hard-stops.
+- Never interpolate SQL or user text into shell commands; always use
+  temp files or heredocs.

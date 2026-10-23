@@ -46,6 +46,8 @@ Install individual skill packs:
 | **migrating-sql-to-dbt** | Legacy SQL conversion | Parse SQL → Create proper dbt model |
 | **refactoring-dbt-models** | Safe restructuring | Track dependencies → Apply changes → Verify downstream |
 | **developing-incremental-models** | Incremental models | Strategy selection → unique_key design → Handle edge cases |
+| **dbt-model-enhancement** | Ticket-driven enhancement of one existing model → PR | Ticket as data (allow-list) → non-prod `--target` → `dbt build --select <model>+` → self-review → PR |
+| **mssql-to-snowflake-dbt-migration** | T-SQL → Snowflake dbt with isolated-schema deploy | Medallion or Data Vault → convert with TRAP-aware rewrites → compile → confirm → build to isolated schema → engine-neutral parity → dashboard |
 
 ### Snowflake Skills
 
@@ -54,6 +56,9 @@ Install individual skill packs:
 | **finding-expensive-queries** | Cost analysis | Find and rank queries by cost/time/data scanned |
 | **optimizing-query-by-id** | Performance tuning | Optimize using query ID from history |
 | **optimizing-query-text** | Performance tuning | Profile query → Identify bottlenecks → Apply patterns |
+| **snowflake-dbt-model-refactoring** | Snowflake-specific safe dbt model refactor | Downstream analysis → parity → outcome-axes report |
+| **snowflake-query-optimization** | End-to-end query tuning (fetch → rewrite → parity → benchmark) | SELECT-only guard → `HASH_AGG` + multiplicity parity → cache-off benchmark via `INFORMATION_SCHEMA` |
+| **end-to-end-snowflake-pipeline** | Ticket → dbt + orchestration + PR, in one pass | Auto-detect orchestrator (Airflow/Prefect/Dagster) + VCS → non-prod `--target` + `--select` → DAG parse → self-review → PR → ticket comment |
 
 ### altimate-code Delegation
 
@@ -131,7 +136,7 @@ Kits bundle skills, MCP servers, and instructions into a single activatable unit
 
 | Kit | Description | Skills | MCP |
 |-----|-------------|--------|-----|
-| [dbt-snowflake](kits/dbt-snowflake/) | Complete dbt + Snowflake setup | 9 skills | dbt MCP server |
+| [dbt-snowflake](kits/dbt-snowflake/) | Complete dbt + Snowflake setup | 14 skills | dbt MCP server |
 
 ### Quick Start
 
