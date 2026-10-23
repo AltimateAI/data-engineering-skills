@@ -134,12 +134,12 @@ are called out explicitly. These do NOT fit a single-token substitution:**
 | `CROSS APPLY (SELECT TOP 1 ... WHERE outer.key = ...)` (correlated TOP-1) | aggregated CTE + `JOIN` with `QUALIFY ROW_NUMBER() OVER (PARTITION BY key ORDER BY ...) = 1` | **TRAP:** `LATERAL FLATTEN` only expands VARIANT / ARRAY and will NOT work here. |
 | `OUTER APPLY (SELECT ... WHERE outer.key = ...)` | aggregated CTE + `LEFT JOIN` (Snowflake has no `LEFT JOIN LATERAL` for subqueries) | **TRAP:** same reason — rewrite as a derived table joined on the correlation key. |
 | `a + b` on strings | `a || b` | Both are NULL-propagating; semantics preserved. |
-| `CONCAT(a, b, ...)` | `COALESCE(a, '') || COALESCE(b, '') || ...` | **TRAP:** T-SQL `CONCAT` treats NULL as `''`; Snowflake `CONCAT` returns NULL on any NULL arg. Wrap each arg with `COALESCE` to preserve behavior. |
+| `CONCAT(a, b, ...)` | `COALESCE(a::VARCHAR, '') \|\| COALESCE(b::VARCHAR, '') \|\| ...` | **TRAP:** T-SQL `CONCAT` treats NULL as `''` AND implicitly stringifies non-string args; Snowflake `CONCAT` returns NULL on any NULL arg, and `COALESCE(number, '')` errors with "Numeric value '' is not recognized" because the fallback is a VARCHAR and the first arg is a NUMBER. Cast each arg to VARCHAR before `COALESCE`. |
 | `WHERE col = 'active'` (SQL Server default collation is case-insensitive) | `WHERE LOWER(col) = 'active'` or confirm data is already lowercased in bronze | **TRAP:** Snowflake is case-sensitive — `'Active'` will not match `'active'`. Audit WHERE / JOIN predicates on string columns. |
-| `int_col / int_col` | `int_col::NUMERIC / NULLIF(int_col, 0)` (or cast to NUMERIC/FLOAT) | **TRAP:** T-SQL `int / int` truncates; Snowflake returns a decimal. If the T-SQL depended on truncation, wrap in `TRUNC()`. Also guard divide-by-zero with `NULLIF`. |
-| `MERGE ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT` | incremental model with `unique_key` | OK for insert/update. |
+| `int_col / int_col` | `TRUNC(a / NULLIF(b, 0))` (default — matches T-SQL truncation + T-SQL error-on-zero becomes NULL, a deliberate change) | **TRAP:** T-SQL `int / int` TRUNCATES (`7/2 = 3`) and ERRORS on zero divisor; Snowflake returns a decimal (`3.5`) and never errors. Defaulting to `a::NUMERIC / NULLIF(b, 0)` would silently change `3` → `3.5` across every migrated query. `TRUNC()` preserves truncation; `NULLIF` turns the error into NULL, which must be called out as a deliberate behavior change in the dashboard. |
+| `MERGE ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT` | incremental model with `unique_key` + **dedup** + **lookback** | **TRAP:** Snowflake `MERGE` fails nondeterministically on duplicate source keys ("Duplicate row detected during DML action"), and a naive `is_incremental()` filter on `updated_at > max(updated_at)` drops late-arriving rows. Always: (1) dedup inside the model with `QUALIFY ROW_NUMBER() OVER (PARTITION BY <unique_key> ORDER BY updated_at DESC) = 1`, (2) include a lookback window in the `is_incremental()` filter (e.g. `updated_at > (SELECT MAX(updated_at) - INTERVAL '2 days' FROM {{ this }})`). |
 | `MERGE ... WHEN NOT MATCHED BY SOURCE THEN DELETE` | **no direct equivalent** — flag for the user. Options: snapshot-based deletes, `delete+insert` incremental strategy with a hard-delete CTE, or a post-hook `DELETE`. | **TRAP:** standard `incremental` with `unique_key` loses deletions. |
-| `IDENTITY(1,1)` columns | `AUTOINCREMENT` on `CREATE TABLE`, OR `ROW_NUMBER() OVER (ORDER BY ...)` in a model | **TRAP:** dbt models don't own identity sequences; prefer a surrogate hash key (`md5(concat(...))`) for determinism. |
+| `IDENTITY(1,1)` columns | `AUTOINCREMENT` on `CREATE TABLE`, OR `ROW_NUMBER() OVER (ORDER BY ...)` in a model, OR a NULL-safe surrogate via `{{ dbt_utils.generate_surrogate_key([...]) }}` | **TRAP:** dbt models don't own identity sequences. Do NOT hand-roll `md5(concat(col1, col2, ...))` — Snowflake `CONCAT` returns NULL on any NULL arg, so a business key with one NULL part becomes NULL for many rows, and they all collide on the same hash. `dbt_utils.generate_surrogate_key` is NULL-safe (it coalesces each arg to `''_dbt_utils_surrogate_key_null_'` before hashing). |
 | `DATETIME` (3.33ms precision) | `TIMESTAMP_NTZ(9)` | **TRAP:** reading legacy `DATETIME` with fractional-ms logic that assumed the 3.33ms rounding will drift. Cast and document. |
 | cursor / `WHILE` loop | set-based rewrite | Flag if truly impossible — never port the cursor as-is. |
 | `EXEC sp_...` dynamic SQL | reject — ask user | Never blindly convert. |
@@ -184,17 +184,29 @@ user's confirmation are meaningless on broken SQL.
 
 ### Phase 4 — User confirmation (ask ONCE, ≤15s)
 
+Compute the run timestamp once, up front — the same `TS` is reused in
+Phases 4, 5, 6, and 7:
+
+```bash
+TS="$(date +%Y%m%d_%H%M%S)"
+ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"
+```
+
 Before deploying, show:
 - Count of models to be built
-- Target Snowflake database/**isolated schema** (e.g. `<db>.MIGRATION_<timestamp>`)
+- Target Snowflake database and **isolated schema prefix** (e.g.
+  `<db>.MIGRATION_<ts>` — note: if the project configures `+schema:
+  bronze/silver/gold`, dbt's default `generate_schema_name` concatenates,
+  so actual schemas will be `MIGRATION_<ts>_BRONZE`, `..._SILVER`, etc.
+  All start with the prefix.)
 - Materializations (view / table / incremental counts)
 - Compile status (PASS)
 - Any TRAP rewrites that were applied (list them — the user needs to know)
 
 Ask:
 
-> Deploy these N models to `<database>.<isolated_schema>` on Snowflake now?
-> Parity will run after the build, in the same schema.
+> Deploy these N models to schemas starting with `<database>.MIGRATION_<ts>` on Snowflake now?
+> Parity will run after the build, in the same schemas.
 
 Wait for an explicit yes. Default is NO — do not deploy on silence.
 
@@ -202,9 +214,11 @@ Wait for an explicit yes. Default is NO — do not deploy on silence.
 
 Deploy to the isolated schema the user confirmed — **never** `--target
 prod`. Enforce isolation by **one** of these two methods (Method 1 is
-required when the project is standard; see Prerequisites):
+required when the project is standard; see Prerequisites). **Use the
+same `TS` from Phase 4** — do not recompute.
 
-**Method 1 — dedicated target with `schema:` override in `profiles.yml`:**
+**Method 1 — dedicated target with env-var-driven `schema:` in
+`profiles.yml`:**
 ```yaml
 # profiles.yml  (user adds this once; the skill does NOT edit profiles.yml)
 <project>:
@@ -212,18 +226,16 @@ required when the project is standard; see Prerequisites):
     migration:
       type: snowflake
       database: <db>
-      schema: MIGRATION_<timestamp>   # or an env-var-driven value
+      schema: "{{ env_var('DBT_SCHEMA') }}"   # dynamic — set per run
       warehouse: <wh>
       role: <role>
       # ...other connection details...
 ```
 Then:
 ```bash
-TS="$(date +%Y%m%d_%H%M%S)"
-# Set the schema via env var only if profiles.yml references env_var():
-export DBT_SCHEMA="MIGRATION_${TS}"
+# TS and ISOLATED_SCHEMA_PREFIX come from Phase 4 — do not recompute.
+export DBT_SCHEMA="${ISOLATED_SCHEMA_PREFIX}"
 
-# ---- the deploy command ----
 dbt build \
   --select <migrated_models_only> \
   --target migration \
@@ -236,7 +248,7 @@ dbt build \
 dbt build \
   --select <migrated_models_only> \
   --target <non_prod_target> \
-  --vars '{target_schema: "MIGRATION_<timestamp>"}' \
+  --vars "{target_schema: \"${ISOLATED_SCHEMA_PREFIX}\"}" \
   --fail-fast
 ```
 **Only use Method 2** if `macros/get_custom_schema.sql` (or equivalent)
@@ -249,20 +261,27 @@ shared dev tables.
   comma-separated) — NOT the whole project. Otherwise unrelated models
   are rebuilt and the "isolated schema" claim becomes false.
 
-**Verify objects actually landed in the isolated schema** before
-reporting:
+**Verify objects actually landed in the isolated schema prefix** before
+reporting. Match with `ILIKE` + prefix so dbt's `+schema:` suffix
+(`_BRONZE`, `_SILVER`, etc.) doesn't cause a false negative:
 ```sql
-SELECT table_name, table_type, row_count
+SELECT table_schema, table_name, table_type, row_count
 FROM <db>.INFORMATION_SCHEMA.TABLES
-WHERE table_schema = 'MIGRATION_<timestamp>'
-ORDER BY table_name;
+WHERE table_schema ILIKE :isolated_schema_prefix || '%'
+ORDER BY table_schema, table_name;
 ```
-If this returns zero rows, the schema isolation did not work — stop and
-report. Do not claim deployment to a schema with no objects in it.
+Or, more robustly, parse `target/run_results.json` from the dbt run and
+check that every migrated node's `relation_name` references a schema
+starting with `MIGRATION_<ts>` — this handles custom `generate_schema_name`
+logic without second-guessing it.
+
+If zero rows match (or `run_results.json` shows writes to a schema that
+doesn't start with the prefix), the schema isolation did not work — stop
+and report.
 
 **Hard stop:** if `dbt build` fails OR the verification query returns
-zero rows, stop and report. Do not proceed to parity against an empty
-schema.
+zero rows OR `run_results.json` shows an off-prefix write, stop and
+report. Do not proceed to parity against an empty / wrong schema.
 
 ### Phase 6 — Parity validation (≤90s) — MANDATORY HARD STOP
 
@@ -300,8 +319,13 @@ are not portable to MS SQL. The **source rows must exist in Snowflake**:
 After the source side is in Snowflake, compare on Snowflake only. Use
 **engine-neutral** checks (hashes from two engines aren't comparable):
 - Row count equality on both sides.
-- Per-column aggregate check: `count`, `sum` (numeric columns), `min`,
-  `max`, `count(* ) filter (where col is null)`.
+- Per-column aggregate check: `COUNT(*)`, `SUM(col)` (numeric columns
+  only), `MIN(col)`, `MAX(col)`, and null-count via `COUNT_IF(col IS NULL)`.
+  **Do NOT use `COUNT(*) FILTER (WHERE col IS NULL)`** — Snowflake does
+  not support the SQL-standard `FILTER (WHERE ...)` clause on aggregates
+  and the statement will error with a syntax error. `COUNT_IF` is the
+  Snowflake-native equivalent; `SUM(IFF(col IS NULL, 1, 0))` is another
+  valid form.
 - Keyed-sample diff: pick 1000 random keys on the source side and
   verify every column matches on the Snowflake side.
 
@@ -317,17 +341,46 @@ Stage only paths that actually changed — in standard dbt, `sources.yml`
 lives inside `models/` (under `model-paths`), and `dbt_project.yml` only
 needs staging if it was edited.
 
-```bash
-cd "<dbt_project_root>"
-git checkout -b migration/mssql-to-snowflake
+**Branch name must include `TS`** so a re-run doesn't collide. Fail
+loudly if the branch already exists — do NOT silently fall through and
+commit on whatever branch happens to be current (which may be `main`):
 
+```bash
+set -e   # fail on any non-zero exit — do not silently continue
+cd "<dbt_project_root>"
+
+# TS was computed in Phase 4.
+BRANCH="migration/mssql-to-snowflake-${TS}"
+git checkout -b "$BRANCH"   # fails if the branch exists; set -e stops the script
+
+# Stage with explicit allow-listed paths — git diff --cached --quiet
+# checks the INDEX (which is empty before `git add`), so using it as a
+# gate silently skips untracked files like a new generate_schema_name
+# macro. Just add what the Phase 1 allow-list permits.
 git add models/
-git diff --cached --quiet macros/      || git add macros/
-git diff --cached --quiet seeds/       || git add seeds/
+
+# Method 2 (custom generate_schema_name) requires a new macro — if it
+# was created in this run, stage it explicitly. (Phase 1's allow-list
+# otherwise forbids macros/.)
+if [ -f "macros/get_custom_schema.sql" ] && \
+   git status --porcelain macros/get_custom_schema.sql | grep -q '^??'; then
+  git add macros/get_custom_schema.sql
+fi
+
+# seeds/ only if this run added a seed
+git status --porcelain seeds/ | grep -q . && git add seeds/
+
+# dbt_project.yml only if modified
 [ -n "$(git status --porcelain dbt_project.yml)" ] && git add dbt_project.yml
 
 cd -   # back to repo root
-git commit -m "Migrate <scope> from MS SQL to Snowflake dbt (<layering>)"
+
+# Commit message via file (quoted heredoc — no shell expansion of
+# <scope> / <layering> text, which may contain shell metacharacters).
+cat > /tmp/mssql-commit-msg.txt <<EOF
+Migrate <scope> from MS SQL to Snowflake dbt (<layering>) — ${TS}
+EOF
+git commit -F /tmp/mssql-commit-msg.txt
 ```
 
 Do not push unless the user asked for a PR.
@@ -385,10 +438,26 @@ Not verified:     <N>  (source not in Snowflake; details above)
 - Port cursor loops as `WHILE` loops.
 - Blindly convert `EXEC sp_...` dynamic SQL — ask the user.
 - Hand-roll `HASH(*)` — not valid Snowflake.
+- Use `COUNT(*) FILTER (WHERE ...)` — not valid Snowflake either. Use
+  `COUNT_IF(...)`.
+- Hand-roll `md5(concat(business_keys))` for surrogate keys — Snowflake
+  `CONCAT` returns NULL on any NULL arg, so NULL keys collide. Use
+  `dbt_utils.generate_surrogate_key([...])`.
+- Default integer-division rewrite to `a::NUMERIC / b` without `TRUNC`
+  and `NULLIF` — it silently changes T-SQL truncating `3` to `3.5`.
+- Default `MERGE` rewrite to a plain `incremental` `unique_key` without
+  a `QUALIFY` dedup and a lookback window — Snowflake MERGE fails
+  nondeterministically on duplicate source keys, and the naive
+  `is_incremental()` filter drops late-arriving rows.
+- Use a fixed branch name (`migration/mssql-to-snowflake`) — re-runs
+  collide. Include `TS`.
+- Use `git diff --cached --quiet <path> || git add <path>` as a staging
+  gate — the index is empty before `git add`, so this always passes and
+  the path is never staged.
 - Use `UNION` where the T-SQL used `UNION ALL` or vice-versa.
 - Modify the MS SQL source (read-only).
-- Interpolate schema / object / SQL text into shell commands — always
-  use temp files or heredocs.
+- Interpolate schema / object / SQL text into shell commands or
+  `git commit -m "..."` — always use temp files or heredocs.
 
 ## Non-goals
 

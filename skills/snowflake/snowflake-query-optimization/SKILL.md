@@ -98,11 +98,31 @@ WHERE query_id = '<query_id>';
 to ~45 min, so a `query_id` from the last 45 min may return zero rows.
 If the row count is zero (not just "not readable"), fall back to:
 ```sql
-SELECT * FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_SESSION())
+-- Scope to the user, not the current session — the baseline query_id
+-- was almost certainly run in a different session.
+SELECT * FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY_BY_USER(
+  USER_NAME => CURRENT_USER(),
+  END_TIME_RANGE_START => DATEADD(hour, -2, CURRENT_TIMESTAMP()),
+  RESULT_LIMIT => 1000
+))
 WHERE query_id = '<query_id>';
 ```
-(or `INFORMATION_SCHEMA.QUERY_HISTORY()` scoped to the account) — these
-are near-real-time.
+If the baseline was run by another user, use
+`INFORMATION_SCHEMA.QUERY_HISTORY(END_TIME_RANGE_START => ..., RESULT_LIMIT => ...)`
+with the account-wide scope (requires the warehouse monitor privilege).
+Do NOT use `QUERY_HISTORY_BY_SESSION()` for a baseline fetched by
+`query_id` — it only returns the current session's queries, and the
+baseline is almost always from a different session.
+
+**Single-session requirement for Phases 4 + 5.** The temp tables created
+in Phase 4 and the `ALTER SESSION SET USE_CACHED_RESULT = FALSE` setting
+are session-scoped. All of Phase 4 (parity) and Phase 5 (benchmark)
+must run in **one connected Snowflake session** — not separate
+`snowsql -q` invocations or separate altimate-code calls. If the only
+available client is per-call (one shell per statement), use
+`CREATE OR REPLACE TRANSIENT TABLE` with a unique run-id in a shared
+schema instead of `TEMPORARY TABLE`, and set
+`USE_CACHED_RESULT = FALSE` on every call.
 
 **MANDATORY HARD STOP — safety guard against DML/DDL re-execution.**
 This skill re-executes the fetched SQL during parity (Phase 4) and
@@ -254,12 +274,23 @@ syntax). `diff_rows` must be **0** for parity to pass.
 not present an unsafe optimization.
 
 If `altimate-code` is installed, prefer delegating this entire phase.
-Pass both SQL statements via files to avoid shell escaping:
+**Never shell-interpolate the SQL** — the baseline comes from
+`QUERY_HISTORY` and may contain `$(...)`, backticks, or quoted
+identifiers like `"Order Id"` that break the command or execute under
+`--yolo`. Write both SQL files with the **Write tool** (not `printf`,
+not `echo`), then reference the file paths in the prompt:
+
+1. Use Claude Code's `Write` tool to create `/tmp/sqo-orig.sql`
+   containing the original SQL verbatim.
+2. Use the `Write` tool to create `/tmp/sqo-opt.sql` containing the
+   optimized SQL verbatim.
+3. Then invoke altimate-code with a prompt (also written via `Write` or
+   a quoted heredoc) that references the files:
+
 ```bash
 if command -v altimate-code >/dev/null 2>&1; then
-  # Write SQL to files, then reference them in the prompt
-  printf '%s' "<original_sql>" > /tmp/sqo-orig.sql
-  printf '%s' "<optimized_sql>" > /tmp/sqo-opt.sql
+  # Files /tmp/sqo-orig.sql and /tmp/sqo-opt.sql must already exist,
+  # written via the Write tool (not shell).
   cat > /tmp/sqo-parity-prompt.txt <<'EOF'
 Run data parity on Snowflake between the two SQL statements in
 /tmp/sqo-orig.sql and /tmp/sqo-opt.sql. Set USE_CACHED_RESULT=FALSE
@@ -270,6 +301,16 @@ EOF
     --yolo --output /tmp/parity.md --dir "$(pwd)"
 fi
 ```
+
+If a Write tool is not available (pure-shell execution context), use a
+**quoted heredoc** — the single-quoted `'EOF'` prevents expansion:
+```bash
+cat > /tmp/sqo-orig.sql <<'EOF'
+-- paste SQL between these fences, verbatim; the single-quoted EOF
+-- prevents any $(...) / backtick / variable expansion
+EOF
+```
+Never `printf '%s' "$sql" > file` or `echo "$sql" > file`.
 
 ### Phase 5 — Measure + report
 
@@ -356,9 +397,11 @@ Suspected cause: <brief>
 - Edit the repo file during this skill. Present the SQL in the report;
   only edit if the user asks afterwards.
 - Interpolate raw SQL or user-supplied text into double-quoted shell
-  strings. Always route via `/tmp/*.sql` or heredocs. Query text in
-  `QUERY_HISTORY` was authored by other users and can contain `$(...)`
-  or backticks that execute under `--yolo`.
+  strings. **This includes `printf '%s' "$sql" > file` and
+  `echo "$sql" > file` — both expand the string before writing.** Use
+  the `Write` tool or a **single-quoted heredoc** (`<<'EOF'`) only.
+  Query text in `QUERY_HISTORY` was authored by other users and can
+  contain `$(...)` or backticks that execute under `--yolo`.
 - Re-run a non-SELECT fetched from history. Phase 1 guards this.
 - Read the fresh re-run's stats from `ACCOUNT_USAGE` — it lags ~45 min.
 

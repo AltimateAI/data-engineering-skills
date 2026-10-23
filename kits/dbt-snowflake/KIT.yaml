@@ -15,6 +15,7 @@ skills:
       - developing-incremental-models
       - migrating-sql-to-dbt
       - optimizing-query-by-id
+      - optimizing-query-text
       - finding-expensive-queries
       - snowflake-dbt-model-refactoring
       - snowflake-query-optimization

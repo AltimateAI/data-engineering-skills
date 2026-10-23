@@ -136,7 +136,7 @@ Kits bundle skills, MCP servers, and instructions into a single activatable unit
 
 | Kit | Description | Skills | MCP |
 |-----|-------------|--------|-----|
-| [dbt-snowflake](kits/dbt-snowflake/) | Complete dbt + Snowflake setup | 14 skills | dbt MCP server |
+| [dbt-snowflake](kits/dbt-snowflake/) | Complete dbt + Snowflake setup | 15 skills | dbt MCP server |
 
 ### Quick Start
 
