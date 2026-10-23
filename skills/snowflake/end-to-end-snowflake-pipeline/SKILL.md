@@ -6,7 +6,7 @@ description: |
   (2) Target warehouse is Snowflake and the project is a dbt project (or will be one)
   (3) An orchestrator (Airflow / Prefect / Dagster) is already in the repo, OR the user is OK operating without one
   (4) User expects a PR, self-review, and a ticket comment at the end
-  Reads requirements (prompt or ticket), auto-detects orchestrator + VCS, builds or enhances Snowflake SQL + dbt models, adds/updates the orchestration DAG, commits on a feature branch, opens a PR, self-reviews, updates the ticket, and ends with a one-screen summary. Target wall time: <6 min.
+  Reads requirements (prompt or ticket), auto-detects orchestrator + VCS, builds or enhances Snowflake SQL + dbt models, adds/updates the orchestration DAG, commits on a feature branch, opens a PR, self-reviews, updates the ticket, and ends with a one-screen summary. Target wall time: ≤7 min.
 ---
 
 # end-to-end-snowflake-pipeline
@@ -196,12 +196,25 @@ fi
 
 ### Phase 7 — Commit + PR + self-review (≤90s)
 
-Stage explicitly:
+Stage explicitly. All paths are relative to the dbt project root — `cd`
+there first if the project is nested in the repo. In standard dbt,
+`sources.yml` lives inside `models/`, so staging `models/` covers it;
+`dags/` only exists if Phase 5 actually wrote a DAG.
+
 ```bash
-git add \
-  "models/" \
-  "dags/<pipeline>.py" \
-  "<project_root>/sources.yml"
+cd "<dbt_project_root>"           # omit if dbt project IS the repo root
+git add models/                   # covers nested sources.yml / _models.yml
+
+# Stage the DAG only if Phase 5 wrote one
+if [ -f "dags/<pipeline>.py" ]; then
+  git add "dags/<pipeline>.py"
+fi
+
+# Stage dbt_project.yml / macros/ / seeds/ only if actually modified
+[ -n "$(git status --porcelain dbt_project.yml)" ] && git add dbt_project.yml
+git diff --cached --quiet macros/  || git add macros/
+
+cd -   # back to repo root if you changed directories
 git commit -m "<ticket-key>: add <pipeline> end-to-end"
 ```
 
@@ -261,7 +274,7 @@ Return exactly:
 Ticket:        <link or "inline">
 Stack:         Snowflake · dbt · <orchestrator or "none detected">
 Branch:        <branch>
-PR:            <url or "pushed, PR not opened — gh not authenticated">
+PR:            <url or "local branch only, PR not opened — gh not authenticated">
 
 ## Lineage
 <source> → stg_<x> → int_<y> → <final_model>

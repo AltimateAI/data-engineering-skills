@@ -6,7 +6,7 @@ description: |
   (2) Source lives in a repo as `.sql` dumps OR behind a reachable MS SQL connection
   (3) Target is a dbt project with a Snowflake adapter
   (4) User expects a layered architecture (Medallion or Data Vault 2.0) and parity-validated output
-  Asks once for Medallion vs Data Vault, converts the code, validates with Altimate data-parity, confirms with the user, deploys to an isolated Snowflake schema, writes models to the repo, and ends with a one-screen migration dashboard. Target wall time: <6 min for ≤10 objects.
+  Asks once for Medallion vs Data Vault, converts the code, validates with Altimate data-parity, confirms with the user, deploys to an isolated Snowflake schema, writes models to the repo, and ends with a one-screen migration dashboard. Target wall time: ≤7 min for ≤10 objects.
 ---
 
 # mssql-to-snowflake-dbt-migration
@@ -41,7 +41,7 @@ If `dbt` is not installed, Phase 5 cannot run — stop and tell the user.
 
 Target end-to-end runtime: **≤7 min** (420s) for ≤10 objects; scales
 roughly linearly beyond that. Hard ceiling **10 min** (600s). Per-phase
-caps (sum = 420s):
+caps (sum = 410s):
 Phase 0 ≤20s · Phase 1 ≤45s · Phase 2 ≤120s · Phase 3 ≤90s · Phase 4 ≤15s ·
 Phase 5 ≤90s · Phase 6 ≤30s.
 
@@ -106,7 +106,8 @@ For each object:
 | `TOP n` | `LIMIT n` |
 | `[bracketed]` identifiers | double-quoted or bare |
 | `DATEADD(dd, n, d)` | `DATEADD(day, n, d)` |
-| `CONVERT(type, x)` | `x::type` |
+| `CONVERT(type, x)` (2-arg) | `x::type` |
+| `CONVERT(type, x, style)` with date/time style code (e.g. `112`, `120`) | `TO_CHAR(x, '<fmt>')` / `TO_DATE(x, '<fmt>')` / `TO_TIMESTAMP(x, '<fmt>')` with an explicit Snowflake format model — a bare `x::type` cast loses the style and may fail. Map the T-SQL style code (`112` → `'YYYYMMDD'`, `120` → `'YYYY-MM-DD HH24:MI:SS'`, etc.) by hand; do NOT drop the style silently. |
 | `#temp` tables | CTEs or ephemeral models |
 | `CROSS APPLY` | `LATERAL FLATTEN` / lateral join |
 | `MERGE ... WHEN MATCHED` | incremental model with `unique_key` |
@@ -141,13 +142,32 @@ if command -v altimate-code >/dev/null 2>&1; then
 fi
 ```
 
-**Fallback** (no altimate-code): run both the source MS SQL query and
-the compiled dbt query against Snowflake and compare:
+**Fallback** (no altimate-code): parity must be computed on **one engine**
+— Snowflake — because `HASH_AGG`, `IS NOT DISTINCT FROM`, and `FULL OUTER
+JOIN` across engines are not portable (MS SQL Server lacks `HASH_AGG` and
+only added `IS [NOT] DISTINCT FROM` in SQL Server 2022). Before running
+parity, the **source rows must exist in Snowflake** — one of:
+
+1. The source tables are already replicated into Snowflake (e.g. by
+   Fivetran, Airbyte, a `COPY INTO` from a stage, or a pre-existing
+   bronze layer). Use the replicated relation as the "source side".
+2. The source rows do not exist in Snowflake yet. Stop and tell the
+   user: data-parity needs both sides in one place; either (a) land
+   the source into Snowflake first (temporary stage + `COPY INTO`),
+   or (b) install `altimate-code`, which handles the cross-engine
+   compare natively.
+
+**After** the source side is in Snowflake, run on Snowflake only:
 - `COUNT(*)` on both sides, AND
 - `HASH_AGG(col1, col2, ..., colN)` on both sides over the fully
   enumerated SELECT list (NOT `HASH(*)` — that's not valid Snowflake), AND
 - A `FULL OUTER JOIN ... ON a.col IS NOT DISTINCT FROM b.col` on every
-  column to catch multiplicity differences.
+  column, grouped per distinct row, to catch multiplicity differences.
+
+Note: Phase 3 runs **before** Phase 5's `dbt build`, so the dbt side of
+the compare must use the **compiled SELECT** (`dbt compile --select
+<model>` then read `target/compiled/.../<model>.sql`) — not the
+materialized relation, which doesn't exist yet.
 
 **Hard stop:** any FAIL blocks deployment. Report the failing object
 and the diff — do not deploy a partially-correct migration.
@@ -171,27 +191,62 @@ Wait for an explicit yes. Default is NO — do not deploy on silence.
 
 Deploy to the isolated schema the user confirmed in Phase 4 — **never**
 run `--target prod` from this skill. Use a dedicated non-prod target
-(`dev`, `migration`, or a user-defined target) and the custom schema:
+(`dev`, `migration`, or a user-defined target) and enforce the isolated
+schema by **one** of these three methods (verify which one before
+building):
+
+1. **Target-level `schema:` override** in `profiles.yml` under a
+   dedicated migration target — e.g.
+   ```yaml
+   migration:
+     type: snowflake
+     schema: MIGRATION_20261023_HHMMSS
+     ...
+   ```
+   Then: `dbt build --target migration --fail-fast`.
+2. **`DBT_SCHEMA` env var** (if `profiles.yml` reads it via `{{ env_var('DBT_SCHEMA') }}`):
+   ```bash
+   DBT_SCHEMA="MIGRATION_$(date +%Y%m%d_%H%M%S)" \
+     dbt build --target <non_prod_target> --fail-fast
+   ```
+3. **Custom `generate_schema_name` macro** that reads `var('target_schema')`:
+   ```bash
+   dbt build --target <non_prod_target> \
+     --vars '{target_schema: "MIGRATION_<timestamp>"}' --fail-fast
+   ```
+   `--vars` is a **no-op** on a standard dbt-snowflake project without
+   this macro; writes land in the default schema of `<non_prod_target>`
+   and may collide with shared dev tables. Verify the macro exists in
+   `macros/get_custom_schema.sql` (or similar) before relying on method 3.
+
+Pick one — do not combine. If none are configured, stop and tell the
+user how to add method 1 or 2 before deploying.
 
 ```bash
 dbt deps >/dev/null 2>&1 || true
-dbt build \
-  --target <non_prod_target> \
-  --vars '{target_schema: "MIGRATION_<timestamp>"}' \
-  --fail-fast
+# then the one dbt build command for the chosen method, above.
 ```
 
 **Hard stop:** if `dbt build` fails, stop and report. Do not retry
 blindly. Do not promote to prod from inside this skill — promotion
 is a separate, user-driven step.
 
-Then commit (stage from the dbt project root — do not assume files live
-at the repo root if the project is nested):
+Then commit. Stage only paths that actually changed — in standard dbt,
+`sources.yml` lives inside `models/` (under `model-paths`), and
+`dbt_project.yml` only needs staging if it was edited.
 
 ```bash
 cd "<dbt_project_root>"
 git checkout -b migration/mssql-to-snowflake
-git add models/ sources.yml dbt_project.yml   # add macros/, seeds/ if touched
+
+# Stage from the project root; `models/` already covers nested sources.yml
+# and _models.yml files. Add macros/, seeds/, or dbt_project.yml only if
+# they were actually modified in this run.
+git add models/
+git diff --cached --quiet macros/      || git add macros/
+git diff --cached --quiet seeds/       || git add seeds/
+[ -n "$(git status --porcelain dbt_project.yml)" ] && git add dbt_project.yml
+
 cd -   # back to repo root
 git commit -m "Migrate <scope> from MS SQL to Snowflake dbt (<layering>)"
 ```
