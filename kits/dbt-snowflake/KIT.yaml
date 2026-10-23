@@ -15,7 +15,13 @@ skills:
       - developing-incremental-models
       - migrating-sql-to-dbt
       - optimizing-query-by-id
+      - optimizing-query-text
       - finding-expensive-queries
+      - snowflake-dbt-model-refactoring
+      - snowflake-query-optimization
+      - dbt-model-enhancement
+      - mssql-to-snowflake-dbt-migration
+      - end-to-end-snowflake-pipeline
 
 mcp:
   dbt:
