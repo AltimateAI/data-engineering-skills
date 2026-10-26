@@ -158,141 +158,39 @@ success (`dbt debug`) is **not** proof the target is non-prod — in CI,
 `DBT_TARGET=prod` is often exported, and a mis-named `dev` target can
 still point at the prod schema.
 
-Resolve a non-prod target up front and verify it against a **manifest-
-based** prod denylist. Session-value approaches (comparing `dbt show`'s
-printed `current_database().current_schema()` across targets) are
-unsafe: `dbt show` output is agate-truncated to 20 chars (so
-`ANALYTICS_PROD.MARTS` and `ANALYTICS_PROD.MARKETING` compare equal),
-new users have NULL `CURRENT_SCHEMA()` (so the concatenation is NULL
-and the guard refuses every first run), and custom
-`generate_schema_name` can send both targets' marts to the same
-`<db>.MARTS` while the targets' session values differ. Comparing each
-selected node's `relation_name` against a configured denylist defeats
-all three failure modes.
+The guard **and** the build run in `scripts/prod_guard.sh`, in the
+same invocation, so the target and selector can't drift between them:
 
 ```bash
-# 1. Install packages BEFORE any dbt invocation. A fresh checkout with
-#    packages.yml will fail every dbt command otherwise.
-dbt deps >/dev/null 2>&1 || true
-
-# 2. Pick a candidate. Do NOT trust DBT_TARGET env var — it may be "prod"
-#    in CI. Prefer an explicit per-skill override.
-NON_PROD_TARGET="${DBT_NONPROD_TARGET:-dev}"
-
-# 3. Name check: refuse any target whose name matches prod|production|prd|live.
-case "$(echo "$NON_PROD_TARGET" | tr '[:upper:]' '[:lower:]')" in
-  prod|production|prd|live)
-    echo "Refusing: target '$NON_PROD_TARGET' looks like production."; exit 1 ;;
-esac
-
-# 4. Prod denylist — comma-or-pipe-separated database or <database>.<schema>
-#    values that are never OK to write to. REQUIRED (fail-closed):
-#    unset = refuse to run, so the skill can't silently build into prod
-#    on a project it hasn't been configured for.
-: "${DBT_PROD_DENYLIST:?Set DBT_PROD_DENYLIST (e.g. 'ANALYTICS_PROD|ANALYTICS.MARTS') — refusing by default}"
-
-# 5. Resolve relation_name for every selected node by reading
-#    target/manifest.json directly. `dbt ls --output json` does NOT
-#    include relation_name by default (needs `--output-keys relation_name`
-#    which is itself not supported on every dbt version), and shell-level
-#    nested while subshells can't propagate `exit 2` cleanly through two
-#    layers of pipeline. One Python helper does both: resolves relation
-#    names from manifest.json for the --select set, compares against the
-#    denylist, and exits with proper status.
-dbt parse --target "$NON_PROD_TARGET" --quiet >/dev/null \
-  || { echo "dbt parse failed for target '$NON_PROD_TARGET'."; exit 1; }
-
-# Resolve the unique_ids in --select '<model>+' via `dbt ls` (default
-# json shape, which DOES include unique_id), then look up each one in
-# manifest.json for relation_name. One subprocess, one exit status.
-SELECTOR='<model>+'
-export SELECTOR DBT_PROD_DENYLIST NON_PROD_TARGET
-
-python3 - <<'PY' || exit 1
-import json, os, pathlib, re, subprocess, sys
-
-selector = os.environ["SELECTOR"]
-denylist_raw = os.environ["DBT_PROD_DENYLIST"]
-target = os.environ["NON_PROD_TARGET"]
-
-# 1. unique_ids from `dbt ls` (default keys include unique_id).
-ls = subprocess.run(
-    ["dbt", "ls", "--target", target, "--select", selector,
-     "--resource-type", "model", "--output", "json"],
-    capture_output=True, text=True,
-)
-if ls.returncode != 0:
-    sys.exit(f"dbt ls failed: {ls.stderr.strip()}")
-
-unique_ids = []
-for line in ls.stdout.splitlines():
-    try:
-        node = json.loads(line)
-    except Exception:
-        continue
-    uid = node.get("unique_id")
-    if uid and uid.startswith("model."):
-        unique_ids.append(uid)
-
-if not unique_ids:
-    sys.exit(f"No models matched selector {selector!r} on target {target!r}.")
-
-# 2. relation_name from manifest.json (authoritative).
-manifest_path = pathlib.Path("target/manifest.json")
-if not manifest_path.exists():
-    sys.exit("target/manifest.json missing — did `dbt parse` run?")
-manifest = json.loads(manifest_path.read_text())
-nodes = manifest.get("nodes", {})
-
-selected_rels = []
-for uid in unique_ids:
-    node = nodes.get(uid) or {}
-    rel = node.get("relation_name")
-    if rel:
-        selected_rels.append((uid, rel))
-
-if not selected_rels:
-    sys.exit("Could not resolve any relation_name from manifest.json.")
-
-# 3. Normalise + compare against the denylist. Comma OR pipe separated.
-denylist = [
-    d.strip().upper()
-    for d in re.split(r"[,|]", denylist_raw)
-    if d.strip()
-]
-if not denylist:
-    sys.exit("DBT_PROD_DENYLIST is set but empty after parsing.")
-
-offenders = []
-for uid, rel in selected_rels:
-    bare = rel.replace('"', '').upper()
-    for denied in denylist:
-        if bare == denied or bare.startswith(denied + "."):
-            offenders.append((uid, rel, denied))
-            break
-
-if offenders:
-    for uid, rel, denied in offenders:
-        print(f"Refusing: {uid} resolves to {rel} (denied: {denied})", file=sys.stderr)
-    sys.exit(1)
-
-print(f"Non-prod guard PASS — {len(selected_rels)} model(s) checked against denylist.")
-PY
-
-# 6. Connection check (last).
-dbt debug --target "$NON_PROD_TARGET" >/dev/null \
-  || { echo "Cannot connect with target '$NON_PROD_TARGET'."; exit 1; }
+export DBT_PROD_DENYLIST='ANALYTICS_PROD|ANALYTICS.MARTS'   # REQUIRED
+export DBT_NONPROD_TARGET=dev                               # or ci / stg
+scripts/prod_guard.sh '<model>+'
 ```
 
-Then build. Prefer `--defer --state <artifacts>` to avoid rebuilding
-unchanged upstream models (if a prior manifest is on disk from CI):
-```bash
-dbt build \
-  --select <model>+ \
-  --target "$NON_PROD_TARGET" \
-  ${DBT_STATE_DIR:+--defer --state "$DBT_STATE_DIR"} \
-  --fail-fast
-```
+What the script does (see `scripts/prod_guard.sh`):
+- Installs packages (`dbt deps`) **before** any `dbt parse` / `dbt ls`,
+  so a fresh checkout with `packages.yml` doesn't fail the guard.
+- Refuses `prod|production|prd|live` target names.
+- Resolves `unique_id`s via `dbt ls --output json` (default shape has
+  `unique_id`), then looks up each `relation_name` in
+  `target/manifest.json`. Session-value approaches (comparing
+  `dbt show`'s `current_database().current_schema()` across targets)
+  are unsafe: `dbt show` output is agate-truncated to 20 chars, new
+  users have NULL `CURRENT_SCHEMA()`, and custom `generate_schema_name`
+  can send both targets' marts to the same `<db>.MARTS` while the
+  targets' session values differ. The manifest `relation_name` is what
+  `dbt build` actually materialises, which defeats all three.
+- Checks `model.`, `snapshot.`, AND `seed.` — not models only. A
+  `dbt build --select <model>+` run also builds snapshots and seeds in
+  the selected downstream, and snapshots often hard-code
+  `target_database`/`target_schema` to prod values.
+- Runs the same `dbt build --select '<model>+' --target
+  "$NON_PROD_TARGET"` that the guard just verified. Target and selector
+  cannot drift.
+
+If `<model>+` isn't the right selector for your project (e.g. a slim CI
+selector like `state:modified+`), pass it to `prod_guard.sh` instead —
+the guard and the build will use the same one.
 
 `<model>+` builds the model and its downstream — catches broken refs.
 If a slim CI selector is set up (`state:modified+`), use it instead.

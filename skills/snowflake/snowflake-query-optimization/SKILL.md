@@ -120,32 +120,33 @@ are session-scoped. All of Phase 4 (parity) and Phase 5 (benchmark)
 must run in **one connected Snowflake session** — not separate
 `snowsql -q` invocations or separate altimate-code calls.
 
-If the only available client is per-call (one shell per statement), the
-fallback is `CREATE OR REPLACE TRANSIENT TABLE` with a unique run-id,
-with these **mandatory** constraints — session-scoped `TEMPORARY TABLE`s
-auto-clean, transient tables do NOT:
+If the only available client is per-call (one shell per statement), use
+`scripts/parity_bench.sh`:
 
-- **Prefer the user's own dev schema** (e.g. `DEV_<USER>.`) over any
-  shared schema. The parity tables materialise the full result sets of
-  both the original and the optimised query — which may contain PII,
-  revenue data, or anything else the query returned. A shared schema
-  exposes that to anyone with `USAGE` on the schema until cleanup runs.
-- **Mandatory cleanup — including on failure.** Wrap Phase 4 + Phase 5
-  in a trap so the DROPs run even if parity or benchmark aborts:
-  ```sql
-  -- Session preamble
-  SET parity_orig = '_SQO_ORIG_' || REPLACE(UUID_STRING(), '-', '');
-  SET parity_opt  = '_SQO_OPT_'  || REPLACE(UUID_STRING(), '-', '');
-  -- ... parity + benchmark work using IDENTIFIER($parity_orig), IDENTIFIER($parity_opt) ...
-  -- Mandatory cleanup, every path (success, parity FAIL, benchmark error):
-  DROP TABLE IF EXISTS IDENTIFIER($parity_orig);
-  DROP TABLE IF EXISTS IDENTIFIER($parity_opt);
-  ```
-  If running from a shell, bracket the per-call sequence with a
-  `trap 'snowsql -q "DROP TABLE IF EXISTS ..."' EXIT` so a Ctrl-C or
-  non-zero exit still cleans up. Do NOT rely on "no explicit DROP needed"
-  — that only applies to true `TEMPORARY TABLE`s in a single session.
-- Set `USE_CACHED_RESULT = FALSE` on every call.
+```bash
+export SNOWFLAKE_RUN_SQL='snowsql -c myconn'   # or an altimate-code wrapper
+export SQO_DEV_SCHEMA='DEV_<USER>'             # NEVER a shared schema (see below)
+scripts/parity_bench.sh /tmp/sqo-orig.sql /tmp/sqo-opt.sql
+```
+
+The script addresses three failures the previous "SET parity_orig = ..."
+form had:
+
+- **Shell-generated `RUN_ID`.** The old form used `SET parity_orig =
+  '_SQO_ORIG_' || UUID_STRING()` on session 1 and `DROP TABLE
+  IDENTIFIER($parity_orig)` on session 2 — the session variable didn't
+  survive, the DROP failed with "session variable does not exist", and
+  the PII-bearing transient tables leaked indefinitely. The script
+  generates `RUN_ID` in the shell (`uuidgen | tr -d -`), builds the
+  table names as literals (`_SQO_ORIG_${RUN_ID}`), and the DROPs always
+  know the full name.
+- **Mandatory cleanup via `trap`.** `trap cleanup EXIT INT TERM` runs
+  the DROPs on success, failure, Ctrl-C, or SIGTERM — nothing short of
+  a kernel panic leaves the tables behind.
+- **User dev schema only.** `SQO_DEV_SCHEMA` is REQUIRED (fail-closed).
+  Writing parity tables to a shared schema would expose both result
+  sets — potentially containing PII — to anyone with `USAGE` on it,
+  until the next cleanup pass.
 
 **MANDATORY HARD STOP — safety guard against DML/DDL re-execution.**
 This skill re-executes the fetched SQL during parity (Phase 4) and

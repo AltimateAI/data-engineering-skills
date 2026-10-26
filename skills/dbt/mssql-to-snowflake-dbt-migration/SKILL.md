@@ -188,36 +188,26 @@ user's confirmation are meaningless on broken SQL.
 
 ### Phase 4 — User confirmation (ask ONCE, ≤15s)
 
-**Shell state persistence.** Phases run as separate shell invocations,
-so `TS` and `ISOLATED_SCHEMA_PREFIX` must be persisted — otherwise
-Phase 5's `export DBT_SCHEMA="${ISOLATED_SCHEMA_PREFIX}"` exports an
-empty string and the build silently lands in the default schema (and
-the landing check's `ILIKE '' || '%'` matches every table in the
-database, giving a false PASS). Write to a state file, validate on
-every subsequent block.
+**All stateful logic lives in `scripts/` next to this SKILL.md** —
+every script loads + validates state at the top (`source scripts/state.sh load`
++ `: "${VAR:?}"`), so a block that runs in a fresh shell can't silently
+produce bad paths or an empty prefix. State is per-run and stored under
+`$(git rev-parse --git-dir)/skill/mssql_migration/<run_id>/` (never
+committed, concurrent runs isolated).
+
+Initialise the run with Phase 4's inputs:
 
 ```bash
-REPO_ROOT="$(git rev-parse --show-toplevel)"
-STATE_FILE="$REPO_ROOT/.skill_mssql_state"
-
-TS="$(date +%Y%m%d_%H%M%S)"
-ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"
-
-cat > "$STATE_FILE" <<EOF
-REPO_ROOT=$(printf %q "$REPO_ROOT")
-TS=$(printf %q "$TS")
-ISOLATED_SCHEMA_PREFIX=$(printf %q "$ISOLATED_SCHEMA_PREFIX")
-EOF
+scripts/init_run.sh <Medallion|DataVault> '<migrated_models_selector>' <dbt_root>
 ```
 
-Every later block starts with:
-```bash
-STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
-[ -f "$STATE_FILE" ] || { echo "Phase 4 must run first (missing $STATE_FILE)."; exit 1; }
-# shellcheck disable=SC1090
-source "$STATE_FILE"
-: "${TS:?TS not set}" ; : "${ISOLATED_SCHEMA_PREFIX:?prefix not set}" ; : "${REPO_ROOT:?}"
-```
+What it does (see `scripts/init_run.sh`):
+- `source scripts/state.sh init` — creates a fresh `<run_id>`.
+- Validates layering (`Medallion` or `DataVault`).
+- Computes `TS` once and `ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"`;
+  all later scripts read these from state.
+- Persists `REPO_ROOT`, `DBT_ROOT`, `TS`, `ISOLATED_SCHEMA_PREFIX`,
+  `LAYERING`, `SCOPE_SELECTOR` into state.
 
 Before deploying, show:
 - Count of models to be built
@@ -239,176 +229,70 @@ Wait for an explicit yes. Default is NO — do not deploy on silence.
 
 ### Phase 5 — Deploy to isolated schema (≤90s)
 
-Start with the state preamble (see Phase 4). Deploy to the isolated
-schema — **never** `--target prod`. Enforce isolation by **one** of these
-two methods (Method 1 is required when the project is standard).
-
-**Method 1 — dedicated target with env-var-driven `schema:` in
-`profiles.yml`:**
-```yaml
-# profiles.yml  (user adds this once; the skill does NOT edit profiles.yml)
-<project>:
-  outputs:
-    migration:
-      type: snowflake
-      database: <db>
-      schema: "{{ env_var('DBT_SCHEMA') }}"   # dynamic — set per run
-      warehouse: <wh>
-      role: <role>
-      # ...other connection details...
-```
-Then:
-```bash
-STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
-# shellcheck disable=SC1090
-source "$STATE_FILE"
-: "${ISOLATED_SCHEMA_PREFIX:?prefix not set}"
-
-export DBT_SCHEMA="${ISOLATED_SCHEMA_PREFIX}"
-
-dbt deps >/dev/null 2>&1 || true
-dbt build \
-  --select <migrated_models_only> \
-  --target migration \
-  --fail-fast
-```
-
-**Method 2 — custom `generate_schema_name` macro** that reads
-`var('target_schema')`:
-```bash
-dbt deps >/dev/null 2>&1 || true
-dbt build \
-  --select <migrated_models_only> \
-  --target <non_prod_target> \
-  --vars "{target_schema: \"${ISOLATED_SCHEMA_PREFIX}\"}" \
-  --fail-fast
-```
-**Only use Method 2** if `macros/get_custom_schema.sql` (or equivalent)
-exists and reads the var. Without it, `--vars` is a no-op and the build
-lands in the default schema of `<non_prod_target>` — may collide with
-shared dev tables.
-
-**Both methods must:**
-- Scope the build with `--select <migrated_models_only>` (space- or
-  comma-separated) — NOT the whole project. Otherwise unrelated models
-  are rebuilt and the "isolated schema" claim becomes false.
-
-**MANDATORY — manifest-based isolation check (`run_results.json`).**
-Previous rounds offered an `INFORMATION_SCHEMA.TABLES` `ILIKE` check as
-primary and the manifest check as "or more robustly". Make the
-manifest check **required** instead — the ILIKE path is too weak:
-`_` is a single-character wildcard in `ILIKE`, so `MIGRATION_123` matches
-`MIGRATIONS123`; and a partial-success build where some models landed in
-the prefix and others leaked to a shared schema would still return rows
-and falsely pass.
+Both methods for schema isolation go through one script. The script
+runs `dbt deps` first, then `dbt build` with `--select "$SCOPE_SELECTOR"`
+(from state — guaranteed non-empty), then runs the manifest-based
+isolation check — all in one process so state is loaded exactly once:
 
 ```bash
-# Every migrated node's materialised schema must start with the prefix.
-# In dbt-core, `target/run_results.json` has one entry per node with
-# top-level `unique_id` + `relation_name` — there is NO nested `node`
-# object (that's an older-schema or dbt-cloud assumption). Filter by
-# `unique_id.startswith("model.")`.
-python3 - "$ISOLATED_SCHEMA_PREFIX" <<'PY'
-import json, sys, pathlib
-prefix = sys.argv[1].upper()
-rr = json.loads(pathlib.Path("target/run_results.json").read_text())
-
-checked = 0
-offenders = []
-for r in rr.get("results", []):
-    uid = r.get("unique_id") or ""
-    if not uid.startswith("model."):
-        continue
-    rel = (r.get("relation_name") or "").replace('"','').upper()
-    if not rel:
-        offenders.append((uid, rel, "no relation_name on result"))
-        continue
-    # relation_name is "<DB>"."<SCHEMA>"."<NAME>"
-    parts = rel.split(".")
-    if len(parts) < 3:
-        offenders.append((uid, rel, "unparseable"))
-        continue
-    schema = parts[1]
-    if not schema.startswith(prefix):
-        offenders.append((uid, rel, f"schema {schema!r} does not start with {prefix!r}"))
-    checked += 1
-
-# Hard-stop if we found zero model results — the prior round reported
-# PASS on an empty check, which is worse than any FAIL.
-if checked == 0:
-    print(f"Isolation check FAILED — no model results found in run_results.json.", file=sys.stderr)
-    sys.exit(1)
-
-if offenders:
-    print("Isolation check FAILED — the following models landed outside the isolated prefix:", file=sys.stderr)
-    for uid, rel, why in offenders:
-        print(f"  - {uid}: {rel}  ({why})", file=sys.stderr)
-    sys.exit(1)
-
-print(f"Isolation check PASS — all {checked} migrated models under {prefix}*.")
-PY
+scripts/deploy_isolated.sh method1 [<non_prod_target>]   # recommended
+# OR
+scripts/deploy_isolated.sh method2 [<non_prod_target>]
 ```
 
-As a sanity check against INFORMATION_SCHEMA (secondary, not primary),
-use `STARTSWITH` to avoid the `ILIKE _` single-char-wildcard pitfall:
-```sql
-SELECT table_schema, table_name, table_type, row_count
-FROM <db>.INFORMATION_SCHEMA.TABLES
-WHERE STARTSWITH(UPPER(table_schema), UPPER(:isolated_schema_prefix))
-ORDER BY table_schema, table_name;
-```
+**Method 1** (recommended for standard projects): dedicated target in
+`profiles.yml` with `schema: "{{ env_var('DBT_SCHEMA') }}"`. The script
+exports `DBT_SCHEMA="${ISOLATED_SCHEMA_PREFIX}"` from state, so the
+schema can never be empty — unlike the inline-shell form in previous
+rounds, where a missing preamble gave `DBT_SCHEMA=""` and silently
+landed in the default schema.
 
-**Hard stop:** if `dbt build` fails OR the manifest isolation check fails
-(any node outside the prefix), stop and report. Do not proceed to parity
-against a partial / wrong schema.
+**Method 2**: custom `generate_schema_name` macro reading `var('target_schema')`.
+The script passes `--vars "{target_schema: \"${ISOLATED_SCHEMA_PREFIX}\"}"`.
+Only use this if `macros/get_custom_schema.sql` (or equivalent) exists
+and reads the var — otherwise `--vars` is a no-op.
+
+**Isolation check — `scripts/isolation_check.py`.** Called at the end
+of `deploy_isolated.sh`. The check:
+
+- Reads selected `unique_id`s from `target/run_results.json` — the
+  `unique_id` key has been top-level since dbt 1.5, works on every
+  supported version.
+- Looks up each node's `relation_name` in `target/manifest.json`
+  (authoritative; `relation_name` is written at parse time on every
+  supported version, including dbt 1.7 where `run_results.json` omits
+  it).
+- Includes `model.`, `snapshot.`, and `seed.` — all three materialise
+  schemas, all three can leak out of the isolated prefix.
+- Fail-closed on empty `ISOLATED_SCHEMA_PREFIX` (would otherwise match
+  everything via `schema.startswith('')`).
+- Hard-stops if `checked == 0` (silent-pass on an empty check is worse
+  than any FAIL).
+- Hard-stops on any node whose schema doesn't start with the prefix.
+
+**Hard stop:** if `dbt build` fails OR the isolation check fails, stop
+and report. Do not proceed to parity.
 
 ### Phase 6 — Parity validation (≤90s) — MANDATORY HARD STOP
 
-Start with the state preamble (so `$TS` and `$ISOLATED_SCHEMA_PREFIX`
-are live), then parity runs **after** the build, against the real
-materialized relations.
+Parity runs **after** the build, against the real materialised
+relations. Dump the migrated relation_names via the script (which uses
+`manifest.json` for `relation_name` lookup — version-stable, works on
+dbt 1.7 where `run_results.json` omits `relation_name`):
 
-Use the Altimate `data-parity` sub-task — do not hand-roll per-model
-SQL unless `altimate-code` is unavailable. The parity prompt body is
-written via a **quoted** heredoc (so `$()` / backticks in object names
-don't expand), with `__PREFIX__` as a literal placeholder that `sed`
-substitutes afterwards. Previously the prompt contained a literal
-`MIGRATION_<timestamp>` which altimate-code searched verbatim — and
-with `+schema: bronze/silver/gold`, the actual relations landed in
-`MIGRATION_<ts>_BRONZE/_SILVER/_GOLD`, so every object came back "not
-verified" even on a correct build.
-
-The strongest form passes the exact `relation_name`s from
-`target/run_results.json` so there is no schema search at all:
 ```bash
-STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
-# shellcheck disable=SC1090
-source "$STATE_FILE"
-: "${ISOLATED_SCHEMA_PREFIX:?}"
+# Load state so $ISOLATED_SCHEMA_PREFIX is available for the sed step below.
+source scripts/state.sh load
+scripts/state.sh validate ISOLATED_SCHEMA_PREFIX
 
-# Dump the migrated relation_names from run_results.json for the prompt.
-# dbt-core: top-level `unique_id` + `relation_name` on each result;
-# there is no nested `node` key.
-python3 - > /tmp/mssql-migrated-relations.txt <<'PY'
-import json, pathlib
-rr = json.loads(pathlib.Path("target/run_results.json").read_text())
-for r in rr.get("results", []):
-    uid = r.get("unique_id") or ""
-    if uid.startswith("model."):
-        rel = r.get("relation_name")
-        if rel:
-            print(rel)
-PY
-
-# Hard-stop if the parity file is empty — otherwise altimate-code gets
-# an empty list and silently returns "nothing to compare".
-if [ ! -s /tmp/mssql-migrated-relations.txt ]; then
-  echo "No migrated relations found in run_results.json — did Phase 5 build anything?"
-  exit 1
-fi
+cd "$REPO_ROOT/$DBT_ROOT"
+python3 scripts/parity_relations.py > /tmp/mssql-migrated-relations.txt \
+  || { echo "No migrated relations found — did Phase 5 build anything?"; exit 1; }
 
 if command -v altimate-code >/dev/null 2>&1; then
-  # Quoted heredoc + sed injection — same safe pattern as the commit message.
+  # Quoted heredoc + sed injection — safe against object names containing
+  # $()/backticks. __PREFIX__ is a literal placeholder; sed interpolates
+  # $ISOLATED_SCHEMA_PREFIX after the heredoc body is already fixed.
   cat > /tmp/mssql-parity-prompt.txt <<'EOF'
 For each migrated dbt model whose relation_name is listed in
 /tmp/mssql-migrated-relations.txt (these are the actual Snowflake
@@ -460,68 +344,25 @@ from showing PASS. Report the failing objects and the diff.
 
 ### Phase 7 — Commit + dashboard (≤25s)
 
-Stage only paths that actually changed — in standard dbt, `sources.yml`
-lives inside `models/` (under `model-paths`), and `dbt_project.yml` only
-needs staging if it was edited.
-
-**Branch name must include `TS`** so a re-run doesn't collide. Fail
-loudly if the branch already exists — do NOT silently fall through and
-commit on whatever branch happens to be current (which may be `main`):
+**During Phase 2 conversion, record every file written** so staging
+can scope to pipeline-only paths (not the whole `models/` directory —
+unrelated WIP must not land in the migration PR):
 
 ```bash
-set -e   # fail on any non-zero exit — do not silently continue
+scripts/record_written.sh models/bronze/stg_<name>.sql models/silver/int_<name>.sql ...
+```
 
-# Load TS from state (written in Phase 4). Fails loudly if missing.
-STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
-# shellcheck disable=SC1090
-source "$STATE_FILE"
-: "${TS:?TS not set}" ; : "${REPO_ROOT:?}"
+If delegating conversion to `altimate-code`, parse its "List every file
+written" output and pass those paths to `record_written.sh`.
 
-cd "<dbt_project_root>"
+Then stage + commit via one script that loads state, creates the branch
+`migration/mssql-to-snowflake-${TS}` (fails if it exists so re-runs
+can't collide), stages exactly the recorded paths, and writes the commit
+message via quoted heredoc + sed injection (so `<scope>` / `<layering>` /
+object names containing `$` or backticks can't trigger shell expansion):
 
-BRANCH="migration/mssql-to-snowflake-${TS}"
-git checkout -b "$BRANCH"   # fails if the branch exists; set -e stops the script
-
-# Stage with explicit allow-listed paths — git diff --cached --quiet
-# checks the INDEX (which is empty before `git add`), so using it as a
-# gate silently skips untracked files like a new generate_schema_name
-# macro. Just add what the Phase 1 allow-list permits.
-git add models/
-
-# Method 2 (custom generate_schema_name) requires a new macro — if it
-# was created in this run, stage it explicitly. (Phase 1's allow-list
-# otherwise forbids macros/.)
-if [ -f "macros/get_custom_schema.sql" ] && \
-   git status --porcelain macros/get_custom_schema.sql | grep -q '^??'; then
-  git add macros/get_custom_schema.sql
-fi
-
-# seeds/ only if this run added a seed. Use if/then/fi, NOT `cond && cmd`
-# — under `set -e`, a `cond` that exits non-zero (nothing changed → grep
-# returns 1) aborts the whole script instead of just skipping the stage.
-if [ -n "$(git status --porcelain seeds/)" ]; then
-  git add seeds/
-fi
-
-# dbt_project.yml only if modified (same reason — use if/then/fi).
-if [ -n "$(git status --porcelain dbt_project.yml)" ]; then
-  git add dbt_project.yml
-fi
-
-cd -   # back to repo root
-
-# Commit message via QUOTED heredoc (<<'EOF') — no shell expansion of
-# <scope> / <layering> or object/schema names that may contain
-# shell metacharacters like `$`, backticks, `(`, `)`. The literal
-# `${TS}` placeholder is replaced afterwards with `sed`, so TS still
-# gets injected without re-opening the shell-expansion window.
-cat > /tmp/mssql-commit-msg.txt <<'EOF'
-Migrate <scope> from MS SQL to Snowflake dbt (<layering>) — __TS__
-EOF
-# Inject TS safely with sed (not shell interpolation into the heredoc).
-sed -i.bak "s/__TS__/${TS}/" /tmp/mssql-commit-msg.txt && rm -f /tmp/mssql-commit-msg.txt.bak
-
-git commit -F /tmp/mssql-commit-msg.txt
+```bash
+scripts/stage.sh
 ```
 
 Do not push unless the user asked for a PR.
