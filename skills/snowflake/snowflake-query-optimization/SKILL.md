@@ -118,11 +118,34 @@ baseline is almost always from a different session.
 in Phase 4 and the `ALTER SESSION SET USE_CACHED_RESULT = FALSE` setting
 are session-scoped. All of Phase 4 (parity) and Phase 5 (benchmark)
 must run in **one connected Snowflake session** — not separate
-`snowsql -q` invocations or separate altimate-code calls. If the only
-available client is per-call (one shell per statement), use
-`CREATE OR REPLACE TRANSIENT TABLE` with a unique run-id in a shared
-schema instead of `TEMPORARY TABLE`, and set
-`USE_CACHED_RESULT = FALSE` on every call.
+`snowsql -q` invocations or separate altimate-code calls.
+
+If the only available client is per-call (one shell per statement), the
+fallback is `CREATE OR REPLACE TRANSIENT TABLE` with a unique run-id,
+with these **mandatory** constraints — session-scoped `TEMPORARY TABLE`s
+auto-clean, transient tables do NOT:
+
+- **Prefer the user's own dev schema** (e.g. `DEV_<USER>.`) over any
+  shared schema. The parity tables materialise the full result sets of
+  both the original and the optimised query — which may contain PII,
+  revenue data, or anything else the query returned. A shared schema
+  exposes that to anyone with `USAGE` on the schema until cleanup runs.
+- **Mandatory cleanup — including on failure.** Wrap Phase 4 + Phase 5
+  in a trap so the DROPs run even if parity or benchmark aborts:
+  ```sql
+  -- Session preamble
+  SET parity_orig = '_SQO_ORIG_' || REPLACE(UUID_STRING(), '-', '');
+  SET parity_opt  = '_SQO_OPT_'  || REPLACE(UUID_STRING(), '-', '');
+  -- ... parity + benchmark work using IDENTIFIER($parity_orig), IDENTIFIER($parity_opt) ...
+  -- Mandatory cleanup, every path (success, parity FAIL, benchmark error):
+  DROP TABLE IF EXISTS IDENTIFIER($parity_orig);
+  DROP TABLE IF EXISTS IDENTIFIER($parity_opt);
+  ```
+  If running from a shell, bracket the per-call sequence with a
+  `trap 'snowsql -q "DROP TABLE IF EXISTS ..."' EXIT` so a Ctrl-C or
+  non-zero exit still cleans up. Do NOT rely on "no explicit DROP needed"
+  — that only applies to true `TEMPORARY TABLE`s in a single session.
+- Set `USE_CACHED_RESULT = FALSE` on every call.
 
 **MANDATORY HARD STOP — safety guard against DML/DDL re-execution.**
 This skill re-executes the fetched SQL during parity (Phase 4) and
@@ -408,8 +431,11 @@ Suspected cause: <brief>
 ## Non-goals
 
 - No schema changes, clustering key changes, or warehouse resizing.
-- No DDL. The only writes are session-scoped `CREATE TEMPORARY TABLE`
-  statements in Phase 4 (auto-cleaned at session end).
+- No DDL beyond parity scratch tables. In the preferred single-session
+  path those are `CREATE TEMPORARY TABLE` (auto-cleaned at session end).
+  In the per-call fallback they are `CREATE OR REPLACE TRANSIENT TABLE`
+  in the **user's own dev schema** (not a shared schema) and MUST be
+  dropped on every exit path (success, parity FAIL, Ctrl-C).
 - Do not touch unrelated queries or files.
 
 ## Behavior contract
@@ -422,3 +448,8 @@ Suspected cause: <brief>
 - Never re-execute DML/DDL from query history — Phase 1 hard-stops.
 - Never interpolate SQL or user text into shell commands; always use
   temp files or heredocs.
+- Never leave parity scratch tables (`_SQO_ORIG_*`, `_SQO_OPT_*`) behind
+  — the full result sets of the original and optimised queries may
+  contain PII or sensitive data. Mandatory DROP on every exit path.
+- Never materialise parity tables into a shared schema when a user dev
+  schema is available.

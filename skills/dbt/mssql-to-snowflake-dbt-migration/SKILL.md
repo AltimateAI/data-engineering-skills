@@ -39,6 +39,10 @@ Must have:
   override** (see Phase 5 Method 1). The skill refuses to deploy without
   it — the `--vars '{target_schema: ...}'` trick is a no-op on standard
   projects.
+- **`dbt_utils` package installed** (`packages.yml` + `dbt deps`) — the
+  rewrite table recommends `dbt_utils.generate_surrogate_key` as the
+  NULL-safe way to port T-SQL `IDENTITY` columns. If `dbt_utils` isn't
+  installed, add it before Phase 2 or avoid the IDENTITY mapping.
 - Source access via **one** of:
   - `altimate-code` configured with an MS SQL connection
     (`altimate-code providers`), OR
@@ -139,7 +143,7 @@ are called out explicitly. These do NOT fit a single-token substitution:**
 | `int_col / int_col` | `TRUNC(a / NULLIF(b, 0))` (default — matches T-SQL truncation + T-SQL error-on-zero becomes NULL, a deliberate change) | **TRAP:** T-SQL `int / int` TRUNCATES (`7/2 = 3`) and ERRORS on zero divisor; Snowflake returns a decimal (`3.5`) and never errors. Defaulting to `a::NUMERIC / NULLIF(b, 0)` would silently change `3` → `3.5` across every migrated query. `TRUNC()` preserves truncation; `NULLIF` turns the error into NULL, which must be called out as a deliberate behavior change in the dashboard. |
 | `MERGE ... WHEN MATCHED THEN UPDATE WHEN NOT MATCHED THEN INSERT` | incremental model with `unique_key` + **dedup** + **lookback** | **TRAP:** Snowflake `MERGE` fails nondeterministically on duplicate source keys ("Duplicate row detected during DML action"), and a naive `is_incremental()` filter on `updated_at > max(updated_at)` drops late-arriving rows. Always: (1) dedup inside the model with `QUALIFY ROW_NUMBER() OVER (PARTITION BY <unique_key> ORDER BY updated_at DESC) = 1`, (2) include a lookback window in the `is_incremental()` filter (e.g. `updated_at > (SELECT MAX(updated_at) - INTERVAL '2 days' FROM {{ this }})`). |
 | `MERGE ... WHEN NOT MATCHED BY SOURCE THEN DELETE` | **no direct equivalent** — flag for the user. Options: snapshot-based deletes, `delete+insert` incremental strategy with a hard-delete CTE, or a post-hook `DELETE`. | **TRAP:** standard `incremental` with `unique_key` loses deletions. |
-| `IDENTITY(1,1)` columns | `AUTOINCREMENT` on `CREATE TABLE`, OR `ROW_NUMBER() OVER (ORDER BY ...)` in a model, OR a NULL-safe surrogate via `{{ dbt_utils.generate_surrogate_key([...]) }}` | **TRAP:** dbt models don't own identity sequences. Do NOT hand-roll `md5(concat(col1, col2, ...))` — Snowflake `CONCAT` returns NULL on any NULL arg, so a business key with one NULL part becomes NULL for many rows, and they all collide on the same hash. `dbt_utils.generate_surrogate_key` is NULL-safe (it coalesces each arg to `''_dbt_utils_surrogate_key_null_'` before hashing). |
+| `IDENTITY(1,1)` columns | `AUTOINCREMENT` on `CREATE TABLE`, OR `ROW_NUMBER() OVER (ORDER BY ...)` in a model, OR a NULL-safe surrogate via `{{ dbt_utils.generate_surrogate_key([...]) }}` | **TRAP:** dbt models don't own identity sequences. Do NOT hand-roll `md5(concat(col1, col2, ...))` — Snowflake `CONCAT` returns NULL on any NULL arg, so a business key with one NULL part becomes NULL for many rows, and they all collide on the same hash. `dbt_utils.generate_surrogate_key` is NULL-safe (it coalesces each arg to `'_dbt_utils_surrogate_key_null_'` before hashing). |
 | `DATETIME` (3.33ms precision) | `TIMESTAMP_NTZ(9)` | **TRAP:** reading legacy `DATETIME` with fractional-ms logic that assumed the 3.33ms rounding will drift. Cast and document. |
 | cursor / `WHILE` loop | set-based rewrite | Flag if truly impossible — never port the cursor as-is. |
 | `EXEC sp_...` dynamic SQL | reject — ask user | Never blindly convert. |
@@ -184,12 +188,35 @@ user's confirmation are meaningless on broken SQL.
 
 ### Phase 4 — User confirmation (ask ONCE, ≤15s)
 
-Compute the run timestamp once, up front — the same `TS` is reused in
-Phases 4, 5, 6, and 7:
+**Shell state persistence.** Phases run as separate shell invocations,
+so `TS` and `ISOLATED_SCHEMA_PREFIX` must be persisted — otherwise
+Phase 5's `export DBT_SCHEMA="${ISOLATED_SCHEMA_PREFIX}"` exports an
+empty string and the build silently lands in the default schema (and
+the landing check's `ILIKE '' || '%'` matches every table in the
+database, giving a false PASS). Write to a state file, validate on
+every subsequent block.
 
 ```bash
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+STATE_FILE="$REPO_ROOT/.skill_mssql_state"
+
 TS="$(date +%Y%m%d_%H%M%S)"
 ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"
+
+cat > "$STATE_FILE" <<EOF
+REPO_ROOT=$(printf %q "$REPO_ROOT")
+TS=$(printf %q "$TS")
+ISOLATED_SCHEMA_PREFIX=$(printf %q "$ISOLATED_SCHEMA_PREFIX")
+EOF
+```
+
+Every later block starts with:
+```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
+[ -f "$STATE_FILE" ] || { echo "Phase 4 must run first (missing $STATE_FILE)."; exit 1; }
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${TS:?TS not set}" ; : "${ISOLATED_SCHEMA_PREFIX:?prefix not set}" ; : "${REPO_ROOT:?}"
 ```
 
 Before deploying, show:
@@ -212,10 +239,9 @@ Wait for an explicit yes. Default is NO — do not deploy on silence.
 
 ### Phase 5 — Deploy to isolated schema (≤90s)
 
-Deploy to the isolated schema the user confirmed — **never** `--target
-prod`. Enforce isolation by **one** of these two methods (Method 1 is
-required when the project is standard; see Prerequisites). **Use the
-same `TS` from Phase 4** — do not recompute.
+Start with the state preamble (see Phase 4). Deploy to the isolated
+schema — **never** `--target prod`. Enforce isolation by **one** of these
+two methods (Method 1 is required when the project is standard).
 
 **Method 1 — dedicated target with env-var-driven `schema:` in
 `profiles.yml`:**
@@ -233,9 +259,14 @@ same `TS` from Phase 4** — do not recompute.
 ```
 Then:
 ```bash
-# TS and ISOLATED_SCHEMA_PREFIX come from Phase 4 — do not recompute.
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${ISOLATED_SCHEMA_PREFIX:?prefix not set}"
+
 export DBT_SCHEMA="${ISOLATED_SCHEMA_PREFIX}"
 
+dbt deps >/dev/null 2>&1 || true
 dbt build \
   --select <migrated_models_only> \
   --target migration \
@@ -245,6 +276,7 @@ dbt build \
 **Method 2 — custom `generate_schema_name` macro** that reads
 `var('target_schema')`:
 ```bash
+dbt deps >/dev/null 2>&1 || true
 dbt build \
   --select <migrated_models_only> \
   --target <non_prod_target> \
@@ -261,44 +293,109 @@ shared dev tables.
   comma-separated) — NOT the whole project. Otherwise unrelated models
   are rebuilt and the "isolated schema" claim becomes false.
 
-**Verify objects actually landed in the isolated schema prefix** before
-reporting. Match with `ILIKE` + prefix so dbt's `+schema:` suffix
-(`_BRONZE`, `_SILVER`, etc.) doesn't cause a false negative:
+**MANDATORY — manifest-based isolation check (`run_results.json`).**
+Previous rounds offered an `INFORMATION_SCHEMA.TABLES` `ILIKE` check as
+primary and the manifest check as "or more robustly". Make the
+manifest check **required** instead — the ILIKE path is too weak:
+`_` is a single-character wildcard in `ILIKE`, so `MIGRATION_123` matches
+`MIGRATIONS123`; and a partial-success build where some models landed in
+the prefix and others leaked to a shared schema would still return rows
+and falsely pass.
+
+```bash
+# Every migrated node's materialised schema must start with the prefix.
+# `target/run_results.json` has one entry per node with `relation_name`.
+python3 - "$ISOLATED_SCHEMA_PREFIX" <<'PY'
+import json, sys, pathlib
+prefix = sys.argv[1].upper()
+rr = json.loads(pathlib.Path("target/run_results.json").read_text())
+offenders = []
+for r in rr.get("results", []):
+    node = r.get("node") or {}
+    if node.get("resource_type") != "model":
+        continue
+    rel = (node.get("relation_name") or "").replace('"','').upper()
+    # relation_name is "<DB>"."<SCHEMA>"."<NAME>"
+    parts = rel.split(".")
+    if len(parts) < 3:
+        offenders.append((node.get("name"), rel, "unparseable"))
+        continue
+    schema = parts[1]
+    if not schema.startswith(prefix):
+        offenders.append((node.get("name"), rel, f"schema {schema!r} does not start with {prefix!r}"))
+if offenders:
+    print("Isolation check FAILED — the following models landed outside the isolated prefix:")
+    for name, rel, why in offenders:
+        print(f"  - {name}: {rel}  ({why})")
+    sys.exit(1)
+print(f"Isolation check PASS — all {sum(1 for r in rr.get('results',[]) if (r.get('node') or {}).get('resource_type')=='model')} migrated models under {prefix}*.")
+PY
+```
+
+As a sanity check against INFORMATION_SCHEMA (secondary, not primary),
+use `STARTSWITH` to avoid the `ILIKE _` single-char-wildcard pitfall:
 ```sql
 SELECT table_schema, table_name, table_type, row_count
 FROM <db>.INFORMATION_SCHEMA.TABLES
-WHERE table_schema ILIKE :isolated_schema_prefix || '%'
+WHERE STARTSWITH(UPPER(table_schema), UPPER(:isolated_schema_prefix))
 ORDER BY table_schema, table_name;
 ```
-Or, more robustly, parse `target/run_results.json` from the dbt run and
-check that every migrated node's `relation_name` references a schema
-starting with `MIGRATION_<ts>` — this handles custom `generate_schema_name`
-logic without second-guessing it.
 
-If zero rows match (or `run_results.json` shows writes to a schema that
-doesn't start with the prefix), the schema isolation did not work — stop
-and report.
-
-**Hard stop:** if `dbt build` fails OR the verification query returns
-zero rows OR `run_results.json` shows an off-prefix write, stop and
-report. Do not proceed to parity against an empty / wrong schema.
+**Hard stop:** if `dbt build` fails OR the manifest isolation check fails
+(any node outside the prefix), stop and report. Do not proceed to parity
+against a partial / wrong schema.
 
 ### Phase 6 — Parity validation (≤90s) — MANDATORY HARD STOP
 
-Parity runs **after** the build, against the materialized relations in
-`MIGRATION_<timestamp>` — not against compiled SELECTs.
+Start with the state preamble (so `$TS` and `$ISOLATED_SCHEMA_PREFIX`
+are live), then parity runs **after** the build, against the real
+materialized relations.
 
 Use the Altimate `data-parity` sub-task — do not hand-roll per-model
-SQL unless `altimate-code` is unavailable. Pass the prompt via file:
+SQL unless `altimate-code` is unavailable. The parity prompt body is
+written via a **quoted** heredoc (so `$()` / backticks in object names
+don't expand), with `__PREFIX__` as a literal placeholder that `sed`
+substitutes afterwards. Previously the prompt contained a literal
+`MIGRATION_<timestamp>` which altimate-code searched verbatim — and
+with `+schema: bronze/silver/gold`, the actual relations landed in
+`MIGRATION_<ts>_BRONZE/_SILVER/_GOLD`, so every object came back "not
+verified" even on a correct build.
+
+The strongest form passes the exact `relation_name`s from
+`target/run_results.json` so there is no schema search at all:
 ```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${ISOLATED_SCHEMA_PREFIX:?}"
+
+# Dump the migrated relation_names from run_results.json for the prompt.
+python3 - > /tmp/mssql-migrated-relations.txt <<'PY'
+import json, pathlib
+rr = json.loads(pathlib.Path("target/run_results.json").read_text())
+for r in rr.get("results", []):
+    node = r.get("node") or {}
+    if node.get("resource_type") == "model":
+        rel = node.get("relation_name")
+        if rel:
+            print(rel)
+PY
+
 if command -v altimate-code >/dev/null 2>&1; then
+  # Quoted heredoc + sed injection — same safe pattern as the commit message.
   cat > /tmp/mssql-parity-prompt.txt <<'EOF'
-For each migrated dbt model in MIGRATION_<timestamp>, run data-parity
+For each migrated dbt model whose relation_name is listed in
+/tmp/mssql-migrated-relations.txt (these are the actual Snowflake
+relations under schemas prefixed with __PREFIX__, including any
++schema suffixes like _BRONZE / _SILVER / _GOLD), run data-parity
 against the source MS SQL object. Use engine-neutral checks: row counts,
 per-column aggregate (count/sum/min/max/null-count where typed), and a
 keyed-sample diff for 1000 random keys. Mark PASS/FAIL per object. Stop
 on first FAIL and surface the row-level diff.
 EOF
+  sed -i.bak "s/__PREFIX__/${ISOLATED_SCHEMA_PREFIX}/g" /tmp/mssql-parity-prompt.txt \
+    && rm -f /tmp/mssql-parity-prompt.txt.bak
+
   altimate-code run "$(cat /tmp/mssql-parity-prompt.txt)" \
     --yolo --output /tmp/parity.md --dir "$(pwd)"
 fi
@@ -347,9 +444,15 @@ commit on whatever branch happens to be current (which may be `main`):
 
 ```bash
 set -e   # fail on any non-zero exit — do not silently continue
+
+# Load TS from state (written in Phase 4). Fails loudly if missing.
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_mssql_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${TS:?TS not set}" ; : "${REPO_ROOT:?}"
+
 cd "<dbt_project_root>"
 
-# TS was computed in Phase 4.
 BRANCH="migration/mssql-to-snowflake-${TS}"
 git checkout -b "$BRANCH"   # fails if the branch exists; set -e stops the script
 
@@ -404,7 +507,7 @@ Return exactly this dashboard:
 
 Scope:        <N> objects (<N> tables, <N> views, <N> procs)
 Layering:     <Medallion | Data Vault 2.0>
-Target:       <db>.MIGRATION_<timestamp>  (NOT prod)
+Target:       <db>.MIGRATION_<ts>*  (NOT prod)
 
 ## Conversion
 Models created:   <N>  (bronze <n> / silver <n> / gold <n>)
@@ -415,7 +518,7 @@ TRAP rewrites:    <list of CROSS APPLY / CONCAT / collation / etc. applied>
 
 ## Deployment
 dbt build:        PASS (<N> models, <N> tests, <seconds>s)
-Objects landed:   <N> in <db>.MIGRATION_<timestamp>  (verified via INFORMATION_SCHEMA)
+Objects landed:   <N> in <db>.MIGRATION_<ts>*  (verified via INFORMATION_SCHEMA)
 
 ## Parity
 PASS:             <N> / <N>

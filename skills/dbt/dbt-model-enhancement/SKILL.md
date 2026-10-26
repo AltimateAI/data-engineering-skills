@@ -158,61 +158,86 @@ success (`dbt debug`) is **not** proof the target is non-prod — in CI,
 `DBT_TARGET=prod` is often exported, and a mis-named `dev` target can
 still point at the prod schema.
 
-Resolve a non-prod target up front and verify it is actually non-prod
-on **two** independent checks:
+Resolve a non-prod target up front and verify it against a **manifest-
+based** prod denylist. Session-value approaches (comparing `dbt show`'s
+printed `current_database().current_schema()` across targets) are
+unsafe: `dbt show` output is agate-truncated to 20 chars (so
+`ANALYTICS_PROD.MARTS` and `ANALYTICS_PROD.MARKETING` compare equal),
+new users have NULL `CURRENT_SCHEMA()` (so the concatenation is NULL
+and the guard refuses every first run), and custom
+`generate_schema_name` can send both targets' marts to the same
+`<db>.MARTS` while the targets' session values differ. Comparing each
+selected node's `relation_name` against a configured denylist defeats
+all three failure modes.
 
 ```bash
-# 1. Pick a candidate. Do NOT trust DBT_TARGET env var — it may be "prod"
-#    in CI. Prefer an explicit per-skill override, then project-known
-#    non-prod names, in order of preference: dev → ci → qa → stg.
+# 1. Install packages BEFORE any dbt invocation. A fresh checkout with
+#    packages.yml will fail every dbt command otherwise.
+dbt deps >/dev/null 2>&1 || true
+
+# 2. Pick a candidate. Do NOT trust DBT_TARGET env var — it may be "prod"
+#    in CI. Prefer an explicit per-skill override.
 NON_PROD_TARGET="${DBT_NONPROD_TARGET:-dev}"
 
-# 2. Name check: refuse any target whose name matches prod|production|prd.
+# 3. Name check: refuse any target whose name matches prod|production|prd|live.
 case "$(echo "$NON_PROD_TARGET" | tr '[:upper:]' '[:lower:]')" in
   prod|production|prd|live)
     echo "Refusing: target '$NON_PROD_TARGET' looks like production."; exit 1 ;;
 esac
 
-# 3. Resolved-database/schema check: compare the candidate target's
-#    database/schema to the project's prod output. If they match, this
-#    is prod in disguise — refuse.
-#    Use `dbt show --inline` to run an ad-hoc SELECT against the target
-#    (NOT `dbt run-operation`, which requires a positional macro name).
-resolve_db_schema() {
-  # Prints "<database>.<schema>" for the given target, or empty if the
-  # target doesn't exist / cannot connect.
-  local target="$1"
-  dbt show --inline \
-    "select current_database() || '.' || current_schema() as dbschema" \
-    --target "$target" --limit 1 2>/dev/null \
-    | awk -F'|' '/\|.*\./ && !/dbschema/ {gsub(/ /, "", $2); print $2; exit}'
-}
-CAND_DBSCHEMA="$(resolve_db_schema "$NON_PROD_TARGET")"
-PROD_DBSCHEMA="$(resolve_db_schema prod)"
+# 4. Prod denylist — comma-or-pipe-separated database or <database>.<schema>
+#    values that are never OK to write to. REQUIRED (fail-closed):
+#    unset = refuse to run, so the skill can't silently build into prod
+#    on a project it hasn't been configured for.
+: "${DBT_PROD_DENYLIST:?Set DBT_PROD_DENYLIST (e.g. 'ANALYTICS_PROD|ANALYTICS.MARTS') — refusing by default}"
 
-if [ -z "$CAND_DBSCHEMA" ]; then
-  echo "Could not resolve database.schema for target '$NON_PROD_TARGET'. Refusing."
+# 5. Resolve relation_name for every selected node against the candidate
+#    target, then compare each one to the denylist.
+dbt parse --target "$NON_PROD_TARGET" --quiet >/dev/null \
+  || { echo "dbt parse failed for target '$NON_PROD_TARGET'."; exit 1; }
+
+SELECTED_RELS="$(dbt ls \
+  --target "$NON_PROD_TARGET" \
+  --select '<model>+' \
+  --resource-type model \
+  --output json 2>/dev/null \
+  | python3 -c "
+import sys, json
+for line in sys.stdin:
+    try: node = json.loads(line)
+    except Exception: continue
+    print(node.get('relation_name') or '')
+" | sed '/^$/d')"
+
+if [ -z "$SELECTED_RELS" ]; then
+  echo "Could not resolve relation_names from manifest for target '$NON_PROD_TARGET'."
   exit 1
 fi
-if [ -n "$PROD_DBSCHEMA" ] && [ "$CAND_DBSCHEMA" = "$PROD_DBSCHEMA" ]; then
-  echo "Refusing: target '$NON_PROD_TARGET' resolves to the same database.schema ($CAND_DBSCHEMA) as 'prod'."
-  exit 1
-fi
 
-# 4. Connection check (last — only after 2 + 3 pass).
+# relation_name typically looks like `"ANALYTICS_PROD"."MARTS"."FCT_ORDERS"`.
+# Normalise and compare each against the denylist.
+echo "$SELECTED_RELS" | while IFS= read -r rel; do
+  bare="$(echo "$rel" | tr -d '"' | tr '[:lower:]' '[:upper:]')"
+  echo "$DBT_PROD_DENYLIST" | tr ',|' '\n\n' | tr '[:lower:]' '[:upper:]' | while IFS= read -r denied; do
+    [ -z "$denied" ] && continue
+    case "$bare" in
+      "$denied".*|"$denied")
+        echo "Refusing: $rel resolves to a denied prod location ($denied)."
+        exit 2 ;;
+    esac
+  done
+done
+RC=$?
+[ $RC -eq 2 ] && exit 1
+
+# 6. Connection check (last).
 dbt debug --target "$NON_PROD_TARGET" >/dev/null \
   || { echo "Cannot connect with target '$NON_PROD_TARGET'."; exit 1; }
 ```
 
-If no prod target exists in `profiles.yml`, step 3 silently passes
-(nothing to compare against) — that's acceptable. If prod exists and
-the candidate matches it, the skill refuses.
-
 Then build. Prefer `--defer --state <artifacts>` to avoid rebuilding
 unchanged upstream models (if a prior manifest is on disk from CI):
 ```bash
-dbt deps >/dev/null 2>&1 || true
-dbt parse --target "$NON_PROD_TARGET"
 dbt build \
   --select <model>+ \
   --target "$NON_PROD_TARGET" \

@@ -102,24 +102,39 @@ one consolidated question — then proceed.
 
 ### Phase 2 — Detect the environment (≤30s) — do NOT ask the user
 
-Export the detection results as shell variables that later phases
-depend on. Set every variable the later phases read — never leave one
-undefined.
+**Shell state persistence.** The agent runs each `bash` code block as a
+*separate* shell invocation, so plain shell variables set in Phase 2
+are empty by Phase 6/7/8. Every variable later phases need is written
+to a run-scoped state file (`$STATE_FILE`), and every later block
+starts with `source "$STATE_FILE"` + `: "${VAR:?msg}"` validation. Any
+block that fails to find a required variable aborts loudly.
 
 ```bash
 REPO_ROOT="$(git rev-parse --show-toplevel)"
+STATE_FILE="$REPO_ROOT/.skill_pipeline_state"
 
 # --- Detect orchestrator ---
-AIRFLOW_DAGS_DIR=""   # e.g. "dags" or "airflow/dags"; empty if none
-# Airflow signals: *.py under any */dags/ directory, excluding dot-paths.
-AIRFLOW_HIT="$(find "$REPO_ROOT" -maxdepth 5 -path '*/dags/*.py' \
-               -not -path '*/.*' | head -1)"
+# Prefer a dir that already contains Airflow DAGs (DAG(/@dag), skip tests/
+# and dot-dirs. The first find hit may be `tests/dags/fixture.py`; grep
+# for a DAG constructor to filter.
+AIRFLOW_HIT=""
+AIRFLOW_DAGS_DIR=""
+while IFS= read -r candidate; do
+  grep -lE "\b(DAG\(|@dag\b)" "$candidate" >/dev/null 2>&1 && {
+    AIRFLOW_HIT="$candidate"
+    break
+  }
+done < <(find "$REPO_ROOT" -maxdepth 5 -path '*/dags/*.py' \
+         -not -path '*/.*' \
+         -not -path '*/dbt_packages/*' \
+         -not -path '*/target/*' \
+         -not -path '*/tests/*' 2>/dev/null)
 if [ -n "$AIRFLOW_HIT" ]; then
-  # Strip filename to get the dags dir, relative to REPO_ROOT.
   AIRFLOW_DAGS_DIR="$(dirname "${AIRFLOW_HIT#$REPO_ROOT/}")"
 fi
 
-PREFECT_HIT="$(find "$REPO_ROOT" -maxdepth 4 -name 'prefect.yaml' | head -1)"
+PREFECT_HIT="$(find "$REPO_ROOT" -maxdepth 4 -name 'prefect.yaml' \
+               -not -path '*/dbt_packages/*' | head -1)"
 if [ -z "$PREFECT_HIT" ]; then
   PREFECT_HIT="$(grep -rln "from prefect import flow\|@flow" \
                  --include='*.py' "$REPO_ROOT" 2>/dev/null | head -1)"
@@ -127,7 +142,8 @@ fi
 
 DAGSTER_HIT="$(find "$REPO_ROOT" -maxdepth 4 \
                \( -name 'definitions.py' -o -name 'workspace.yaml' \) \
-               | head -1)"
+               -not -path '*/dbt_packages/*' \
+               -not -path '*/target/*' | head -1)"
 if [ -z "$DAGSTER_HIT" ] && [ -f "$REPO_ROOT/pyproject.toml" ]; then
   grep -q '^\[tool.dagster\]' "$REPO_ROOT/pyproject.toml" && \
     DAGSTER_HIT="$REPO_ROOT/pyproject.toml"
@@ -141,24 +157,64 @@ else                             ORCHESTRATOR="none"
 fi
 
 # --- Detect dbt project root (relative to REPO_ROOT) ---
-DBT_PROJECT_HIT="$(find "$REPO_ROOT" -maxdepth 3 -name dbt_project.yml | head -1)"
-if [ -n "$DBT_PROJECT_HIT" ]; then
-  DBT_ROOT="$(dirname "${DBT_PROJECT_HIT#$REPO_ROOT/}")"
-  [ "$DBT_ROOT" = "" ] && DBT_ROOT="."
-else
+# Exclude dbt_packages/ (installed packages have their own dbt_project.yml)
+# and target/. Pick the shallowest match; hard-stop on ties.
+DBT_PROJECT_CANDIDATES="$(find "$REPO_ROOT" -maxdepth 4 -name dbt_project.yml \
+  -not -path '*/dbt_packages/*' \
+  -not -path '*/target/*' 2>/dev/null \
+  | awk -F/ '{print NF" "$0}' | sort -n)"
+SHALLOWEST_DEPTH="$(echo "$DBT_PROJECT_CANDIDATES" | head -1 | awk '{print $1}')"
+SHALLOWEST_HITS="$(echo "$DBT_PROJECT_CANDIDATES" | awk -v d="$SHALLOWEST_DEPTH" '$1==d {print $2}')"
+SHALLOWEST_COUNT="$(echo "$SHALLOWEST_HITS" | grep -c . || true)"
+
+if [ -z "$SHALLOWEST_HITS" ]; then
   echo "No dbt_project.yml found — this skill requires an existing dbt project."
   exit 1
 fi
+if [ "$SHALLOWEST_COUNT" -gt 1 ]; then
+  echo "Multiple dbt_project.yml at the same depth; disambiguate before running:"
+  echo "$SHALLOWEST_HITS"
+  exit 1
+fi
+DBT_PROJECT_HIT="$SHALLOWEST_HITS"
+DBT_ROOT="$(dirname "${DBT_PROJECT_HIT#$REPO_ROOT/}")"
+[ "$DBT_ROOT" = "" ] && DBT_ROOT="."
 
 # --- VCS ---
 git remote -v 2>/dev/null | head -1
 if command -v gh >/dev/null 2>&1; then
-  GH_AUTH="$(gh auth status 2>&1 | head -3)"
+  GH_AUTH_OK="$(gh auth status >/dev/null 2>&1 && echo 1 || echo 0)"
 else
-  GH_AUTH="gh: not installed"
+  GH_AUTH_OK="0"
 fi
 
+# --- Persist state for later phases ---
+cat > "$STATE_FILE" <<EOF
+REPO_ROOT=$(printf %q "$REPO_ROOT")
+DBT_ROOT=$(printf %q "$DBT_ROOT")
+ORCHESTRATOR=$(printf %q "$ORCHESTRATOR")
+AIRFLOW_DAGS_DIR=$(printf %q "$AIRFLOW_DAGS_DIR")
+GH_AUTH_OK=$(printf %q "$GH_AUTH_OK")
+PIPELINE_NAME=$(printf %q "<pipeline>")
+EOF
+
 echo "Detected: dbt_root=$DBT_ROOT  orchestrator=$ORCHESTRATOR  dags_dir=${AIRFLOW_DAGS_DIR:-N/A}"
+```
+
+Every subsequent block MUST start with this preamble — it both loads
+and validates state, so a missing variable fails loudly instead of
+silently producing a bad path:
+
+```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_pipeline_state"
+[ -f "$STATE_FILE" ] || { echo "Phase 2 must run first (missing $STATE_FILE)."; exit 1; }
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${REPO_ROOT:?REPO_ROOT not set}"
+: "${DBT_ROOT:?DBT_ROOT not set}"
+: "${ORCHESTRATOR:?ORCHESTRATOR not set}"
+: "${PIPELINE_NAME:?PIPELINE_NAME not set}"
+# AIRFLOW_DAGS_DIR + GH_AUTH_OK optional; validate in the block that uses them.
 ```
 
 Decide:
@@ -179,6 +235,20 @@ git checkout -b pipeline/<ticket-key-or-slug>
 
 ### Phase 4 — Build the Snowflake / dbt code (≤90s)
 
+Start with the state-preamble, then install packages **before** any
+`dbt parse` / `dbt compile` so a fresh checkout with `packages.yml`
+doesn't fail on missing packages:
+
+```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_pipeline_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${REPO_ROOT:?}" ; : "${DBT_ROOT:?}"
+
+cd "$REPO_ROOT/$DBT_ROOT"
+dbt deps >/dev/null 2>&1 || true
+```
+
 For each required layer:
 - **Source**: add to `sources.yml` with `loaded_at_field` and freshness.
 - **Staging**: `models/staging/stg_<src>.sql` — 1:1, renames, types.
@@ -192,6 +262,15 @@ Rules:
   `on_schema_change: append_new_columns`.
 - Add YAML with `description`, column `description`s, and tests
   (`not_null` + `unique` on keys, `relationships` on FKs).
+- **Record every file written to a manifest file** so Phase 7/8 can
+  stage only the actual pipeline files (not the whole `models/`
+  directory, which would sweep in unrelated WIP):
+  ```bash
+  # After each file is written, append its repo-root-relative path:
+  echo "<path>" >> "$REPO_ROOT/.skill_pipeline_written"
+  ```
+  If delegating to `altimate-code`, parse its "List every file written"
+  output and populate `.skill_pipeline_written` from that.
 - Compile locally before moving on:
   ```bash
   dbt parse && dbt compile --select +<final_model>
@@ -202,7 +281,27 @@ to orchestration on a broken project.
 
 ### Phase 5 — Orchestration (≤75s)
 
-**Airflow** (most common): add or edit a DAG under `dags/`.
+Start with the state preamble, and validate `AIRFLOW_DAGS_DIR` here
+(it's required when the orchestrator is Airflow):
+
+```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_pipeline_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${REPO_ROOT:?}" ; : "${ORCHESTRATOR:?}" ; : "${PIPELINE_NAME:?}"
+
+if [ "$ORCHESTRATOR" = "airflow" ]; then
+  : "${AIRFLOW_DAGS_DIR:?Airflow detected in Phase 2 but AIRFLOW_DAGS_DIR not set}"
+  DAG_FILE="$REPO_ROOT/$AIRFLOW_DAGS_DIR/${PIPELINE_NAME}.py"
+elif [ "$ORCHESTRATOR" = "none" ]; then
+  echo "No orchestrator detected — skipping Phase 5."
+  exit 0
+fi
+```
+
+**Airflow** (most common): write the DAG at `$DAG_FILE` (resolved from
+state above — do NOT hard-code `dags/<pipeline>.py`; a project with
+`airflow/dags/` would silently drop the file in the wrong place).
 
 **Before writing a DAG, read a sibling DAG and mirror its operator
 style** (Cosmos, `BashOperator`-wrapping-`dbt build`, dbt-core provider,
@@ -214,7 +313,7 @@ Generic template (Airflow 2.4+ `schedule=` syntax; for older projects
 use `schedule_interval=`):
 
 ```python
-# dags/<pipeline>.py
+# Path at $DAG_FILE (e.g. "<AIRFLOW_DAGS_DIR>/<pipeline>.py" relative to the repo root).
 from datetime import datetime
 
 # Airflow 3.x: `from airflow.sdk import DAG` and operators under
@@ -254,6 +353,12 @@ with DAG(
     dbt_run >> dbt_test
 ```
 
+After writing the DAG, record it in the written-files manifest so
+Phase 7/8 can stage only pipeline-scoped files:
+```bash
+echo "${AIRFLOW_DAGS_DIR}/${PIPELINE_NAME}.py" >> "$REPO_ROOT/.skill_pipeline_written"
+```
+
 **Important:** the `--target` in the deployed DAG above is the
 **deployment** target (prod / warehouse-of-record), read from Airflow
 config at run time. The non-prod `--target` used in Phase 6 is for
@@ -280,9 +385,26 @@ and suggest adding one.
 
 ### Phase 6 — Validate (≤60s) — MANDATORY HARD STOP (non-prod target)
 
-**Non-prod target with hardened guard** (same pattern as
-`dbt-model-enhancement` — `dbt debug` success alone does not prove
-non-prod):
+Start with the state preamble, install packages before any `dbt`
+invocation, then run the guard:
+
+```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_pipeline_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${REPO_ROOT:?}" ; : "${DBT_ROOT:?}" ; : "${ORCHESTRATOR:?}" ; : "${PIPELINE_NAME:?}"
+
+cd "$REPO_ROOT/$DBT_ROOT"
+dbt deps >/dev/null 2>&1 || true   # install packages before dbt show / dbt parse
+```
+
+**Non-prod target with manifest-based guard** (comparing a target's
+`current_database()`/`current_schema()` session values is unsafe:
+truncation in `dbt show` output, NULL schemas on brand-new users, and
+custom `generate_schema_name` sending both targets' marts to the same
+`<db>.MARTS` all defeat it. Compare each selected node's actual
+`relation_name` instead — that's what `dbt build` will materialise.)
+
 ```bash
 # 1. Candidate — do NOT trust DBT_TARGET env var (may be "prod" in CI).
 NON_PROD_TARGET="${DBT_NONPROD_TARGET:-dev}"
@@ -293,27 +415,51 @@ case "$(echo "$NON_PROD_TARGET" | tr '[:upper:]' '[:lower:]')" in
     echo "Refusing: target '$NON_PROD_TARGET' looks like production."; exit 1 ;;
 esac
 
-# 3. Resolved-database/schema check vs the 'prod' target. Use `dbt show
-#    --inline` (NOT `dbt run-operation`, which requires a positional
-#    macro name).
-resolve_db_schema() {
-  local target="$1"
-  dbt show --inline \
-    "select current_database() || '.' || current_schema() as dbschema" \
-    --target "$target" --limit 1 2>/dev/null \
-    | awk -F'|' '/\|.*\./ && !/dbschema/ {gsub(/ /, "", $2); print $2; exit}'
-}
-CAND_DBSCHEMA="$(resolve_db_schema "$NON_PROD_TARGET")"
-PROD_DBSCHEMA="$(resolve_db_schema prod)"
+# 3. Resolve selected nodes' relation_names against the candidate target,
+#    then compare to a prod denylist. Denylist format: pipe-separated
+#    database or <database>.<schema> values that are never OK to write to.
+#    Configure via env var; refuse if unset (fail-closed).
+: "${DBT_PROD_DENYLIST:?Set DBT_PROD_DENYLIST (e.g. 'ANALYTICS_PROD|ANALYTICS.MARTS') — refusing by default}"
 
-if [ -z "$CAND_DBSCHEMA" ]; then
-  echo "Could not resolve database.schema for target '$NON_PROD_TARGET'. Refusing."
+dbt parse --target "$NON_PROD_TARGET" --quiet >/dev/null \
+  || { echo "dbt parse failed for target '$NON_PROD_TARGET'."; exit 1; }
+
+# Pull relation_name for every selected node from manifest.json.
+# <new_models_space_or_comma_list> is the same selector used by dbt build below.
+SELECTED_RELS="$(dbt ls \
+  --target "$NON_PROD_TARGET" \
+  --select <new_models_space_or_comma_list> \
+  --resource-type model \
+  --output json 2>/dev/null \
+  | python3 -c "
+import sys, json
+for line in sys.stdin:
+    try: node = json.loads(line)
+    except Exception: continue
+    print(node.get('relation_name') or '')
+" | sed '/^$/d')"
+
+if [ -z "$SELECTED_RELS" ]; then
+  echo "Could not resolve relation_names from manifest for target '$NON_PROD_TARGET'."
   exit 1
 fi
-if [ -n "$PROD_DBSCHEMA" ] && [ "$CAND_DBSCHEMA" = "$PROD_DBSCHEMA" ]; then
-  echo "Refusing: target '$NON_PROD_TARGET' resolves to the same database.schema ($CAND_DBSCHEMA) as 'prod'."
-  exit 1
-fi
+
+# Compare each relation_name against the prod denylist.
+# relation_name typically looks like `"ANALYTICS_PROD"."MARTS"."FCT_ORDERS"`.
+echo "$SELECTED_RELS" | while IFS= read -r rel; do
+  # Strip quotes for a loose compare, keep case normalised.
+  bare="$(echo "$rel" | tr -d '"' | tr '[:lower:]' '[:upper:]')"
+  echo "$DBT_PROD_DENYLIST" | tr '|' '\n' | tr '[:lower:]' '[:upper:]' | while IFS= read -r denied; do
+    [ -z "$denied" ] && continue
+    case "$bare" in
+      "$denied".*|"$denied")
+        echo "Refusing: $rel resolves to a denied prod location ($denied)."
+        exit 2 ;;
+    esac
+  done
+done
+RC=$?
+[ $RC -eq 2 ] && exit 1
 
 # 4. Connection check (last).
 dbt debug --target "$NON_PROD_TARGET" >/dev/null \
@@ -323,7 +469,6 @@ dbt debug --target "$NON_PROD_TARGET" >/dev/null \
 Build only the new models (and their upstream via `--defer --state` if
 available) — not the whole project:
 ```bash
-dbt deps >/dev/null 2>&1 || true
 dbt build \
   --select <new_models_space_or_comma_list> \
   --target "$NON_PROD_TARGET" \
@@ -332,15 +477,13 @@ dbt build \
 ```
 
 **DAG parse check — only runs for Airflow, and only if Phase 5 actually
-wrote the file.** Resolve the DAG path from the detected
-`$AIRFLOW_DAGS_DIR` (relative to `$REPO_ROOT`), not a hard-coded
-`dags/`. Prefect flows and Dagster definitions are parsed by their own
-tooling in Phase 6 or skipped — not by `python -c ast.parse`.
+wrote the file.** The DAG path comes from the state file written in
+Phase 2 — never hard-code `dags/`.
 
 ```bash
-# Compute the DAG file path for Airflow only; empty otherwise.
 if [ "$ORCHESTRATOR" = "airflow" ]; then
-  DAG_FILE="$REPO_ROOT/$AIRFLOW_DAGS_DIR/<pipeline>.py"
+  : "${AIRFLOW_DAGS_DIR:?Airflow detected but AIRFLOW_DAGS_DIR not set in state}"
+  DAG_FILE="$REPO_ROOT/$AIRFLOW_DAGS_DIR/${PIPELINE_NAME}.py"
 else
   DAG_FILE=""
 fi
@@ -353,7 +496,7 @@ if [ "$ORCHESTRATOR" = "airflow" ] && [ ! -f "$DAG_FILE" ]; then
 fi
 
 if [ -n "$DAG_FILE" ] && [ -f "$DAG_FILE" ]; then
-  python3 -c "import ast; ast.parse(open('$DAG_FILE').read())" \
+  python3 -c "import ast, sys; ast.parse(open(sys.argv[1]).read())" "$DAG_FILE" \
     && echo "DAG parse: PASS" \
     || { echo "DAG parse: FAIL"; exit 1; }
 fi
@@ -393,23 +536,38 @@ before push. On a fresh branch at the merge base, `git diff main...HEAD`
 is empty; and the new DAG + model files are untracked, so plain
 `git diff` doesn't show them either.
 
-Reuse `$REPO_ROOT`, `$DBT_ROOT`, and `$DAG_FILE` from Phase 2 — do NOT
-hard-code `$REPO_ROOT/models` or `$REPO_ROOT/dags/<pipeline>.py` (those
-assume a non-nested project and Airflow, both of which may be false).
+Scope the review to **only the files written in Phase 4/5** (recorded
+in `.skill_pipeline_written`), NOT the whole `models/` directory — the
+user may have unrelated WIP there, and sweeping it into the pipeline PR
+breaks the skill's own allow-list.
 
 ```bash
-# Build the stage list from Phase 2 detections.
-STAGE_PATHS=( "$REPO_ROOT/$DBT_ROOT/models" )
-if [ -n "$DAG_FILE" ] && [ -f "$DAG_FILE" ]; then
-  STAGE_PATHS+=( "$DAG_FILE" )
-fi
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_pipeline_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${REPO_ROOT:?}"
+WRITTEN="$REPO_ROOT/.skill_pipeline_written"
+[ -s "$WRITTEN" ] || { echo "No files recorded in $WRITTEN — did Phase 4/5 run?"; exit 1; }
 
-# Mark new files as intent-to-add so `git diff` shows their contents.
-git add --intent-to-add -- "${STAGE_PATHS[@]}"
+cd "$REPO_ROOT"
+
+# Build the stage list from the actual written-files manifest.
+mapfile -t STAGE_PATHS < <(awk '!seen[$0]++' "$WRITTEN")
+
+# Resolve each entry relative to the repo root; drop any that no longer exist.
+RESOLVED=()
+for p in "${STAGE_PATHS[@]}"; do
+  [ -z "$p" ] && continue
+  [ -f "$REPO_ROOT/$p" ] && RESOLVED+=( "$REPO_ROOT/$p" )
+done
+[ "${#RESOLVED[@]}" -gt 0 ] || { echo "No written files exist on disk."; exit 1; }
+
+# Mark the exact written files intent-to-add — nothing else.
+git add --intent-to-add -- "${RESOLVED[@]}"
 
 # Review every change the commit will contain
-git diff -- "${STAGE_PATHS[@]}"
-git status --porcelain
+git diff -- "${RESOLVED[@]}"
+git status --porcelain -- "${RESOLVED[@]}"
 ```
 
 Flag and fix:
@@ -428,20 +586,30 @@ Fix issues locally and re-run Phase 6 if any code changed.
 
 ### Phase 8 — Commit, push, PR, ticket (≤75s)
 
-Stage from `$REPO_ROOT` using the paths already resolved in Phase 2
-(`$DBT_ROOT`, `$DAG_FILE`). Use `if/then/fi` (not `cond && cmd`) so a
-no-change path doesn't abort the script under `set -e`.
+Stage from `$REPO_ROOT` using **only** the paths recorded in Phase 4/5's
+written-files manifest. Never stage the whole `models/` directory — the
+user's unrelated WIP must not land in the pipeline PR.
 
 ```bash
+STATE_FILE="$(git rev-parse --show-toplevel)/.skill_pipeline_state"
+# shellcheck disable=SC1090
+source "$STATE_FILE"
+: "${REPO_ROOT:?}" ; : "${DBT_ROOT:?}"
+WRITTEN="$REPO_ROOT/.skill_pipeline_written"
+[ -s "$WRITTEN" ] || { echo "No files recorded in $WRITTEN."; exit 1; }
+
 cd "$REPO_ROOT"
 
-# dbt files — $DBT_ROOT is relative to $REPO_ROOT (e.g. "." or "dbt")
-git add "$DBT_ROOT/models"       # covers nested sources.yml / _models.yml
-
-# DAG — only if Phase 2 detected Airflow and Phase 5 wrote the file.
-if [ -n "$DAG_FILE" ] && [ -f "$DAG_FILE" ]; then
-  git add "$DAG_FILE"
-fi
+# Stage exactly the files Phase 4/5 recorded as written.
+while IFS= read -r p; do
+  [ -z "$p" ] && continue
+  if [ -f "$p" ]; then
+    git add -- "$p"
+  else
+    echo "Written-file manifest references missing file: $p" >&2
+    exit 1
+  fi
+done < <(awk '!seen[$0]++' "$WRITTEN")
 
 # dbt_project.yml only if actually modified. if/then/fi, NOT cond && cmd.
 if [ -n "$(git status --porcelain "$DBT_ROOT/dbt_project.yml")" ]; then
