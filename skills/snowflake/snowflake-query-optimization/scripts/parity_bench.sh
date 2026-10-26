@@ -60,6 +60,10 @@ case "$cmd" in
     }
     trap on_error ERR INT TERM
 
+    # Redirect SNOWFLAKE_RUN_SQL stdout to stderr (banners, connection
+    # messages, "Statement executed successfully." lines) — the caller
+    # will `eval` our stdout, so stdout MUST only contain the two
+    # ORIG_TABLE=/OPT_TABLE= assignment lines printed below.
     {
       printf 'ALTER SESSION SET USE_CACHED_RESULT = FALSE;\n'
       printf 'CREATE OR REPLACE TRANSIENT TABLE %s AS\n' "$ORIG_TABLE"
@@ -68,7 +72,7 @@ case "$cmd" in
       printf 'CREATE OR REPLACE TRANSIENT TABLE %s AS\n' "$OPT_TABLE"
       cat "$OPT_SQL"
       printf '\n;\n'
-    } | $SNOWFLAKE_RUN_SQL
+    } | $SNOWFLAKE_RUN_SQL >&2
 
     # On success: do NOT trap EXIT. The tables must survive this
     # script exit so the caller can query them. Print the names on
@@ -84,8 +88,10 @@ EOF
   cleanup)
     ORIG_TABLE="${1:?original table FQN required}"
     OPT_TABLE="${2:?optimised table FQN required}"
+    # Also redirect to stderr for consistency with materialise; cleanup
+    # is a side-effect command, nothing on stdout.
     printf 'DROP TABLE IF EXISTS %s;\nDROP TABLE IF EXISTS %s;\n' \
-      "$ORIG_TABLE" "$OPT_TABLE" | $SNOWFLAKE_RUN_SQL
+      "$ORIG_TABLE" "$OPT_TABLE" | $SNOWFLAKE_RUN_SQL >&2
     echo "parity_bench.sh: cleanup OK — dropped $ORIG_TABLE and $OPT_TABLE" >&2
     ;;
 

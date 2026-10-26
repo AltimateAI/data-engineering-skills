@@ -91,7 +91,9 @@ case "$cmd" in
     [ -n "${STATE_FILE:-}" ] || { echo "state.sh: STATE_FILE not set (call init first)" >&2; return 1; }
     # Append VAR=<printf %q value>. If VAR already exists, rewrite.
     tmp="$(mktemp)"
-    grep -v "^${var}=" "$STATE_FILE" > "$tmp" 2>/dev/null || true
+    # Match both `VAR=...` and `export VAR=...` so re-setting an existing
+    # var strips the old line regardless of which form it was written in.
+    grep -v -E "^(export )?${var}=" "$STATE_FILE" > "$tmp" 2>/dev/null || true
     # shellcheck disable=SC2059
     printf "export ${var}=%q\n" "$val" >> "$tmp"
     mv "$tmp" "$STATE_FILE"

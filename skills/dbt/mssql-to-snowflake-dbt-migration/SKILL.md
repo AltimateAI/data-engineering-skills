@@ -102,9 +102,15 @@ What it does (see `scripts/init_run.sh`):
 - Persists `REPO_ROOT`, `DBT_ROOT`, `TS`, `ISOLATED_SCHEMA_PREFIX`,
   `LAYERING`, `SCOPE_SELECTOR` into state.
 
-The migrated-models selector can be refined in Phase 2 after inventory —
-re-run `init_run.sh` with the updated selector to overwrite the state
-value.
+The migrated-models selector can be refined in Phase 2 after inventory.
+**Do NOT re-run `init_run.sh`** — that would create a new `<run_id>`,
+truncate the written-files manifest, and regenerate `TS` + the schema
+prefix. Update the single value in place instead:
+
+```bash
+source scripts/state.sh load
+source scripts/state.sh set SCOPE_SELECTOR '<updated_selector>'
+```
 
 ### Phase 1 — Inventory source (≤45s)
 
@@ -290,7 +296,7 @@ dbt 1.7 where `run_results.json` omits `relation_name`):
 # SKILL.md, NOT inside the dbt project. The script needs `target/*.json`
 # which lives inside the dbt project, so we cd there, but we still need
 # to call the script via an absolute path.
-SKILL_SCRIPTS="$(cd "$(dirname "$0")/scripts" 2>/dev/null && pwd)"
+SKILL_SCRIPTS="$(cd scripts && pwd)"   # assumes cwd is the skill dir; `$0` is `bash`/`-zsh` in a shell session, not the SKILL.md path
 # shellcheck disable=SC1091
 source "$SKILL_SCRIPTS/state.sh" load
 # shellcheck disable=SC1091
