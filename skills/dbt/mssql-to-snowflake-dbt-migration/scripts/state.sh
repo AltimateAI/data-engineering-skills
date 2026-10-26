@@ -1,64 +1,83 @@
 #!/usr/bin/env bash
 # state.sh — per-run state for mssql-to-snowflake-dbt-migration.
-# Same shape as the pipeline skill's state.sh; see that for design notes.
+# Shape identical to the pipeline skill's state.sh; see that for notes.
 
 set -u
 
-skill_state_root() {
+_state_root_from_git_dir() {
   local git_dir
   git_dir="$(git rev-parse --git-dir 2>/dev/null)" \
-    || { echo "state.sh: not inside a git repo" >&2; return 1; }
+    || { echo "state.sh: not inside a git repo (needed at init time)" >&2; return 1; }
   case "$git_dir" in
     /*) echo "$git_dir/skill/mssql_migration" ;;
     *)  echo "$(pwd)/$git_dir/skill/mssql_migration" ;;
   esac
 }
-skill_state_current_run_id_file() { echo "$(skill_state_root)/current_run"; }
-skill_state_state_file()          { echo "$(skill_state_root)/$1/state"; }
-skill_state_written_file()        { echo "$(skill_state_root)/$1/written"; }
 
-cmd="${1:-}"; shift || true
+cmd="${1:-}"
+shift || true
 
 case "$cmd" in
   init)
-    root="$(skill_state_root)" || return 1
+    FORCE=0
+    [ "${1:-}" = "--force" ] && FORCE=1
+    root="$(_state_root_from_git_dir)" || return 1
     mkdir -p "$root"
+    current_file="$root/current_run"
+    if [ -f "$current_file" ] && [ "$FORCE" -eq 0 ]; then
+      existing="$(cat "$current_file")"
+      echo "state.sh: a run is already active ($existing); pass --force to replace or run reset first" >&2
+      return 1
+    fi
     RUN_ID="$(date +%Y%m%d_%H%M%S)_$$"
-    export RUN_ID
     mkdir -p "$root/$RUN_ID"
-    printf '%s\n' "$RUN_ID" > "$(skill_state_current_run_id_file)"
-    STATE_FILE="$(skill_state_state_file "$RUN_ID")"; : > "$STATE_FILE"
-    WRITTEN_FILE="$(skill_state_written_file "$RUN_ID")"; : > "$WRITTEN_FILE"
-    export STATE_FILE WRITTEN_FILE
-    echo "state.sh: initialised run $RUN_ID" >&2
+    printf '%s\n' "$RUN_ID" > "$current_file"
+    STATE_FILE="$root/$RUN_ID/state"
+    WRITTEN_FILE="$root/$RUN_ID/written"
+    : > "$STATE_FILE"
+    : > "$WRITTEN_FILE"
+    {
+      printf 'export _STATE_RUN_ID=%q\n' "$RUN_ID"
+      printf 'export _STATE_ROOT=%q\n'   "$root"
+      printf 'export STATE_FILE=%q\n'    "$STATE_FILE"
+      printf 'export WRITTEN_FILE=%q\n'  "$WRITTEN_FILE"
+    } >> "$STATE_FILE"
+    export RUN_ID STATE_FILE WRITTEN_FILE
+    echo "state.sh: initialised run $RUN_ID at $STATE_FILE" >&2
     ;;
+
   load)
-    root="$(skill_state_root)" || return 1
-    current="$(skill_state_current_run_id_file)"
-    [ -f "$current" ] || { echo "state.sh: no current run (did Phase 4 init?)" >&2; return 1; }
-    RUN_ID="$(cat "$current")"; export RUN_ID
-    STATE_FILE="$(skill_state_state_file "$RUN_ID")"
+    root="$(_state_root_from_git_dir)" || return 1
+    requested="${SKILL_RUN_ID:-}"
+    if [ -n "$requested" ]; then
+      RUN_ID="$requested"
+    else
+      current_file="$root/current_run"
+      [ -f "$current_file" ] || { echo "state.sh: no current run" >&2; return 1; }
+      RUN_ID="$(cat "$current_file")"
+    fi
+    STATE_FILE="$root/$RUN_ID/state"
     [ -f "$STATE_FILE" ] || { echo "state.sh: state file missing: $STATE_FILE" >&2; return 1; }
-    WRITTEN_FILE="$(skill_state_written_file "$RUN_ID")"
-    export STATE_FILE WRITTEN_FILE
+    WRITTEN_FILE="$root/$RUN_ID/written"
+    export RUN_ID STATE_FILE WRITTEN_FILE
     # shellcheck disable=SC1090
     source "$STATE_FILE"
     ;;
+
   set)
-    var="$1"; val="$2"
-    [ -n "${STATE_FILE:-}" ] || { echo "state.sh: STATE_FILE not set (call init first)" >&2; return 1; }
-    tmp="$(mktemp)"
-    # Match both `VAR=...` and `export VAR=...` so re-setting strips the
-    # old line regardless of which form it was written in.
+    var="${1:?var name required}"
+    val="${2-}"
+    [ -n "${STATE_FILE:-}" ] || { echo "state.sh: STATE_FILE not set (call init/load first)" >&2; return 1; }
+    tmp="$(mktemp "${TMPDIR:-/tmp}/skstate.XXXXXX")"
     grep -v -E "^(export )?${var}=" "$STATE_FILE" > "$tmp" 2>/dev/null || true
     # shellcheck disable=SC2059
     printf "export ${var}=%q\n" "$val" >> "$tmp"
     mv "$tmp" "$STATE_FILE"
+    # shellcheck disable=SC2163
     export "$var=$val"
     ;;
+
   validate)
-    # Use `eval` (POSIX-portable), not bash-only `${!v}` indirect
-    # expansion — zsh and dash reject the latter.
     for v in "$@"; do
       eval "val=\${$v:-}"
       if [ -z "$val" ]; then
@@ -68,18 +87,22 @@ case "$cmd" in
     done
     unset val
     ;;
+
   reset)
-    root="$(skill_state_root)" || return 1
-    current="$(skill_state_current_run_id_file)"
-    if [ -f "$current" ]; then
-      run_id="$(cat "$current")"
-      rm -rf "$root/$run_id"
-      rm -f "$current"
+    root="$(_state_root_from_git_dir)" || return 1
+    current_file="$root/current_run"
+    if [ -f "$current_file" ]; then
+      run_id="$(cat "$current_file")"
+      if [ -n "$root" ] && [ -n "$run_id" ]; then
+        rm -rf -- "${root:?}/${run_id:?}"
+      fi
+      rm -f "$current_file"
       echo "state.sh: reset run $run_id" >&2
     fi
     ;;
+
   *)
-    echo "state.sh: usage: source scripts/state.sh {init|load|set VAR VAL|validate VARS...|reset}" >&2
+    echo "state.sh: usage: source scripts/state.sh {init [--force]|load|set VAR VAL|validate VARS…|reset}" >&2
     return 1
     ;;
 esac

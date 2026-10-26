@@ -3,11 +3,11 @@
 # macOS bash 3.2 / zsh compatible.
 
 set -euo pipefail
-HERE="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$HERE/state.sh" load
+source "$SCRIPT_DIR/state.sh" load
 # shellcheck disable=SC1091
-source "$HERE/state.sh" validate REPO_ROOT DBT_ROOT TS LAYERING WRITTEN_FILE
+source "$SCRIPT_DIR/state.sh" validate REPO_ROOT DBT_ROOT TS LAYERING SCOPE_SELECTOR WRITTEN_FILE _STATE_ROOT _STATE_RUN_ID
 
 cd "$REPO_ROOT"
 
@@ -37,12 +37,13 @@ if [ -f "$DBT_ROOT/macros/get_custom_schema.sql" ] \
   git add "$DBT_ROOT/macros/get_custom_schema.sql"
 fi
 
-# Commit message via quoted heredoc + sed injection (no shell expansion).
-cat > /tmp/mssql-commit-msg.txt <<'EOF'
-Migrate <scope> from MS SQL to Snowflake dbt (<layering>) — __TS__
+# Commit message in the run's state dir (not a fixed /tmp path shared
+# across runs/users). Substitute SCOPE_SELECTOR + LAYERING + TS from
+# state — populated via `printf %q`, so no shell metacharacter leak.
+MSG_FILE="$_STATE_ROOT/$_STATE_RUN_ID/commit_msg.txt"
+cat > "$MSG_FILE" <<EOF
+Migrate ${SCOPE_SELECTOR} from MS SQL to Snowflake dbt (${LAYERING}) — ${TS}
 EOF
-sed -i.bak -e "s/__TS__/${TS}/" -e "s/<layering>/${LAYERING}/" /tmp/mssql-commit-msg.txt \
-  && rm -f /tmp/mssql-commit-msg.txt.bak
-git commit -F /tmp/mssql-commit-msg.txt
+git commit -F "$MSG_FILE"
 
 echo "Branch: $BRANCH"

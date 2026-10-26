@@ -292,18 +292,16 @@ relations. Dump the migrated relation_names via the script (which uses
 dbt 1.7 where `run_results.json` omits `relation_name`):
 
 ```bash
-# Save the skill-scripts dir BEFORE cd'ing — `scripts/` is next to this
-# SKILL.md, NOT inside the dbt project. The script needs `target/*.json`
-# which lives inside the dbt project, so we cd there, but we still need
-# to call the script via an absolute path.
-SKILL_SCRIPTS="$(cd scripts && pwd)"   # assumes cwd is the skill dir; `$0` is `bash`/`-zsh` in a shell session, not the SKILL.md path
+# Load state — state.sh populates SKILL_DIR (set at init_run.sh time)
+# so we can call sibling scripts via an absolute path regardless of
+# the current working directory.
 # shellcheck disable=SC1091
-source "$SKILL_SCRIPTS/state.sh" load
+source scripts/state.sh load
 # shellcheck disable=SC1091
-source "$SKILL_SCRIPTS/state.sh" validate ISOLATED_SCHEMA_PREFIX
+source scripts/state.sh validate ISOLATED_SCHEMA_PREFIX SKILL_DIR REPO_ROOT DBT_ROOT
 
 cd "$REPO_ROOT/$DBT_ROOT"
-python3 "$SKILL_SCRIPTS/parity_relations.py" > /tmp/mssql-migrated-relations.txt \
+python3 "$SKILL_DIR/scripts/parity_relations.py" > /tmp/mssql-migrated-relations.txt \
   || { echo "No migrated relations found — did Phase 5 build anything?"; exit 1; }
 
 if command -v altimate-code >/dev/null 2>&1; then

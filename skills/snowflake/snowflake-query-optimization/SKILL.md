@@ -121,57 +121,74 @@ must run in **one connected Snowflake session** — not separate
 `snowsql -q` invocations or separate altimate-code calls.
 
 If the only available client is per-call (one shell per statement), use
-`scripts/parity_bench.sh` with a **two-step lifecycle**: `materialise`
-writes the scratch tables and returns their names on stdout; the caller
-runs parity + benchmark queries against those names; then the caller
-invokes `cleanup` to drop them. Cleanup is NOT bound to the
-materialise script's `EXIT` — if it were, the tables would be dropped
-immediately when the script exited, before any parity query could run.
-
-Recommended wrapper in the caller's shell, so Ctrl-C still cleans up:
+`scripts/parity_bench.sh`. The script has **four subcommands** —
+`materialise`, `names`, `bench`, `cleanup` — and persists table names
+to a state file under `$(git rev-parse --git-dir)/skill/sqo/`, so later
+subshell invocations can find them. State does not depend on an
+in-process shell variable surviving across Bash tool calls.
 
 ```bash
-export SNOWFLAKE_RUN_SQL='snowsql -c myconn'   # or an altimate-code wrapper
-export SQO_DEV_SCHEMA='DEV_<USER>'             # NEVER a shared schema (PII)
+# Prerequisite: SNOWFLAKE_RUN_SQL must be configured to exit non-zero
+# on SQL errors. For snowsql, that is `-o exit_on_error=true`:
+export SNOWFLAKE_RUN_SQL='snowsql -c myconn -o exit_on_error=true'
+export SQO_DEV_SCHEMA='DEV_<USER>'   # NEVER a shared schema (PII)
+```
 
-# 1. Materialise. Captures the two table FQNs printed on stdout.
+Lifecycle:
+
+```bash
+# 1. Materialise once. Prints ORIG_TABLE=/OPT_TABLE= on stdout, writes
+#    state to disk. Banner noise from the SQL client goes to stderr.
 eval "$(scripts/parity_bench.sh materialise /tmp/sqo-orig.sql /tmp/sqo-opt.sql)"
 : "${ORIG_TABLE:?materialise failed}"
 : "${OPT_TABLE:?materialise failed}"
 
-# 2. Register cleanup for the caller's exit, so Ctrl-C and errors
-#    still DROP the tables. The caller — not the materialise script —
-#    owns the lifecycle.
-trap 'scripts/parity_bench.sh cleanup "$ORIG_TABLE" "$OPT_TABLE"' EXIT INT TERM
+# 2. In any later shell invocation, pick the names back up:
+eval "$(scripts/parity_bench.sh names)"
 
-# 3. Run parity and benchmark queries against $ORIG_TABLE / $OPT_TABLE.
-#    ... parity checks ...
-#    ... benchmark ...
+# 3. Run parity + benchmark against $ORIG_TABLE / $OPT_TABLE. For each
+#    benchmark query, use `bench <sql_file>` so USE_CACHED_RESULT=FALSE
+#    is applied inside the SQL client's session (per-call clients open
+#    a fresh session each time, so the materialise ALTER doesn't carry).
+scripts/parity_bench.sh bench /tmp/parity.sql
+scripts/parity_bench.sh bench /tmp/benchmark.sql
 
-# 4. Normal path — the trap on EXIT runs cleanup; no explicit call needed.
+# 4. Explicit cleanup — do NOT bind this to EXIT in the materialise
+#    shell. (Why: the materialise script exits as soon as it finishes
+#    writing, and `trap EXIT` would then DROP the tables before any
+#    later `bench` call could see them.)
+scripts/parity_bench.sh cleanup
 ```
 
-The script addresses the three failures the previous "SET parity_orig
-= ..." form had:
+The script addresses the four prior failures:
 
-- **Shell-generated `RUN_ID`.** The old form used `SET parity_orig =
-  '_SQO_ORIG_' || UUID_STRING()` on session 1 and `DROP TABLE
-  IDENTIFIER($parity_orig)` on session 2 — the session variable didn't
-  survive, the DROP failed with "session variable does not exist", and
-  the PII-bearing transient tables leaked indefinitely. `materialise`
-  generates `RUN_ID` in the shell (`uuidgen | tr -d -`), builds the
-  table names as literals, prints them on stdout, and `cleanup` takes
-  them as arguments — DROP always knows the full name.
-- **Cleanup owned by the caller, not materialise.** The caller's
-  `trap EXIT INT TERM` covers success, Ctrl-C, and SIGTERM.
-  `materialise`'s own internal `trap on_error ERR INT TERM` runs only
-  if the materialise step itself fails mid-flight (so partials get
-  cleaned); on success it clears the trap before returning, leaving
-  the tables alive for the caller.
-- **User dev schema only.** `SQO_DEV_SCHEMA` is REQUIRED (fail-closed).
-  Writing parity tables to a shared schema would expose both result
-  sets — potentially containing PII — to anyone with `USAGE` on it,
-  until the next cleanup pass.
+- **Shell-generated `RUN_ID` with real fallbacks.** The old form used
+  a Snowflake session variable that didn't survive across sessions; and
+  the previous shell `(uuidgen | tr ... || date +%s%N)` fallback never
+  fired because the pipeline's exit status came from `tr`, not
+  `uuidgen`. `materialise` uses an explicit `if command -v uuidgen /
+  elif command -v python3 / else date` chain so a missing `uuidgen`
+  actually falls through, and `date +%s%N` on macOS is handled too.
+- **State persisted across shells.** `materialise` writes the table
+  FQNs to a per-run state file under `.git/skill/sqo/`. `names`
+  retrieves them in any later shell. In-memory `$ORIG_TABLE` from an
+  earlier `eval` would evaporate between Bash tool calls; this doesn't.
+- **Honest cold-cache benchmarks.** `bench <sql>` prepends `ALTER
+  SESSION SET USE_CACHED_RESULT = FALSE;` to every call, so per-call
+  clients that open a fresh session each time still measure cold
+  timings. Setting it once in `materialise` is insufficient — that
+  session dies before `bench` opens a new one.
+- **User dev schema only, validated.** `SQO_DEV_SCHEMA` is REQUIRED
+  (fail-closed) and must match a safe identifier regex (quoted or
+  unquoted Snowflake identifier, optionally `DB.SCHEMA`). A schema like
+  `'DB.X;touch /tmp/pwn'` is refused before any SQL is sent.
+- **Signals exit cleanly.** INT/TERM/ERR traps all drop any partials
+  AND exit with the right code (130/143/1 respectively). The old form
+  dropped partials but let bash keep going, then printed the
+  already-dropped table names on stdout.
+- **Stdout only contains the eval payload.** `$SNOWFLAKE_RUN_SQL`'s
+  stdout (banners, `Statement executed.` rows) is redirected to stderr
+  so `eval "$(...)"` only receives `ORIG_TABLE=/OPT_TABLE=` lines.
 
 **MANDATORY HARD STOP — safety guard against DML/DDL re-execution.**
 This skill re-executes the fetched SQL during parity (Phase 4) and

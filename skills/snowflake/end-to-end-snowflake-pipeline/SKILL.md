@@ -255,11 +255,8 @@ with DAG(
     dbt_run >> dbt_test
 ```
 
-After writing the DAG, record it in the written-files manifest so
-Phase 7/8 can stage only pipeline-scoped files:
-```bash
-echo "${AIRFLOW_DAGS_DIR}/${PIPELINE_NAME}.py" >> "$REPO_ROOT/.skill_pipeline_written"
-```
+The Phase 5 helper above already recorded the DAG in the written-files
+manifest via `scripts/record_written.sh`. No further bookkeeping needed.
 
 **Important:** the `--target` in the deployed DAG above is the
 **deployment** target (prod / warehouse-of-record), read from Airflow
