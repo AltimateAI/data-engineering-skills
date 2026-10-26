@@ -191,44 +191,93 @@ esac
 #    on a project it hasn't been configured for.
 : "${DBT_PROD_DENYLIST:?Set DBT_PROD_DENYLIST (e.g. 'ANALYTICS_PROD|ANALYTICS.MARTS') — refusing by default}"
 
-# 5. Resolve relation_name for every selected node against the candidate
-#    target, then compare each one to the denylist.
+# 5. Resolve relation_name for every selected node by reading
+#    target/manifest.json directly. `dbt ls --output json` does NOT
+#    include relation_name by default (needs `--output-keys relation_name`
+#    which is itself not supported on every dbt version), and shell-level
+#    nested while subshells can't propagate `exit 2` cleanly through two
+#    layers of pipeline. One Python helper does both: resolves relation
+#    names from manifest.json for the --select set, compares against the
+#    denylist, and exits with proper status.
 dbt parse --target "$NON_PROD_TARGET" --quiet >/dev/null \
   || { echo "dbt parse failed for target '$NON_PROD_TARGET'."; exit 1; }
 
-SELECTED_RELS="$(dbt ls \
-  --target "$NON_PROD_TARGET" \
-  --select '<model>+' \
-  --resource-type model \
-  --output json 2>/dev/null \
-  | python3 -c "
-import sys, json
-for line in sys.stdin:
-    try: node = json.loads(line)
-    except Exception: continue
-    print(node.get('relation_name') or '')
-" | sed '/^$/d')"
+# Resolve the unique_ids in --select '<model>+' via `dbt ls` (default
+# json shape, which DOES include unique_id), then look up each one in
+# manifest.json for relation_name. One subprocess, one exit status.
+SELECTOR='<model>+'
+export SELECTOR DBT_PROD_DENYLIST NON_PROD_TARGET
 
-if [ -z "$SELECTED_RELS" ]; then
-  echo "Could not resolve relation_names from manifest for target '$NON_PROD_TARGET'."
-  exit 1
-fi
+python3 - <<'PY' || exit 1
+import json, os, pathlib, re, subprocess, sys
 
-# relation_name typically looks like `"ANALYTICS_PROD"."MARTS"."FCT_ORDERS"`.
-# Normalise and compare each against the denylist.
-echo "$SELECTED_RELS" | while IFS= read -r rel; do
-  bare="$(echo "$rel" | tr -d '"' | tr '[:lower:]' '[:upper:]')"
-  echo "$DBT_PROD_DENYLIST" | tr ',|' '\n\n' | tr '[:lower:]' '[:upper:]' | while IFS= read -r denied; do
-    [ -z "$denied" ] && continue
-    case "$bare" in
-      "$denied".*|"$denied")
-        echo "Refusing: $rel resolves to a denied prod location ($denied)."
-        exit 2 ;;
-    esac
-  done
-done
-RC=$?
-[ $RC -eq 2 ] && exit 1
+selector = os.environ["SELECTOR"]
+denylist_raw = os.environ["DBT_PROD_DENYLIST"]
+target = os.environ["NON_PROD_TARGET"]
+
+# 1. unique_ids from `dbt ls` (default keys include unique_id).
+ls = subprocess.run(
+    ["dbt", "ls", "--target", target, "--select", selector,
+     "--resource-type", "model", "--output", "json"],
+    capture_output=True, text=True,
+)
+if ls.returncode != 0:
+    sys.exit(f"dbt ls failed: {ls.stderr.strip()}")
+
+unique_ids = []
+for line in ls.stdout.splitlines():
+    try:
+        node = json.loads(line)
+    except Exception:
+        continue
+    uid = node.get("unique_id")
+    if uid and uid.startswith("model."):
+        unique_ids.append(uid)
+
+if not unique_ids:
+    sys.exit(f"No models matched selector {selector!r} on target {target!r}.")
+
+# 2. relation_name from manifest.json (authoritative).
+manifest_path = pathlib.Path("target/manifest.json")
+if not manifest_path.exists():
+    sys.exit("target/manifest.json missing — did `dbt parse` run?")
+manifest = json.loads(manifest_path.read_text())
+nodes = manifest.get("nodes", {})
+
+selected_rels = []
+for uid in unique_ids:
+    node = nodes.get(uid) or {}
+    rel = node.get("relation_name")
+    if rel:
+        selected_rels.append((uid, rel))
+
+if not selected_rels:
+    sys.exit("Could not resolve any relation_name from manifest.json.")
+
+# 3. Normalise + compare against the denylist. Comma OR pipe separated.
+denylist = [
+    d.strip().upper()
+    for d in re.split(r"[,|]", denylist_raw)
+    if d.strip()
+]
+if not denylist:
+    sys.exit("DBT_PROD_DENYLIST is set but empty after parsing.")
+
+offenders = []
+for uid, rel in selected_rels:
+    bare = rel.replace('"', '').upper()
+    for denied in denylist:
+        if bare == denied or bare.startswith(denied + "."):
+            offenders.append((uid, rel, denied))
+            break
+
+if offenders:
+    for uid, rel, denied in offenders:
+        print(f"Refusing: {uid} resolves to {rel} (denied: {denied})", file=sys.stderr)
+    sys.exit(1)
+
+print(f"Non-prod guard PASS — {len(selected_rels)} model(s) checked against denylist.")
+PY
 
 # 6. Connection check (last).
 dbt debug --target "$NON_PROD_TARGET" >/dev/null \

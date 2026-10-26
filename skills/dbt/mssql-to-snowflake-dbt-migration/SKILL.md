@@ -304,31 +304,48 @@ and falsely pass.
 
 ```bash
 # Every migrated node's materialised schema must start with the prefix.
-# `target/run_results.json` has one entry per node with `relation_name`.
+# In dbt-core, `target/run_results.json` has one entry per node with
+# top-level `unique_id` + `relation_name` — there is NO nested `node`
+# object (that's an older-schema or dbt-cloud assumption). Filter by
+# `unique_id.startswith("model.")`.
 python3 - "$ISOLATED_SCHEMA_PREFIX" <<'PY'
 import json, sys, pathlib
 prefix = sys.argv[1].upper()
 rr = json.loads(pathlib.Path("target/run_results.json").read_text())
+
+checked = 0
 offenders = []
 for r in rr.get("results", []):
-    node = r.get("node") or {}
-    if node.get("resource_type") != "model":
+    uid = r.get("unique_id") or ""
+    if not uid.startswith("model."):
         continue
-    rel = (node.get("relation_name") or "").replace('"','').upper()
+    rel = (r.get("relation_name") or "").replace('"','').upper()
+    if not rel:
+        offenders.append((uid, rel, "no relation_name on result"))
+        continue
     # relation_name is "<DB>"."<SCHEMA>"."<NAME>"
     parts = rel.split(".")
     if len(parts) < 3:
-        offenders.append((node.get("name"), rel, "unparseable"))
+        offenders.append((uid, rel, "unparseable"))
         continue
     schema = parts[1]
     if not schema.startswith(prefix):
-        offenders.append((node.get("name"), rel, f"schema {schema!r} does not start with {prefix!r}"))
-if offenders:
-    print("Isolation check FAILED — the following models landed outside the isolated prefix:")
-    for name, rel, why in offenders:
-        print(f"  - {name}: {rel}  ({why})")
+        offenders.append((uid, rel, f"schema {schema!r} does not start with {prefix!r}"))
+    checked += 1
+
+# Hard-stop if we found zero model results — the prior round reported
+# PASS on an empty check, which is worse than any FAIL.
+if checked == 0:
+    print(f"Isolation check FAILED — no model results found in run_results.json.", file=sys.stderr)
     sys.exit(1)
-print(f"Isolation check PASS — all {sum(1 for r in rr.get('results',[]) if (r.get('node') or {}).get('resource_type')=='model')} migrated models under {prefix}*.")
+
+if offenders:
+    print("Isolation check FAILED — the following models landed outside the isolated prefix:", file=sys.stderr)
+    for uid, rel, why in offenders:
+        print(f"  - {uid}: {rel}  ({why})", file=sys.stderr)
+    sys.exit(1)
+
+print(f"Isolation check PASS — all {checked} migrated models under {prefix}*.")
 PY
 ```
 
@@ -370,16 +387,25 @@ source "$STATE_FILE"
 : "${ISOLATED_SCHEMA_PREFIX:?}"
 
 # Dump the migrated relation_names from run_results.json for the prompt.
+# dbt-core: top-level `unique_id` + `relation_name` on each result;
+# there is no nested `node` key.
 python3 - > /tmp/mssql-migrated-relations.txt <<'PY'
 import json, pathlib
 rr = json.loads(pathlib.Path("target/run_results.json").read_text())
 for r in rr.get("results", []):
-    node = r.get("node") or {}
-    if node.get("resource_type") == "model":
-        rel = node.get("relation_name")
+    uid = r.get("unique_id") or ""
+    if uid.startswith("model."):
+        rel = r.get("relation_name")
         if rel:
             print(rel)
 PY
+
+# Hard-stop if the parity file is empty — otherwise altimate-code gets
+# an empty list and silently returns "nothing to compare".
+if [ ! -s /tmp/mssql-migrated-relations.txt ]; then
+  echo "No migrated relations found in run_results.json — did Phase 5 build anything?"
+  exit 1
+fi
 
 if command -v altimate-code >/dev/null 2>&1; then
   # Quoted heredoc + sed injection — same safe pattern as the commit message.
