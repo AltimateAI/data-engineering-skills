@@ -40,7 +40,7 @@ dbt parse --target "$NON_PROD_TARGET" --quiet >/dev/null \
 
 # The guard checks EVERY buildable resource (model, snapshot, seed),
 # not just models — `dbt build --select <selector>` runs them too.
-export SELECTOR DBT_PROD_DENYLIST NON_PROD_TARGET
+export SELECTOR DBT_PROD_DENYLIST NON_PROD_TARGET DBT_STATE_DIR
 
 python3 - <<'PY'
 import json, os, pathlib, re, subprocess, sys
@@ -48,11 +48,16 @@ import json, os, pathlib, re, subprocess, sys
 selector = os.environ["SELECTOR"]
 denylist_raw = os.environ["DBT_PROD_DENYLIST"]
 target = os.environ["NON_PROD_TARGET"]
+state_dir = os.environ.get("DBT_STATE_DIR", "")
 
-ls = subprocess.run(
-    ["dbt", "ls", "--target", target, "--select", selector, "--output", "json"],
-    capture_output=True, text=True,
-)
+# If a `state:*` selector is used (e.g. state:modified+), `dbt ls` and
+# `dbt build` both need --state. Pass it to `dbt ls` here so the
+# selector resolves; `dbt build` below also passes it.
+ls_cmd = ["dbt", "ls", "--target", target, "--select", selector, "--output", "json"]
+if state_dir:
+    ls_cmd += ["--state", state_dir]
+
+ls = subprocess.run(ls_cmd, capture_output=True, text=True)
 if ls.returncode != 0:
     sys.exit(f"dbt ls failed: {ls.stderr.strip() or ls.stdout.strip()}")
 
@@ -125,12 +130,14 @@ dbt debug --target "$NON_PROD_TARGET" >/dev/null \
   || { echo "prod_guard.sh: cannot connect with target '$NON_PROD_TARGET'" >&2; exit 1; }
 
 # Build with the SAME selector + target the guard just verified.
+# bash 3.2 (macOS /bin/bash) under `set -u` rejects "${EXTRA[@]}" when
+# EXTRA is empty, so guard the expansion with the ${EXTRA[@]+...} form.
 EXTRA=()
 if [ -n "${DBT_STATE_DIR:-}" ]; then
-  EXTRA+=(--defer --state "$DBT_STATE_DIR")
+  EXTRA=(--defer --state "$DBT_STATE_DIR")
 fi
 
-dbt build --select "$SELECTOR" --target "$NON_PROD_TARGET" "${EXTRA[@]}" --fail-fast
+dbt build --select "$SELECTOR" --target "$NON_PROD_TARGET" ${EXTRA[@]+"${EXTRA[@]}"} --fail-fast
 
 # Persist the approved target so later phases can reference it.
 source "$HERE/state.sh" set NON_PROD_TARGET "$NON_PROD_TARGET"

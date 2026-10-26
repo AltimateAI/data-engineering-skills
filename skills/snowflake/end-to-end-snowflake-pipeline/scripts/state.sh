@@ -93,19 +93,24 @@ case "$cmd" in
     tmp="$(mktemp)"
     grep -v "^${var}=" "$STATE_FILE" > "$tmp" 2>/dev/null || true
     # shellcheck disable=SC2059
-    printf "${var}=%q\n" "$val" >> "$tmp"
+    printf "export ${var}=%q\n" "$val" >> "$tmp"
     mv "$tmp" "$STATE_FILE"
     export "$var=$val"
     ;;
 
   validate)
     # `validate VAR1 VAR2 ...` — fail-closed if any is empty.
+    # Use `eval` (POSIX-portable) instead of bash-only `${!v}` indirect
+    # expansion, so this works in zsh (default Claude Code shell on
+    # macOS) and dash too.
     for v in "$@"; do
-      if [ -z "${!v:-}" ]; then
+      eval "val=\${$v:-}"
+      if [ -z "$val" ]; then
         echo "state.sh: required variable \$$v is empty or unset" >&2
         return 1
       fi
     done
+    unset val
     ;;
 
   reset)

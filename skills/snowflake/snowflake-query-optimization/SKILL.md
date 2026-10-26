@@ -121,28 +121,53 @@ must run in **one connected Snowflake session** — not separate
 `snowsql -q` invocations or separate altimate-code calls.
 
 If the only available client is per-call (one shell per statement), use
-`scripts/parity_bench.sh`:
+`scripts/parity_bench.sh` with a **two-step lifecycle**: `materialise`
+writes the scratch tables and returns their names on stdout; the caller
+runs parity + benchmark queries against those names; then the caller
+invokes `cleanup` to drop them. Cleanup is NOT bound to the
+materialise script's `EXIT` — if it were, the tables would be dropped
+immediately when the script exited, before any parity query could run.
+
+Recommended wrapper in the caller's shell, so Ctrl-C still cleans up:
 
 ```bash
 export SNOWFLAKE_RUN_SQL='snowsql -c myconn'   # or an altimate-code wrapper
-export SQO_DEV_SCHEMA='DEV_<USER>'             # NEVER a shared schema (see below)
-scripts/parity_bench.sh /tmp/sqo-orig.sql /tmp/sqo-opt.sql
+export SQO_DEV_SCHEMA='DEV_<USER>'             # NEVER a shared schema (PII)
+
+# 1. Materialise. Captures the two table FQNs printed on stdout.
+eval "$(scripts/parity_bench.sh materialise /tmp/sqo-orig.sql /tmp/sqo-opt.sql)"
+: "${ORIG_TABLE:?materialise failed}"
+: "${OPT_TABLE:?materialise failed}"
+
+# 2. Register cleanup for the caller's exit, so Ctrl-C and errors
+#    still DROP the tables. The caller — not the materialise script —
+#    owns the lifecycle.
+trap 'scripts/parity_bench.sh cleanup "$ORIG_TABLE" "$OPT_TABLE"' EXIT INT TERM
+
+# 3. Run parity and benchmark queries against $ORIG_TABLE / $OPT_TABLE.
+#    ... parity checks ...
+#    ... benchmark ...
+
+# 4. Normal path — the trap on EXIT runs cleanup; no explicit call needed.
 ```
 
-The script addresses three failures the previous "SET parity_orig = ..."
-form had:
+The script addresses the three failures the previous "SET parity_orig
+= ..." form had:
 
 - **Shell-generated `RUN_ID`.** The old form used `SET parity_orig =
   '_SQO_ORIG_' || UUID_STRING()` on session 1 and `DROP TABLE
   IDENTIFIER($parity_orig)` on session 2 — the session variable didn't
   survive, the DROP failed with "session variable does not exist", and
-  the PII-bearing transient tables leaked indefinitely. The script
+  the PII-bearing transient tables leaked indefinitely. `materialise`
   generates `RUN_ID` in the shell (`uuidgen | tr -d -`), builds the
-  table names as literals (`_SQO_ORIG_${RUN_ID}`), and the DROPs always
-  know the full name.
-- **Mandatory cleanup via `trap`.** `trap cleanup EXIT INT TERM` runs
-  the DROPs on success, failure, Ctrl-C, or SIGTERM — nothing short of
-  a kernel panic leaves the tables behind.
+  table names as literals, prints them on stdout, and `cleanup` takes
+  them as arguments — DROP always knows the full name.
+- **Cleanup owned by the caller, not materialise.** The caller's
+  `trap EXIT INT TERM` covers success, Ctrl-C, and SIGTERM.
+  `materialise`'s own internal `trap on_error ERR INT TERM` runs only
+  if the materialise step itself fails mid-flight (so partials get
+  cleaned); on success it clears the trap before returning, leaving
+  the tables alive for the caller.
 - **User dev schema only.** `SQO_DEV_SCHEMA` is REQUIRED (fail-closed).
   Writing parity tables to a shared schema would expose both result
   sets — potentially containing PII — to anyone with `USAGE` on it,

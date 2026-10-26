@@ -72,7 +72,7 @@ Phase 5 ≤90s · Phase 6 ≤90s · Phase 7 ≤25s.
 
 ## Workflow
 
-### Phase 0 — Choose layering (ask ONCE, ≤20s)
+### Phase 0 — Choose layering + initialise state (ask ONCE, ≤20s)
 
 Ask the user:
 
@@ -80,8 +80,31 @@ Ask the user:
 > **1. Medallion** (bronze → silver → gold) — recommended for most analytics workloads.
 > **2. Data Vault 2.0** (hubs / links / satellites) — pick if the source is heavily normalized OLTP and auditability matters.
 
-Default to Medallion if the user doesn't answer in one exchange. Carry
-the choice through every object converted.
+Default to Medallion if the user doesn't answer in one exchange.
+
+**Initialise the run state immediately after the layering decision** —
+Phase 2's conversion step calls `scripts/record_written.sh`, which
+requires an active run. If init were deferred to Phase 4 (user
+confirmation), Phase 2's writes would either fail with "no current
+run" or write to a stale previous run that Phase 4's `init_run.sh`
+then overwrites with an empty manifest.
+
+```bash
+scripts/init_run.sh <Medallion|DataVault> '<migrated_models_selector>' <dbt_root>
+```
+
+What it does (see `scripts/init_run.sh`):
+- `source scripts/state.sh init` — creates a fresh `<run_id>` directory
+  under `$(git rev-parse --git-dir)/skill/mssql_migration/<run_id>/`.
+- Validates layering (`Medallion` or `DataVault`).
+- Computes `TS` once and `ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"`;
+  all later scripts read these from state.
+- Persists `REPO_ROOT`, `DBT_ROOT`, `TS`, `ISOLATED_SCHEMA_PREFIX`,
+  `LAYERING`, `SCOPE_SELECTOR` into state.
+
+The migrated-models selector can be refined in Phase 2 after inventory —
+re-run `init_run.sh` with the updated selector to overwrite the state
+value.
 
 ### Phase 1 — Inventory source (≤45s)
 
@@ -188,26 +211,8 @@ user's confirmation are meaningless on broken SQL.
 
 ### Phase 4 — User confirmation (ask ONCE, ≤15s)
 
-**All stateful logic lives in `scripts/` next to this SKILL.md** —
-every script loads + validates state at the top (`source scripts/state.sh load`
-+ `: "${VAR:?}"`), so a block that runs in a fresh shell can't silently
-produce bad paths or an empty prefix. State is per-run and stored under
-`$(git rev-parse --git-dir)/skill/mssql_migration/<run_id>/` (never
-committed, concurrent runs isolated).
-
-Initialise the run with Phase 4's inputs:
-
-```bash
-scripts/init_run.sh <Medallion|DataVault> '<migrated_models_selector>' <dbt_root>
-```
-
-What it does (see `scripts/init_run.sh`):
-- `source scripts/state.sh init` — creates a fresh `<run_id>`.
-- Validates layering (`Medallion` or `DataVault`).
-- Computes `TS` once and `ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"`;
-  all later scripts read these from state.
-- Persists `REPO_ROOT`, `DBT_ROOT`, `TS`, `ISOLATED_SCHEMA_PREFIX`,
-  `LAYERING`, `SCOPE_SELECTOR` into state.
+State was initialised in Phase 0 and populated through Phase 2
+conversion. Here we only show the summary and ask for a go/no-go.
 
 Before deploying, show:
 - Count of models to be built
@@ -281,12 +286,18 @@ relations. Dump the migrated relation_names via the script (which uses
 dbt 1.7 where `run_results.json` omits `relation_name`):
 
 ```bash
-# Load state so $ISOLATED_SCHEMA_PREFIX is available for the sed step below.
-source scripts/state.sh load
-scripts/state.sh validate ISOLATED_SCHEMA_PREFIX
+# Save the skill-scripts dir BEFORE cd'ing — `scripts/` is next to this
+# SKILL.md, NOT inside the dbt project. The script needs `target/*.json`
+# which lives inside the dbt project, so we cd there, but we still need
+# to call the script via an absolute path.
+SKILL_SCRIPTS="$(cd "$(dirname "$0")/scripts" 2>/dev/null && pwd)"
+# shellcheck disable=SC1091
+source "$SKILL_SCRIPTS/state.sh" load
+# shellcheck disable=SC1091
+source "$SKILL_SCRIPTS/state.sh" validate ISOLATED_SCHEMA_PREFIX
 
 cd "$REPO_ROOT/$DBT_ROOT"
-python3 scripts/parity_relations.py > /tmp/mssql-migrated-relations.txt \
+python3 "$SKILL_SCRIPTS/parity_relations.py" > /tmp/mssql-migrated-relations.txt \
   || { echo "No migrated relations found — did Phase 5 build anything?"; exit 1; }
 
 if command -v altimate-code >/dev/null 2>&1; then

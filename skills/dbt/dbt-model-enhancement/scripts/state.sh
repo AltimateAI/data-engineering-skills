@@ -47,17 +47,21 @@ case "$cmd" in
     tmp="$(mktemp)"
     grep -v "^${var}=" "$STATE_FILE" > "$tmp" 2>/dev/null || true
     # shellcheck disable=SC2059
-    printf "${var}=%q\n" "$val" >> "$tmp"
+    printf "export ${var}=%q\n" "$val" >> "$tmp"
     mv "$tmp" "$STATE_FILE"
     export "$var=$val"
     ;;
   validate)
+    # Use `eval` (POSIX-portable), not bash-only `${!v}` indirect
+    # expansion — zsh and dash reject the latter.
     for v in "$@"; do
-      if [ -z "${!v:-}" ]; then
+      eval "val=\${$v:-}"
+      if [ -z "$val" ]; then
         echo "state.sh: required variable \$$v is empty or unset" >&2
         return 1
       fi
     done
+    unset val
     ;;
   reset)
     root="$(skill_state_root)" || return 1

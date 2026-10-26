@@ -180,7 +180,7 @@ Rules:
   output and pass those paths to `record_written.sh`.
 - Compile locally before moving on:
   ```bash
-  cd "$(git rev-parse --show-toplevel)/$(scripts/state.sh load && echo "$DBT_ROOT")" || true  # or use detect_env.sh output
+  cd "$(git rev-parse --show-toplevel)/$(source scripts/state.sh load && echo "$DBT_ROOT")" || true  # or use detect_env.sh output
   dbt deps >/dev/null 2>&1 || true
   dbt parse && dbt compile --select +<final_model>
   ```
@@ -199,7 +199,7 @@ it:
 ```bash
 # Load state + resolve the DAG path:
 source scripts/state.sh load
-scripts/state.sh validate REPO_ROOT AIRFLOW_DAGS_DIR PIPELINE_NAME
+source scripts/state.sh validate REPO_ROOT AIRFLOW_DAGS_DIR PIPELINE_NAME
 DAG_FILE="$REPO_ROOT/$AIRFLOW_DAGS_DIR/${PIPELINE_NAME}.py"
 # ... Write DAG_FILE contents (see template below) ...
 scripts/record_written.sh "$AIRFLOW_DAGS_DIR/${PIPELINE_NAME}.py"
