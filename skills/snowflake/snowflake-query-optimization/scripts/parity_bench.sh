@@ -55,6 +55,12 @@ _state_file() { printf '%s\n' "$(_state_dir)/state"; }
 # `MY_DB.DEV_USER` and the (optional) quoted forms.
 _valid_ident() {
   # arg 1 = the string; return 0 if valid, 1 otherwise.
+  # Refuse any newline up front — `printf | grep -qE` succeeds if ANY
+  # single line matches, so a multi-line value like
+  # $'DEV\nx; DROP ...; --' would otherwise sail through.
+  case $1 in
+    *$'\n'*|*$'\r'*) return 1 ;;
+  esac
   printf '%s' "$1" | grep -qE '^([A-Za-z_][A-Za-z0-9_$]*|"[^"]+")(\.([A-Za-z_][A-Za-z0-9_$]*|"[^"]+"))?$'
 }
 

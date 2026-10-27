@@ -94,13 +94,25 @@ scripts/init_run.sh <Medallion|DataVault> '<migrated_models_selector>' <dbt_root
 ```
 
 What it does (see `scripts/init_run.sh`):
-- `source scripts/state.sh init` — creates a fresh `<run_id>` directory
-  under `$(git rev-parse --git-dir)/skill/mssql_migration/<run_id>/`.
-- Validates layering (`Medallion` or `DataVault`).
+- Validates layering (`Medallion` or `DataVault`) and the selector
+  **before** touching state.
+- Then `source scripts/state.sh init` — creates a fresh `<run_id>`
+  directory under `$(git rev-parse --git-dir)/skill/mssql_migration/<run_id>/`.
 - Computes `TS` once and `ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"`;
   all later scripts read these from state.
 - Persists `REPO_ROOT`, `DBT_ROOT`, `TS`, `ISOLATED_SCHEMA_PREFIX`,
   `LAYERING`, `SCOPE_SELECTOR` into state.
+
+**If an earlier attempt left stale state** (e.g. you ran `init_run.sh`
+with the wrong layering, or interrupted a previous run), the next
+`init_run.sh` would refuse with `a run is already active`. Either
+reset:
+```bash
+source scripts/state.sh reset
+scripts/init_run.sh …     # retry
+```
+…or re-use the same run (if its state is still correct) and update
+only what changed via `source scripts/state.sh set VAR VALUE`.
 
 The migrated-models selector can be refined in Phase 2 after inventory.
 **Do NOT re-run `init_run.sh`** — that would create a new `<run_id>`,

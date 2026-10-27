@@ -119,7 +119,9 @@ What it does (see `scripts/detect_env.sh` for details):
 - Validates `<pipeline_name>` against `^[a-z][a-z0-9_]{0,63}$` (shell
   metacharacters, path traversal, Jinja all refused — the name later
   becomes a filesystem path and an Airflow `dag_id`, so untrusted
-  ticket text can't be passed through directly).
+  ticket text can't be passed through directly). **All validation runs
+  before `state.sh init`, so a bad input doesn't leave a stale run
+  behind.**
 - Finds the dbt project at the shallowest `dbt_project.yml` not under
   `dbt_packages/` or `target/`; hard-stops on ties.
 - Detects Airflow via a `*.py` under `*/dags/` that actually contains
@@ -127,11 +129,20 @@ What it does (see `scripts/detect_env.sh` for details):
   `prefect.yaml` OR a `@flow` import; Dagster via `definitions.py` /
   `workspace.yaml` / `[tool.dagster]` in `pyproject.toml` (never
   `dagster.yaml`, which is an instance config).
-- Writes `REPO_ROOT`, `DBT_ROOT`, `ORCHESTRATOR`, `AIRFLOW_DAGS_DIR`,
-  `GH_AUTH_OK`, `PIPELINE_NAME` to the per-run state file under
+- Then initialises the run and writes `REPO_ROOT`, `DBT_ROOT`,
+  `ORCHESTRATOR`, `AIRFLOW_DAGS_DIR`, `GH_AUTH_OK`, `PIPELINE_NAME`,
+  `SKILL_DIR` to the per-run state file under
   `$(git rev-parse --git-dir)/skill/pipeline/<run_id>/state`. The git
-  dir is not committed, so state is never checked in. Concurrent runs
-  get distinct `<run_id>`s.
+  dir is not committed, so state is never checked in.
+
+**Recovering from a stuck earlier attempt.** If a prior run left state
+behind (interrupted script, abandoned branch), `detect_env.sh` would
+refuse the second init with `a run is already active`. Reset first:
+
+```bash
+source scripts/state.sh reset
+scripts/detect_env.sh <pipeline_name>   # retry
+```
 
 Decide:
 - **Orchestrator**: `ORCHESTRATOR` is always one of `airflow|prefect|dagster|none`.
@@ -202,7 +213,14 @@ source scripts/state.sh load
 source scripts/state.sh validate REPO_ROOT AIRFLOW_DAGS_DIR PIPELINE_NAME
 DAG_FILE="$REPO_ROOT/$AIRFLOW_DAGS_DIR/${PIPELINE_NAME}.py"
 # ... Write DAG_FILE contents (see template below) ...
-scripts/record_written.sh "$AIRFLOW_DAGS_DIR/${PIPELINE_NAME}.py"
+#
+# IMPORTANT: pass the ABSOLUTE path to record_written.sh. AIRFLOW_DAGS_DIR
+# is already repo-root-relative. If you pass that bare relative path, the
+# script interprets it as DBT_ROOT-relative and records
+# "<DBT_ROOT>/airflow/dags/<name>.py", which stage.sh then can't find.
+# Passing the absolute path makes the script strip $REPO_ROOT/ and store
+# "airflow/dags/<name>.py" verbatim.
+scripts/record_written.sh "$DAG_FILE"
 ```
 
 **Before writing a DAG, read a sibling DAG and mirror its operator

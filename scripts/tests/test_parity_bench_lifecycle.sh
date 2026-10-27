@@ -64,6 +64,13 @@ MOCK
     exit 1
   fi
 
+  # 4b) Multi-line value refused — `printf | grep -qE` would accept
+  #     if ANY line matched; the explicit newline-reject fixes that.
+  if SQO_DEV_SCHEMA=$'DEV\nx; DROP ...; --' ./parity_bench.sh materialise orig.sql opt.sql 2>/dev/null; then
+    echo "FAIL: multi-line SQO_DEV_SCHEMA was accepted"
+    exit 1
+  fi
+
   # 5) cleanup drops tables and removes state
   ./parity_bench.sh cleanup >/dev/null 2>&1 || { echo "FAIL: cleanup failed"; exit 1; }
   if ./parity_bench.sh names 2>/dev/null; then

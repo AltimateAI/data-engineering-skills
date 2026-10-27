@@ -12,8 +12,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# shellcheck disable=SC1091
-source "$SCRIPT_DIR/state.sh" init
+# ---- Validate all inputs BEFORE touching state ------------------------
+# `state.sh init` creates a `current_run` pointer and now refuses a
+# second init without --force. If we init first and then die on bad
+# input, every retry hits "a run is already active". Validate everything
+# we can up front, so a typo'd pipeline name or an ambiguous dbt
+# project doesn't leave a stale run behind.
 
 PIPELINE_NAME_RAW="${1:-}"
 if [ -z "$PIPELINE_NAME_RAW" ]; then
@@ -21,13 +25,6 @@ if [ -z "$PIPELINE_NAME_RAW" ]; then
   exit 1
 fi
 
-# Validate: lowercase ascii, digits, underscore, length 1..64.
-# Rejects shell metacharacters, path traversal, Jinja etc.
-case "$PIPELINE_NAME_RAW" in
-  ''|*[![:lower:][:digit:]_]*|*)
-    # fallthrough to regex check below (POSIX case can't do full regex)
-    ;;
-esac
 if ! printf '%s' "$PIPELINE_NAME_RAW" | grep -qE '^[a-z][a-z0-9_]{0,63}$'; then
   echo "detect_env.sh: invalid pipeline name '$PIPELINE_NAME_RAW'" >&2
   echo "  must match ^[a-z][a-z0-9_]{0,63}\$" >&2
@@ -123,6 +120,10 @@ if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 else
   GH_AUTH_OK="0"
 fi
+
+# ---- All inputs validated — safe to init the run now ------------------
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/state.sh" init
 
 # Persist. state.sh set writes `export VAR=%q` so values with spaces survive.
 # shellcheck disable=SC1091

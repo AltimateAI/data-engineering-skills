@@ -17,8 +17,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# shellcheck disable=SC1091
-source "$SCRIPT_DIR/state.sh" init
+# ---- Validate all inputs BEFORE touching state ------------------------
+# `state.sh init` creates a `current_run` pointer and refuses a second
+# init without --force. If we init first and then die on bad input,
+# every retry hits "a run is already active". Validate up front.
 
 LAYERING="${1:?layering required (Medallion|DataVault)}"
 SCOPE_SELECTOR_RAW="${2:?scope selector required}"
@@ -35,10 +37,18 @@ esac
 SCOPE_SELECTOR="$(printf '%s' "$SCOPE_SELECTOR_RAW" | tr ',' ' ' | tr -s '[:space:]' ' ')"
 SCOPE_SELECTOR="${SCOPE_SELECTOR# }"
 SCOPE_SELECTOR="${SCOPE_SELECTOR% }"
+if [ -z "$SCOPE_SELECTOR" ]; then
+  echo "init_run.sh: scope selector was empty after normalisation" >&2
+  exit 1
+fi
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 TS="$(date +%Y%m%d_%H%M%S)"
 ISOLATED_SCHEMA_PREFIX="MIGRATION_${TS}"
+
+# ---- All inputs validated — init the run now --------------------------
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/state.sh" init
 
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/state.sh" set REPO_ROOT              "$REPO_ROOT"
