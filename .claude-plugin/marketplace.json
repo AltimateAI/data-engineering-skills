@@ -21,7 +21,9 @@
         "./skills/dbt/documenting-dbt-models",
         "./skills/dbt/migrating-sql-to-dbt",
         "./skills/dbt/refactoring-dbt-models",
-        "./skills/dbt/developing-incremental-models"
+        "./skills/dbt/developing-incremental-models",
+        "./skills/dbt/dbt-model-enhancement",
+        "./skills/dbt/mssql-to-snowflake-dbt-migration"
       ]
     },
     {
@@ -33,7 +35,9 @@
         "./skills/snowflake/optimizing-query-by-id",
         "./skills/snowflake/optimizing-query-text",
         "./skills/snowflake/finding-expensive-queries",
-        "./skills/snowflake/snowflake-dbt-model-refactoring"
+        "./skills/snowflake/snowflake-dbt-model-refactoring",
+        "./skills/snowflake/snowflake-query-optimization",
+        "./skills/snowflake/end-to-end-snowflake-pipeline"
       ]
     },
     {
